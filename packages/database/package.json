@@ -1,0 +1,33 @@
+{
+  "name": "@codeca/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./schema": { "types": "./dist/schema.js", "default": "./dist/schema.js" }
+  },
+  "files": ["dist", "migrations"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "generate": "drizzle-kit generate",
+    "migrate": "node --env-file-if-exists=../../.env ./dist/cli/migrate.js",
+    "seed": "node --env-file-if-exists=../../.env ./dist/cli/seed.js",
+    "studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@codeca/shared": "workspace:*",
+    "@neondatabase/serverless": "^1.2.0",
+    "drizzle-orm": "^0.45.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.13",
+    "@types/node": "^22.10.2",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "~5.9.3"
+  }
+}

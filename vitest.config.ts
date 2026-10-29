@@ -10,6 +10,8 @@ const resolve = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
+      // O alias mais especifico vem primeiro.
+      '@codeca/shared/server': resolve('./packages/shared/src/server/index.ts'),
       '@codeca/shared': resolve('./packages/shared/src/index.ts'),
       '@codeca/database': resolve('./packages/database/src/index.ts'),
       '@codeca/ui': resolve('./packages/ui/src/index.ts'),
