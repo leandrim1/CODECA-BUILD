@@ -54,8 +54,12 @@ import {
  * As consultas da API filtram por `tenant_id` resolvido no servidor.
  */
 
-const enumValues = <T extends readonly string[]>(values: T): [string, ...string[]] =>
-  values as unknown as [string, ...string[]];
+/**
+ * Repassa a tupla de literais ao `pgEnum` preservando a uniao de tipos, para
+ * que as colunas sejam tipadas com os valores exatos e nao com `string`.
+ */
+const enumValues = <T extends readonly [string, ...string[]]>(values: T): [T[number], ...T[number][]] =>
+  values as unknown as [T[number], ...T[number][]];
 
 // ------------------------------------------------------------------- enums
 
