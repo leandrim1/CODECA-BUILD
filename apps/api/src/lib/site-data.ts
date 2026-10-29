@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, isNotNull, schema, type Database } from '@codeca/database';
 import {
   coercePageLayout,
+  decidePublication,
   formatPublicAddress,
   isPlatformHost,
   normalizeDomain,
@@ -56,14 +57,51 @@ export interface ResolvedHost {
 }
 
 /**
+ * Decide, pela assinatura, se o site da empresa pode ser servido.
+ *
+ * Usa a mesma funcao pura do painel e dos webhooks, avaliada com o relogio
+ * desta requisicao: assim um periodo de tolerancia que venceu suspende o site
+ * sem depender de nenhum job ter rodado antes.
+ *
+ * Empresa sem assinatura registrada continua publicando: e uma inconsistencia
+ * de dados, e tirar sites do ar por causa dela seria pior do que mante-los.
+ */
+async function publicationAllowedForTenant(db: Database, tenantId: string, now: Date): Promise<boolean> {
+  const [row] = await db
+    .select({
+      status: schema.subscriptions.status,
+      accessUntil: schema.subscriptions.accessUntil,
+      gracePeriodDays: schema.subscriptions.gracePeriodDays,
+      adminHold: schema.subscriptions.adminHold,
+      disputeHold: schema.subscriptions.disputeHold,
+    })
+    .from(schema.subscriptions)
+    .where(eq(schema.subscriptions.tenantId, tenantId));
+
+  if (!row) return true;
+
+  return (
+    decidePublication({
+      state: row.status,
+      accessUntil: row.accessUntil,
+      gracePeriodDays: row.gracePeriodDays,
+      adminHold: row.adminHold,
+      disputeHold: row.disputeHold,
+      now,
+    }).publication === 'allowed'
+  );
+}
+
+/**
  * Resolve a empresa a partir do host.
  * Retorna null para hosts da plataforma ou dominios nao verificados.
  */
 export async function resolveTenantByHost(
   db: Database,
   rawHost: string,
-  options: { platformHosts: readonly string[]; allowDevSlug: boolean },
+  options: { platformHosts: readonly string[]; allowDevSlug: boolean; now?: Date },
 ): Promise<ResolvedHost | null> {
+  const now = options.now ?? new Date();
   const host = rawHost.trim().toLowerCase().split(':')[0] ?? '';
   if (!host) return null;
   if (isPlatformHost(host, options.platformHosts)) return null;
@@ -83,7 +121,11 @@ export async function resolveTenantByHost(
           inArray(schema.tenants.status, ['trialing', 'active']),
         ),
       );
-    if (row) return { tenantId: row.tenantId, hostname: row.hostname, viaDevSlug: false };
+    if (row) {
+      // Assinatura pendente, inadimplente, cancelada ou suspensa nao publica.
+      if (!(await publicationAllowedForTenant(db, row.tenantId, now))) return null;
+      return { tenantId: row.tenantId, hostname: row.hostname, viaDevSlug: false };
+    }
   }
 
   // Em desenvolvimento, `<slug>.localhost` abre o site da empresa sem DNS.
@@ -93,7 +135,11 @@ export async function resolveTenantByHost(
       .select({ id: schema.tenants.id })
       .from(schema.tenants)
       .where(eq(schema.tenants.slug, slug));
-    if (row) return { tenantId: row.id, hostname: host, viaDevSlug: true };
+    // O mesmo portao da producao vale aqui, para que o comportamento em
+    // desenvolvimento seja igual ao do site no ar.
+    if (row && (await publicationAllowedForTenant(db, row.id, now))) {
+      return { tenantId: row.id, hostname: host, viaDevSlug: true };
+    }
   }
 
   return null;

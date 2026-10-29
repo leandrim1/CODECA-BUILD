@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { TRIAL_PERIOD_DAYS } from './billing/states.js';
+import type { PlanBillingInput } from './validators/billing.js';
 
 /** Limites e recursos controlados por plano. Verificados sempre no backend. */
 
@@ -42,6 +44,16 @@ export interface PlanSeed {
   description: string;
   priceCents: number;
   limits: PlanLimits;
+  /** Periodicidade e formas de pagamento usadas ao sincronizar com a ValidaPay. */
+  billing: PlanBillingInput;
+}
+
+/**
+ * Um plano gratuito nao pode ser sincronizado como preco na ValidaPay: a API
+ * exige `amount > 0`. Planos sem preco existem apenas na plataforma.
+ */
+export function planIsBillable(plan: { priceCents: number }): boolean {
+  return plan.priceCents > 0;
 }
 
 /** Planos padrao criados pelas migracoes/seed. Editaveis no painel mestre. */
@@ -60,6 +72,13 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
       storageBytes: 200 * MB,
       features: ['multi_page'],
     },
+    // Avaliacao nao e cobrada: nao vira preco na ValidaPay.
+    billing: {
+      recurrenceType: 'MONTHLY',
+      recurrenceInterval: 1,
+      trialDays: TRIAL_PERIOD_DAYS,
+      paymentMethods: ['creditcard'],
+    },
   },
   {
     code: 'essencial',
@@ -75,6 +94,12 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
       storageBytes: 2 * 1024 * MB,
       features: ['custom_domain', 'multi_page', 'version_history', 'lead_export'],
     },
+    billing: {
+      recurrenceType: 'MONTHLY',
+      recurrenceInterval: 1,
+      trialDays: null,
+      paymentMethods: ['creditcard', 'pix_automatico', 'pix'],
+    },
   },
   {
     code: 'profissional',
@@ -89,6 +114,12 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
       maxDomains: 3,
       storageBytes: 10 * 1024 * MB,
       features: [...PLAN_FEATURES],
+    },
+    billing: {
+      recurrenceType: 'MONTHLY',
+      recurrenceInterval: 1,
+      trialDays: null,
+      paymentMethods: ['creditcard', 'pix_automatico', 'pix', 'boleto'],
     },
   },
 ];

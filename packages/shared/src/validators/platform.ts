@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { TENANT_STATUSES } from '../constants.js';
 import { planLimitsSchema } from '../plans.js';
+import { planBillingSchema } from './billing.js';
 import { emailSchema, paginationSchema, personNameSchema, slugSchema, uuidSchema } from './common.js';
 import { PLATFORM_ROLES } from '../roles.js';
 
@@ -10,6 +11,8 @@ export const planInputSchema = z.object({
   description: z.string().trim().max(400).default(''),
   priceCents: z.number().int().min(0).max(100_000_000).default(0),
   limits: planLimitsSchema,
+  /** Periodicidade, avaliacao e formas de pagamento usadas na ValidaPay. */
+  billing: planBillingSchema.prefault({}),
   isPublic: z.boolean().default(true),
   isActive: z.boolean().default(true),
 });

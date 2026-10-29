@@ -3,7 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   Building2,
   ChevronDown,
-  CircleHelp,
+  CreditCard,
   Globe,
   HardHat,
   Image,
@@ -80,7 +80,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/painel/dominio', label: 'Dominio proprio', icon: Globe, capability: 'domains:read' },
       { to: '/painel/seo', label: 'SEO', icon: Search, capability: 'seo:read' },
       { to: '/painel/equipe', label: 'Equipe e usuarios', icon: ShieldCheck, capability: 'members:read' },
-      { to: '/painel/plano', label: 'Plano e assinatura', icon: CircleHelp, capability: 'billing:read' },
+      { to: '/painel/plano', label: 'Plano e assinatura', icon: CreditCard, capability: 'billing:read' },
       { to: '/painel/empresa', label: 'Configuracoes da empresa', icon: Settings, capability: 'tenant:read' },
     ],
   },

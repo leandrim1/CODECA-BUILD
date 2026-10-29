@@ -51,6 +51,28 @@ export const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   MAIL_FROM: z.string().default('Codeca Build <nao-responda@localhost>'),
 
+  /**
+   * Credenciais da ValidaPay (OAuth2 client_credentials). Sem elas, a
+   * contratacao de planos e recusada de forma explicita.
+   */
+  VALIDAPAY_CLIENT_ID: z.string().optional(),
+  VALIDAPAY_CLIENT_SECRET: z.string().optional(),
+  /** Segredo usado para validar a assinatura HMAC dos webhooks. */
+  VALIDAPAY_WEBHOOK_SECRET: z.string().optional(),
+  /** Token estatico opcional, se configurado no cadastro do webhook. */
+  VALIDAPAY_WEBHOOK_ACCESS_TOKEN: z.string().optional(),
+  /** Host da API. Producao por padrao; use o de sandbox para testar. */
+  VALIDAPAY_BASE_URL: z.string().default('https://api.validapay.com.br'),
+  /** Host do OAuth2. Derivado do host da API quando ausente. */
+  VALIDAPAY_AUTH_URL: z.string().optional(),
+  /** Tolerancia do timestamp do webhook, em segundos. */
+  VALIDAPAY_WEBHOOK_TOLERANCE_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
+
+  /** Segredo exigido pelo job de reconciliacao. */
+  BILLING_RECONCILIATION_SECRET: z.string().optional(),
+  /** Dias de tolerancia entre o vencimento e a suspensao do site. */
+  BILLING_GRACE_PERIOD_DAYS: z.coerce.number().int().min(0).max(60).default(5),
+
   /** Define se os cookies exigem HTTPS. Ligado automaticamente em producao. */
   COOKIE_SECURE: z
     .enum(['true', 'false'])
@@ -85,6 +107,12 @@ export interface FeatureFlags {
   vercelDomains: boolean;
   /** Envio real de e-mail disponivel. */
   transactionalEmail: boolean;
+  /** Contratacao de planos na ValidaPay disponivel. */
+  billing: boolean;
+  /** Recebimento de webhooks de pagamento habilitado. */
+  billingWebhooks: boolean;
+  /** Job de reconciliacao habilitado. */
+  billingReconciliation: boolean;
 }
 
 export function featureFlags(env: Env): FeatureFlags {
@@ -92,6 +120,9 @@ export function featureFlags(env: Env): FeatureFlags {
     blobStorage: Boolean(env.BLOB_READ_WRITE_TOKEN),
     vercelDomains: Boolean(env.VERCEL_API_TOKEN && env.VERCEL_PROJECT_ID),
     transactionalEmail: Boolean(env.RESEND_API_KEY),
+    billing: Boolean(env.VALIDAPAY_CLIENT_ID && env.VALIDAPAY_CLIENT_SECRET),
+    billingWebhooks: Boolean(env.VALIDAPAY_WEBHOOK_SECRET),
+    billingReconciliation: Boolean(env.BILLING_RECONCILIATION_SECRET),
   };
 }
 

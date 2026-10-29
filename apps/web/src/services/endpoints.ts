@@ -1,6 +1,8 @@
 import { api, query } from './api.js';
 import type {
   AuditLogRow,
+  BillingOverview,
+  ChargeView,
   DomainRecord,
   FaqRecord,
   LeadNoteRecord,
@@ -21,14 +23,26 @@ import type {
   SessionResponse,
   SupportGrantRow,
   TeamMemberRecord,
+  PlatformSubscriptionRow,
+  ReconcileReportView,
   TenantResponse,
   TestimonialRecord,
+  WebhookEventRow,
 } from '../types/index.js';
 import type {
   EffectivePlan,
   SessionPayload,
 } from '../types/index.js';
-import type { NavigationMenuInput, PageLayout, PlanLimits, PublicSeo, PublicSiteSections, Theme, UsageSnapshot } from '@codeca/shared';
+import type {
+  NavigationMenuInput,
+  PageLayout,
+  PaymentMethodCode,
+  PlanLimits,
+  PublicSeo,
+  PublicSiteSections,
+  Theme,
+  UsageSnapshot,
+} from '@codeca/shared';
 
 /**
  * Endpoints agrupados por recurso.
@@ -328,4 +342,151 @@ export const previewApi = {
     api.get<import('@codeca/shared').PublicSiteData>(
       `/api/public/preview/${tenantId}${query({ path })}`,
     ),
+};
+
+/**
+ * Cobranca da empresa.
+ *
+ * Nenhuma rota aqui envia valor: o cliente escolhe plano e forma de pagamento,
+ * e o preco vem do banco, no servidor.
+ */
+export const billingApi = {
+  overview: (tenantId: string) => api.get<BillingOverview>(`${tenantBase(tenantId)}/billing`),
+  checkout: (tenantId: string, body: { planId: string; paymentMethod: PaymentMethodCode }) =>
+    api.post<{
+      checkoutUrl: string;
+      checkoutSessionId: string;
+      reused: boolean;
+      planName: string;
+      priceLabel: string;
+      paymentMethod: PaymentMethodCode;
+      notice: string | null;
+      message: string;
+    }>(`${tenantBase(tenantId)}/billing/checkout`, body),
+  charges: (tenantId: string, params: Record<string, string | number | undefined> = {}) =>
+    api.get<Paginated<ChargeView>>(`${tenantBase(tenantId)}/billing/charges${query(params)}`),
+  charge: (tenantId: string, chargeId: string) =>
+    api.get<{ charge: ChargeView }>(`${tenantBase(tenantId)}/billing/charges/${chargeId}`),
+  refreshCharge: (tenantId: string, chargeId: string) =>
+    api.post<{ charge: ChargeView }>(`${tenantBase(tenantId)}/billing/charges/${chargeId}/refresh`),
+  refresh: (tenantId: string) =>
+    api.post<{
+      state: string;
+      stateLabel?: string;
+      publicationState: string;
+      synced: boolean;
+      updated?: boolean;
+      divergence?: string | null;
+    }>(`${tenantBase(tenantId)}/billing/refresh`),
+  changePlan: (tenantId: string, body: { planId: string; preview: boolean }) =>
+    api.post<{
+      preview: boolean;
+      planName: string;
+      priceLabel?: string;
+      mode: string | null;
+      chargeNowCents?: number | null;
+      creditCents?: number | null;
+      effectiveCycleNumber?: number | null;
+      warnings?: string[];
+      chargeId?: string | null;
+      message?: string;
+    }>(`${tenantBase(tenantId)}/billing/change-plan`, body),
+  cancel: (tenantId: string, body: { reason: string; mode: 'period_end' | 'immediate' }) =>
+    api.post<{
+      immediate: boolean;
+      effectiveAt: string | null;
+      state: string;
+      stateLabel: string;
+      publicationState: string;
+      message: string;
+    }>(`${tenantBase(tenantId)}/billing/cancel`, body),
+  undoCancel: (tenantId: string) =>
+    api.delete<{ state: string; stateLabel: string; message: string }>(
+      `${tenantBase(tenantId)}/billing/cancel`,
+    ),
+};
+
+/** Cobranca no painel mestre da plataforma. */
+export const platformBillingApi = {
+  overview: () =>
+    api.get<{
+      subscriptions: Record<string, number>;
+      paidLast30Days: { amountCents: number; amountLabel: string; count: number };
+      openCharges: number;
+      webhooks: { failed: number; pending: number };
+      plans: Array<{
+        id: string;
+        code: string;
+        name: string;
+        priceCents: number;
+        priceLabel: string;
+        externalPriceId: string | null;
+        externalSyncedAt: string | null;
+        externalSyncError: string;
+        isActive: boolean;
+        billable: boolean;
+        synced: boolean;
+      }>;
+      provider: {
+        configured: boolean;
+        environment: string | null;
+        webhooksConfigured: boolean;
+        reconciliationConfigured: boolean;
+      };
+    }>('/api/platform/billing/overview'),
+  subscriptions: (params: Record<string, string | number | undefined> = {}) =>
+    api.get<Paginated<PlatformSubscriptionRow>>(`/api/platform/billing/subscriptions${query(params)}`),
+  charges: (params: Record<string, string | number | undefined> = {}) =>
+    api.get<Paginated<ChargeView & { tenantId: string; tenantName: string; tenantSlug: string }>>(
+      `/api/platform/billing/charges${query(params)}`,
+    ),
+  webhooks: (params: Record<string, string | number | undefined> = {}) =>
+    api.get<{ items: WebhookEventRow[]; page: number; pageSize: number }>(
+      `/api/platform/billing/webhooks${query(params)}`,
+    ),
+  replayWebhook: (eventId: string) =>
+    api.post<{ status: string; outcome: string; detail: string; tenantId: string | null }>(
+      '/api/platform/billing/webhooks/replay',
+      { eventId },
+    ),
+  reconcile: (body: { tenantId?: string; force: boolean; limit: number }) =>
+    api.post<ReconcileReportView>('/api/platform/billing/reconcile', body),
+  publicationHold: (body: { tenantId: string; hold: boolean; reason: string }) =>
+    api.post<{
+      publicationState: string;
+      publicationLabel: string;
+      adminHold: boolean;
+      message: string;
+    }>('/api/platform/billing/publication-hold', body),
+  gracePeriod: (body: { tenantId: string; gracePeriodDays: number; reason: string }) =>
+    api.post<{ gracePeriodDays: number; publicationState: string }>(
+      '/api/platform/billing/grace-period',
+      body,
+    ),
+  syncPlan: (planId: string) =>
+    api.post<{
+      planId: string;
+      externalProductId: string;
+      externalPriceId: string;
+      externalCheckoutUrl: string | null;
+    }>(`/api/platform/billing/plans/${planId}/sync`),
+  history: (params: Record<string, string | number | undefined> = {}) =>
+    api.get<{
+      items: Array<{
+        id: string;
+        tenantId: string | null;
+        tenantName: string | null;
+        action: string;
+        source: string;
+        previousState: string;
+        newState: string;
+        previousPublication: string;
+        newPublication: string;
+        reason: string;
+        metadata: Record<string, unknown>;
+        createdAt: string;
+      }>;
+      page: number;
+      pageSize: number;
+    }>(`/api/platform/billing/history${query(params)}`),
 };

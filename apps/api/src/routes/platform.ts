@@ -15,6 +15,7 @@ import {
   AppError,
   auditQuerySchema,
   paginate,
+  planBillingSchema,
   planInputSchema,
   planUpdateSchema,
   platformCreateTenantSchema,
@@ -391,7 +392,19 @@ export function platformRoutes() {
       .groupBy(schema.tenants.planId);
     const byPlan = new Map(counts.map((row) => [row.planId, row.tenants]));
 
-    return ok(c, { plans: rows.map((row) => ({ ...row, tenantCount: byPlan.get(row.id) ?? 0 })) });
+    return ok(c, {
+      plans: rows.map((row) => ({
+        ...row,
+        tenantCount: byPlan.get(row.id) ?? 0,
+        // Planos gratuitos nao viram preco na ValidaPay: a API exige valor > 0.
+        billable: row.priceCents > 0,
+        synced: Boolean(row.externalPriceId),
+      })),
+      provider: {
+        configured: ctx.billing.configured,
+        environment: ctx.billing.configured ? ctx.billing.environment : null,
+      },
+    });
   });
 
   app.post('/plans', requirePlatform('platform:plans:write'), async (c) => {
@@ -418,9 +431,40 @@ export function platformRoutes() {
     const { planId } = parseParams(c, z.object({ planId: uuidSchema }));
     const input = await parseJsonBody(c, planUpdateSchema);
 
+    const [current] = await ctx.db.select().from(schema.plans).where(eq(schema.plans.id, planId));
+    if (!current) throw AppError.notFound('Plano nao encontrado.');
+
+    /**
+     * Preco e periodicidade de um preco recorrente nao sao editaveis no
+     * provedor: mudar o valor exige criar outro preco. Ao detectar essa
+     * mudanca, desfazemos o vinculo para que a proxima sincronizacao crie o
+     * preco novo. As assinaturas em vigor seguem no preco que contrataram ate
+     * trocarem de plano -- o que tambem evita reajuste silencioso.
+     */
+    const currentBilling = planBillingSchema.parse(current.billing);
+    const nextBilling = input.billing ? planBillingSchema.parse(input.billing) : currentBilling;
+    const priceChanged =
+      (input.priceCents !== undefined && input.priceCents !== current.priceCents) ||
+      nextBilling.recurrenceType !== currentBilling.recurrenceType ||
+      nextBilling.recurrenceInterval !== currentBilling.recurrenceInterval ||
+      nextBilling.trialDays !== currentBilling.trialDays;
+    const unlinkPrice = priceChanged && Boolean(current.externalPriceId);
+
     const [row] = await ctx.db
       .update(schema.plans)
-      .set({ ...input, updatedAt: ctx.now() })
+      .set({
+        ...input,
+        ...(unlinkPrice
+          ? {
+              externalPriceId: null,
+              externalCheckoutUrl: null,
+              externalSyncedAt: null,
+              externalSyncError:
+                'Preco ou periodicidade alterados: sincronize o plano para criar o preco novo na ValidaPay.',
+            }
+          : {}),
+        updatedAt: ctx.now(),
+      })
       .where(eq(schema.plans.id, planId))
       .returning();
     if (!row) throw AppError.notFound('Plano nao encontrado.');
@@ -429,10 +473,19 @@ export function platformRoutes() {
       action: AUDIT_ACTIONS.planUpdated,
       entityType: 'plan',
       entityId: planId,
-      metadata: { code: row.code },
+      metadata: { code: row.code, priceChanged, unlinkPrice },
     });
 
-    return ok(c, { plan: row });
+    return ok(c, {
+      plan: row,
+      ...(unlinkPrice
+        ? {
+            notice:
+              'O preco mudou: o vinculo com o preco anterior na ValidaPay foi desfeito. '
+              + 'Sincronize o plano para criar o preco novo. Assinaturas em vigor continuam no preco contratado.',
+          }
+        : {}),
+    });
   });
 
   // ------------------------------------------------------------ dominios

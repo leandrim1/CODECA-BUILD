@@ -87,6 +87,9 @@ Opcionais; cada uma desliga um recurso de forma explicita quando ausente:
 | `BLOB_READ_WRITE_TOKEN` | A biblioteca de imagens informa que o envio esta indisponivel |
 | `VERCEL_API_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`) | Dominios ficam aguardando configuracao externa e nunca sao marcados como ativos |
 | `RESEND_API_KEY` + `MAIL_FROM` | Confirmacao, redefinicao de senha e convites vao para o log do servidor |
+| `VALIDAPAY_CLIENT_ID` + `VALIDAPAY_CLIENT_SECRET` (+ `VALIDAPAY_BASE_URL`) | A contratacao de planos e recusada com mensagem explicita |
+| `VALIDAPAY_WEBHOOK_SECRET` | Os webhooks de pagamento sao recusados (401) |
+| `BILLING_RECONCILIATION_SECRET` | O job de reconciliacao responde 501 e nao roda |
 
 `GET /api/health` devolve esses tres indicadores em `features`, o que permite
 conferir o que esta ativo em um deploy sem abrir o painel.
@@ -120,7 +123,29 @@ Aplique a migracao antes do deploy quando ela so adiciona (coluna nova,
 tabela nova, indice novo) e depois do deploy quando ela remove algo que o
 codigo antigo ainda usa.
 
-## 6. Cache e invalidacao
+## 6. Cron da reconciliacao de cobranca
+
+O `vercel.json` ja agenda o job:
+
+```json
+"crons": [{ "path": "/api/billing/reconcile", "schedule": "23 */2 * * *" }]
+```
+
+A rota exige `Authorization: Bearer <segredo>`. A Vercel envia esse cabecalho
+automaticamente quando a variavel `CRON_SECRET` existe no projeto, por isso
+**defina `CRON_SECRET` com o mesmo valor de
+`BILLING_RECONCILIATION_SECRET`**. Sem isso, o Cron dispara e recebe 401.
+
+O job tem trabalho limitado por execucao (50 assinaturas e 50 cobrancas) para
+caber no tempo da funcao; o que sobra fica para a passagem seguinte. Ele tambem
+pode ser disparado a mao pelo painel mestre, em **Cobranca > Reconciliar agora**.
+
+O webhook de pagamento chega em `/api/webhooks/validapay` e e servido pela mesma
+funcao `api/index.ts`. Ele le o corpo bruto (`c.req.text()`) antes de qualquer
+validacao, porque o HMAC cobre os bytes exatos -- nao ha configuracao adicional
+a fazer na Vercel para isso.
+
+## 7. Cache e invalidacao
 
 As paginas publicas sao renderizadas no servidor e respondem com:
 
@@ -134,7 +159,7 @@ Publicar incrementa `published_version` em `site_settings`, o que muda o ETag de
 todas as paginas daquela empresa e invalida o cache sem tocar em nenhuma outra.
 O painel (`/api/*` e a previa) responde `no-store`.
 
-## 7. Limites a observar
+## 8. Limites a observar
 
 | Limite | Valor configurado | Comentario |
 | --- | --- | --- |
@@ -142,7 +167,7 @@ O painel (`/api/*` e a previa) responde `no-store`.
 | Memoria | 1024 MB | Suficiente para o SSR do site inteiro |
 | Corpo da requisicao | 4,5 MB (limite da plataforma) | O upload limita o arquivo a 4 MB |
 
-## 8. Problemas comuns
+## 9. Problemas comuns
 
 | Sintoma | Causa |
 | --- | --- |
@@ -151,3 +176,5 @@ O painel (`/api/*` e a previa) responde `no-store`.
 | `Configuracao de ambiente invalida` nos logs | Variavel obrigatoria ausente; a mensagem nomeia quais |
 | 401 em toda chamada apos o login | `APP_URL` diferente do dominio acessado: o CORS e o cookie nao batem |
 | `ERR_PNPM_OUTDATED_LOCKFILE` | `pnpm-lock.yaml` nao versionado junto com a mudanca de dependencia |
+| Cron responde 401 | `CRON_SECRET` ausente ou diferente de `BILLING_RECONCILIATION_SECRET` |
+| Webhook da ValidaPay responde 401 | Segredo diferente do cadastrado no painel do provedor |

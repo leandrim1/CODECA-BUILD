@@ -3,6 +3,7 @@ import { featureFlags, parseEnv, type Env, type FeatureFlags } from './env.js';
 import { createBlobStorage, type BlobStorage } from './lib/blob.js';
 import { createDomainProvider, type DomainProvider } from './lib/vercel-domains.js';
 import { createMailer, type Mailer } from './lib/mailer.js';
+import { createBillingProvider, type BillingProvider } from './lib/validapay/provider.js';
 
 /**
  * Dependencias da API reunidas em um unico objeto.
@@ -18,6 +19,8 @@ export interface AppContext {
   blob: BlobStorage;
   domains: DomainProvider;
   mailer: Mailer;
+  /** Cobranca e assinaturas (ValidaPay). */
+  billing: BillingProvider;
   /** Fonte de tempo, substituivel nos testes. */
   now: () => Date;
 }
@@ -28,6 +31,7 @@ export interface CreateContextOptions {
   blob?: BlobStorage;
   domains?: DomainProvider;
   mailer?: Mailer;
+  billing?: BillingProvider;
   now?: () => Date;
 }
 
@@ -40,6 +44,7 @@ export function createContext(options: CreateContextOptions = {}): AppContext {
     blob: options.blob ?? createBlobStorage(env),
     domains: options.domains ?? createDomainProvider(env),
     mailer: options.mailer ?? createMailer(env),
+    billing: options.billing ?? createBillingProvider(env),
     now: options.now ?? (() => new Date()),
   };
 }

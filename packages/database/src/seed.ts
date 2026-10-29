@@ -1,4 +1,11 @@
-import { DEFAULT_PLANS, addressSchema, slugify, updateSeoSchema, themeSchema } from '@codeca/shared';
+import {
+  DEFAULT_GRACE_PERIOD_DAYS,
+  DEFAULT_PLANS,
+  addressSchema,
+  slugify,
+  updateSeoSchema,
+  themeSchema,
+} from '@codeca/shared';
 import { hashPassword } from '@codeca/shared/server';
 import { eq, lt } from 'drizzle-orm';
 import type { Database } from './client.js';
@@ -61,6 +68,7 @@ export async function seedDatabase(db: Database, options: SeedOptions = {}): Pro
         description: plan.description,
         priceCents: plan.priceCents,
         limits: plan.limits,
+        billing: plan.billing,
         isPublic: true,
         isActive: true,
       })
@@ -71,6 +79,7 @@ export async function seedDatabase(db: Database, options: SeedOptions = {}): Pro
           description: plan.description,
           priceCents: plan.priceCents,
           limits: plan.limits,
+          billing: plan.billing,
           updatedAt: new Date(),
         },
       });
@@ -191,12 +200,17 @@ async function seedDemoTenant(
     acceptedAt: new Date(),
   });
 
+  const periodEnd = new Date(Date.now() + 30 * 24 * 3600 * 1000);
   await db.insert(subscriptions).values({
     tenantId: tenant.id,
     planId: plan.id,
     status: 'active',
+    publicationState: 'allowed',
+    paymentMethod: 'creditcard',
     currentPeriodStart: new Date(),
-    currentPeriodEnd: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+    currentPeriodEnd: periodEnd,
+    accessUntil: periodEnd,
+    gracePeriodDays: DEFAULT_GRACE_PERIOD_DAYS,
   });
 
   await provisionTenantDefaults(db, { tenantId: tenant.id, companyName: DEMO_NAME });

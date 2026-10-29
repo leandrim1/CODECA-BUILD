@@ -37,11 +37,12 @@ const LeadsPage = lazy(() => import('./dashboard/LeadsPage.js').then((m) => ({ d
 const DomainsPage = lazy(() => import('./dashboard/DomainsPage.js').then((m) => ({ default: m.DomainsPage })));
 const SeoPage = lazy(() => import('./dashboard/SeoPage.js').then((m) => ({ default: m.SeoPage })));
 const TeamPage = lazy(() => import('./dashboard/TeamPage.js').then((m) => ({ default: m.TeamPage })));
-const PlanPage = lazy(() => import('./dashboard/PlanPage.js').then((m) => ({ default: m.PlanPage })));
+const BillingPage = lazy(() => import('./dashboard/BillingPage.js').then((m) => ({ default: m.BillingPage })));
 const CompanyPage = lazy(() => import('./dashboard/CompanyPage.js').then((m) => ({ default: m.CompanyPage })));
 const PlatformOverviewPage = lazy(() => import('./dashboard/platform/PlatformOverviewPage.js').then((m) => ({ default: m.PlatformOverviewPage })));
 const PlatformTenantsPage = lazy(() => import('./dashboard/platform/PlatformTenantsPage.js').then((m) => ({ default: m.PlatformTenantsPage })));
 const PlatformPlansPage = lazy(() => import('./dashboard/platform/PlatformPlansPage.js').then((m) => ({ default: m.PlatformPlansPage })));
+const PlatformBillingPage = lazy(() => import('./dashboard/platform/PlatformBillingPage.js').then((m) => ({ default: m.PlatformBillingPage })));
 const PlatformDomainsPage = lazy(() => import('./dashboard/platform/PlatformDomainsPage.js').then((m) => ({ default: m.PlatformDomainsPage })));
 const PlatformSupportPage = lazy(() => import('./dashboard/platform/PlatformSupportPage.js').then((m) => ({ default: m.PlatformSupportPage })));
 const PlatformAuditPage = lazy(() => import('./dashboard/platform/PlatformAuditPage.js').then((m) => ({ default: m.PlatformAuditPage })));
@@ -87,7 +88,7 @@ export function App() {
             <Route path="dominio" element={<DomainsPage />} />
             <Route path="seo" element={<SeoPage />} />
             <Route path="equipe" element={<TeamPage />} />
-            <Route path="plano" element={<PlanPage />} />
+            <Route path="plano" element={<BillingPage />} />
             <Route path="empresa" element={<CompanyPage />} />
           </Route>
 
@@ -119,6 +120,7 @@ export function App() {
             <Route index element={<PlatformOverviewPage />} />
             <Route path="empresas" element={<PlatformTenantsPage />} />
             <Route path="planos" element={<PlatformPlansPage />} />
+            <Route path="cobranca" element={<PlatformBillingPage />} />
             <Route path="dominios" element={<PlatformDomainsPage />} />
             <Route path="suporte" element={<PlatformSupportPage />} />
             <Route path="auditoria" element={<PlatformAuditPage />} />

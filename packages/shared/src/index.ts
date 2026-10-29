@@ -5,6 +5,7 @@ export * from './slug.js';
 export * from './domain.js';
 export * from './whatsapp.js';
 export * from './plans.js';
+export * from './billing/index.js';
 export * from './theme.js';
 export * from './formatters.js';
 export * from './site.js';

@@ -1,6 +1,8 @@
 import { and, eq, isNull, provisionTenantDefaults, schema, type Database } from '@codeca/database';
 import {
   AppError,
+  DEFAULT_GRACE_PERIOD_DAYS,
+  TRIAL_PERIOD_DAYS,
   acceptInviteSchema,
   changePasswordSchema,
   loginSchema,
@@ -111,11 +113,19 @@ export function authRoutes() {
         acceptedAt: ctx.now(),
       });
 
+      // A avaliacao ja libera a publicacao: `accessUntil` e o campo que o
+      // renderizador dos sites consulta, e vence sozinho quando o trial acaba.
+      const trialEndsAt = new Date(ctx.now().getTime() + TRIAL_PERIOD_DAYS * 24 * 3600 * 1000);
       await tx.insert(schema.subscriptions).values({
         tenantId: tenant.id,
         planId: trialPlan.id,
         status: 'trialing',
-        trialEndsAt: new Date(ctx.now().getTime() + 14 * 24 * 3600 * 1000),
+        publicationState: 'allowed',
+        trialEndsAt,
+        accessUntil: trialEndsAt,
+        currentPeriodStart: ctx.now(),
+        currentPeriodEnd: trialEndsAt,
+        gracePeriodDays: DEFAULT_GRACE_PERIOD_DAYS,
       });
 
       await provisionTenantDefaults(tx as unknown as Database, {

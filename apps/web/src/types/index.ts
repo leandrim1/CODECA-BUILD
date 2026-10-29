@@ -1,6 +1,10 @@
 import type {
+  BillingState,
+  ChargeState,
   LeadInterestType,
   LeadStatus,
+  PaymentMethodCode,
+  PublicationState,
   PageLayout,
   PlanLimits,
   ProjectCategory,
@@ -447,4 +451,146 @@ export interface SupportGrantRow {
   revokedAt: string | null;
   createdAt: string;
   adminEmail: string;
+}
+
+// ------------------------------------------------------------- cobranca
+
+/** Resumo de cobranca da empresa, como devolvido por `GET /billing`. */
+export interface BillingSubscriptionView {
+  state: BillingState;
+  stateLabel: string;
+  publicationState: PublicationState;
+  publicationLabel: string;
+  publicationMessage: string;
+  inGracePeriod: boolean;
+  graceEndsAt: string | null;
+  gracePeriodDays: number;
+  paymentMethod: PaymentMethodCode | null;
+  paymentMethodLabel: string | null;
+  automaticRenewal: boolean | null;
+  accessUntil: string | null;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  nextChargeAt: string | null;
+  currentCycleNumber: number;
+  currentCycleAmountCents: number | null;
+  trialEndsAt: string | null;
+  cancelAtPeriodEnd: boolean;
+  canceledAt: string | null;
+  cancelReason: string;
+  adminHold: boolean;
+  disputeHold: boolean;
+  lastErrorMessage: string;
+  lastSyncedAt: string | null;
+  checkoutUrl: string | null;
+  pendingPlanId: string | null;
+  externalSubscriptionId: string | null;
+}
+
+export interface ChargeView {
+  id: string;
+  externalChargeId: string;
+  status: ChargeState;
+  statusLabel: string;
+  providerStatus: string;
+  amountCents: number;
+  amountLabel: string;
+  refundedAmountCents: number;
+  paymentMethod: PaymentMethodCode | null;
+  paymentMethodLabel: string | null;
+  cycleNumber: number | null;
+  dueAt: string | null;
+  paidAt: string | null;
+  expiresAt: string | null;
+  canceledAt: string | null;
+  failureReason: string;
+  lastSyncedAt: string | null;
+  createdAt: string;
+}
+
+export interface BillingPlanOption {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  priceCents: number;
+  priceLabel: string;
+  limits: PlanLimits;
+  recurrenceType: string;
+  recurrenceInterval: number;
+  trialDays: number | null;
+  paymentMethods: Array<{
+    code: PaymentMethodCode;
+    label: string;
+    description: string;
+    automatic: boolean;
+  }>;
+  current: boolean;
+  contractable: boolean;
+}
+
+export interface BillingOverview {
+  subscription: BillingSubscriptionView | null;
+  plan: { id: string; code: string; name: string; limits: PlanLimits; overridden: boolean };
+  usage: UsageSnapshot;
+  plans: BillingPlanOption[];
+  charges: ChargeView[];
+  available: boolean;
+  environment: string | null;
+}
+
+export interface PlatformSubscriptionRow {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  tenantSlug: string;
+  tenantStatus: string;
+  planName: string;
+  planCode: string;
+  planPriceLabel: string;
+  state: BillingState;
+  stateLabel: string;
+  providerStatus: string;
+  publicationState: PublicationState;
+  publicationLabel: string;
+  paymentMethod: PaymentMethodCode | null;
+  paymentMethodLabel: string | null;
+  accessUntil: string | null;
+  nextChargeAt: string | null;
+  cancelAtPeriodEnd: boolean;
+  adminHold: boolean;
+  adminHoldReason: string;
+  disputeHold: boolean;
+  gracePeriodDays: number;
+  externalSubscriptionId: string | null;
+  externalCustomerId: string | null;
+  lastSyncedAt: string | null;
+  lastErrorMessage: string;
+}
+
+export interface WebhookEventRow {
+  id: string;
+  externalEventId: string;
+  event: string;
+  status: 'pending' | 'processed' | 'failed' | 'ignored' | 'unresolved';
+  attempt: number | null;
+  processingAttempts: number;
+  tenantId: string | null;
+  externalSubscriptionId: string | null;
+  externalChargeId: string | null;
+  occurredAt: string | null;
+  receivedAt: string;
+  processedAt: string | null;
+  errorMessage: string;
+}
+
+export interface ReconcileReportView {
+  subscriptionsChecked: number;
+  subscriptionsUpdated: number;
+  chargesChecked: number;
+  chargesUpdated: number;
+  publicationsChanged: number;
+  pendingEventsReplayed: number;
+  divergences: Array<{ kind: string; id: string; detail: string }>;
+  failures: Array<{ kind: string; id: string; error: string }>;
 }

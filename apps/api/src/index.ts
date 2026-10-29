@@ -11,5 +11,32 @@ export {
   type DomainProvider,
   type DomainProviderStatus,
 } from './lib/vercel-domains.js';
+export {
+  createBillingProvider,
+  createValidaPayProvider,
+  createUnconfiguredBillingProvider,
+  type BillingProvider,
+  type SyncPlanInput,
+  type SyncPlanResult,
+} from './lib/validapay/provider.js';
+export {
+  createMemoryBillingProvider,
+  type MemoryBillingProvider,
+} from './lib/validapay/memory.js';
+export {
+  verifyWebhookSignature,
+  signWebhookBody,
+  parseSignatureHeader,
+  WEBHOOK_SIGNATURE_HEADER,
+  WEBHOOK_ID_HEADER,
+  WEBHOOK_EVENT_HEADER,
+  WEBHOOK_ATTEMPT_HEADER,
+  type WebhookVerificationResult,
+} from './lib/validapay/webhook.js';
+export type {
+  SubscriptionResponse,
+  ChargeResponse,
+  ChargeStatusResponse,
+} from './lib/validapay/types.js';
 export { AUDIT_ACTIONS } from './lib/audit.js';
 export { SESSION_COOKIE, CSRF_COOKIE, CSRF_HEADER } from './lib/cookies.js';

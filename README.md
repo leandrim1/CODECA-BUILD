@@ -11,6 +11,8 @@ requisicao e renderizados no servidor.
 - **Dados**: Neon PostgreSQL e a fonte de verdade. Nada de dados de negocio em
   `localStorage`/`sessionStorage`.
 - **Arquivos**: Vercel Blob, com o token de escrita somente no servidor.
+- **Pagamentos**: ValidaPay, com as credenciais somente no servidor e o cartao
+  tokenizado na pagina do provedor.
 - **Operacoes sensiveis**: todas no backend. O navegador nunca recebe credencial
   nem decide autorizacao.
 
@@ -23,6 +25,7 @@ requisicao e renderizados no servidor.
 - [Scripts](#scripts)
 - [Testes](#testes)
 - [Implantacao](#implantacao)
+- [Cobranca e assinaturas](#cobranca-e-assinaturas)
 - [Guias detalhados](#guias-detalhados)
 
 ## Stack
@@ -33,6 +36,7 @@ requisicao e renderizados no servidor.
 | API | Hono sobre funcoes Node da Vercel (`api/index.ts`, `api/site.ts`) |
 | Banco | Neon PostgreSQL + Drizzle ORM (driver `neon-serverless`, com transacoes) |
 | Arquivos | Vercel Blob |
+| Pagamentos | ValidaPay (OAuth2 client_credentials, webhooks com HMAC) |
 | Validacao | Zod 4, compartilhada entre cliente e servidor |
 | Testes | Vitest + PGlite (Postgres real em processo) |
 | Hospedagem | Vercel |
@@ -76,6 +80,38 @@ conteudos que deixariam de ser validos.
 4. **Suporte** — `platform_admin` nao ve dados de empresa automaticamente: e
    preciso um registro em `support_access_grants` (motivo, validade, somente
    leitura), e o acesso fica no log de auditoria.
+
+## Cobranca e assinaturas
+
+Cada construtora escolhe um plano mensal e paga uma assinatura para manter o
+site publicado. O detalhe que define o desenho: **a ValidaPay nao cria
+assinaturas por API** -- elas nascem quando uma cobranca recorrente e paga.
+Por isso:
+
+1. o plano cadastrado no painel mestre e sincronizado como produto + preco
+   recorrente (`POST /v1/products`);
+2. a contratacao cria uma sessao de checkout hospedada
+   (`POST /v1/checkout-sessions`) e o cliente paga na pagina da ValidaPay --
+   dados de cartao nunca passam por este servidor;
+3. os webhooks confirmam o pagamento e a plataforma libera a publicacao.
+
+Uma assinatura criada **nao** e uma assinatura paga: enquanto o pagamento nao
+e confirmado ela fica `pending` e o site nao vai ao ar.
+
+| Garantia | Onde |
+| --- | --- |
+| Preco sempre do banco, nunca do navegador | `startSubscriptionSchema` aceita apenas plano e forma de pagamento |
+| Webhook verificado antes de ser lido | HMAC sobre `<t>.<corpo bruto>`, com janela de tolerancia |
+| Evento repetido nao cobra duas vezes | id do evento e id da cobranca unicos, estados monotonicos |
+| Site publicado so com pagamento confirmado | `decidePublication`, avaliada tambem no renderizador |
+| Inadimplencia nao apaga nada | suspensao afeta a publicacao; conteudo e painel permanecem |
+| Divergencia se resolve sozinha | job de reconciliacao (Vercel Cron) |
+
+Renovacao automatica existe em **cartao de credito** e **Pix Automatico** (este
+exige conta ValidaPay PJ e minimo de R$ 4,99). Pix comum e boleto emitem uma
+cobranca por ciclo com **pagamento manual**, e a interface diz isso.
+
+Passo a passo, contratos, eventos e checklists: [docs/validapay.md](docs/validapay.md).
 
 ## Instalacao local
 
@@ -152,6 +188,12 @@ Cobertura por arquivo:
 | Arquivo | Assunto |
 | --- | --- |
 | `tests/integration/flow.test.ts` | Jornada completa: cadastro da empresa -> conteudo -> editor -> publicacao -> dominio -> site no ar -> interessado -> restauracao |
+| `tests/integration/billing-subscriptions.test.ts` | Contratacao, plano inativo, tentativa de manipular o preco, idempotencia, falha da API |
+| `tests/integration/billing-webhooks.test.ts` | Assinatura HMAC, timestamp, reentrega, eventos fora de ordem, estornos, reprocessamento |
+| `tests/integration/billing-isolation.test.ts` | Cobranca entre empresas e publicacao conforme a assinatura |
+| `tests/integration/billing-reconcile.test.ts` | Pagamento sem webhook, divergencias, passagem do tempo, job protegido |
+| `tests/integration/billing-platform.test.ts` | Painel mestre: suspensao com justificativa, tolerancia, sincronizacao de planos |
+| `tests/unit/billing.test.ts` | Conversao de valores, estados, decisao de publicacao, assinatura de webhook |
 | `tests/integration/schema.test.ts` | Migracoes, restricoes, indices unicos parciais |
 | `tests/integration/auth.test.ts` | Cadastro, login, verificacao, recuperacao, sessoes, CSRF |
 | `tests/integration/isolation.test.ts` | Acesso cruzado entre empresas trocando IDs na API |
@@ -175,10 +217,13 @@ Resumo; o passo a passo esta em [docs/vercel.md](docs/vercel.md).
    que e painel e o que e site de cliente.
 4. Configure as variaveis de ambiente do projeto (todas as de `.env.example`).
 5. Crie o store do Vercel Blob ([docs/blob.md](docs/blob.md)).
-6. Aponte o dominio do painel e configure os alvos de DNS que serao mostrados
+6. Configure a ValidaPay: credenciais, webhook e segredo da reconciliacao
+   ([docs/validapay.md](docs/validapay.md)).
+7. Aponte o dominio do painel e configure os alvos de DNS que serao mostrados
    aos clientes ([docs/dominios.md](docs/dominios.md)).
-7. Rode o seed uma vez contra o banco de producao para criar os planos e o
+8. Rode o seed uma vez contra o banco de producao para criar os planos e o
    administrador da plataforma.
+9. No painel mestre, em **Cobranca**, sincronize os planos com a ValidaPay.
 
 ## Guias detalhados
 
@@ -186,5 +231,6 @@ Resumo; o passo a passo esta em [docs/vercel.md](docs/vercel.md).
 - [docs/vercel.md](docs/vercel.md) — build, funcoes, variaveis e reescritas por host
 - [docs/blob.md](docs/blob.md) — armazenamento de arquivos e biblioteca de midia
 - [docs/dominios.md](docs/dominios.md) — dominios proprios, DNS e estados de verificacao
+- [docs/validapay.md](docs/validapay.md) — pagamentos, assinaturas, webhooks e reconciliacao
 - [docs/seguranca.md](docs/seguranca.md) — autenticacao, isolamento, auditoria e segredos
 - [docs/status.md](docs/status.md) — o que esta implementado e o que depende de configuracao externa

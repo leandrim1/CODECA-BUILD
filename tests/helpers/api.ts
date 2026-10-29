@@ -2,12 +2,14 @@ import {
   createApp,
   createSiteApp,
   createContext,
+  createMemoryBillingProvider,
   createMemoryBlobStorage,
   createMemoryMailer,
   createUnconfiguredDomainProvider,
   parseEnv,
   type DomainProvider,
   type MailMessage,
+  type MemoryBillingProvider,
 } from '@codeca/api';
 import { seedDatabase, type Database } from '@codeca/database';
 import { createTestDatabase, type TestDatabase } from './database.js';
@@ -24,8 +26,14 @@ export const TEST_APP_ORIGIN = 'http://app.localhost:5173';
 
 export interface TestApiOptions {
   domains?: DomainProvider;
+  billing?: MemoryBillingProvider;
   now?: () => Date;
 }
+
+/** Segredo do webhook usado nos testes; o mesmo que assina os corpos. */
+export const TEST_WEBHOOK_SECRET = 'segredo-de-webhook-para-testes-com-32-caracteres';
+/** Segredo do job de reconciliacao nos testes. */
+export const TEST_JOB_SECRET = 'segredo-do-job-de-reconciliacao-de-teste';
 
 export interface TestApi {
   db: Database;
@@ -35,6 +43,8 @@ export interface TestApi {
   siteApp: ReturnType<typeof createSiteApp>;
   outbox: MailMessage[];
   blobFiles: ReturnType<typeof createMemoryBlobStorage>['files'];
+  /** Provedor de cobranca controlado pelo teste. Nenhuma cobranca real. */
+  billing: MemoryBillingProvider;
   client: () => TestClient;
   reset: () => Promise<void>;
   close: () => Promise<void>;
@@ -44,6 +54,9 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
   const database = await createTestDatabase();
   const mailer = createMemoryMailer();
   const blob = createMemoryBlobStorage();
+  const billing = options.billing ?? createMemoryBillingProvider(
+    options.now ? { now: options.now } : {},
+  );
 
   const env = parseEnv({
     NODE_ENV: 'test',
@@ -54,6 +67,12 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     PLATFORM_NAME: 'Codeca Build',
     PLATFORM_URL: 'https://codecabuild.test',
     COOKIE_SECURE: 'false',
+    // Credenciais ficticias: o provedor real nunca e chamado nos testes.
+    VALIDAPAY_CLIENT_ID: 'client-de-teste',
+    VALIDAPAY_CLIENT_SECRET: 'segredo-de-teste',
+    VALIDAPAY_WEBHOOK_SECRET: TEST_WEBHOOK_SECRET,
+    VALIDAPAY_BASE_URL: 'https://sandbox.validapay.com.br',
+    BILLING_RECONCILIATION_SECRET: TEST_JOB_SECRET,
   });
 
   const context = createContext({
@@ -62,6 +81,7 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     mailer,
     blob,
     domains: options.domains ?? createUnconfiguredDomainProvider(),
+    billing,
     ...(options.now ? { now: options.now } : {}),
   });
 
@@ -76,11 +96,16 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     siteApp,
     outbox: mailer.outbox,
     blobFiles: blob.files,
+    billing,
     client: () => new TestClient(app),
     reset: async () => {
       await database.reset();
       mailer.outbox.length = 0;
       blob.files.clear();
+      billing.sessions.clear();
+      billing.subscriptions.clear();
+      billing.charges.clear();
+      billing.calls.length = 0;
       await seedDatabase(database.db);
     },
     close: () => database.close(),

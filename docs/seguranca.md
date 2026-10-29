@@ -147,7 +147,43 @@ envio passa por sessao, vinculo com a empresa, permissao, mime permitido,
 tamanho (4 MB) e limite de armazenamento do plano. O caminho gravado e sempre
 `tenants/<tenantId>/...`. Detalhes em [blob.md](blob.md).
 
-## 10. Segredos
+## 10. Pagamentos
+
+`apps/api/src/lib/validapay/`, `apps/api/src/lib/billing/`
+
+- **Nenhum dado de cartao chega ao servidor.** A contratacao usa o checkout
+  hospedado da ValidaPay, onde o cartao e tokenizado no navegador do comprador.
+  Nao ha numero, CVV ou token de cartao em nenhuma tabela, log ou payload desta
+  aplicacao.
+- **O preco nunca vem do navegador.** A entrada da contratacao aceita apenas
+  `planId` e `paymentMethod`; o valor e lido do plano no banco e convertido para
+  reais na fronteira da API. Campos como `priceCents` ou `amount` enviados pelo
+  cliente sao descartados pelo schema -- ha teste.
+- **Credenciais OAuth2 so no servidor.** `VALIDAPAY_CLIENT_ID` e
+  `VALIDAPAY_CLIENT_SECRET` nunca aparecem em variavel `VITE_*`. O
+  `access_token` fica em memoria do processo e nao e persistido.
+- **Webhook autenticado por HMAC.** O corpo bruto e verificado antes de ser
+  interpretado, com `timingSafeEqual` e janela de tolerancia no timestamp
+  (`VALIDAPAY_WEBHOOK_TOLERANCE_SECONDS`). Assinatura invalida responde 401 e
+  nada e gravado.
+- **Idempotencia em tres camadas**: id do evento unico, id da cobranca unico e
+  estados que so avancam. Uma reentrega nao credita periodo nem cobra de novo.
+- **A empresa nunca e deduzida.** O vinculo vem dos nossos registros ou do token
+  opaco que enviamos no checkout -- nunca de e-mail ou documento no corpo do
+  evento. Um `metadata.tenantId` que contradiga o vinculo gravado e ignorado.
+- **Logs sem segredo.** As falhas registram metodo, rota, status e o codigo de
+  erro do provedor; nunca o `client_secret`, o token, a assinatura recebida ou o
+  corpo do evento. A resposta do `POST /auth/token` nunca e ecoada.
+- **Job de reconciliacao protegido** por segredo proprio em `Authorization:
+  Bearer`, comparado em tempo constante. Estar autenticado no painel nao
+  substitui o segredo.
+- **Acao administrativa nao reescreve dinheiro.** Uma suspensao manual grava uma
+  decisao em `admin_hold`, com justificativa e autor, ao lado -- e nao em vez --
+  do estado confirmado pela ValidaPay.
+- **Suspensao nao apaga dados.** Inadimplencia e suspensao afetam a publicacao
+  do site; conteudo, imagens e acesso ao painel permanecem.
+
+## 11. Segredos
 
 - Todas as variaveis sao lidas somente no servidor. Nao existe segredo em
   variavel `VITE_*` — o que o navegador recebe e apenas o bundle do painel.
@@ -158,7 +194,7 @@ tamanho (4 MB) e limite de armazenamento do plano. O caminho gravado e sempre
 - Rotacao: altere na Vercel e faca um novo deploy. Para o Blob e a API da Vercel,
   gere o token novo, troque a variavel, implante e so depois revogue o antigo.
 
-## 11. Logs e auditoria
+## 12. Logs e auditoria
 
 - Os logs **nao** registram senha, token em claro, cookie nem IP em claro (o IP
   e sempre hash). Erros de servidor saem com `requestId`, metodo e caminho.
@@ -168,7 +204,7 @@ tamanho (4 MB) e limite de armazenamento do plano. O caminho gravado e sempre
 - O painel mestre tem a visao global; `admin` e `owner` veem o log da propria
   empresa (`audit:read`).
 
-## 12. Erros
+## 13. Erros
 
 `apps/api/src/middleware/error.ts`, `packages/shared/src/errors.ts`
 
@@ -186,7 +222,7 @@ nunca stack trace para o navegador.
 de configuracao externa (Blob, dominios, e-mail), em vez de responder sucesso
 sem fazer nada.
 
-## 13. Privacidade dos interessados (LGPD)
+## 14. Privacidade dos interessados (LGPD)
 
 - Dados de contato e observacoes internas ficam no painel. O payload publico do
   site **nao** inclui `leads` nem `lead_notes` — so o necessario para renderizar
@@ -202,14 +238,14 @@ sem fazer nada.
   aviso de novo interessado. Como ele e preenchido com o e-mail de quem cadastrou
   a empresa, vale orientar o cliente a trocar por um endereco institucional.
 
-## 14. Backup e recuperacao
+## 15. Backup e recuperacao
 
 Historico continuo do Neon, com restauracao no tempo, e `pg_dump` antes de
 migracoes destrutivas. Procedimento em [neon.md](neon.md#6-backup-e-restauracao).
 Os arquivos no Blob nao sao versionados: um arquivo removido precisa ser
 reenviado.
 
-## 15. O que depende de quem opera
+## 16. O que depende de quem opera
 
 Nem toda defesa cabe no codigo:
 

@@ -109,15 +109,42 @@ Legenda:
 | Permissao global separada | Pronto | concedida explicitamente, registrada em auditoria |
 | Acesso de suporte a dados de empresa | Pronto | exige concessao com motivo e validade, somente leitura |
 
-## Planos e cobranca
+## Planos, cobranca e assinaturas (ValidaPay)
 
 | Item | Status | Observacao |
 | --- | --- | --- |
 | Planos no banco, com limites e recursos | Pronto | Avaliacao, Essencial, Profissional |
 | Verificacao de limites no backend | Pronto | usuarios, imoveis publicados, obras, paginas, dominios, armazenamento |
 | Recursos por plano | Pronto | dominio proprio, historico, exportacao, blocos avancados, SEO avancado, selo |
-| Assinatura por empresa (`subscriptions`) | Pronto | estado, plano, periodo |
-| Cobranca automatica (gateway de pagamento) | Nao implementado | previsto na especificacao; o banco e o app estao preparados para receber |
+| Periodicidade e formas de pagamento por plano | Pronto | editaveis no painel mestre (`plans.billing`) |
+| Sincronizacao do plano como produto + preco recorrente | Pronto, depende de credencial | `POST /v1/products`; plano gratuito nao e sincronizavel (a API exige valor > 0) |
+| Contratacao por sessao de checkout hospedada | Pronto, depende de credencial | `POST /v1/checkout-sessions`; o cartao e tokenizado na pagina da ValidaPay |
+| Preco sempre do banco | Pronto | a entrada aceita apenas plano e forma de pagamento |
+| Idempotencia da contratacao | Pronto | requisicao repetida reaproveita a sessao em aberto (30 min) |
+| Cartao de credito com renovacao automatica | Pronto, depende de credencial | regua de retentativas do provedor |
+| Pix Automatico | Pronto, depende de credencial **e de conta PJ** | exige conta ValidaPay com CNPJ e minimo de R$ 4,99 por cobranca |
+| Pix comum e boleto por ciclo | Pronto, depende de credencial | **pagamento manual**, sem debito automatico; a interface informa isso |
+| Webhook com verificacao HMAC | Pronto, depende de credencial | `t=<ms>,v1=<hmac>` sobre `<t>.<corpo bruto>`, com janela de tolerancia |
+| Processamento idempotente dos eventos | Pronto | id do evento unico, id da cobranca unico, estados monotonicos |
+| Eventos fora de ordem | Pronto | um evento anterior nao desfaz um estado mais novo |
+| Registro durável antes de responder 2xx | Pronto | falha no processamento deixa o evento para retomada |
+| Historico de cobrancas no painel da empresa | Pronto | valor, situacao, forma, datas, motivo da falha |
+| Consulta individual de cobranca | Pronto, depende de credencial | `GET /v1/charges/{id}/status`, sempre no escopo da empresa |
+| Troca de plano com simulacao de pro-rata | Pronto, depende de credencial | `POST /prorata` simula; `PUT /items/{itemId}` aplica |
+| Cancelamento (agendado ou imediato) | Pronto, depende de credencial | quem decide o efeito e a ValidaPay, conforme o periodo pago |
+| Desfazer cancelamento agendado | Pronto, depende de credencial | — |
+| Estorno, contestacao e chargeback | Pronto | estorno total suspende o site para revisao; parcial fica registrado |
+| Controle de publicacao por estado da assinatura | Pronto | funcao pura usada pelo webhook, pelo job, pelo painel e pelo renderizador |
+| Periodo de tolerancia configuravel | Pronto | padrao 5 dias, ajustavel por empresa no painel mestre |
+| Reconciliacao periodica | Pronto, depende de segredo | Vercel Cron a cada 2 horas; recalculo do tempo funciona sem credencial |
+| Painel mestre de cobranca | Pronto | assinaturas, cobrancas, eventos com falha, reprocessar, reconciliar, suspender |
+| Auditoria das decisoes de cobranca | Pronto | `billing_audit_logs` com estado anterior, novo, origem e autor |
+| Emissao de nota fiscal pela ValidaPay | Nao implementado | a API oferece (`emitirNf`, `nfConfigId`); exige configuracao fiscal da conta |
+| Cupons e descontos | Nao implementado | a API oferece (`POST /subscriptions/{id}/coupons`) |
+| Itens adicionais (add-ons) na assinatura | Nao implementado | a API oferece (`POST /subscriptions/{id}/items`); os eventos ja sao tratados |
+| Troca da forma de pagamento de uma assinatura em vigor | Nao implementado | a API oferece (`PUT /subscriptions/{id}/payment-method`) |
+| Troca do dia de vencimento | Nao implementado | a API oferece (`PUT /subscriptions/{id}/due-date`) |
+| Split de pagamento e subcontas | Nao implementado | fora do escopo desta plataforma |
 
 ## Integracoes externas: o que configurar
 
@@ -130,15 +157,22 @@ Legenda:
 | Dominios na Vercel | `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` | dominios ficam em "Aguardando DNS" e nunca viram ativos |
 | Alvos de DNS | `DOMAIN_A_RECORD_IP`, `DOMAIN_CNAME_TARGET` | instrucoes mostram os valores padrao da Vercel, que podem estar desatualizados |
 | E-mail transacional | `RESEND_API_KEY`, `MAIL_FROM` | confirmacao, redefinicao e convites vao para o log do servidor |
+| Pagamentos ValidaPay | `VALIDAPAY_CLIENT_ID`, `VALIDAPAY_CLIENT_SECRET`, `VALIDAPAY_BASE_URL` | a contratacao de planos e recusada com mensagem explicita |
+| Webhooks de pagamento | `VALIDAPAY_WEBHOOK_SECRET` | os eventos sao **recusados** (401) e a ativacao dependeria so da reconciliacao |
+| Reconciliacao automatica | `BILLING_RECONCILIATION_SECRET` (+ `CRON_SECRET` na Vercel) | o job responde 501 e nada roda periodicamente |
 
-`GET /api/health` responde com `features.blobStorage`, `features.vercelDomains`
-e `features.transactionalEmail`, o que permite conferir o que esta ativo em um
+`GET /api/health` responde com `features.blobStorage`, `features.vercelDomains`,
+`features.transactionalEmail`, `features.billing`, `features.billingWebhooks` e
+`features.billingReconciliation`, o que permite conferir o que esta ativo em um
 deploy sem abrir o painel.
 
 ## Testes
 
-202 testes no Vitest; os de integracao rodam contra Postgres real em processo
-(PGlite) com as mesmas migracoes enviadas ao Neon.
+328 testes no Vitest; os de integracao rodam contra Postgres real em processo
+(PGlite) com as mesmas migracoes enviadas ao Neon. Nenhuma cobranca real
+acontece nos testes: a ValidaPay e substituida por um provedor em memoria que
+reproduz o fluxo documentado (incluindo o fato de a assinatura nascer apenas do
+pagamento).
 
 | Area exigida | Onde |
 | --- | --- |
@@ -154,14 +188,27 @@ deploy sem abrir o painel.
 | Acesso ao painel mestre | `integration/rbac.test.ts` |
 | Fluxos principais do editor | `web/editor-fields.test.ts`, `unit/blocks.test.ts` |
 | Fluxo completo, da criacao da empresa ate o site publicado | `integration/flow.test.ts` |
+| Criar assinatura mensal, plano inativo, preco manipulado, erro da API, duplicidade | `integration/billing-subscriptions.test.ts` |
+| Webhook: assinatura invalida, timestamp, reentrega, fora de ordem, falha no banco, reprocesso | `integration/billing-webhooks.test.ts` |
+| Cobrancas: pendente, confirmada, falha, expiracao, cancelamento, estorno | `integration/billing-webhooks.test.ts`, `integration/billing-reconcile.test.ts` |
+| Isolamento da cobranca entre empresas e acesso ao painel mestre | `integration/billing-isolation.test.ts` |
+| Publicacao: pendente, paga, tolerancia, suspensa, reativada, conteudo preservado | `integration/billing-isolation.test.ts` |
+| Divergencia recuperada por reconciliacao | `integration/billing-reconcile.test.ts` |
+| Valores, estados, decisao de publicacao e HMAC do webhook | `unit/billing.test.ts` |
 | Responsividade | `web/editor-fields.test.ts` (CSS e media queries geradas) |
 
 Limites conhecidos da suite, para nao haver ilusao de cobertura:
 
 - **Responsividade** e verificada pelo CSS gerado, nao por renderizacao em
   navegador real. Nao ha teste visual nem de regressao de imagem.
-- **Blob, API de dominios da Vercel e Resend** sao substituidos por duplos nos
-  testes; o caminho real depende de credencial e foi exercitado manualmente.
+- **Blob, API de dominios da Vercel, Resend e ValidaPay** sao substituidos por
+  duplos nos testes; o caminho real depende de credencial. Para a ValidaPay, os
+  corpos enviados foram validados contra o schema oficial de cada rota, e o
+  checklist de sandbox em [validapay.md](validapay.md) cobre o que so da para
+  verificar com credenciais de verdade.
+- **Pix Automatico** nao pode ser exercitado nem em sandbox sem uma conta PJ
+  habilitada; o caminho de recusa (`PJ_ONLY`, valor minimo) tem teste, a
+  autorizacao bancaria em si nao.
 - **Acessibilidade** segue as praticas (HTML semantico, foco visivel, rotulos,
   contraste, navegacao por teclado), mas nao ha auditoria automatizada (axe,
   Lighthouse CI) na suite.
@@ -175,5 +222,7 @@ Limites conhecidos da suite, para nao haver ilusao de cobertura:
 | Erros padronizados | Pronto | `integration_not_configured` quando falta configuracao externa |
 | Backup / restauracao | Pronto como procedimento | historico do Neon + `pg_dump`; ver [neon.md](neon.md) |
 | Reverificacao periodica de dominios | Nao implementado | a reverificacao e manual, pelo botao no painel ou pelo painel mestre |
+| Reconciliacao periodica de cobranca | Pronto, depende de segredo | Vercel Cron; relatorio com divergencias e falhas |
+| Alerta ativo de evento com falha | Pronto, parcial | aparece no painel mestre e no log; nao ha envio de e-mail ou push |
 | Versionamento dos arquivos no Blob | Nao implementado | arquivo removido precisa ser reenviado |
 | Painel de metricas de visitas do site | Nao implementado | nao ha coleta de analytics; use uma ferramenta externa |

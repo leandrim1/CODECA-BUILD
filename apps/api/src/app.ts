@@ -4,6 +4,8 @@ import { ok } from './lib/http.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { cors, securityHeaders } from './middleware/security.js';
 import { authRoutes } from './routes/auth.js';
+import { billingRoutes } from './routes/billing.js';
+import { billingJobRoutes } from './routes/billing-jobs.js';
 import { contentRoutes } from './routes/content.js';
 import { domainRoutes } from './routes/domains.js';
 import { leadRoutes } from './routes/leads.js';
@@ -11,11 +13,13 @@ import { mediaRoutes } from './routes/media.js';
 import { memberRoutes } from './routes/members.js';
 import { pageRoutes } from './routes/pages.js';
 import { platformRoutes } from './routes/platform.js';
+import { platformBillingRoutes } from './routes/platform-billing.js';
 import { projectRoutes } from './routes/projects.js';
 import { propertyRoutes } from './routes/properties.js';
 import { publicRoutes } from './routes/public.js';
 import { renderRoutes } from './routes/render.js';
 import { tenantRoutes } from './routes/tenants.js';
+import { webhookRoutes } from './routes/webhooks.js';
 import { sessionMiddleware } from './middleware/auth.js';
 import type { AppBindings } from './types.js';
 
@@ -59,6 +63,13 @@ export function createApp(options: CreateAppOptions = {}) {
 
   app.route('/auth', authRoutes());
 
+  // Webhooks do provedor de pagamento: publicos, autenticados por assinatura
+  // HMAC do corpo bruto -- nao por sessao nem CSRF.
+  app.route('/webhooks', webhookRoutes());
+
+  // Job de reconciliacao, protegido por segredo proprio (Vercel Cron).
+  app.route('/billing', billingJobRoutes());
+
   // Endpoints publicos dos sites: identificam a empresa pelo dominio.
   app.route('/public', publicRoutes());
 
@@ -77,12 +88,14 @@ export function createApp(options: CreateAppOptions = {}) {
   tenantScoped.route('/', mediaRoutes());
   tenantScoped.route('/', leadRoutes());
   tenantScoped.route('/', domainRoutes());
+  tenantScoped.route('/', billingRoutes());
   app.route('/tenants', tenantScoped);
 
   // Painel mestre da plataforma.
   const platformScoped = new Hono<AppBindings>();
   platformScoped.use('*', sessionMiddleware());
   platformScoped.route('/', platformRoutes());
+  platformScoped.route('/', platformBillingRoutes());
   app.route('/platform', platformScoped);
 
   return app;

@@ -1,6 +1,15 @@
 import { Suspense } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { ArrowLeft, Building2, FileClock, Globe, LayoutDashboard, LifeBuoy, Package } from 'lucide-react';
+import {
+  ArrowLeft,
+  Building2,
+  CreditCard,
+  FileClock,
+  Globe,
+  LayoutDashboard,
+  LifeBuoy,
+  Package,
+} from 'lucide-react';
 import { Spinner, cx } from '@codeca/ui';
 
 /** Moldura do painel mestre, restrito a administradores da plataforma. */
@@ -8,6 +17,7 @@ const ITEMS = [
   { to: '/plataforma', label: 'Visao geral', icon: LayoutDashboard, end: true },
   { to: '/plataforma/empresas', label: 'Empresas', icon: Building2 },
   { to: '/plataforma/planos', label: 'Planos', icon: Package },
+  { to: '/plataforma/cobranca', label: 'Cobranca', icon: CreditCard },
   { to: '/plataforma/dominios', label: 'Dominios', icon: Globe },
   { to: '/plataforma/suporte', label: 'Acesso de suporte', icon: LifeBuoy },
   { to: '/plataforma/auditoria', label: 'Auditoria', icon: FileClock },

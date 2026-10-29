@@ -20,6 +20,7 @@ import type {
   LeadInterestType,
   NavigationMenuInput,
   PageLayout,
+  PlanBillingInput,
   PlanLimits,
   PublicSeo,
   PublicSiteSections,
@@ -43,6 +44,10 @@ import {
   TENANT_STATUSES,
   DOMAIN_STATUSES,
   MEDIA_KINDS,
+  BILLING_STATES,
+  CHARGE_STATES,
+  PAYMENT_METHOD_CODES,
+  PUBLICATION_STATES,
 } from '@codeca/shared';
 
 /**
@@ -88,11 +93,33 @@ export const userTokenTypeEnum = pgEnum('user_token_type', [
   'password_reset',
   'invitation',
 ]);
-export const subscriptionStatusEnum = pgEnum('subscription_status', [
-  'trialing',
-  'active',
-  'past_due',
-  'canceled',
+/**
+ * Estado comercial da assinatura na plataforma. Nao e o status da ValidaPay:
+ * o status cru do provedor fica em `subscriptions.provider_status`.
+ *
+ * O tipo no banco continua chamado `subscription_status`, criado na migracao
+ * inicial: manter o nome permite acrescentar os estados novos com
+ * `ALTER TYPE ... ADD VALUE`, sem reescrever a coluna de uma tabela em uso.
+ */
+export const billingStateEnum = pgEnum('subscription_status', enumValues(BILLING_STATES));
+/** Se o site publico da empresa pode ser servido, e por que nao. */
+export const publicationStateEnum = pgEnum('publication_state', enumValues(PUBLICATION_STATES));
+/** Estado local de uma cobranca, espelhando o do provedor. */
+export const chargeStateEnum = pgEnum('charge_state', enumValues(CHARGE_STATES));
+export const paymentMethodEnum = pgEnum('payment_method', enumValues(PAYMENT_METHOD_CODES));
+export const webhookEventStatusEnum = pgEnum('webhook_event_status', [
+  'pending',
+  'processed',
+  'failed',
+  'ignored',
+  'unresolved',
+]);
+export const billingAuditSourceEnum = pgEnum('billing_audit_source', [
+  'checkout',
+  'webhook',
+  'reconciliation',
+  'admin',
+  'system',
 ]);
 export const robotsPolicyEnum = pgEnum('robots_policy', ['index', 'noindex']);
 export const serviceIconEnum = pgEnum('service_icon', enumValues(SAFE_ICONS));
@@ -115,12 +142,31 @@ export const plans = pgTable(
     description: text('description').notNull().default(''),
     priceCents: integer('price_cents').notNull().default(0),
     limits: jsonb('limits').$type<PlanLimits>().notNull(),
+    /** Periodicidade, avaliacao e formas de pagamento enviadas a ValidaPay. */
+    billing: jsonb('billing').$type<PlanBillingInput>().notNull().default({
+      recurrenceType: 'MONTHLY',
+      recurrenceInterval: 1,
+      trialDays: null,
+      paymentMethods: ['creditcard'],
+    }),
+    /** Produto e preco correspondentes na ValidaPay, criados ao sincronizar. */
+    externalProductId: text('external_product_id'),
+    externalPriceId: text('external_price_id'),
+    externalCheckoutUrl: text('external_checkout_url'),
+    externalSyncedAt: timestamp('external_synced_at', { withTimezone: true }),
+    /** Ultima falha de sincronizacao, sem segredos. */
+    externalSyncError: text('external_sync_error').notNull().default(''),
     isPublic: boolean('is_public').notNull().default(true),
     isActive: boolean('is_active').notNull().default(true),
     createdAt,
     updatedAt,
   },
-  (table) => [uniqueIndex('plans_code_key').on(table.code)],
+  (table) => [
+    uniqueIndex('plans_code_key').on(table.code),
+    uniqueIndex('plans_external_price_key')
+      .on(table.externalPriceId)
+      .where(sql`${table.externalPriceId} is not null`),
+  ],
 );
 
 export const tenants = pgTable(
@@ -267,20 +313,214 @@ export const subscriptions = pgTable(
     planId: uuid('plan_id')
       .notNull()
       .references(() => plans.id, { onDelete: 'restrict' }),
-    status: subscriptionStatusEnum('status').notNull().default('trialing'),
+
+    /** Estado comercial decidido pela plataforma. */
+    status: billingStateEnum('status').notNull().default('trialing'),
+    /** Status cru da ValidaPay, guardado como recebido, sem traducao. */
+    providerStatus: text('provider_status').notNull().default(''),
+    /** Estado da publicacao do site, derivado do estado comercial. */
+    publicationState: publicationStateEnum('publication_state').notNull().default('allowed'),
+
+    paymentMethod: paymentMethodEnum('payment_method'),
     currentPeriodStart: timestamp('current_period_start', { withTimezone: true }),
     currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+    /**
+     * Fim do acesso pago. E o campo que decide a publicacao: avanca somente
+     * quando um pagamento e confirmado ou quando o provedor informa o proximo
+     * ciclo. Nunca e estendido por uma simples criacao de assinatura.
+     */
+    accessUntil: timestamp('access_until', { withTimezone: true }),
+    /** Dias de tolerancia apos `access_until` antes de suspender o site. */
+    gracePeriodDays: smallint('grace_period_days').notNull().default(5),
     trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
+    nextChargeAt: timestamp('next_charge_at', { withTimezone: true }),
+    currentCycleNumber: integer('current_cycle_number').notNull().default(0),
+    /** Valor do ciclo corrente em centavos, como informado pelo provedor. */
+    currentCycleAmountCents: integer('current_cycle_amount_cents'),
+
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    cancelRequestedAt: timestamp('cancel_requested_at', { withTimezone: true }),
+    cancelReason: text('cancel_reason').notNull().default(''),
     canceledAt: timestamp('canceled_at', { withTimezone: true }),
-    /** Reservado para a futura integracao de cobranca. */
+
+    /** Suspensao manual da publicacao pelo painel mestre, com justificativa. */
+    adminHold: boolean('admin_hold').notNull().default(false),
+    adminHoldReason: text('admin_hold_reason').notNull().default(''),
+    adminHoldAt: timestamp('admin_hold_at', { withTimezone: true }),
+    adminHoldByUserId: uuid('admin_hold_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    /** Estorno, contestacao ou chargeback aguardando revisao. */
+    disputeHold: boolean('dispute_hold').notNull().default(false),
+    disputeReason: text('dispute_reason').notNull().default(''),
+
+    /** Plano agendado para o proximo ciclo (downgrade). */
+    pendingPlanId: uuid('pending_plan_id').references(() => plans.id, { onDelete: 'set null' }),
+
     externalCustomerId: text('external_customer_id'),
     externalSubscriptionId: text('external_subscription_id'),
+    externalItemId: text('external_item_id'),
+    externalPriceId: text('external_price_id'),
+    externalCheckoutId: text('external_checkout_id'),
+    /** Sessao de checkout da contratacao em andamento. */
+    checkoutSessionId: text('checkout_session_id'),
+    checkoutUrl: text('checkout_url'),
+    checkoutCreatedAt: timestamp('checkout_created_at', { withTimezone: true }),
+    /**
+     * Token opaco enviado em `metadata` da sessao e devolvido nos eventos.
+     * Permite ligar a assinatura criada pelo provedor a esta empresa sem
+     * confiar em e-mail ou documento.
+     */
+    intentToken: text('intent_token'),
+
+    /** Ultima vez que o estado foi confirmado consultando a ValidaPay. */
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    /** Instante do evento mais recente ja aplicado, para descartar atrasados. */
+    lastEventAt: timestamp('last_event_at', { withTimezone: true }),
+    lastErrorMessage: text('last_error_message').notNull().default(''),
+
     createdAt,
     updatedAt,
   },
   (table) => [
     uniqueIndex('subscriptions_tenant_key').on(table.tenantId),
     index('subscriptions_plan_idx').on(table.planId),
+    index('subscriptions_status_idx').on(table.status),
+    index('subscriptions_sync_idx').on(table.lastSyncedAt),
+    uniqueIndex('subscriptions_external_key')
+      .on(table.externalSubscriptionId)
+      .where(sql`${table.externalSubscriptionId} is not null`),
+    uniqueIndex('subscriptions_intent_key')
+      .on(table.intentToken)
+      .where(sql`${table.intentToken} is not null`),
+  ],
+);
+
+/**
+ * Cobrancas de assinatura.
+ *
+ * Uma linha por cobranca da ValidaPay (`cha_...`), com o identificador externo
+ * unico: e o que torna o processamento de webhooks idempotente e impede que uma
+ * retentativa credite o mesmo pagamento duas vezes.
+ */
+export const charges = pgTable(
+  'charges',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    subscriptionId: uuid('subscription_id').references(() => subscriptions.id, {
+      onDelete: 'set null',
+    }),
+    externalChargeId: text('external_charge_id').notNull(),
+    externalSubscriptionId: text('external_subscription_id'),
+    externalInvoiceId: text('external_invoice_id'),
+    status: chargeStateEnum('status').notNull().default('pending'),
+    providerStatus: text('provider_status').notNull().default(''),
+    amountCents: integer('amount_cents').notNull().default(0),
+    /** Valor efetivamente estornado, quando houver. */
+    refundedAmountCents: integer('refunded_amount_cents').notNull().default(0),
+    paymentMethod: paymentMethodEnum('payment_method'),
+    cycleNumber: integer('cycle_number'),
+    description: text('description').notNull().default(''),
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    canceledAt: timestamp('canceled_at', { withTimezone: true }),
+    /** Codigo e motivo da falha informados pela API, sem dados de cartao. */
+    failureCode: text('failure_code').notNull().default(''),
+    failureReason: text('failure_reason').notNull().default(''),
+    /** Numero da tentativa do provedor, quando informado. */
+    attempt: smallint('attempt'),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    lastEventAt: timestamp('last_event_at', { withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('charges_external_key').on(table.externalChargeId),
+    index('charges_tenant_idx').on(table.tenantId, table.createdAt),
+    index('charges_subscription_idx').on(table.subscriptionId),
+    index('charges_status_idx').on(table.status),
+    index('charges_sync_idx').on(table.status, table.lastSyncedAt),
+  ],
+);
+
+/**
+ * Eventos de webhook recebidos.
+ *
+ * O `X-Webhook-Id` entra como chave unica: a ValidaPay entrega *pelo menos uma
+ * vez* e reenvia por 72 horas, portanto o mesmo evento chega mais de uma vez. O
+ * payload fica gravado para reprocessamento e auditoria.
+ */
+export const webhookEvents = pgTable(
+  'webhook_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** `X-Webhook-Id`, ou um identificador derivado quando ausente. */
+    externalEventId: text('external_event_id').notNull(),
+    event: text('event').notNull(),
+    /** Instante informado pelo provedor no corpo do evento. */
+    occurredAt: timestamp('occurred_at', { withTimezone: true }),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    attempt: smallint('attempt'),
+    status: webhookEventStatusEnum('status').notNull().default('pending'),
+    /** Empresa resolvida a partir do evento; nulo quando nao foi possivel. */
+    tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'set null' }),
+    externalSubscriptionId: text('external_subscription_id'),
+    externalChargeId: text('external_charge_id'),
+    /** Corpo recebido, como JSON. Nao guarda cabecalhos nem assinatura. */
+    payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+    processingAttempts: smallint('processing_attempts').notNull().default(0),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+    /** Mensagem de erro sanitizada da ultima tentativa. */
+    errorMessage: text('error_message').notNull().default(''),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('webhook_events_external_key').on(table.externalEventId),
+    index('webhook_events_status_idx').on(table.status, table.receivedAt),
+    index('webhook_events_tenant_idx').on(table.tenantId),
+    index('webhook_events_subscription_idx').on(table.externalSubscriptionId),
+  ],
+);
+
+/**
+ * Historico das decisoes de cobranca e publicacao.
+ *
+ * Separa de proposito a acao administrativa do estado externo: uma suspensao
+ * manual nao reescreve o que a ValidaPay confirmou, apenas registra a decisao.
+ */
+export const billingAuditLogs = pgTable(
+  'billing_audit_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
+    subscriptionId: uuid('subscription_id').references(() => subscriptions.id, {
+      onDelete: 'set null',
+    }),
+    chargeId: uuid('charge_id').references(() => charges.id, { onDelete: 'set null' }),
+    action: text('action').notNull(),
+    source: billingAuditSourceEnum('source').notNull(),
+    /** Usuario responsavel, quando a mudanca partiu de uma pessoa. */
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Evento que originou a mudanca, quando partiu de um webhook. */
+    webhookEventId: uuid('webhook_event_id').references(() => webhookEvents.id, {
+      onDelete: 'set null',
+    }),
+    previousState: text('previous_state').notNull().default(''),
+    newState: text('new_state').notNull().default(''),
+    previousPublication: text('previous_publication').notNull().default(''),
+    newPublication: text('new_publication').notNull().default(''),
+    reason: text('reason').notNull().default(''),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt,
+  },
+  (table) => [
+    index('billing_audit_tenant_idx').on(table.tenantId, table.createdAt),
+    index('billing_audit_action_idx').on(table.action),
   ],
 );
 
