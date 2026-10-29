@@ -1,5 +1,6 @@
 import {
   createApp,
+  createSiteApp,
   createContext,
   createMemoryBlobStorage,
   createMemoryMailer,
@@ -30,6 +31,8 @@ export interface TestApi {
   db: Database;
   database: TestDatabase;
   app: ReturnType<typeof createApp>;
+  /** Aplicacao que serve os sites publicos, usada nos testes de SSR. */
+  siteApp: ReturnType<typeof createSiteApp>;
   outbox: MailMessage[];
   blobFiles: ReturnType<typeof createMemoryBlobStorage>['files'];
   client: () => TestClient;
@@ -63,12 +66,14 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
   });
 
   const app = createApp({ context });
+  const siteApp = createSiteApp({ context });
   await seedDatabase(database.db);
 
   return {
     db: database.db,
     database,
     app,
+    siteApp,
     outbox: mailer.outbox,
     blobFiles: blob.files,
     client: () => new TestClient(app),

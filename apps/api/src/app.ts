@@ -14,6 +14,7 @@ import { platformRoutes } from './routes/platform.js';
 import { projectRoutes } from './routes/projects.js';
 import { propertyRoutes } from './routes/properties.js';
 import { publicRoutes } from './routes/public.js';
+import { renderRoutes } from './routes/render.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { sessionMiddleware } from './middleware/auth.js';
 import type { AppBindings } from './types.js';
@@ -60,6 +61,9 @@ export function createApp(options: CreateAppOptions = {}) {
 
   // Endpoints publicos dos sites: identificam a empresa pelo dominio.
   app.route('/public', publicRoutes());
+
+  // Previa do site no dominio do painel, com a mesma renderizacao do site no ar.
+  app.route('/render', renderRoutes());
 
   // Painel da construtora: sessao obrigatoria e empresa resolvida pela rota.
   const tenantScoped = new Hono<AppBindings>();

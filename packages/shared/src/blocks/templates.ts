@@ -67,6 +67,7 @@ export function defaultPageTemplates(companyName: string): PageTemplate[] {
         ['services', { title: 'Nossos servicos', limit: 6, columns: 3 }],
         ['about', { title: 'Sobre a empresa' }],
         ['testimonials', { title: 'O que dizem nossos clientes', limit: 3 }],
+        ['faq', { title: 'Perguntas frequentes', limit: 6 }],
         ['cta', { title: 'Vamos conversar sobre o seu projeto?', buttons: [{ label: 'Pedir orcamento', href: '/contato', variant: 'secondary', newTab: false }] }],
         ['contact_form', { title: 'Fale com a nossa equipe' }],
         ['footer'],

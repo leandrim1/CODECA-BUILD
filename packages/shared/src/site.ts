@@ -1,4 +1,4 @@
-import type { PageLayout } from './blocks/layout.js';
+import type { PageLayout, PageSection } from './blocks/layout.js';
 import type {
   Currency,
   LeadInterestType,
@@ -241,6 +241,15 @@ export interface PublicSiteData {
   menus: PublicNavigationMenu[];
   pages: Array<Pick<PublicPage, 'id' | 'slug' | 'title' | 'isHome'>>;
   page: PublicPage | null;
+  /**
+   * Cabecalho e rodape publicados na pagina inicial. As paginas de detalhe de
+   * imovel e de obra, e a pagina 404, nao tem layout proprio no editor e
+   * reaproveitam essa moldura para manter a identidade do site.
+   */
+  chrome: {
+    header: PageSection | null;
+    footer: PageSection | null;
+  };
   property: PublicProperty | null;
   project: PublicProject | null;
   properties: PublicProperty[];

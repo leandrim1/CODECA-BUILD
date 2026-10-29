@@ -11,6 +11,8 @@ import {
   type PublicGalleryImage,
   type PublicImage,
   type PublicNavigationMenu,
+  type PageLayout,
+  type PageSection,
   type PublicPage,
   type PublicProject,
   type PublicProperty,
@@ -325,6 +327,8 @@ export async function buildPublicSiteData(
 
   if (route.kind === 'page' && !page) routeKind = 'not_found';
 
+  const chrome = await loadChrome(db, tenantId, pageRows, page, options.preview ?? false);
+
   return {
     context: {
       origin: options.origin,
@@ -345,6 +349,7 @@ export async function buildPublicSiteData(
       isHome: row.isHome,
     })),
     page,
+    chrome,
     property,
     project,
     properties,
@@ -358,6 +363,54 @@ export async function buildPublicSiteData(
     platformName: env.PLATFORM_NAME,
     platformUrl: env.PLATFORM_URL,
   };
+}
+
+
+type PageRowForChrome = {
+  id: string;
+  isHome: boolean;
+  publishedVersionId: string | null;
+  draftLayout: unknown;
+};
+
+/**
+ * Cabecalho e rodape da pagina inicial publicada.
+ *
+ * Quando a pagina atual ja traz essas secoes, reaproveitamos as dela; nas rotas
+ * de detalhe (imovel, obra) e no 404 buscamos na home, que e onde a empresa
+ * configura a moldura do site.
+ */
+async function loadChrome(
+  db: Database,
+  tenantId: string,
+  pageRows: PageRowForChrome[],
+  currentPage: PublicPage | null,
+  preview: boolean,
+): Promise<{ header: PageSection | null; footer: PageSection | null }> {
+  const pick = (layout: PageLayout) => ({
+    header: layout.sections.find((section) => section.type === 'header') ?? null,
+    footer: layout.sections.find((section) => section.type === 'footer') ?? null,
+  });
+
+  if (currentPage) {
+    const own = pick(currentPage.layout);
+    if (own.header || own.footer) return own;
+  }
+
+  const home = pageRows.find((row) => row.isHome);
+  if (!home) return { header: null, footer: null };
+
+  if (preview) return pick(coercePageLayout(home.draftLayout));
+  if (!home.publishedVersionId) return { header: null, footer: null };
+
+  const [version] = await db
+    .select({ layout: schema.pageVersions.layout })
+    .from(schema.pageVersions)
+    .where(
+      and(eq(schema.pageVersions.id, home.publishedVersionId), eq(schema.pageVersions.tenantId, tenantId)),
+    );
+
+  return pick(coercePageLayout(version?.layout));
 }
 
 async function shouldShowPlatformBadge(db: Database, tenantId: string): Promise<boolean> {
