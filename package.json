@@ -1,0 +1,42 @@
+{
+  "name": "codeca-build",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Plataforma SaaS multiempresa para sites de construtoras e incorporadoras",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @codeca/web dev",
+    "build": "pnpm --filter @codeca/web build",
+    "typecheck": "tsc -b tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc -b tsconfig.json",
+    "db:generate": "pnpm --filter @codeca/database generate",
+    "db:migrate": "pnpm --filter @codeca/database migrate",
+    "db:seed": "pnpm --filter @codeca/database seed",
+    "db:studio": "pnpm --filter @codeca/database studio"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.7",
+    "happy-dom": "^21.0.4",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.5.2",
+    "@testing-library/dom": "^10.4.0",
+    "@electric-sql/pglite": "^0.5.13",
+    "dotenv": "^16.4.7"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@tailwindcss/oxide",
+      "unrs-resolver",
+      "rolldown"
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "files": [],
+  "include": [],
+  "comment": "Typecheck de todo o repositorio: use `pnpm typecheck` (constroi pacotes e checa apps)."
+}
