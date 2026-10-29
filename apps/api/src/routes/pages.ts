@@ -102,16 +102,18 @@ export function pageRoutes() {
     const tenant = c.get('tenant');
     const input = await parseJsonBody(c, pageInputSchema);
 
-    const plan = await loadEffectivePlan(ctx.db, tenant.tenantId);
-    assertFeature(plan, 'multi_page');
-    await assertWithinLimit(ctx.db, tenant.tenantId, 'maxPages', { plan });
-
+    // A validacao do endereco vem antes do limite comercial, para que o usuario
+    // receba o erro especifico em vez de um pedido de upgrade.
     const slug = slugify(input.slug);
     if (isReservedPageSlug(slug)) {
       throw AppError.validation('Este endereco e reservado pela plataforma. Escolha outro.', {
         fields: { slug: 'Endereco reservado.' },
       });
     }
+
+    const plan = await loadEffectivePlan(ctx.db, tenant.tenantId);
+    assertFeature(plan, 'multi_page');
+    await assertWithinLimit(ctx.db, tenant.tenantId, 'maxPages', { plan });
     const uniqueSlugValue = await buildUniqueSlug(ctx.db, 'pages', {
       tenantId: tenant.tenantId,
       desired: slug,

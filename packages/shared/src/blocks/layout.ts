@@ -93,6 +93,27 @@ export function parsePageLayout(value: unknown): LayoutParseResult {
   return { ok: true, layout: { schemaVersion: LAYOUT_SCHEMA_VERSION, sections }, issues: [] };
 }
 
+/**
+ * Layout validado secao por secao, incluindo as propriedades especificas de
+ * cada bloco. Usado na escrita (salvar rascunho) para que conteudo invalido --
+ * um link `javascript:`, uma cor fora do padrao, uma propriedade desconhecida --
+ * nunca chegue ao banco, e nao apenas seja barrado na publicacao.
+ */
+export const strictPageLayoutSchema = z.custom<unknown>().transform((value, ctx) => {
+  const result = parsePageLayout(value);
+  if (!result.ok) {
+    for (const issue of result.issues) {
+      const path: Array<string | number> =
+        issue.sectionIndex === null
+          ? issue.path.split('.').filter(Boolean)
+          : ['sections', issue.sectionIndex, ...issue.path.split('.').filter(Boolean)];
+      ctx.addIssue({ code: 'custom', message: issue.message, path });
+    }
+    return z.NEVER;
+  }
+  return result.layout;
+});
+
 /** Versao tolerante: descarta secoes invalidas em vez de falhar. Usada na leitura. */
 export function coercePageLayout(value: unknown): PageLayout {
   const parsed = parsePageLayout(value);

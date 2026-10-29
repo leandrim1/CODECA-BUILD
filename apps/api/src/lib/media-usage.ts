@@ -27,7 +27,10 @@ export async function countMediaReferences(
   mediaId: string,
 ): Promise<MediaUsage> {
   const countOf = sql<number>`cast(count(*) as int)`;
-  const needle = `%"mediaId":"${mediaId}"%`;
+  // O layout e JSON, e `jsonb::text` normaliza o espacamento ("chave": "valor").
+  // Buscar o UUID em si evita depender desse formato; a chance de um UUID
+  // aparecer por acidente em outro campo do layout e desprezivel.
+  const needle = `%${mediaId}%`;
 
   const [propertyCovers] = await db
     .select({ value: countOf })

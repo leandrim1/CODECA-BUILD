@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { pageLayoutSchema } from '../blocks/layout.js';
+import { strictPageLayoutSchema } from '../blocks/layout.js';
 import { PUBLICATION_STATUSES } from '../constants.js';
 import { httpsUrlSchema, slugSchema, uuidSchema } from './common.js';
 import { safeHrefSchema } from '../blocks/primitives.js';
@@ -22,7 +22,7 @@ export const pageUpdateSchema = pageInputSchema.partial();
 
 /** Salva o rascunho da pagina (conteudo em edicao). */
 export const saveDraftSchema = z.object({
-  layout: pageLayoutSchema,
+  layout: strictPageLayoutSchema,
   /** Marca de concorrencia: a versao do rascunho que o editor carregou. */
   baseRevision: z.number().int().min(0).optional(),
 });

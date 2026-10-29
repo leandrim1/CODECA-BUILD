@@ -183,10 +183,15 @@ export class TestClient {
       }
     }
 
-    const envelope = parsed as { data?: T; error?: { code?: string; message?: string } } | null;
+    // Respostas de texto puro (sitemap.xml, robots.txt, CSV) nao usam envelope.
+    const isEnvelope = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed);
+    const envelope = isEnvelope
+      ? (parsed as { data?: T; error?: { code?: string; message?: string } })
+      : null;
+
     return {
       status: response.status,
-      body: (envelope && 'data' in (envelope as object) ? envelope.data : parsed) as T,
+      body: (envelope && 'data' in envelope ? envelope.data : parsed) as T,
       headers: response.headers,
       errorCode: envelope?.error?.code ?? null,
       errorMessage: envelope?.error?.message ?? null,
