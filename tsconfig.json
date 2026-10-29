@@ -1,5 +1,12 @@
 {
-  "files": [],
-  "include": [],
-  "comment": "Typecheck de todo o repositorio: use `pnpm typecheck` (constroi pacotes e checa apps)."
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["node"],
+    "lib": ["ES2023", "DOM"]
+  },
+  "comment": "Checa as funcoes em api/, que a Vercel compila a partir da raiz. Os pacotes e apps tem configuracao propria.",
+  "include": ["api/**/*.ts"]
 }

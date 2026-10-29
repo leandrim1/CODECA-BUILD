@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["vite/client", "node"],
+    "paths": {
+      "@codeca/shared": ["../../packages/shared/src/index.ts"],
+      "@codeca/ui": ["../../packages/ui/src/index.ts"],
+      "@codeca/site-renderer": ["../../packages/site-renderer/src/index.ts"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*", "vite.config.ts"]
+}

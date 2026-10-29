@@ -10,15 +10,21 @@
   },
   "scripts": {
     "dev": "pnpm --filter @codeca/web dev",
-    "build": "pnpm --filter @codeca/web build",
-    "typecheck": "tsc -b tsconfig.json",
+    "build": "pnpm run build:packages && pnpm --filter @codeca/web build",
+    "build:packages": "pnpm --filter @codeca/shared --filter @codeca/database --filter @codeca/ui --filter @codeca/site-renderer --filter @codeca/api build",
+    "typecheck": "pnpm run build:packages && tsc -p tsconfig.json && pnpm --filter @codeca/web typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc -b tsconfig.json",
+    "check": "pnpm run typecheck && pnpm run test",
     "db:generate": "pnpm --filter @codeca/database generate",
     "db:migrate": "pnpm --filter @codeca/database migrate",
     "db:seed": "pnpm --filter @codeca/database seed",
-    "db:studio": "pnpm --filter @codeca/database studio"
+    "db:studio": "pnpm --filter @codeca/database studio",
+    "clean": "rm -rf apps/*/dist packages/*/dist apps/web/.tsbuild && find . -name '*.tsbuildinfo' -not -path './node_modules/*' -delete"
+  },
+  "dependencies": {
+    "@codeca/api": "workspace:*",
+    "hono": "^4.13.14"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.13",

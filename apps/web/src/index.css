@@ -1,0 +1,76 @@
+@import 'tailwindcss';
+
+/* O Tailwind também precisa ver as classes dos pacotes internos. */
+@source '../../../packages/ui/src';
+
+/**
+ * Identidade da plataforma, deliberadamente diferente da identidade dos sites
+ * dos clientes: o painel usa azul institucional e tipografia neutra, enquanto
+ * cada site publicado aplica as cores escolhidas pela construtora.
+ */
+@theme {
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #d9e6ff;
+  --color-brand-200: #bcd3ff;
+  --color-brand-300: #8eb5ff;
+  --color-brand-400: #598cff;
+  --color-brand-500: #3362fb;
+  --color-brand-600: #1d4ed8;
+  --color-brand-700: #1a3fb4;
+  --color-brand-800: #1b3791;
+  --color-brand-900: #1b3375;
+
+  --font-sans: 'Inter var', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-xl: 0.875rem;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-slate-50 font-sans text-slate-800 antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-600;
+  }
+
+  /* Respeita quem prefere menos animacao. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  dialog {
+    max-height: none;
+  }
+}
+
+@layer components {
+  /* Area de conteudo do painel. */
+  .panel-shell {
+    @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8;
+  }
+
+  .link {
+    @apply font-medium text-brand-700 underline decoration-brand-300 underline-offset-2 hover:decoration-brand-600;
+  }
+
+  /* Xadrez para visualizar transparencia na biblioteca de midia. */
+  .checkerboard {
+    background-image:
+      linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+      linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+      linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  }
+}

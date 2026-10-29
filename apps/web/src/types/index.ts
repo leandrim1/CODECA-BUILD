@@ -1,0 +1,450 @@
+import type {
+  LeadInterestType,
+  LeadStatus,
+  PageLayout,
+  PlanLimits,
+  ProjectCategory,
+  ProjectStage,
+  ProjectStatus,
+  PropertyCommercialStatus,
+  PropertyPurpose,
+  PropertyType,
+  PublicationStatus,
+  PublicSeo,
+  PublicSiteSections,
+  SafeIcon,
+  SocialNetwork,
+  TenantRole,
+  TenantStatus,
+  Theme,
+  UsageSnapshot,
+  PlatformRole,
+  TenantCapability,
+  DomainStatus,
+  AddressInput,
+} from '@codeca/shared';
+
+/** Formas das respostas da API, conforme devolvidas pelos endpoints. */
+
+export interface SessionUser {
+  id: string;
+  email: string;
+  name: string;
+  phone: string;
+  platformRole: PlatformRole;
+  emailVerified: boolean;
+}
+
+export interface SessionMembership {
+  tenantId: string;
+  tenantSlug: string;
+  tenantName: string;
+  tenantStatus: TenantStatus;
+  role: TenantRole;
+}
+
+export interface SessionPayload {
+  user: SessionUser;
+  memberships: SessionMembership[];
+  expiresAt: string;
+}
+
+export interface FeatureFlags {
+  blobStorage: boolean;
+  vercelDomains: boolean;
+  transactionalEmail: boolean;
+}
+
+export interface SessionResponse {
+  session: SessionPayload | null;
+  features: FeatureFlags;
+  platform: { name: string; url: string };
+}
+
+export interface EffectivePlan {
+  planId: string;
+  planCode: string;
+  planName: string;
+  limits: PlanLimits;
+  overridden: boolean;
+}
+
+export interface TenantAccess {
+  role: TenantRole;
+  capabilities: TenantCapability[];
+  readOnly: boolean;
+  viaSupportGrant: boolean;
+}
+
+export interface TenantDetail {
+  id: string;
+  slug: string;
+  legalName: string;
+  displayName: string;
+  taxId: string;
+  description: string;
+  foundedYear: number | null;
+  creaNumber: string;
+  status: TenantStatus;
+  contactEmail: string;
+  contactPhone: string;
+  whatsapp: string;
+  whatsappDefaultMessage: string;
+  address: AddressInput;
+  serviceArea: string;
+  businessHours: string;
+  social: Partial<Record<SocialNetwork, string>>;
+  createdAt: string;
+}
+
+export interface SiteSettingsPayload {
+  theme: Theme;
+  sections: PublicSiteSections;
+  seo: PublicSeo;
+  publishedVersion: number;
+  lastPublishedAt: string | null;
+}
+
+export interface TenantResponse {
+  tenant: TenantDetail;
+  settings: SiteSettingsPayload | null;
+  access: TenantAccess;
+  plan: EffectivePlan;
+  usage: UsageSnapshot;
+}
+
+export interface OverviewCounts {
+  total: number;
+  published: number;
+  drafts: number;
+}
+
+export interface OverviewResponse {
+  pages: OverviewCounts;
+  properties: OverviewCounts & { available: number; sold: number };
+  projects: { total: number; published: number; inProgress: number; completed: number };
+  services: { total: number; published: number };
+  leads: { total: number; novos: number; emAtendimento: number; convertidos: number; last30Days: number };
+  media: { total: number; bytes: number };
+  recentLeads: Array<{
+    id: string;
+    name: string;
+    interestType: LeadInterestType;
+    status: LeadStatus;
+    createdAt: string;
+  }>;
+  domains: DomainSummary[];
+  site: { publishedVersion: number; lastPublishedAt: string | null };
+  plan: EffectivePlan;
+  usage: UsageSnapshot;
+}
+
+export interface DomainSummary {
+  id: string;
+  hostname: string;
+  status: DomainStatus;
+  isPrimary: boolean;
+  sslStatus: 'pending' | 'active' | 'error';
+}
+
+export interface DomainRecord extends DomainSummary {
+  statusLabel: string;
+  dnsConfigured: boolean;
+  ownershipVerified: boolean;
+  lastError: string;
+  lastCheckedAt: string | null;
+  verifiedAt: string | null;
+  verificationRecordName: string;
+  verificationRecordValue: string;
+  dns: {
+    domain: string;
+    apex: boolean;
+    records: Array<{ type: 'A' | 'CNAME' | 'TXT'; name: string; value: string; note?: string }>;
+  };
+}
+
+export interface Paginated<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface MediaRef {
+  id: string;
+  url: string;
+  alt: string;
+  width: number | null;
+  height: number | null;
+}
+
+export interface PropertyRecord {
+  id: string;
+  slug: string;
+  title: string;
+  reference: string;
+  description: string;
+  shortDescription: string;
+  type: PropertyType;
+  purpose: PropertyPurpose;
+  price: number | null;
+  priceOnRequest: boolean;
+  condoFee: number | null;
+  iptu: number | null;
+  currency: 'BRL' | 'USD' | 'EUR';
+  address: AddressInput;
+  builtAreaM2: number | null;
+  landAreaM2: number | null;
+  bedrooms: number | null;
+  suites: number | null;
+  bathrooms: number | null;
+  parkingSpots: number | null;
+  floor: number | null;
+  features: string[];
+  coverImageId: string | null;
+  coverImage?: MediaRef | null;
+  gallery?: MediaRef[];
+  publicationStatus: PublicationStatus;
+  commercialStatus: PropertyCommercialStatus;
+  featured: boolean;
+  deliveryDate: string | null;
+  videoUrl: string;
+  seoTitle: string;
+  seoDescription: string;
+  sortOrder: number;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectRecord {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  shortDescription: string;
+  category: ProjectCategory;
+  status: ProjectStatus;
+  stage: ProjectStage;
+  progressPercent: number | null;
+  city: string;
+  state: string;
+  neighborhood: string;
+  showLocation: boolean;
+  startDate: string | null;
+  expectedCompletionDate: string | null;
+  completedDate: string | null;
+  coverImageId: string | null;
+  coverImage?: MediaRef | null;
+  gallery?: MediaRef[];
+  publicationStatus: PublicationStatus;
+  featured: boolean;
+  seoTitle: string;
+  seoDescription: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectUpdateRecord {
+  id: string;
+  title: string;
+  note: string;
+  stage: ProjectStage | null;
+  progressPercent: number | null;
+  recordedAt: string | null;
+  images: MediaRef[];
+  createdAt: string;
+}
+
+export interface ServiceRecord {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  description: string;
+  icon: SafeIcon;
+  imageId: string | null;
+  image?: MediaRef | null;
+  highlights: string[];
+  publicationStatus: PublicationStatus;
+  sortOrder: number;
+  seoTitle: string;
+  seoDescription: string;
+}
+
+export interface TestimonialRecord {
+  id: string;
+  authorName: string;
+  authorRole: string;
+  content: string;
+  rating: number | null;
+  photoId: string | null;
+  photo?: MediaRef | null;
+  relatedProjectId: string | null;
+  authorizationConfirmed: boolean;
+  authorizationNote: string;
+  publicationStatus: PublicationStatus;
+  sortOrder: number;
+}
+
+export interface TeamMemberRecord {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  photoId: string | null;
+  photo?: MediaRef | null;
+  email: string;
+  social: Partial<Record<SocialNetwork, string>>;
+  publicationStatus: PublicationStatus;
+  sortOrder: number;
+}
+
+export interface FaqRecord {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+  publicationStatus: PublicationStatus;
+  sortOrder: number;
+}
+
+export interface MediaAssetRecord {
+  id: string;
+  blobUrl: string;
+  blobPathname: string;
+  downloadUrl: string;
+  fileName: string;
+  mimeType: string;
+  kind: 'image' | 'document';
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+  alt: string;
+  title: string;
+  tag: string;
+  createdAt: string;
+}
+
+export interface PageSummary {
+  id: string;
+  slug: string;
+  title: string;
+  isHome: boolean;
+  status: PublicationStatus;
+  showInNavigation: boolean;
+  sortOrder: number;
+  draftRevision: number;
+  draftUpdatedAt: string;
+  publishedAt: string | null;
+  publishedVersionId: string | null;
+  updatedAt: string;
+}
+
+export interface PageDetail extends PageSummary {
+  draftLayout: PageLayout;
+  seoTitle: string;
+  seoDescription: string;
+  seoImageUrl: string;
+  canonicalUrl: string;
+  robots: 'index' | 'noindex';
+}
+
+export interface PageVersionSummary {
+  id: string;
+  version: number;
+  note: string;
+  createdAt: string;
+  authorName: string | null;
+  authorEmail: string | null;
+}
+
+export interface LeadRecord {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  interestType: LeadInterestType;
+  message: string;
+  status: LeadStatus;
+  sourcePath: string;
+  assignedToUserId: string | null;
+  propertyId: string | null;
+  projectId: string | null;
+  serviceId: string | null;
+  propertyTitle: string | null;
+  projectTitle: string | null;
+  createdAt: string;
+  consentAt?: string;
+}
+
+export interface LeadNoteRecord {
+  id: string;
+  note: string;
+  createdAt: string;
+  authorName: string | null;
+}
+
+export interface MemberRecord {
+  membershipId: string;
+  role: TenantRole;
+  status: 'invited' | 'active' | 'disabled';
+  acceptedAt: string | null;
+  createdAt: string;
+  userId: string;
+  name: string;
+  email: string;
+  emailVerifiedAt: string | null;
+  lastLoginAt: string | null;
+}
+
+export interface PlanRecord {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  priceCents: number;
+  limits: PlanLimits;
+  isPublic: boolean;
+  isActive: boolean;
+  tenantCount: number;
+}
+
+export interface PlatformTenantRow {
+  id: string;
+  slug: string;
+  displayName: string;
+  legalName: string;
+  status: TenantStatus;
+  createdAt: string;
+  suspendedAt: string | null;
+  planCode: string;
+  planName: string;
+  hasOverrides: boolean;
+}
+
+export interface AuditLogRow {
+  id: string;
+  tenantId: string | null;
+  actorUserId: string | null;
+  actorEmail: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface SupportGrantRow {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  reason: string;
+  readOnly: boolean;
+  expiresAt: string;
+  revokedAt: string | null;
+  createdAt: string;
+  adminEmail: string;
+}
