@@ -788,6 +788,7 @@ describe('eventos sem empresa e reprocessamento', () => {
     });
     await api.db.insert(schema.charges).values({
       tenantId: other.tenantId,
+      siteId: other.siteId,
       externalChargeId: CHARGE_ID,
       status: 'pending',
       amountCents: 1000,

@@ -178,6 +178,7 @@ export function propertyRoutes() {
       .insert(schema.properties)
       .values({
         tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
         slug,
         title: input.title,
         reference: input.reference,

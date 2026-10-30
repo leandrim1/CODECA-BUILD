@@ -1,4 +1,5 @@
 import {
+  createPrimarySite,
   and,
   desc,
   eq,
@@ -270,8 +271,15 @@ export function platformRoutes() {
         status: 'invited',
       });
 
+      // Empresa cadastrada pelo painel mestre tambem nasce com um site.
+      const site = await createPrimarySite(tx as unknown as Database, {
+        tenantId: tenant.id,
+        name: input.displayName,
+      });
+
       await tx.insert(schema.subscriptions).values({
         tenantId: tenant.id,
+        siteId: site.id,
         planId: plan.id,
         status: 'trialing',
       });

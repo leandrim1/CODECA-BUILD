@@ -10,7 +10,7 @@ import {
   type MailMessage,
   type MemoryBillingProvider,
 } from '@codeca/api';
-import { schema, seedDatabase, type Database } from '@codeca/database';
+import { and, eq, schema, seedDatabase, type Database } from '@codeca/database';
 import { createTestDatabase, type TestDatabase } from './database.js';
 
 /**
@@ -246,6 +246,8 @@ export class TestClient {
 export interface RegisteredAccount {
   client: TestClient;
   tenantId: string;
+  /** Site principal da empresa. Todo conteudo pertence a ele. */
+  siteId: string;
   userId: string;
   email: string;
   password: string;
@@ -277,13 +279,26 @@ export async function registerAccount(
     memberships: Array<{ tenantId: string }>;
   };
 
-  return {
-    client,
-    tenantId: session.memberships[0]!.tenantId,
-    userId: session.user.id,
-    email: input.email,
-    password,
-  };
+  const tenantId = session.memberships[0]!.tenantId;
+  const siteId = await primarySiteId(api, tenantId);
+
+  return { client, tenantId, siteId, userId: session.user.id, email: input.email, password };
+}
+
+/**
+ * Site principal de uma empresa.
+ *
+ * Os testes que gravam direto no banco precisam dele: o par
+ * `(site_id, tenant_id)` e conferido pelo banco, entao uma insercao sem site
+ * -- ou com o site de outra empresa -- e recusada.
+ */
+export async function primarySiteId(api: TestApi, tenantId: string): Promise<string> {
+  const [row] = await api.db
+    .select({ id: schema.sites.id })
+    .from(schema.sites)
+    .where(and(eq(schema.sites.tenantId, tenantId), eq(schema.sites.isPrimary, true)));
+  if (!row) throw new Error(`Empresa ${tenantId} nao tem site principal.`);
+  return row.id;
 }
 
 /** Confirma o e-mail usando o link enviado, como faria o usuario. */

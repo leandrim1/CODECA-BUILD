@@ -1,4 +1,4 @@
-import { and, eq, schema, type Database } from '@codeca/database';
+import { and, eq, findPrimarySiteId, schema, type Database } from '@codeca/database';
 import {
   AppError,
   chargeCountsAsPaid,
@@ -305,6 +305,11 @@ export async function refreshPublication(
 
 export interface UpsertChargeInput {
   tenantId: string;
+  /**
+   * Site cobrado. A assinatura e do site, nao da empresa: uma empresa com dois
+   * sites pode ter um no plano pago e o outro nao. Resolvido aqui a partir da
+   * propria assinatura, para nenhum chamador poder cruzar os dois.
+   */
   subscriptionId: string | null;
   externalChargeId: string;
   externalSubscriptionId?: string | null;
@@ -348,6 +353,29 @@ export interface UpsertChargeResult {
  * portanto um evento repetido ou atrasado nao reabre uma cobranca paga nem
  * credita o periodo outra vez.
  */
+/**
+ * Site a que a cobranca pertence.
+ *
+ * Vem da assinatura quando ela existe; sem assinatura, do site principal da
+ * empresa. O banco ainda confere o par `(site_id, tenant_id)`, entao um site
+ * de outra empresa nao passaria daqui.
+ */
+async function resolveChargeSiteId(
+  ctx: BillingContext,
+  input: UpsertChargeInput,
+): Promise<string> {
+  if (input.subscriptionId) {
+    const [row] = await ctx.db
+      .select({ siteId: schema.subscriptions.siteId })
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.id, input.subscriptionId));
+    if (row) return row.siteId;
+  }
+  const siteId = await findPrimarySiteId(ctx.db, input.tenantId);
+  if (!siteId) throw new Error('Empresa sem site principal para vincular a cobranca.');
+  return siteId;
+}
+
 export async function upsertCharge(
   ctx: BillingContext,
   input: UpsertChargeInput,
@@ -364,10 +392,12 @@ export async function upsertCharge(
   const existing = await findChargeByExternalId(ctx.db, input.externalChargeId);
 
   if (!existing) {
+    const siteId = await resolveChargeSiteId(ctx, input);
     const [created] = await ctx.db
       .insert(schema.charges)
       .values({
         tenantId: input.tenantId,
+        siteId,
         subscriptionId: input.subscriptionId,
         externalChargeId: input.externalChargeId,
         externalSubscriptionId: input.externalSubscriptionId ?? null,

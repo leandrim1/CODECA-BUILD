@@ -86,6 +86,7 @@ export function contentRoutes() {
       .insert(schema.services)
       .values({
         tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
         slug,
         title: input.title,
         summary: input.summary,
@@ -217,7 +218,7 @@ export function contentRoutes() {
 
     const [row] = await ctx.db
       .insert(schema.testimonials)
-      .values({ tenantId: tenant.tenantId, ...input })
+      .values({ tenantId: tenant.tenantId, siteId: tenant.siteId, ...input })
       .returning();
 
     await auditFromContext(c, {
@@ -299,7 +300,7 @@ export function contentRoutes() {
 
     const [row] = await ctx.db
       .insert(schema.teamMembers)
-      .values({ tenantId: tenant.tenantId, ...input })
+      .values({ tenantId: tenant.tenantId, siteId: tenant.siteId, ...input })
       .returning();
 
     return created(c, { member: row ?? null });
@@ -354,7 +355,7 @@ export function contentRoutes() {
     const input = await parseJsonBody(c, faqInputSchema);
     const [row] = await ctx.db
       .insert(schema.faqs)
-      .values({ tenantId: tenant.tenantId, ...input })
+      .values({ tenantId: tenant.tenantId, siteId: tenant.siteId, ...input })
       .returning();
     return created(c, { faq: row ?? null });
   });

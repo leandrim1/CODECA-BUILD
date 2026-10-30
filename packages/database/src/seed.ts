@@ -6,6 +6,7 @@ import {
 } from '@codeca/shared';
 import { hashPassword } from '@codeca/shared/server';
 import { eq, lt } from 'drizzle-orm';
+import { createPrimarySite } from './sites.js';
 import type { Database } from './client.js';
 import {
   faqs,
@@ -186,6 +187,9 @@ async function seedDemoTenant(
     .returning();
   if (!tenant) throw new Error('Nao foi possivel criar a construtora de demonstracao.');
 
+  // Todo conteudo pertence a um site, nao so a empresa.
+  const site = await createPrimarySite(db, { tenantId: tenant.id, name: DEMO_NAME });
+
   await db.insert(memberships).values({
     tenantId: tenant.id,
     userId: owner.id,
@@ -197,6 +201,7 @@ async function seedDemoTenant(
   const periodEnd = new Date(Date.now() + 30 * 24 * 3600 * 1000);
   await db.insert(subscriptions).values({
     tenantId: tenant.id,
+    siteId: site.id,
     planId: plan.id,
     status: 'active',
     publicationState: 'allowed',
@@ -249,6 +254,7 @@ async function seedDemoTenant(
   await db.insert(services).values(
     serviceSeed.map((service, index) => ({
       tenantId: tenant.id,
+      siteId: site.id,
       slug: slugify(service.title),
       title: service.title,
       summary: service.summary,
@@ -354,6 +360,7 @@ async function seedDemoTenant(
   await db.insert(properties).values(
     propertySeed.map((item, index) => ({
       tenantId: tenant.id,
+      siteId: site.id,
       slug: slugify(item.title),
       title: item.title,
       reference: `HZT-${String(index + 1).padStart(3, '0')}`,
@@ -441,6 +448,7 @@ async function seedDemoTenant(
       .insert(projects)
       .values({
         tenantId: tenant.id,
+        siteId: site.id,
         slug: slugify(item.title),
         title: item.title,
         shortDescription: `Obra ${item.category} acompanhada pela equipe tecnica da Construtora Horizonte.`,
@@ -469,6 +477,7 @@ async function seedDemoTenant(
       await db.insert(projectUpdates).values(
         item.updates.map((update) => ({
           tenantId: tenant.id,
+          siteId: site.id,
           projectId: project.id,
           title: update.title,
           note: 'Registro de evolucao publicado pela equipe tecnica.',
@@ -484,6 +493,7 @@ async function seedDemoTenant(
   await db.insert(testimonials).values([
     {
       tenantId: tenant.id,
+      siteId: site.id,
       authorName: 'Ana Beatriz Correia',
       authorRole: 'Proprietaria - Casa Vila Verde',
       content:
@@ -497,6 +507,7 @@ async function seedDemoTenant(
     },
     {
       tenantId: tenant.id,
+      siteId: site.id,
       authorName: 'Dr. Rogerio Lemos',
       authorRole: 'Clinica Bem Viver',
       content:
@@ -510,6 +521,7 @@ async function seedDemoTenant(
     },
     {
       tenantId: tenant.id,
+      siteId: site.id,
       authorName: 'Cooperativa Agro Paulinia',
       authorRole: 'Galpao Logistico',
       content: 'Entrega antecipada em duas semanas e documentacao de habite-se resolvida pela propria construtora.',
@@ -524,6 +536,7 @@ async function seedDemoTenant(
   await db.insert(teamMembers).values([
     {
       tenantId: tenant.id,
+      siteId: site.id,
       name: 'Marina Prado',
       role: 'Engenheira civil responsavel - CREA-SP 1234567',
       bio: 'Responsavel tecnica pelos empreendimentos residenciais, com 18 anos de experiencia em obras verticais.',
@@ -532,6 +545,7 @@ async function seedDemoTenant(
     },
     {
       tenantId: tenant.id,
+      siteId: site.id,
       name: 'Caio Ferreira',
       role: 'Arquiteto - CAU A12345-6',
       bio: 'Coordena projetos arquitetonicos e a compatibilizacao com as disciplinas complementares.',
@@ -540,6 +554,7 @@ async function seedDemoTenant(
     },
     {
       tenantId: tenant.id,
+      siteId: site.id,
       name: 'Juliana Sato',
       role: 'Coordenadora de obras',
       bio: 'Acompanha cronogramas, medicoes e a qualidade da execucao em campo.',
@@ -551,6 +566,7 @@ async function seedDemoTenant(
   await db.insert(faqs).values([
     {
       tenantId: tenant.id,
+      siteId: site.id,
       question: 'Voces fazem apenas a execucao ou tambem o projeto?',
       answer: 'Atuamos nas duas frentes. Podemos desenvolver o projeto completo ou executar um projeto ja aprovado.',
       publicationStatus: 'published',
@@ -558,6 +574,7 @@ async function seedDemoTenant(
     },
     {
       tenantId: tenant.id,
+      siteId: site.id,
       question: 'Como funciona o acompanhamento da obra?',
       answer:
         'Cada obra tem um responsavel tecnico e medicoes mensais. O cliente recebe relatorio fotografico e '
@@ -567,6 +584,7 @@ async function seedDemoTenant(
     },
     {
       tenantId: tenant.id,
+      siteId: site.id,
       question: 'Qual o prazo medio de uma residencia?',
       answer: 'Depende da area e do padrao de acabamento. Casas de 200 a 300 m2 levam de 12 a 18 meses.',
       publicationStatus: 'published',
@@ -574,6 +592,7 @@ async function seedDemoTenant(
     },
     {
       tenantId: tenant.id,
+      siteId: site.id,
       question: 'Voces atendem fora de Campinas?',
       answer: 'Atendemos Campinas, Valinhos, Vinhedo, Paulinia e Indaiatuba. Outras cidades sao avaliadas caso a caso.',
       publicationStatus: 'published',
@@ -584,6 +603,7 @@ async function seedDemoTenant(
   await db.insert(leads).values([
     {
       tenantId: tenant.id,
+      siteId: site.id,
       name: 'Patricia Nunes',
       phone: '(19) 99111-2233',
       email: 'patricia.nunes@exemplo.com.br',
@@ -594,6 +614,7 @@ async function seedDemoTenant(
     },
     {
       tenantId: tenant.id,
+      siteId: site.id,
       name: 'Eduardo Machado',
       phone: '(19) 98222-4455',
       interestType: 'construcao',
@@ -603,6 +624,7 @@ async function seedDemoTenant(
     },
     {
       tenantId: tenant.id,
+      siteId: site.id,
       name: 'Condominio Jardim das Palmeiras',
       phone: '(19) 3777-8899',
       email: 'sindico@jardimdaspalmeiras.com.br',

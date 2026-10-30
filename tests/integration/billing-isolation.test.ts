@@ -4,6 +4,7 @@ import { decidePublication } from '@codeca/shared';
 import {
   createTestApi,
   registerAccount,
+  primarySiteId,
   seedPlatformAdmin,
   verifyEmail,
   type RegisteredAccount,
@@ -65,6 +66,7 @@ beforeEach(async () => {
 async function attachDomain(tenantId: string, hostname: string): Promise<void> {
   await api.db.insert(schema.domains).values({
     tenantId,
+    siteId: await primarySiteId(api, tenantId),
     hostname,
     status: 'active',
     isPrimary: true,
@@ -130,6 +132,7 @@ describe('isolamento entre empresas', () => {
         chargeId: 'cha_da_beta',
         metadata: {
           tenantId: beta.tenantId,
+          siteId: beta.siteId,
           intentToken: (await loadSubscriptionRow(api, beta.tenantId)).intentToken,
         },
       }),
@@ -151,6 +154,7 @@ describe('isolamento entre empresas', () => {
       .insert(schema.charges)
       .values({
         tenantId: beta.tenantId,
+        siteId: beta.siteId,
         externalChargeId: 'cha_exclusiva_da_beta',
         status: 'paid',
         amountCents: priceCents,
@@ -179,6 +183,7 @@ describe('isolamento entre empresas', () => {
     await api.db.insert(schema.charges).values([
       {
         tenantId: alpha.tenantId,
+        siteId: alpha.siteId,
         externalChargeId: 'cha_alpha_1',
         status: 'paid',
         amountCents: 19900,
@@ -186,6 +191,7 @@ describe('isolamento entre empresas', () => {
       },
       {
         tenantId: beta.tenantId,
+        siteId: beta.siteId,
         externalChargeId: 'cha_beta_1',
         status: 'paid',
         amountCents: 39900,
@@ -294,6 +300,7 @@ describe('isolamento entre empresas', () => {
 
     const hold = await alpha.client.post('/api/platform/billing/publication-hold', {
       tenantId: beta.tenantId,
+      siteId: beta.siteId,
       hold: true,
       reason: 'tentativa indevida de suspensao',
     });
@@ -320,6 +327,7 @@ describe('isolamento entre empresas', () => {
   it('a cobranca de uma empresa nao e reatribuida por evento de outra', async () => {
     await api.db.insert(schema.charges).values({
       tenantId: beta.tenantId,
+      siteId: beta.siteId,
       externalChargeId: 'cha_disputada',
       status: 'pending',
       amountCents: priceCents,
@@ -515,6 +523,7 @@ describe('publicacao conforme a assinatura', () => {
       .insert(schema.mediaAssets)
       .values({
         tenantId: alpha.tenantId,
+        siteId: alpha.siteId,
         blobUrl: 'https://blob.test/tenants/alpha/fachada.jpg',
         blobPathname: `tenants/${alpha.tenantId}/fachada.jpg`,
         downloadUrl: 'https://blob.test/tenants/alpha/fachada.jpg',

@@ -274,6 +274,7 @@ describe('biblioteca de midia', () => {
       .insert(schema.mediaAssets)
       .values({
         tenantId: beta.tenantId,
+        siteId: beta.siteId,
         blobUrl: 'https://blob.test/tenants/beta/foto.jpg',
         blobPathname: `tenants/${beta.tenantId}/foto.jpg`,
         fileName: 'foto.jpg',
@@ -295,6 +296,7 @@ describe('biblioteca de midia', () => {
       .insert(schema.mediaAssets)
       .values({
         tenantId: beta.tenantId,
+        siteId: beta.siteId,
         blobUrl: 'https://blob.test/tenants/beta/planta.pdf',
         blobPathname: `tenants/${beta.tenantId}/planta.pdf`,
         fileName: 'planta.pdf',
@@ -317,6 +319,7 @@ describe('biblioteca de midia', () => {
     await api.db.insert(schema.mediaAssets).values([
       {
         tenantId: alpha.tenantId,
+        siteId: alpha.siteId,
         blobUrl: 'https://blob.test/a.jpg',
         blobPathname: `tenants/${alpha.tenantId}/a.jpg`,
         fileName: 'a.jpg',
@@ -325,6 +328,7 @@ describe('biblioteca de midia', () => {
       },
       {
         tenantId: beta.tenantId,
+        siteId: beta.siteId,
         blobUrl: 'https://blob.test/b.jpg',
         blobPathname: `tenants/${beta.tenantId}/b.jpg`,
         fileName: 'b.jpg',
@@ -345,6 +349,7 @@ describe('interessados', () => {
       .insert(schema.leads)
       .values({
         tenantId: beta.tenantId,
+        siteId: beta.siteId,
         name: 'Cliente da Beta',
         phone: '(19) 90000-0000',
         interestType: 'compra_imovel',
@@ -366,6 +371,7 @@ describe('interessados', () => {
       .insert(schema.leads)
       .values({
         tenantId: alpha.tenantId,
+        siteId: alpha.siteId,
         name: 'Interessado',
         phone: '(19) 90000-0000',
         interestType: 'orcamento',
@@ -396,6 +402,7 @@ describe('dominios', () => {
   it('nao vincula um dominio ja usado por outra empresa', async () => {
     await api.db.insert(schema.domains).values({
       tenantId: beta.tenantId,
+      siteId: beta.siteId,
       hostname: 'www.disputado.com.br',
       status: 'active',
     });
@@ -413,7 +420,7 @@ describe('dominios', () => {
   it('nao desvincula dominio de outra empresa', async () => {
     const [domain] = await api.db
       .insert(schema.domains)
-      .values({ tenantId: beta.tenantId, hostname: 'www.beta.com.br', status: 'active' })
+      .values({ tenantId: beta.tenantId, siteId: beta.siteId, hostname: 'www.beta.com.br', status: 'active' })
       .returning();
 
     const response = await alpha.client.delete(`/api/tenants/${alpha.tenantId}/domains/${domain!.id}`);
@@ -443,6 +450,7 @@ describe('administrador da plataforma', () => {
 
     const grantResponse = await adminClient.post('/api/platform/support-access', {
       tenantId: alpha.tenantId,
+      siteId: alpha.siteId,
       reason: 'Investigacao de chamado tecnico aberto pelo cliente.',
       expiresInMinutes: 30,
       readOnly: true,
@@ -481,6 +489,7 @@ describe('administrador da plataforma', () => {
     const adminClient = await createPlatformAdmin('escopo@plataforma.com.br');
     await adminClient.post('/api/platform/support-access', {
       tenantId: alpha.tenantId,
+      siteId: alpha.siteId,
       reason: 'Chamado tecnico restrito a esta empresa.',
       expiresInMinutes: 30,
       readOnly: true,

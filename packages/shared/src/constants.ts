@@ -202,6 +202,27 @@ export const SAFE_ICONS = [
 ] as const;
 export type SafeIcon = (typeof SAFE_ICONS)[number];
 
+/**
+ * Segmentos atendidos.
+ *
+ * Um segmento e um **conjunto padrao** de modulos e campos aplicado ao
+ * cadastrar um site, nao uma trava: um site de corretor pode habilitar o
+ * modulo de obras se o projeto dele tiver. Adicionar um segmento e declarar um
+ * conjunto novo, sem alterar o schema.
+ */
+export const SEGMENT_CODES = ['construtora', 'imobiliaria', 'corretor'] as const;
+export type SegmentCode = (typeof SEGMENT_CODES)[number];
+
+/**
+ * Estado de um site na plataforma.
+ *
+ * Independente do estado da assinatura: um site `active` com assinatura
+ * vencida continua existindo e com os dados intactos; o que a cobranca decide
+ * e o que a API publica entrega.
+ */
+export const SITE_STATUSES = ['draft', 'active', 'suspended', 'archived'] as const;
+export type SiteStatus = (typeof SITE_STATUSES)[number];
+
 export const SOCIAL_NETWORKS = ['instagram', 'facebook', 'linkedin', 'youtube', 'tiktok', 'x'] as const;
 export type SocialNetwork = (typeof SOCIAL_NETWORKS)[number];
 

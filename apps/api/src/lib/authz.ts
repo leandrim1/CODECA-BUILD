@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, schema, type Database } from '@codeca/database';
+import { and, eq, findPrimarySiteId, gt, isNull, schema, type Database } from '@codeca/database';
 import {
   AppError,
   roleCan,
@@ -28,6 +28,14 @@ import type { AuthenticatedSession } from './session.js';
 
 export interface TenantContext {
   tenantId: string;
+  /**
+   * Site que o painel abre por padrao para esta empresa.
+   *
+   * Toda escrita de conteudo o informa, e o banco confere o par
+   * `(site_id, tenant_id)`. Enquanto o painel nao tiver seletor de site
+   * (etapa 3), e sempre o site principal.
+   */
+  siteId: string;
   slug: string;
   displayName: string;
   status: TenantStatus;
@@ -66,6 +74,12 @@ export async function resolveTenantContext(
 
   if (!tenant) throw AppError.notFound('Empresa nao encontrada.');
 
+  const siteId = await findPrimarySiteId(db, tenantId);
+  // Toda empresa nasce com um site, e a migracao criou um para as que ja
+  // existiam. Nenhum significa dado inconsistente, nao caso de borda: falhar
+  // aqui e melhor do que gravar conteudo sem dono.
+  if (!siteId) throw AppError.internal('Empresa sem site principal configurado.');
+
   const [membership] = await db
     .select({ role: schema.memberships.role })
     .from(schema.memberships)
@@ -84,6 +98,7 @@ export async function resolveTenantContext(
     const role = membership.role as TenantRole;
     return {
       tenantId: tenant.id,
+      siteId,
       slug: tenant.slug,
       displayName: tenant.displayName,
       status,
@@ -115,6 +130,7 @@ export async function resolveTenantContext(
       const readCapabilities = tenantCapabilities('viewer');
       return {
         tenantId: tenant.id,
+        siteId,
         slug: tenant.slug,
         displayName: tenant.displayName,
         status,

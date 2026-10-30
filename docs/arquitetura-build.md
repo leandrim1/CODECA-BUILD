@@ -59,6 +59,22 @@ esbarra no outro. Uma restricao composta garante que o `site_id` pertence ao
 A migracao cria um `site` por `tenant` existente e preenche o `site_id` do
 conteudo atual. Nada se perde.
 
+### Como o banco garante o par
+
+`sites` tem um indice unico sobre `(id, tenant_id)` -- redundante com a chave
+primaria a primeira vista, mas e ele que permite as tabelas de conteudo
+referenciarem o **par**:
+
+```sql
+FOREIGN KEY ("site_id", "tenant_id") REFERENCES "sites"("id", "tenant_id")
+```
+
+Com isso, um `site_id` de outra empresa que chegue a uma escrita -- por bug,
+por parametro forjado ou por uma consulta que esqueceu um filtro -- e recusado
+pelo banco, nao pela revisao de codigo. Tabelas filhas (`property_images`,
+`project_updates`, `lead_notes`) nao repetem o `site_id`: o pai ja o carrega e
+so se chega a elas por ele.
+
 ---
 
 ## 3. Modulos e campos editaveis
@@ -341,18 +357,19 @@ montar URLs; o provisionamento sai.
 Cada etapa entrega codigo funcional, documentacao e testes, e deixa a
 plataforma utilizavel ao final.
 
-| # | Entrega | Depende de |
-| --- | --- | --- |
-| 1 | Entidade `site`, migracao e isolamento em dois niveis | — |
-| 2 | Registro de modulos, habilitacao e politica de campos por site | 1 |
-| 3 | Painel que se adapta aos modulos do site | 2 |
-| 4 | Chaves de integracao, origens, limites e auditoria | 1 |
-| 5 | API publica `/api/v1` com escopo por chave | 2, 4 |
-| 6 | `@codeca/sdk` com tipos, documentacao e exemplo integravel | 5 |
-| 7 | Modulo de banners e configuracao por segmento | 2 |
-| 8 | Webhook `content.published` para o site do cliente | 5 |
-| 9 | Assinatura por site e politica de suspensao | 1 |
-| 10 | Cadastro de site no painel mestre, fim a fim | 2, 4, 9 |
+| # | Entrega | Depende de | Estado |
+| --- | --- | --- | --- |
+| 0 | Remocao do renderizador e do editor visual | — | **feita** |
+| 1 | Entidade `site`, migracao e isolamento em dois niveis | — | **feita** |
+| 2 | Registro de modulos, habilitacao e politica de campos por site | 1 | pendente |
+| 3 | Painel que se adapta aos modulos do site | 2 | pendente |
+| 4 | Chaves de integracao, origens, limites e auditoria | 1 | pendente |
+| 5 | API publica `/api/v1` com escopo por chave | 2, 4 | pendente |
+| 6 | `@codeca/sdk` com tipos, documentacao e exemplo integravel | 5 | pendente |
+| 7 | Modulo de banners e configuracao por segmento | 2 | pendente |
+| 8 | Webhook `content.published` para o site do cliente | 5 | pendente |
+| 9 | Assinatura por site e politica de suspensao | 1 | pendente |
+| 10 | Cadastro de site no painel mestre, fim a fim | 2, 4, 9 | pendente |
 
 As etapas 1 e 2 sao fundacao: tudo depende delas, e mudar de ideia depois
 custa caro. As demais sao incrementais.

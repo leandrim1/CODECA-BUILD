@@ -167,6 +167,7 @@ export function mediaRoutes() {
       .insert(schema.mediaAssets)
       .values({
         tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
         blobUrl: stored.url,
         blobPathname: stored.pathname,
         downloadUrl: stored.downloadUrl,

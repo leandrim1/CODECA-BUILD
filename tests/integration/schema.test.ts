@@ -42,26 +42,26 @@ describe('migracoes e restricoes do schema', () => {
   });
 
   it('impede que o mesmo dominio seja vinculado a duas empresas', async () => {
-    const { tenantA, tenantB } = await seedTwoTenants();
-    await ctx.db.insert(schema.domains).values({ tenantId: tenantA, hostname: 'www.exemplo.com.br' });
+    const { tenantA, tenantB, siteA, siteB } = await seedTwoTenants();
+    await ctx.db.insert(schema.domains).values({ tenantId: tenantA, siteId: siteA, hostname: 'www.exemplo.com.br' });
     await expect(
-      ctx.db.insert(schema.domains).values({ tenantId: tenantB, hostname: 'www.exemplo.com.br' }),
+      ctx.db.insert(schema.domains).values({ tenantId: tenantB, siteId: siteB, hostname: 'www.exemplo.com.br' }),
     ).rejects.toThrow();
   });
 
   it('permite apenas um dominio principal por empresa', async () => {
-    const { tenantA } = await seedTwoTenants();
-    await ctx.db.insert(schema.domains).values({ tenantId: tenantA, hostname: 'a.exemplo.com.br', isPrimary: true });
+    const { tenantA, siteA } = await seedTwoTenants();
+    await ctx.db.insert(schema.domains).values({ tenantId: tenantA, siteId: siteA, hostname: 'a.exemplo.com.br', isPrimary: true });
     await expect(
-      ctx.db.insert(schema.domains).values({ tenantId: tenantA, hostname: 'b.exemplo.com.br', isPrimary: true }),
+      ctx.db.insert(schema.domains).values({ tenantId: tenantA, siteId: siteA, hostname: 'b.exemplo.com.br', isPrimary: true }),
     ).rejects.toThrow();
     await expect(
-      ctx.db.insert(schema.domains).values({ tenantId: tenantA, hostname: 'c.exemplo.com.br', isPrimary: false }),
+      ctx.db.insert(schema.domains).values({ tenantId: tenantA, siteId: siteA, hostname: 'c.exemplo.com.br', isPrimary: false }),
     ).resolves.toBeDefined();
   });
 
   it('permite slugs iguais em empresas diferentes e bloqueia duplicatas na mesma', async () => {
-    const { tenantA, tenantB } = await seedTwoTenants();
+    const { tenantA, tenantB, siteA, siteB } = await seedTwoTenants();
     const base = {
       slug: 'residencial-aurora',
       title: 'Residencial Aurora',
@@ -69,24 +69,24 @@ describe('migracoes e restricoes do schema', () => {
       purpose: 'venda' as const,
       address: EMPTY_ADDRESS,
     };
-    await ctx.db.insert(schema.properties).values({ ...base, tenantId: tenantA });
-    await expect(ctx.db.insert(schema.properties).values({ ...base, tenantId: tenantB })).resolves.toBeDefined();
-    await expect(ctx.db.insert(schema.properties).values({ ...base, tenantId: tenantA })).rejects.toThrow();
+    await ctx.db.insert(schema.properties).values({ ...base, tenantId: tenantA, siteId: siteA });
+    await expect(ctx.db.insert(schema.properties).values({ ...base, tenantId: tenantB, siteId: siteB })).resolves.toBeDefined();
+    await expect(ctx.db.insert(schema.properties).values({ ...base, tenantId: tenantA, siteId: siteA })).rejects.toThrow();
   });
 
 
   it('apaga o conteudo da empresa em cascata ao excluir o tenant', async () => {
-    const { tenantA } = await seedTwoTenants();
+    const { tenantA, siteA } = await seedTwoTenants();
     await ctx.db
       .insert(schema.leads)
-      .values({ tenantId: tenantA, name: 'Teste', phone: '1199999999', interestType: 'orcamento' });
+      .values({ tenantId: tenantA, siteId: siteA, name: 'Teste', phone: '1199999999', interestType: 'orcamento' });
     await ctx.db.delete(schema.tenants).where(eq(schema.tenants.id, tenantA));
     const leftovers = await ctx.db.select().from(schema.leads).where(eq(schema.leads.tenantId, tenantA));
     expect(leftovers).toHaveLength(0);
   });
 
   it('recusa valores fora dos enums definidos no banco', async () => {
-    const { tenantA } = await seedTwoTenants();
+    const { tenantA, siteA } = await seedTwoTenants();
     await expect(
       ctx.db.execute(
         sql`insert into leads (tenant_id, name, phone, interest_type) values (${tenantA}, 'X', '1', 'tipo_inexistente')`,
@@ -95,11 +95,11 @@ describe('migracoes e restricoes do schema', () => {
   });
 
   it('transacao desfaz tudo quando uma etapa falha', async () => {
-    const { tenantA } = await seedTwoTenants();
+    const { tenantA, siteA } = await seedTwoTenants();
     await expect(
       ctx.db.transaction(async (tx) => {
-        await tx.insert(schema.services).values({ tenantId: tenantA, slug: 'ok', title: 'Servico valido' });
-        await tx.insert(schema.services).values({ tenantId: tenantA, slug: 'ok', title: 'Slug duplicado' });
+        await tx.insert(schema.services).values({ tenantId: tenantA, siteId: siteA, slug: 'ok', title: 'Servico valido' });
+        await tx.insert(schema.services).values({ tenantId: tenantA, siteId: siteA, slug: 'ok', title: 'Slug duplicado' });
       }),
     ).rejects.toThrow();
     const after = await ctx.db.select().from(schema.services).where(eq(schema.services.tenantId, tenantA));
@@ -156,7 +156,12 @@ describe('seed', () => {
   });
 });
 
-async function seedTwoTenants(): Promise<{ tenantA: string; tenantB: string }> {
+async function seedTwoTenants(): Promise<{
+  tenantA: string;
+  tenantB: string;
+  siteA: string;
+  siteB: string;
+}> {
   await ctx.reset();
   const [plan] = await ctx.db
     .insert(schema.plans)
@@ -182,5 +187,15 @@ async function seedTwoTenants(): Promise<{ tenantA: string; tenantB: string }> {
     .insert(schema.tenants)
     .values({ slug: 'beta', legalName: 'Beta Ltda', displayName: 'Beta', planId: plan!.id, address: EMPTY_ADDRESS })
     .returning();
-  return { tenantA: a!.id, tenantB: b!.id };
+  // Todo conteudo pertence a um site; as empresas de teste tambem precisam de um.
+  const [siteA] = await ctx.db
+    .insert(schema.sites)
+    .values({ tenantId: a!.id, name: 'Alpha', slug: 'principal', isPrimary: true })
+    .returning();
+  const [siteB] = await ctx.db
+    .insert(schema.sites)
+    .values({ tenantId: b!.id, name: 'Beta', slug: 'principal', isPrimary: true })
+    .returning();
+
+  return { tenantA: a!.id, tenantB: b!.id, siteA: siteA!.id, siteB: siteB!.id };
 }

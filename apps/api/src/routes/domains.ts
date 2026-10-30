@@ -110,6 +110,7 @@ export function domainRoutes() {
         .insert(schema.domains)
         .values({
           tenantId: tenant.tenantId,
+          siteId: tenant.siteId,
           hostname,
           status: mapped.status,
           dnsConfigured: providerStatus.dnsConfigured,

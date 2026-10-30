@@ -373,6 +373,7 @@ describe('eventos pendentes', () => {
     });
     await api.db.insert(schema.charges).values({
       tenantId: other.tenantId,
+      siteId: other.siteId,
       externalChargeId: 'cha_conflito',
       status: 'pending',
       amountCents: 1000,
@@ -441,6 +442,7 @@ describe('reconciliacao pelo painel mestre', () => {
 
     const response = await admin.client.post('/api/platform/billing/reconcile', {
       tenantId: account.tenantId,
+      siteId: account.siteId,
       force: true,
       limit: 10,
     });

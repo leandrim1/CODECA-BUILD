@@ -1,4 +1,4 @@
-import { and, eq, isNull, schema, type Database } from '@codeca/database';
+import { and, createPrimarySite, eq, isNull, schema, type Database } from '@codeca/database';
 import {
   AppError,
   DEFAULT_GRACE_PERIOD_DAYS,
@@ -114,11 +114,20 @@ export function authRoutes() {
         acceptedAt: ctx.now(),
       });
 
-      // A avaliacao ja libera a publicacao: `accessUntil` e o campo que o
-      // renderizador dos sites consulta, e vence sozinho quando o trial acaba.
+      // O site e criado junto com a empresa: todo conteudo pertence a um, e a
+      // assinatura tambem. Nasce como rascunho -- quem o publica e a CODECA IA
+      // ao concluir a integracao do site desenvolvido para o cliente.
+      const site = await createPrimarySite(tx as unknown as Database, {
+        tenantId: tenant.id,
+        name: input.companyName,
+      });
+
+      // A avaliacao ja libera o acesso: `accessUntil` e o campo que a API
+      // publica consulta, e vence sozinho quando o trial acaba.
       const trialEndsAt = new Date(ctx.now().getTime() + TRIAL_PERIOD_DAYS * 24 * 3600 * 1000);
       await tx.insert(schema.subscriptions).values({
         tenantId: tenant.id,
+        siteId: site.id,
         planId: trialPlan.id,
         status: 'trialing',
         publicationState: 'allowed',

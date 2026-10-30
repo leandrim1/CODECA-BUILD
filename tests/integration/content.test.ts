@@ -159,6 +159,7 @@ describe('imoveis', () => {
       .insert(schema.mediaAssets)
       .values({
         tenantId: account.tenantId,
+        siteId: account.siteId,
         blobUrl: 'https://blob.test/foto.jpg',
         blobPathname: `tenants/${account.tenantId}/foto.jpg`,
         fileName: 'foto.jpg',

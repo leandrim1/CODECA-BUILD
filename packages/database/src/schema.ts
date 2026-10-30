@@ -2,6 +2,7 @@ import {
   bigint,
   boolean,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -27,6 +28,8 @@ import {
   LEAD_INTEREST_TYPES,
   LEAD_STATUSES,
   PLATFORM_ROLES,
+  SEGMENT_CODES,
+  SITE_STATUSES,
   PROJECT_CATEGORIES,
   PROJECT_STAGES,
   PROJECT_STATUSES,
@@ -82,6 +85,8 @@ export const leadInterestEnum = pgEnum('lead_interest_type', enumValues(LEAD_INT
 export const leadStatusEnum = pgEnum('lead_status', enumValues(LEAD_STATUSES));
 export const domainStatusEnum = pgEnum('domain_status', enumValues(DOMAIN_STATUSES));
 export const sslStatusEnum = pgEnum('ssl_status', ['pending', 'active', 'error']);
+export const segmentCodeEnum = pgEnum('segment_code', enumValues(SEGMENT_CODES));
+export const siteStatusEnum = pgEnum('site_status', enumValues(SITE_STATUSES));
 export const mediaKindEnum = pgEnum('media_kind', enumValues(MEDIA_KINDS));
 export const userTokenTypeEnum = pgEnum('user_token_type', [
   'email_verification',
@@ -203,6 +208,71 @@ export const tenants = pgTable(
   ],
 );
 
+/**
+ * Segmentos de mercado atendidos.
+ *
+ * Guarda o conjunto padrao de modulos que um site do segmento recebe ao ser
+ * cadastrado. O conjunto e ponto de partida, nao limite: o painel mestre
+ * ajusta site a site depois.
+ */
+export const segments = pgTable(
+  'segments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    code: segmentCodeEnum('code').notNull(),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    /** Modulos habilitados por padrao para sites deste segmento. */
+    defaultModules: jsonb('default_modules').$type<string[]>().notNull().default([]),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [uniqueIndex('segments_code_key').on(table.code)],
+);
+
+/**
+ * Site de um cliente.
+ *
+ * E a entidade que faltava entre a empresa e o conteudo. Antes `tenants`
+ * acumulava os dois papeis, o que impedia uma empresa ter mais de um site com
+ * segmento, modulos, dominio e credenciais proprios.
+ *
+ * O indice unico sobre `(id, tenant_id)` nao e redundante com a chave
+ * primaria: ele e o que permite as tabelas de conteudo referenciarem o par,
+ * fazendo o banco garantir que o site informado pertence mesmo aquela empresa.
+ * Sem ele, bastaria um `site_id` de outra empresa passar numa escrita para o
+ * isolamento cair.
+ */
+export const sites = pgTable(
+  'sites',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    segmentId: uuid('segment_id').references(() => segments.id, { onDelete: 'set null' }),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+    status: siteStatusEnum('status').notNull().default('draft'),
+    /** Site que o painel abre por padrao para esta empresa. */
+    isPrimary: boolean('is_primary').notNull().default(false),
+    /** Anotacoes da CODECA IA sobre o projeto; nunca expostas ao cliente. */
+    internalNotes: text('internal_notes').notNull().default(''),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('sites_id_tenant_key').on(table.id, table.tenantId),
+    uniqueIndex('sites_tenant_slug_key').on(table.tenantId, table.slug),
+    uniqueIndex('sites_primary_per_tenant_key')
+      .on(table.tenantId)
+      .where(sql`${table.isPrimary}`),
+    index('sites_tenant_idx').on(table.tenantId),
+    index('sites_status_idx').on(table.status),
+  ],
+);
+
 export const users = pgTable(
   'users',
   {
@@ -305,6 +375,7 @@ export const subscriptions = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
     planId: uuid('plan_id')
       .notNull()
       .references(() => plans.id, { onDelete: 'restrict' }),
@@ -388,6 +459,13 @@ export const subscriptions = pgTable(
     uniqueIndex('subscriptions_intent_key')
       .on(table.intentToken)
       .where(sql`${table.intentToken} is not null`),
+    /** O par (site, empresa) e conferido pelo banco: ver `sites`. */
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'subscriptions_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('subscriptions_site_idx').on(table.siteId),
   ],
 );
 
@@ -405,6 +483,7 @@ export const charges = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
     subscriptionId: uuid('subscription_id').references(() => subscriptions.id, {
       onDelete: 'set null',
     }),
@@ -439,6 +518,13 @@ export const charges = pgTable(
     index('charges_subscription_idx').on(table.subscriptionId),
     index('charges_status_idx').on(table.status),
     index('charges_sync_idx').on(table.status, table.lastSyncedAt),
+    /** O par (site, empresa) e conferido pelo banco: ver `sites`. */
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'charges_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('charges_site_idx').on(table.siteId),
   ],
 );
 
@@ -591,6 +677,7 @@ export const domains = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
     hostname: text('hostname').notNull(),
     status: domainStatusEnum('status').notNull().default('pending'),
     isPrimary: boolean('is_primary').notNull().default(false),
@@ -614,6 +701,13 @@ export const domains = pgTable(
     uniqueIndex('domains_primary_per_tenant_key')
       .on(table.tenantId)
       .where(sql`${table.isPrimary}`),
+    /** O par (site, empresa) e conferido pelo banco: ver `sites`. */
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'domains_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('domains_site_idx').on(table.siteId),
   ],
 );
 
@@ -624,6 +718,7 @@ export const mediaAssets = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
     blobUrl: text('blob_url').notNull(),
     /** Caminho no Vercel Blob; sempre prefixado por `tenants/<tenantId>/`. */
     blobPathname: text('blob_pathname').notNull(),
@@ -645,6 +740,13 @@ export const mediaAssets = pgTable(
     uniqueIndex('media_assets_pathname_key').on(table.blobPathname),
     index('media_assets_tenant_created_idx').on(table.tenantId, table.createdAt),
     index('media_assets_tenant_tag_idx').on(table.tenantId, table.tag),
+    /** O par (site, empresa) e conferido pelo banco: ver `sites`. */
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'media_assets_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('media_assets_site_idx').on(table.siteId),
   ],
 );
 
@@ -657,6 +759,7 @@ export const properties = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
     slug: text('slug').notNull(),
     title: text('title').notNull(),
     reference: text('reference').notNull().default(''),
@@ -699,6 +802,13 @@ export const properties = pgTable(
     index('properties_tenant_purpose_idx').on(table.tenantId, table.purpose),
     index('properties_tenant_featured_idx').on(table.tenantId, table.featured),
     index('properties_cover_idx').on(table.coverImageId),
+    /** O par (site, empresa) e conferido pelo banco: ver `sites`. */
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'properties_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('properties_site_idx').on(table.siteId),
   ],
 );
 
@@ -732,6 +842,7 @@ export const projects = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
     slug: text('slug').notNull(),
     title: text('title').notNull(),
     description: text('description').notNull().default(''),
@@ -763,6 +874,13 @@ export const projects = pgTable(
     uniqueIndex('projects_tenant_slug_key').on(table.tenantId, table.slug),
     index('projects_tenant_status_idx').on(table.tenantId, table.publicationStatus),
     index('projects_tenant_category_idx').on(table.tenantId, table.category),
+    /** O par (site, empresa) e conferido pelo banco: ver `sites`. */
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'projects_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('projects_site_idx').on(table.siteId),
   ],
 );
 
@@ -841,6 +959,7 @@ export const services = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
     slug: text('slug').notNull(),
     title: text('title').notNull(),
     summary: text('summary').notNull().default(''),
@@ -858,6 +977,13 @@ export const services = pgTable(
   (table) => [
     uniqueIndex('services_tenant_slug_key').on(table.tenantId, table.slug),
     index('services_tenant_status_idx').on(table.tenantId, table.publicationStatus),
+    /** O par (site, empresa) e conferido pelo banco: ver `sites`. */
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'services_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('services_site_idx').on(table.siteId),
   ],
 );
 
@@ -868,6 +994,7 @@ export const testimonials = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
     authorName: text('author_name').notNull(),
     authorRole: text('author_role').notNull().default(''),
     content: text('content').notNull(),
@@ -882,7 +1009,16 @@ export const testimonials = pgTable(
     createdAt,
     updatedAt,
   },
-  (table) => [index('testimonials_tenant_status_idx').on(table.tenantId, table.publicationStatus)],
+  (table) => [
+    index('testimonials_tenant_status_idx').on(table.tenantId, table.publicationStatus),
+    /** O par (site, empresa) e conferido pelo banco: ver `sites`. */
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'testimonials_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('testimonials_site_idx').on(table.siteId),
+  ],
 );
 
 export const teamMembers = pgTable(
@@ -892,6 +1028,7 @@ export const teamMembers = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
     name: text('name').notNull(),
     role: text('role').notNull().default(''),
     bio: text('bio').notNull().default(''),
@@ -903,7 +1040,16 @@ export const teamMembers = pgTable(
     createdAt,
     updatedAt,
   },
-  (table) => [index('team_members_tenant_status_idx').on(table.tenantId, table.publicationStatus)],
+  (table) => [
+    index('team_members_tenant_status_idx').on(table.tenantId, table.publicationStatus),
+    /** O par (site, empresa) e conferido pelo banco: ver `sites`. */
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'team_members_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('team_members_site_idx').on(table.siteId),
+  ],
 );
 
 export const faqs = pgTable(
@@ -913,6 +1059,7 @@ export const faqs = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
     question: text('question').notNull(),
     answer: text('answer').notNull(),
     category: text('category').notNull().default(''),
@@ -921,7 +1068,16 @@ export const faqs = pgTable(
     createdAt,
     updatedAt,
   },
-  (table) => [index('faqs_tenant_status_idx').on(table.tenantId, table.publicationStatus)],
+  (table) => [
+    index('faqs_tenant_status_idx').on(table.tenantId, table.publicationStatus),
+    /** O par (site, empresa) e conferido pelo banco: ver `sites`. */
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'faqs_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('faqs_site_idx').on(table.siteId),
+  ],
 );
 
 export const leads = pgTable(
@@ -931,6 +1087,7 @@ export const leads = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
     name: text('name').notNull(),
     phone: text('phone').notNull(),
     email: text('email').notNull().default(''),
@@ -953,6 +1110,13 @@ export const leads = pgTable(
     index('leads_tenant_created_idx').on(table.tenantId, table.createdAt),
     index('leads_tenant_status_idx').on(table.tenantId, table.status),
     index('leads_property_idx').on(table.propertyId),
+    /** O par (site, empresa) e conferido pelo banco: ver `sites`. */
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'leads_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('leads_site_idx').on(table.siteId),
   ],
 );
 

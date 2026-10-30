@@ -150,6 +150,7 @@ export function projectRoutes() {
       .insert(schema.projects)
       .values({
         tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
         slug,
         title: input.title,
         description: input.description,
