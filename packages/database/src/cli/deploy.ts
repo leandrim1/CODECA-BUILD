@@ -1,5 +1,6 @@
 import { createNeonDatabase } from '../client.js';
 import { ensureBaselinePlans } from '../baseline.js';
+import { formatDatabaseFailure } from '../diagnose.js';
 import { runMigrations } from '../migrator.js';
 
 /**
@@ -66,10 +67,8 @@ async function main(): Promise<void> {
 
 main().catch((error: unknown) => {
   // Falhar aqui derruba o build de proposito: melhor nao publicar do que
-  // publicar codigo que espera um schema inexistente.
-  console.error(
-    '[deploy] falha ao preparar o banco:',
-    error instanceof Error ? error.message : error,
-  );
+  // publicar codigo que espera um schema inexistente. Em compensacao, o log
+  // precisa bastar para resolver -- quem le e quem opera, no painel da Vercel.
+  console.error(formatDatabaseFailure(error));
   process.exit(1);
 });

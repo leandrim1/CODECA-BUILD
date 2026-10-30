@@ -324,6 +324,8 @@ houver precos ajustados no painel mestre que voce queira preservar.
 | Sintoma | Causa |
 | --- | --- |
 | Corrigi o codigo, fiz deploy e nada mudou | A producao esta em outro build. Confira `deployment.commit` em `/api/health` e o *Production Branch* |
+| Build falha em `prepare-db` / `[deploy] falha ao preparar o banco` | O log traz `causa provavel` e `o que fazer` logo abaixo. Os dois casos comuns sao a `DATABASE_URL` desatualizada (codigo `28P01`) e o schema criado a mao (codigo `42P07`) |
+| Build falha ao registrar o Cron | No plano Hobby o cron precisa ser diario (secao 6) |
 | A mensagem de erro na tela nao existe mais no codigo | Mesmo caso acima: o bundle servido e de um commit anterior |
 | Cadastro falha com mensagem generica | Variavel obrigatoria ausente; veja `/api/health` |
 | `/api/health` responde 503 `misconfigured` | `DATABASE_URL` ausente ou `AUTH_SECRET` com menos de 32 caracteres |
