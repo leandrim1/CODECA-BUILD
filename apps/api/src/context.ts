@@ -23,6 +23,14 @@ export interface AppContext {
   billing: BillingProvider;
   /** Fonte de tempo, substituivel nos testes. */
   now: () => Date;
+  /**
+   * Cliente HTTP para os webhooks de saida.
+   *
+   * Substituivel nos testes: um teste que precisasse de um servidor de
+   * verdade para conferir a assinatura nao verificaria a assinatura, e sim a
+   * rede. Em producao e o `fetch` global.
+   */
+  fetch: typeof globalThis.fetch;
 }
 
 export interface CreateContextOptions {
@@ -33,6 +41,7 @@ export interface CreateContextOptions {
   mailer?: Mailer;
   billing?: BillingProvider;
   now?: () => Date;
+  fetch?: typeof globalThis.fetch;
 }
 
 export function createContext(options: CreateContextOptions = {}): AppContext {
@@ -46,5 +55,6 @@ export function createContext(options: CreateContextOptions = {}): AppContext {
     mailer: options.mailer ?? createMailer(env),
     billing: options.billing ?? createBillingProvider(env),
     now: options.now ?? (() => new Date()),
+    fetch: options.fetch ?? ((...args) => globalThis.fetch(...args)),
   };
 }

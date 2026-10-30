@@ -17,7 +17,9 @@ import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
 import { created, noContent, ok, parseJsonBody, parseParams } from '../lib/http.js';
 import { issueApiKey, revokeApiKeyById, rotateApiKey } from '../lib/integration/keys.js';
+import { generateWebhookSecret } from '@codeca/shared/server';
 import { loadSiteModules } from '../lib/modules.js';
+import { listDeliveries } from '../lib/integration/outbound.js';
 import { requireAuth, requirePlatform, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
@@ -57,6 +59,38 @@ const originsSchema = z.object({
     .array(z.object({ origin: z.string().trim().min(1).max(240), note: z.string().trim().max(240).default('') }))
     .max(25),
 });
+
+/**
+ * Endereco que recebe os avisos de publicacao.
+ *
+ * `https` obrigatorio, com uma excecao para `localhost`: o aviso vai assinado
+ * mas o corpo viaja em claro, e um site de cliente em producao nao deveria
+ * receber nada por HTTP. A excecao existe para integrar durante o
+ * desenvolvimento, quando nao ha certificado.
+ */
+const webhookSchema = z.object({
+  url: z
+    .string()
+    .trim()
+    .url('Informe o endereco completo, como https://exemplo.com.br/api/revalidar.')
+    .max(500)
+    .refine(
+      (valor) => {
+        try {
+          const url = new URL(valor);
+          if (url.protocol === 'https:') return true;
+          return url.protocol === 'http:' && /^(localhost|127\.0\.0\.1)$/.test(url.hostname);
+        } catch {
+          return false;
+        }
+      },
+      { message: 'Use https. Somente localhost pode usar http, para desenvolvimento.' },
+    ),
+  description: z.string().trim().max(240).default(''),
+  isActive: z.boolean().default(true),
+});
+
+const webhookParamSchema = z.object({ siteId: uuidSchema, webhookId: uuidSchema });
 
 const configureModulesSchema = z.object({
   modules: z
@@ -412,6 +446,168 @@ export function platformSiteRoutes() {
     });
 
     return ok(c, { items: normalizadas });
+  });
+
+  // ------------------------------------------- avisos de publicacao
+
+  /**
+   * Enderecos cadastrados e as ultimas entregas.
+   *
+   * O segredo **nao** aparece: assinar exige guarda-lo em claro, e a
+   * contrapartida e que ele nunca e lido de volta. Quem perdeu o valor
+   * rotaciona.
+   */
+  app.get('/sites/:siteId/webhooks', requirePlatform('platform:tenants:read'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId } = parseParams(c, siteParamSchema);
+    await loadSite(ctx.db, siteId);
+
+    const rows = await ctx.db
+      .select({
+        id: schema.siteWebhooks.id,
+        url: schema.siteWebhooks.url,
+        description: schema.siteWebhooks.description,
+        isActive: schema.siteWebhooks.isActive,
+        lastStatus: schema.siteWebhooks.lastStatus,
+        lastAttemptAt: schema.siteWebhooks.lastAttemptAt,
+        lastError: schema.siteWebhooks.lastError,
+        consecutiveFailures: schema.siteWebhooks.consecutiveFailures,
+        createdAt: schema.siteWebhooks.createdAt,
+      })
+      .from(schema.siteWebhooks)
+      .where(eq(schema.siteWebhooks.siteId, siteId))
+      .orderBy(desc(schema.siteWebhooks.createdAt));
+
+    return ok(c, { items: rows, deliveries: await listDeliveries(ctx.db, siteId) });
+  });
+
+  app.post('/sites/:siteId/webhooks', requirePlatform('platform:tenants:write'), async (c) => {
+    const ctx = c.get('ctx');
+    const session = sessionOf(c);
+    const { siteId } = parseParams(c, siteParamSchema);
+    const site = await loadSite(ctx.db, siteId);
+    const input = await parseJsonBody(c, webhookSchema);
+
+    const secret = generateWebhookSecret();
+    const [row] = await ctx.db
+      .insert(schema.siteWebhooks)
+      .values({
+        tenantId: site.tenantId,
+        siteId,
+        url: input.url,
+        description: input.description,
+        secret,
+        isActive: input.isActive,
+        createdByUserId: session.user.id,
+      })
+      .onConflictDoNothing()
+      .returning({ id: schema.siteWebhooks.id });
+
+    if (!row) throw AppError.conflict('Este endereco ja esta cadastrado para o site.');
+
+    await auditFromContext(c, {
+      action: AUDIT_ACTIONS.tenantUpdated,
+      entityType: 'site_webhook',
+      entityId: row.id,
+      tenantId: site.tenantId,
+      // Nunca o segredo: o log de auditoria e consultavel.
+      metadata: { url: input.url, isActive: input.isActive },
+    });
+
+    return created(c, {
+      webhook: { id: row.id, url: input.url },
+      // Unica vez que o segredo aparece.
+      secret,
+      showOnce: true,
+    });
+  });
+
+  app.patch('/sites/:siteId/webhooks/:webhookId', requirePlatform('platform:tenants:write'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId, webhookId } = parseParams(c, webhookParamSchema);
+    const site = await loadSite(ctx.db, siteId);
+    const input = await parseJsonBody(c, webhookSchema.partial());
+
+    const [row] = await ctx.db
+      .update(schema.siteWebhooks)
+      .set({
+        ...(input.url !== undefined ? { url: input.url } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+        updatedAt: ctx.now(),
+      })
+      .where(and(eq(schema.siteWebhooks.id, webhookId), eq(schema.siteWebhooks.siteId, siteId)))
+      .returning({
+        id: schema.siteWebhooks.id,
+        url: schema.siteWebhooks.url,
+        isActive: schema.siteWebhooks.isActive,
+      });
+    if (!row) throw AppError.notFound('Endereco nao encontrado.');
+
+    await auditFromContext(c, {
+      action: AUDIT_ACTIONS.tenantUpdated,
+      entityType: 'site_webhook',
+      entityId: webhookId,
+      tenantId: site.tenantId,
+      metadata: { url: row.url, isActive: row.isActive },
+    });
+
+    return ok(c, { webhook: row });
+  });
+
+  /** Rotaciona o segredo. O endereco continua o mesmo. */
+  app.post(
+    '/sites/:siteId/webhooks/:webhookId/rotate',
+    requirePlatform('platform:tenants:write'),
+    async (c) => {
+      const ctx = c.get('ctx');
+      const { siteId, webhookId } = parseParams(c, webhookParamSchema);
+      const site = await loadSite(ctx.db, siteId);
+
+      const secret = generateWebhookSecret();
+      const [row] = await ctx.db
+        .update(schema.siteWebhooks)
+        .set({ secret, updatedAt: ctx.now() })
+        .where(and(eq(schema.siteWebhooks.id, webhookId), eq(schema.siteWebhooks.siteId, siteId)))
+        .returning({ id: schema.siteWebhooks.id, url: schema.siteWebhooks.url });
+      if (!row) throw AppError.notFound('Endereco nao encontrado.');
+
+      await auditFromContext(c, {
+        action: AUDIT_ACTIONS.tenantUpdated,
+        entityType: 'site_webhook',
+        entityId: webhookId,
+        tenantId: site.tenantId,
+        metadata: { url: row.url, rotated: true },
+      });
+
+      // Sem janela de sobreposicao, ao contrario das chaves de integracao: um
+      // segredo de assinatura e conferido pelo site do cliente, e assinar com
+      // dois ao mesmo tempo exigiria que ele aceitasse os dois. Trocar aqui e
+      // publicar lá precisa ser combinado.
+      return ok(c, { webhook: row, secret, showOnce: true });
+    },
+  );
+
+  app.delete('/sites/:siteId/webhooks/:webhookId', requirePlatform('platform:tenants:write'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId, webhookId } = parseParams(c, webhookParamSchema);
+    const site = await loadSite(ctx.db, siteId);
+
+    const removido = await ctx.db
+      .delete(schema.siteWebhooks)
+      .where(and(eq(schema.siteWebhooks.id, webhookId), eq(schema.siteWebhooks.siteId, siteId)))
+      .returning({ id: schema.siteWebhooks.id });
+    if (removido.length === 0) throw AppError.notFound('Endereco nao encontrado.');
+
+    await auditFromContext(c, {
+      action: AUDIT_ACTIONS.tenantUpdated,
+      entityType: 'site_webhook',
+      entityId: webhookId,
+      tenantId: site.tenantId,
+      metadata: { removed: true },
+    });
+
+    return noContent(c);
   });
 
   return app;

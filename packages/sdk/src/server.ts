@@ -4,6 +4,20 @@ import { createResources, type CodecaResources } from './resources.js';
 
 export * from './types.js';
 export { CodecaError } from './errors.js';
+/**
+ * Verificacao do webhook de publicacao.
+ *
+ * Exportada somente aqui, e nao no ponto de entrada do navegador: conferir a
+ * assinatura exige o segredo, e segredo no navegador deixa de ser segredo.
+ */
+export {
+  verifyWebhook,
+  CODECA_SIGNATURE_HEADER,
+  CODECA_EVENT_HEADER,
+  CODECA_DELIVERY_HEADER,
+  type ContentPublishedEvent,
+  type VerifyWebhookInput,
+} from './webhook.js';
 
 /**
  * Cliente para o servidor do site.

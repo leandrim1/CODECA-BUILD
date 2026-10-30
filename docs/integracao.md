@@ -145,7 +145,79 @@ responde `429` com `retry-after`.
 
 ---
 
-## 6. Quando a assinatura nao esta em dia
+## 6. Aviso de publicacao (opcional)
+
+**Pule esta secao se o site busca o conteudo a cada visita.** Um site Vite ja
+mostra a alteracao do cliente sozinho, e cadastrar um aviso nao acrescenta
+nada.
+
+Vale a pena quando o site renderiza no servidor e guarda cache -- Next com
+ISR, por exemplo. Sem aviso, o site so descobre a mudanca quando o cache
+expira.
+
+Cadastre o endereco em `/plataforma/sites`, aba **Avisos de publicacao**. A
+plataforma passa a enviar um `POST` assinado a cada publicacao.
+
+```ts
+// app/api/revalidar/route.ts
+import { revalidatePath } from 'next/cache';
+import { verifyWebhook, CODECA_SIGNATURE_HEADER } from '@codeca/sdk/server';
+
+export async function POST(request: Request) {
+  // O corpo cru, nao o objeto convertido: reserializar muda espacamento e
+  // ordem das chaves, e a assinatura deixa de conferir.
+  const corpo = await request.text();
+
+  try {
+    const evento = await verifyWebhook({
+      rawBody: corpo,
+      signature: request.headers.get(CODECA_SIGNATURE_HEADER),
+      secret: process.env.CODECA_WEBHOOK_SECRET!,
+    });
+
+    if (evento.moduleKey === 'imoveis' && evento.slug) {
+      revalidatePath(`/imoveis/${evento.slug}`);
+    }
+    revalidatePath('/');
+
+    return Response.json({ ok: true });
+  } catch {
+    // Responder 200 a uma requisicao nao assinada deixaria qualquer um na
+    // internet invalidar o cache do site a vontade.
+    return new Response('assinatura invalida', { status: 401 });
+  }
+}
+```
+
+O corpo traz **o que mudou, nao o conteudo**:
+
+| Campo | O que e |
+| --- | --- |
+| `moduleKey` | modulo afetado (`imoveis`, `contato`, ...) |
+| `action` | `created`, `updated` ou `removed` |
+| `entityId` | registro afetado, ou `null` em documento |
+| `slug` | endereco na URL, para invalidar a pagina certa |
+| `publishedAt` | instante da publicacao, em ISO 8601 |
+
+Busque o conteudo pela API depois do aviso, com a sua credencial. O webhook
+diz **que** mudou; a API diz **o que** e agora.
+
+Tres coisas que valem saber:
+
+- **Rascunho nao avisa.** O aviso sai quando o registro esta publicado antes
+  ou depois da alteracao. Remover um registro publicado avisa, com
+  `action: 'removed'`.
+- **A primeira tentativa e imediata**; o que falha e repetido pelo job diario,
+  ate cinco tentativas. Um 4xx da sua rota (fora de 408 e 429) nao e
+  repetido: a plataforma entende que o endereco esta errado ou a assinatura
+  foi recusada.
+- **O segredo aparece uma vez.** Guarde na variavel de ambiente do projeto.
+  Quem perder rotaciona -- e a rotacao nao tem janela de sobreposicao, entao
+  combine a troca.
+
+---
+
+## 7. Quando a assinatura nao esta em dia
 
 O que acontece depende do plano do site, nao da API. O padrao da plataforma e
 **continuar respondendo**: o visitante nao percebe nada e nenhum dado e
@@ -166,7 +238,7 @@ Durante o periodo de tolerancia nada disso vale: a API responde normal.
 
 ---
 
-## 7. Rotacao
+## 8. Rotacao
 
 Rotacionar emite uma chave nova e marca a anterior para expirar depois de uma
 janela (padrao: 60 minutos).
@@ -180,7 +252,7 @@ sem janela.
 
 ---
 
-## 8. Checklist de um site novo
+## 9. Checklist de um site novo
 
 Tudo abaixo acontece em **`/plataforma/sites`**, na configuracao do projeto.
 
@@ -192,4 +264,6 @@ Tudo abaixo acontece em **`/plataforma/sites`**, na configuracao do projeto.
 5. Na mesma aba, emitir a chave secreta **apenas se** o site tiver servidor
    proprio -- ela aparece uma unica vez.
 6. Conferir `GET /api/v1/site` a partir do site.
-7. Aba **Identidade**: trocar a situacao de `draft` para `active`.
+7. Aba **Avisos de publicacao**: cadastrar o endereco de revalidacao
+   **apenas se** o site renderiza no servidor com cache (secao 6).
+8. Aba **Identidade**: trocar a situacao de `draft` para `active`.

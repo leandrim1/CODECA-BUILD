@@ -19,6 +19,7 @@ import {
   assertModuleEnabled,
   loadSiteModules,
 } from '../lib/modules.js';
+import { queueContentPublished } from '../lib/integration/outbound.js';
 import { requireCapability } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
@@ -71,6 +72,14 @@ export function bannerRoutes() {
       metadata: { title: input.title },
     });
 
+    await queueContentPublished(ctx, {
+      tenantId: tenant.tenantId,
+      siteId: tenant.siteId,
+      moduleKey: 'banners',
+      action: 'created',
+      entityId: row?.id ?? null,
+    });
+
     return created(c, { banner: row ?? null });
   });
 
@@ -110,6 +119,14 @@ export function bannerRoutes() {
       metadata: { changed: alterados },
     });
 
+    await queueContentPublished(ctx, {
+      tenantId: tenant.tenantId,
+      siteId: tenant.siteId,
+      moduleKey: 'banners',
+      action: 'updated',
+      entityId: bannerId,
+    });
+
     return ok(c, { banner: row ?? null });
   });
 
@@ -124,6 +141,14 @@ export function bannerRoutes() {
       .where(and(eq(schema.banners.id, bannerId), eq(schema.banners.siteId, tenant.siteId)))
       .returning({ id: schema.banners.id });
     if (!removido) throw AppError.notFound('Banner nao encontrado.');
+
+    await queueContentPublished(ctx, {
+      tenantId: tenant.tenantId,
+      siteId: tenant.siteId,
+      moduleKey: 'banners',
+      action: 'removed',
+      entityId: bannerId,
+    });
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentDeleted,

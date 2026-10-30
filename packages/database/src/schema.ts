@@ -21,6 +21,7 @@ import type {
   LeadInterestType,
   PlanBillingInput,
   SuspensionPolicy,
+  DeliveryState,
   PlanLimits,
   SocialNetwork,
 } from '@codeca/shared';
@@ -1379,6 +1380,102 @@ export const leadNotes = pgTable(
 
 export type PlanRow = typeof plans.$inferSelect;
 export type TenantRow = typeof tenants.$inferSelect;
+// --------------------------------------------- webhooks de saida (etapa 8)
+
+/**
+ * Endereco do site do cliente que recebe os avisos de publicacao.
+ *
+ * Um site Vite nao precisa disto -- busca o conteudo em tempo de execucao e a
+ * mudanca aparece na proxima visita. Existe para o site que renderiza no
+ * servidor e guarda cache: sem aviso, ele so descobriria a alteracao quando o
+ * cache expirasse.
+ */
+export const siteWebhooks = pgTable(
+  'site_webhooks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    url: text('url').notNull(),
+    description: text('description').notNull().default(''),
+    /**
+     * Segredo de assinatura, em claro.
+     *
+     * Diferente das chaves de integracao, que ficam em hash: assinar exige o
+     * segredo a cada entrega. A contrapartida e que ele nunca aparece em log,
+     * em auditoria nem numa leitura posterior do painel.
+     */
+    secret: text('secret').notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+    lastStatus: integer('last_status'),
+    lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
+    /** Motivo da ultima falha, sem o corpo da resposta alheia. */
+    lastError: text('last_error').notNull().default(''),
+    consecutiveFailures: integer('consecutive_failures').notNull().default(0),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    /** O mesmo endereco duas vezes dobraria as entregas. */
+    uniqueIndex('site_webhooks_site_url_key').on(table.siteId, table.url),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'site_webhooks_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('site_webhooks_site_idx').on(table.siteId),
+  ],
+);
+
+/**
+ * Fila de entregas, gravada antes de ser tentada.
+ *
+ * E o que torna o recurso confiavel numa funcao serverless: o processo que
+ * atende a requisicao pode morrer no instante seguinte, entao a entrega nao
+ * pode existir so na memoria dele. O que falha volta na proxima passagem do
+ * cron.
+ */
+export const webhookDeliveries = pgTable(
+  'webhook_deliveries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    webhookId: uuid('webhook_id')
+      .notNull()
+      .references(() => siteWebhooks.id, { onDelete: 'cascade' }),
+    event: text('event').notNull(),
+    payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+    status: text('status').$type<DeliveryState>().notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+    lastStatus: integer('last_status'),
+    lastError: text('last_error').notNull().default(''),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'webhook_deliveries_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('webhook_deliveries_site_idx').on(table.siteId),
+    index('webhook_deliveries_pending_idx').on(table.nextAttemptAt),
+  ],
+);
+
+export type SiteWebhookRow = typeof siteWebhooks.$inferSelect;
+export type WebhookDeliveryRow = typeof webhookDeliveries.$inferSelect;
+
 export type UserRow = typeof users.$inferSelect;
 export type MembershipRow = typeof memberships.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;

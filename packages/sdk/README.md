@@ -136,6 +136,38 @@ texto nao descreve a pendencia nem cita valores -- se o seu site exibe o
 
 ---
 
+## Aviso de publicacao
+
+Opcional, e so faz sentido para site que renderiza no servidor com cache. O
+verificador fica em `@codeca/sdk/server` -- nunca no ponto de entrada do
+navegador, porque conferir a assinatura exige o segredo.
+
+```ts
+import { verifyWebhook, CODECA_SIGNATURE_HEADER } from '@codeca/sdk/server';
+
+const evento = await verifyWebhook({
+  // O corpo cru. Reserializar muda espacamento e ordem das chaves, e a
+  // assinatura deixa de conferir.
+  rawBody: await request.text(),
+  signature: request.headers.get(CODECA_SIGNATURE_HEADER),
+  secret: process.env.CODECA_WEBHOOK_SECRET!,
+});
+
+// evento.moduleKey, evento.action, evento.slug
+```
+
+Lanca `CodecaError` quando a assinatura nao confere, esta fora da janela de
+tolerancia (cinco minutos) ou o evento e desconhecido. Deixe o erro virar
+401: responder 200 a uma requisicao nao assinada deixaria qualquer um na
+internet invalidar o cache do site.
+
+Usa **Web Crypto**, nao `node:crypto` -- funciona na borda (Vercel Edge,
+Cloudflare) e no Node. O corpo traz `moduleKey`, `action`, `entityId`, `slug`
+e `publishedAt`: o que mudou, nao o conteudo. Busque o conteudo pela API
+depois, com a sua credencial.
+
+---
+
 ## Prazo
 
 Dez segundos por padrao, ajustavel em `timeoutMs`. Sem prazo, uma plataforma

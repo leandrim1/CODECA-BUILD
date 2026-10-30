@@ -181,7 +181,7 @@ banco:
 DATABASE_URL="postgresql://..." pnpm db:migrate
 ```
 
-## 6. Cron da reconciliacao de cobranca
+## 6. Cron: reconciliacao de cobranca e reenvio de avisos
 
 O `vercel.json` ja agenda o job:
 
@@ -224,6 +224,19 @@ automaticamente quando a variavel `CRON_SECRET` existe no projeto, por isso
 
 O job tem trabalho limitado por execucao (50 assinaturas e 50 cobrancas) para
 caber no tempo da funcao; o que sobra fica para a passagem seguinte.
+
+### O mesmo cron reenvia os avisos de publicacao
+
+A rota faz **duas** coisas sem relacao entre si: reconcilia cobranca e
+reenvia os webhooks `content.published` que o site do cliente nao recebeu.
+Juntar e deliberado -- no Hobby existe **um** cron, e separar exigiria plano
+pago para duas tarefas curtas e independentes.
+
+A consequencia esta documentada na secao 6 de `docs/arquitetura-build.md`: uma
+entrega que falha e repetida uma vez por dia. O caso comum nao sente, porque a
+primeira tentativa acontece na propria publicacao; um site que ficou fora por
+uma hora so recebe o aviso no dia seguinte. No Pro, aumentar a frequencia do
+cron resolve sem mudar codigo.
 
 O webhook de pagamento chega em `/api/webhooks/validapay` e e servido pela mesma
 funcao `api/index.ts`. Ele le o corpo bruto (`c.req.text()`) antes de qualquer

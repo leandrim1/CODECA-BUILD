@@ -2,6 +2,8 @@ import { api, query } from './api.js';
 import type {
   BannerRecord,
   IssuedKey,
+  SiteWebhookRow,
+  WebhookDeliveryRow,
   ModuleDocumentResponse,
   PlatformSite,
   SiteModulesResponse,
@@ -529,4 +531,29 @@ export const platformSiteApi = {
 
   revokeKey: (siteId: string, keyId: string) =>
     api.delete<void>(`/api/platform/sites/${siteId}/keys/${keyId}`),
+
+  webhooks: (siteId: string) =>
+    api.get<{ items: SiteWebhookRow[]; deliveries: WebhookDeliveryRow[] }>(
+      `/api/platform/sites/${siteId}/webhooks`,
+    ),
+
+  createWebhook: (siteId: string, body: { url: string; description: string }) =>
+    api.post<{ webhook: { id: string; url: string }; secret: string; showOnce: boolean }>(
+      `/api/platform/sites/${siteId}/webhooks`,
+      body,
+    ),
+
+  updateWebhook: (siteId: string, webhookId: string, body: { isActive: boolean }) =>
+    api.patch<{ webhook: { id: string; url: string; isActive: boolean } }>(
+      `/api/platform/sites/${siteId}/webhooks/${webhookId}`,
+      body,
+    ),
+
+  rotateWebhookSecret: (siteId: string, webhookId: string) =>
+    api.post<{ webhook: { id: string; url: string }; secret: string; showOnce: boolean }>(
+      `/api/platform/sites/${siteId}/webhooks/${webhookId}/rotate`,
+    ),
+
+  removeWebhook: (siteId: string, webhookId: string) =>
+    api.delete<void>(`/api/platform/sites/${siteId}/webhooks/${webhookId}`),
 };

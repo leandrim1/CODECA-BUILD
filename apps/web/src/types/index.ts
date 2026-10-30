@@ -16,6 +16,7 @@ import type {
   SafeIcon,
   SiteStatus,
   SocialNetwork,
+  DeliveryState,
   SuspensionEffect,
   SuspensionPolicy,
   TenantRole,
@@ -654,4 +655,30 @@ export interface ModuleDocumentResponse {
   data: Record<string, unknown>;
   fields: SiteModuleFieldView[];
   updatedAt: string | null;
+}
+
+/** Endereco do site do cliente que recebe os avisos de publicacao. */
+export interface SiteWebhookRow {
+  id: string;
+  url: string;
+  description: string;
+  isActive: boolean;
+  lastStatus: number | null;
+  lastAttemptAt: string | null;
+  lastError: string;
+  consecutiveFailures: number;
+  createdAt: string;
+}
+
+/** Uma tentativa de entrega, para a tela mostrar o historico. */
+export interface WebhookDeliveryRow {
+  id: string;
+  url: string;
+  event: string;
+  status: DeliveryState;
+  attempts: number;
+  lastStatus: number | null;
+  lastError: string;
+  deliveredAt: string | null;
+  createdAt: string;
 }

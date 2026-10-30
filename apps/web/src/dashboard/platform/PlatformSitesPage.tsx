@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Copy, KeyRound, Plus, RotateCw, Save, Trash2 } from 'lucide-react';
-import { formatDateTime } from '@codeca/shared';
+import { DELIVERY_STATE_LABELS, formatDateTime } from '@codeca/shared';
 import {
   Alert,
   Badge,
@@ -23,7 +23,13 @@ import {
 import { useResource, useMutation } from '../../hooks/useResource.js';
 import { platformSiteApi } from '../../services/endpoints.js';
 import { ResourcePanel } from '../../components/ResourcePanel.js';
-import type { IssuedKey, SiteApiKeyRow, SiteModuleView, SiteStatus } from '../../types/index.js';
+import type {
+  IssuedKey,
+  SiteApiKeyRow,
+  SiteModuleView,
+  SiteStatus,
+  SiteWebhookRow,
+} from '../../types/index.js';
 
 /**
  * Configuracao dos sites pela CODECA IA.
@@ -45,6 +51,7 @@ const ABAS = [
   { id: 'modulos', label: 'Modulos e campos' },
   { id: 'origens', label: 'Origens' },
   { id: 'chaves', label: 'Chaves' },
+  { id: 'avisos', label: 'Avisos de publicacao' },
 ] as const;
 
 export function PlatformSitesPage() {
@@ -142,6 +149,7 @@ function ConfiguracaoDoSite({ siteId, onClose }: { siteId: string; onClose: () =
               ) : null}
               {aba === 'origens' ? <AbaOrigens siteId={siteId} /> : null}
               {aba === 'chaves' ? <AbaChaves siteId={siteId} /> : null}
+              {aba === 'avisos' ? <AbaAvisos siteId={siteId} /> : null}
             </>
           )}
         </ResourcePanel>
@@ -572,6 +580,274 @@ function ChaveEmitida({
             </Button>
           </div>
           <p className="text-xs text-slate-500">Escopos: {chave.scopes.join(', ')}</p>
+        </div>
+      ) : null}
+    </Modal>
+  );
+}
+
+// ----------------------------------------------------------------- avisos
+
+/**
+ * Enderecos que recebem `content.published`.
+ *
+ * A maioria dos sites nao precisa disto: um site Vite busca o conteudo em
+ * tempo de execucao e a mudanca aparece na proxima visita. A aba existe para
+ * o site que renderiza no servidor e guarda cache -- e e por isso que ela
+ * comeca explicando quando nao usar.
+ */
+function AbaAvisos({ siteId }: { siteId: string }) {
+  const toast = useToast();
+  const lista = useResource(() => platformSiteApi.webhooks(siteId), [siteId]);
+  const [emitido, setEmitido] = useState<{ url: string; secret: string } | null>(null);
+  const [removendo, setRemovendo] = useState<SiteWebhookRow | null>(null);
+  const [url, setUrl] = useState('');
+  const [descricao, setDescricao] = useState('');
+
+  const criar = useMutation(
+    () => platformSiteApi.createWebhook(siteId, { url: url.trim(), description: descricao.trim() }),
+    {
+      onSuccess: (resultado) => {
+        setEmitido({ url: resultado.webhook.url, secret: resultado.secret });
+        setUrl('');
+        setDescricao('');
+        void lista.reload();
+      },
+      onError: (error) => toast.error('Nao foi possivel cadastrar', error.message),
+    },
+  );
+
+  const rotacionar = useMutation(
+    (webhookId: string) => platformSiteApi.rotateWebhookSecret(siteId, webhookId),
+    {
+      onSuccess: (resultado) => {
+        setEmitido({ url: resultado.webhook.url, secret: resultado.secret });
+        void lista.reload();
+      },
+      onError: (error) => toast.error('Nao foi possivel rotacionar', error.message),
+    },
+  );
+
+  const alternar = useMutation(
+    (entrada: { id: string; isActive: boolean }) =>
+      platformSiteApi.updateWebhook(siteId, entrada.id, { isActive: entrada.isActive }),
+    {
+      onSuccess: () => void lista.reload(),
+      onError: (error) => toast.error('Nao foi possivel alterar', error.message),
+    },
+  );
+
+  const remover = useMutation((webhookId: string) => platformSiteApi.removeWebhook(siteId, webhookId), {
+    onSuccess: () => {
+      toast.success('Endereco removido');
+      setRemovendo(null);
+      void lista.reload();
+    },
+    onError: (error) => toast.error('Nao foi possivel remover', error.message),
+  });
+
+  return (
+    <div className="space-y-4">
+      <Alert tone="info" title="A maioria dos sites nao precisa disto">
+        Um site Vite busca o conteudo a cada visita, entao a alteracao do cliente aparece sozinha.
+        Cadastre um endereco apenas quando o site renderiza no servidor e guarda cache -- ele
+        recebe <code>content.published</code> e invalida o proprio cache.
+      </Alert>
+
+      <Card>
+        <CardHeader title="Novo endereco" description="A plataforma envia um POST assinado a cada publicacao." />
+        <CardBody className="grid gap-3">
+          <TextInput
+            label="Endereco"
+            placeholder="https://site-do-cliente.com.br/api/revalidar"
+            value={url}
+            hint="Https obrigatorio. Somente localhost pode usar http, para desenvolvimento."
+            onChange={(event) => setUrl(event.target.value)}
+          />
+          <TextInput
+            label="Para que serve"
+            placeholder="Revalidacao do cache do Next"
+            value={descricao}
+            onChange={(event) => setDescricao(event.target.value)}
+          />
+          <div className="flex justify-end">
+            <Button
+              onClick={() => void criar.run(undefined)}
+              disabled={criar.loading || url.trim() === ''}
+              icon={<Plus aria-hidden="true" className="size-4" />}
+            >
+              Cadastrar
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+
+      <ResourcePanel resource={lista}>
+        {(data) => (
+          <div className="space-y-4">
+            {data.items.length === 0 ? (
+              <p className="text-sm text-slate-500">Nenhum endereco cadastrado.</p>
+            ) : (
+              <ul className="space-y-2">
+                {data.items.map((item) => (
+                  <li key={item.id} className="rounded-lg border border-slate-200 p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <code className="text-xs text-slate-800">{item.url}</code>
+                          <Badge tone={item.isActive ? 'success' : 'neutral'}>
+                            {item.isActive ? 'ativo' : 'desativado'}
+                          </Badge>
+                          {item.consecutiveFailures > 0 ? (
+                            <Badge tone="danger">{item.consecutiveFailures} falha(s) seguidas</Badge>
+                          ) : null}
+                        </div>
+                        {item.description ? (
+                          <p className="mt-1 text-xs text-slate-500">{item.description}</p>
+                        ) : null}
+                        <p className="mt-1 text-xs text-slate-500">
+                          {item.lastAttemptAt
+                            ? `Ultima tentativa em ${formatDateTime(item.lastAttemptAt)}`
+                              + (item.lastStatus ? ` (respondeu ${item.lastStatus})` : '')
+                            : 'Nenhuma tentativa ainda'}
+                        </p>
+                        {item.lastError ? (
+                          <p className="mt-1 text-xs text-rose-600">{item.lastError}</p>
+                        ) : null}
+                      </div>
+
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void alternar.run({ id: item.id, isActive: !item.isActive })}
+                          disabled={alternar.loading}
+                        >
+                          {item.isActive ? 'Desativar' : 'Ativar'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void rotacionar.run(item.id)}
+                          disabled={rotacionar.loading}
+                        >
+                          <RotateCw aria-hidden="true" className="size-4" />
+                          <span className="sr-only">Rotacionar o segredo</span>
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setRemovendo(item)}>
+                          <Trash2 aria-hidden="true" className="size-4" />
+                          <span className="sr-only">Remover</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {data.deliveries.length > 0 ? (
+              <Card>
+                <CardHeader
+                  title="Ultimas entregas"
+                  description="O que falhou e tentado de novo pelo job diario."
+                />
+                <CardBody>
+                  <ul className="grid gap-1.5 text-xs">
+                    {data.deliveries.map((entrega) => (
+                      <li key={entrega.id} className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          tone={
+                            entrega.status === 'delivered'
+                              ? 'success'
+                              : entrega.status === 'exhausted'
+                                ? 'danger'
+                                : 'warning'
+                          }
+                        >
+                          {DELIVERY_STATE_LABELS[entrega.status]}
+                        </Badge>
+                        <span className="text-slate-600">{entrega.event}</span>
+                        <span className="text-slate-400">
+                          {formatDateTime(entrega.createdAt)} - {entrega.attempts} tentativa(s)
+                        </span>
+                        {entrega.lastError ? (
+                          <span className="text-rose-600">{entrega.lastError}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </CardBody>
+              </Card>
+            ) : null}
+          </div>
+        )}
+      </ResourcePanel>
+
+      <SegredoEmitido emitido={emitido} onClose={() => setEmitido(null)} />
+
+      <ConfirmDialog
+        open={removendo !== null}
+        title="Remover este endereco?"
+        message="O site do cliente para de receber avisos de publicacao. O conteudo continua sendo servido normalmente pela API."
+        confirmLabel="Remover"
+        tone="danger"
+        loading={remover.loading}
+        onCancel={() => setRemovendo(null)}
+        onConfirm={() => {
+          if (removendo) void remover.run(removendo.id);
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * O segredo de assinatura, mostrado uma unica vez.
+ *
+ * Diferente das chaves de integracao, este fica guardado em claro -- assinar
+ * exige o valor a cada entrega. A contrapartida e que ele nunca e lido de
+ * volta, e a tela precisa deixar isso claro antes de o operador fechar.
+ */
+function SegredoEmitido({
+  emitido,
+  onClose,
+}: {
+  emitido: { url: string; secret: string } | null;
+  onClose: () => void;
+}) {
+  const toast = useToast();
+
+  async function copiar(valor: string) {
+    try {
+      await navigator.clipboard.writeText(valor);
+      toast.success('Copiado');
+    } catch {
+      toast.error('Nao foi possivel copiar', 'Selecione o texto e copie manualmente.');
+    }
+  }
+
+  return (
+    <Modal
+      open={emitido !== null}
+      onClose={onClose}
+      title="Copie o segredo agora"
+      description="Esta e a unica vez que ele aparece. Nao ha como consulta-lo depois; quem perder rotaciona."
+      footer={<Button onClick={onClose}>Ja copiei</Button>}
+    >
+      {emitido ? (
+        <div className="space-y-3">
+          <Alert tone="warning" title="Segredo de assinatura: somente no servidor do site">
+            Guarde como variavel de ambiente do projeto do cliente. Nao vai em{' '}
+            <code>VITE_*</code>, nem em componente de cliente, nem no repositorio.
+          </Alert>
+          <p className="text-xs text-slate-500">Endereco: {emitido.url}</p>
+          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <code className="flex-1 break-all text-xs text-slate-800">{emitido.secret}</code>
+            <Button variant="outline" size="sm" onClick={() => void copiar(emitido.secret)}>
+              <Copy aria-hidden="true" className="size-4" />
+              Copiar
+            </Button>
+          </div>
         </div>
       ) : null}
     </Modal>

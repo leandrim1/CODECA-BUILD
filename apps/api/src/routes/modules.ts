@@ -13,6 +13,7 @@ import { auditFromContext } from '../lib/audit-context.js';
 import { ok, parseJsonBody, parseParams } from '../lib/http.js';
 import { assertEditableChanges, assertModuleEnabled, loadSiteModules } from '../lib/modules.js';
 import { resolveSiteBilling } from '../lib/billing/suspension.js';
+import { queueContentPublished } from '../lib/integration/outbound.js';
 import { requireCapability, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
@@ -147,6 +148,14 @@ export function moduleRoutes() {
       // Os nomes dos campos alterados bastam para a auditoria; os valores
       // ficam no proprio documento.
       metadata: { moduleKey: key, changed: alterados },
+    });
+
+    // Documento nao tem rascunho: salvar e publicar. Sempre avisa.
+    await queueContentPublished(ctx, {
+      tenantId: tenant.tenantId,
+      siteId: tenant.siteId,
+      moduleKey: key,
+      action: 'updated',
     });
 
     return ok(c, { moduleKey: key, data: row?.data ?? enviado });

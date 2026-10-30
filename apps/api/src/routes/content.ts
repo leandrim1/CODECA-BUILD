@@ -34,6 +34,10 @@ import {
   assertModuleEnabled,
   loadSiteModules,
 } from '../lib/modules.js';
+import {
+  queueContentPublished,
+  visibilityChanged,
+} from '../lib/integration/outbound.js';
 import { requireModule } from '../middleware/modules.js';
 import type { AppBindings } from '../types.js';
 
@@ -130,6 +134,17 @@ export function contentRoutes() {
       metadata: { title: input.title },
     });
 
+    if (row && visibilityChanged(null, row.publicationStatus)) {
+      await queueContentPublished(ctx, {
+        tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
+        moduleKey: 'servicos',
+        action: 'created',
+        entityId: row.id,
+        slug: row.slug,
+      });
+    }
+
     return created(c, { service: row ?? null });
   });
 
@@ -179,6 +194,17 @@ export function contentRoutes() {
       metadata: {},
     });
 
+    if (visibilityChanged(atual.publicationStatus, row.publicationStatus)) {
+      await queueContentPublished(ctx, {
+        tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
+        moduleKey: 'servicos',
+        action: 'updated',
+        entityId: serviceId,
+        slug: row.slug,
+      });
+    }
+
     return ok(c, { service: row });
   });
 
@@ -190,8 +216,24 @@ export function contentRoutes() {
     const removed = await ctx.db
       .delete(schema.services)
       .where(and(eq(schema.services.id, serviceId), eq(schema.services.tenantId, tenant.tenantId)))
-      .returning({ id: schema.services.id });
-    if (removed.length === 0) throw AppError.notFound('Servico nao encontrado.');
+      .returning({
+        id: schema.services.id,
+        slug: schema.services.slug,
+        publicationStatus: schema.services.publicationStatus,
+      });
+    const apagado = removed[0];
+    if (!apagado) throw AppError.notFound('Servico nao encontrado.');
+
+    if (visibilityChanged(apagado.publicationStatus, null)) {
+      await queueContentPublished(ctx, {
+        tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
+        moduleKey: 'servicos',
+        action: 'removed',
+        entityId: serviceId,
+        slug: apagado.slug,
+      });
+    }
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentDeleted,

@@ -32,6 +32,10 @@ import {
   assertEditablePatch,
   loadSiteModules,
 } from '../lib/modules.js';
+import {
+  queueContentPublished,
+  visibilityChanged,
+} from '../lib/integration/outbound.js';
 import { requireModule } from '../middleware/modules.js';
 import type { AppBindings } from '../types.js';
 
@@ -208,6 +212,17 @@ export function projectRoutes() {
       metadata: { title: row.title, slug: row.slug },
     });
 
+    if (visibilityChanged(null, row.publicationStatus)) {
+      await queueContentPublished(ctx, {
+        tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
+        moduleKey: 'obras',
+        action: 'created',
+        entityId: row.id,
+        slug: row.slug,
+      });
+    }
+
     return created(c, { project: row });
   });
 
@@ -275,6 +290,17 @@ export function projectRoutes() {
       metadata: { stage: row?.stage, status: row?.status },
     });
 
+    if (visibilityChanged(current.publicationStatus, row?.publicationStatus)) {
+      await queueContentPublished(ctx, {
+        tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
+        moduleKey: 'obras',
+        action: 'updated',
+        entityId: projectId,
+        slug: row?.slug ?? null,
+      });
+    }
+
     return ok(c, { project: row ?? null });
   });
 
@@ -284,7 +310,12 @@ export function projectRoutes() {
     const { projectId } = parseParams(c, projectParams);
 
     const [current] = await ctx.db
-      .select({ id: schema.projects.id, title: schema.projects.title })
+      .select({
+        id: schema.projects.id,
+        title: schema.projects.title,
+        slug: schema.projects.slug,
+        publicationStatus: schema.projects.publicationStatus,
+      })
       .from(schema.projects)
       .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, tenant.tenantId)));
     if (!current) throw AppError.notFound('Obra nao encontrada.');
@@ -292,6 +323,17 @@ export function projectRoutes() {
     await ctx.db
       .delete(schema.projects)
       .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, tenant.tenantId)));
+
+    if (visibilityChanged(current.publicationStatus, null)) {
+      await queueContentPublished(ctx, {
+        tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
+        moduleKey: 'obras',
+        action: 'removed',
+        entityId: projectId,
+        slug: current.slug,
+      });
+    }
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.projectDeleted,

@@ -24,6 +24,10 @@ import {
 } from '../lib/http.js';
 import { assertMediaBelongsToTenant, loadGallery, loadMediaByIds, syncGallery } from '../lib/media-refs.js';
 import { assertEditableCreate, assertEditablePatch, loadSiteModules } from '../lib/modules.js';
+import {
+  queueContentPublished,
+  visibilityChanged,
+} from '../lib/integration/outbound.js';
 import { assertWithinLimit, loadEffectivePlan } from '../lib/plan-limits.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
 import { requireCapability } from '../middleware/auth.js';
@@ -243,6 +247,17 @@ export function propertyRoutes() {
       metadata: { title: row.title, slug: row.slug, status: row.publicationStatus },
     });
 
+    if (visibilityChanged(null, row.publicationStatus)) {
+      await queueContentPublished(ctx, {
+        tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
+        moduleKey: 'imoveis',
+        action: 'created',
+        entityId: row.id,
+        slug: row.slug,
+      });
+    }
+
     return created(c, { property: row });
   });
 
@@ -320,6 +335,17 @@ export function propertyRoutes() {
       metadata: { status: row?.publicationStatus, commercialStatus: row?.commercialStatus },
     });
 
+    if (visibilityChanged(current.publicationStatus, row?.publicationStatus)) {
+      await queueContentPublished(ctx, {
+        tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
+        moduleKey: 'imoveis',
+        action: 'updated',
+        entityId: propertyId,
+        slug: row?.slug ?? null,
+      });
+    }
+
     return ok(c, { property: row ?? null });
   });
 
@@ -330,7 +356,12 @@ export function propertyRoutes() {
     const { propertyId } = parseParams(c, propertyParams);
 
     const [current] = await ctx.db
-      .select({ id: schema.properties.id, title: schema.properties.title })
+      .select({
+        id: schema.properties.id,
+        title: schema.properties.title,
+        slug: schema.properties.slug,
+        publicationStatus: schema.properties.publicationStatus,
+      })
       .from(schema.properties)
       .where(and(eq(schema.properties.id, propertyId), eq(schema.properties.tenantId, tenant.tenantId)));
     if (!current) throw AppError.notFound('Imovel nao encontrado.');
@@ -341,6 +372,19 @@ export function propertyRoutes() {
     await ctx.db
       .delete(schema.properties)
       .where(and(eq(schema.properties.id, propertyId), eq(schema.properties.tenantId, tenant.tenantId)));
+
+    if (visibilityChanged(current.publicationStatus, null)) {
+      // Uma pagina que deixou de existir precisa sair do cache do site tanto
+      // quanto uma que mudou.
+      await queueContentPublished(ctx, {
+        tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
+        moduleKey: 'imoveis',
+        action: 'removed',
+        entityId: propertyId,
+        slug: current.slug,
+      });
+    }
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.propertyDeleted,

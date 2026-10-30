@@ -339,14 +339,99 @@ O conteudo tem **rascunho** e **publicado**. A API publica so serve o
 publicado. Publicar e uma operacao do painel, nao um deploy.
 
 Como os sites sao SPAs Vite, o conteudo e buscado em tempo de execucao: a
-alteracao aparece na proxima visita, sem rebuild. Para sites que venham a usar
-renderizacao no servidor com cache, a plataforma envia um **webhook
-`content.published`** assinado com HMAC para uma URL configurada no site, que
-entao invalida o proprio cache.
+alteracao aparece na proxima visita, sem rebuild. **A maioria dos sites nao
+precisa de mais nada.**
 
 O que continua exigindo trabalho da CODECA IA: mudanca de estrutura, de
 componente ou de comportamento. Isso e codigo, e segue sendo codigo. A
 fronteira fica explicita na documentacao de cada modulo.
+
+### O webhook `content.published`
+
+Existe para o site que renderiza no servidor e guarda cache. Sem aviso, esse
+site so descobriria a alteracao quando o cache expirasse -- na Vercel, horas
+depois de o cliente ter publicado.
+
+A plataforma faz um `POST` assinado para cada endereco ativo do site,
+cadastrado em `/plataforma/sites`, aba **Avisos de publicacao**.
+
+**A assinatura reaproveita a convencao dos webhooks que recebemos** da
+ValidaPay: `t=<timestamp>,v1=<hmac>`, com o HMAC sobre `<t>.<corpo bruto>`.
+Nao inventar outro formato tem valor pratico: quem integra ja viu esse em
+qualquer provedor de pagamento, e o verificador cabe em dez linhas. O
+instante entra no calculo para que uma entrega capturada em transito nao
+valha para sempre.
+
+O verificador vem no SDK, em `@codeca/sdk/server`, e usa **Web Crypto** em vez
+de `node:crypto`: o endpoint de revalidacao de um site costuma rodar na borda,
+onde `node:crypto` nao existe. Um teste confere a ida e volta -- a plataforma
+assina com `node:crypto`, o SDK confere com Web Crypto. Se as duas pontas
+divergissem, nenhum site aceitaria nenhum aviso, e a falha apareceria como "o
+cache nao invalida", longe da causa.
+
+#### O corpo carrega o que mudou, nao o conteudo
+
+`{ event, siteId, moduleKey, action, entityId, slug, publishedAt }` -- e nada
+mais. Duas razoes: o aviso viaja para um endereco que a plataforma nao
+controla, e o site busca o conteudo pela API de qualquer forma, com a propria
+credencial, que e o que define o que ele pode ler. Mandar o conteudo aqui
+duplicaria a regra de visibilidade em dois lugares.
+
+O `slug` vai, e precisa ir: e por ele que o site sabe qual pagina invalidar.
+
+#### Quando o aviso sai
+
+| Modulo | Quando |
+| --- | --- |
+| `institucional`, `contato` | sempre que salva -- documento nao tem rascunho |
+| `banners` | criar, alterar ou remover |
+| `imoveis`, `obras`, `servicos` | quando o registro esta publicado antes **ou** depois |
+
+A ultima linha e a regra inteira: rascunho que continua rascunho nao avisa
+(avisar a cada tecla digitada gastaria entrega e invalidaria cache sem
+motivo), e sair de publicado avisa (uma pagina que deixou de existir precisa
+sair do cache tanto quanto uma que mudou).
+
+#### A entrega sobrevive ao processo
+
+Este e o ponto que decide se o recurso vale algo. Em funcao serverless nao
+existe fila em memoria: o processo que atende a requisicao pode morrer no
+instante seguinte. Entao:
+
+1. A entrega e **gravada** em `webhook_deliveries` antes de qualquer
+   tentativa.
+2. A tentativa imediata e oportunista -- funciona no caso comum, com o site do
+   cliente no ar.
+3. O que falhou volta no cron.
+
+E por isso que **a publicacao nunca falha por causa do webhook**. Gravar um
+imovel e a operacao que o cliente pediu; avisar o site e consequencia. Se o
+aviso derrubasse a gravacao, uma indisponibilidade no site do cliente
+impediria o cliente de trabalhar.
+
+Um 4xx do site (fora de 408 e 429) nao e repetido: o endereco esta errado ou a
+assinatura foi recusada, e repetir so geraria ruido nos dois lados. 5xx e
+falha de rede sao repetidos ate cinco tentativas.
+
+**Limitacao conhecida:** o plano Hobby da Vercel permite um cron, diario.
+Logo, uma entrega que falha e repetida **uma vez por dia**. O caso comum nao
+sente -- a primeira tentativa e imediata --, mas um site que ficou fora por
+uma hora so recebe o aviso no dia seguinte. Num plano pago, basta aumentar a
+frequencia do cron em `vercel.json`; nada no codigo muda.
+
+#### O segredo fica em claro, e por que
+
+Ao contrario das chaves de integracao, que ficam em hash, o segredo de
+assinatura e guardado recuperavel: assinar exige o valor a cada entrega, e um
+hash nao serve para isso. A contrapartida e estrita -- ele aparece **uma unica
+vez**, na criacao ou na rotacao, nunca numa leitura posterior, nunca em log e
+nunca na auditoria. Um teste confere que a auditoria registra o endereco e nao
+o segredo.
+
+A rotacao nao tem janela de sobreposicao, diferente das chaves: um segredo de
+assinatura e conferido pelo site do cliente, e aceitar dois ao mesmo tempo
+exigiria que ele tambem aceitasse os dois. Trocar aqui e publicar lá precisa
+ser combinado.
 
 ---
 
@@ -538,7 +623,7 @@ plataforma utilizavel ao final.
 | 5 | API publica `/api/v1` com escopo por chave | 2, 4 | **feita** |
 | 6 | `@codeca/sdk` com tipos, documentacao e exemplo integravel | 5 | **feita** |
 | 7 | Configuracao por segmento no painel mestre | 2 | pendente |
-| 8 | Webhook `content.published` para o site do cliente | 5 | pendente |
+| 8 | Webhook `content.published` para o site do cliente | 5 | **feita** |
 | 9 | Assinatura por site e politica de suspensao | 1 | **feita** |
 | 10 | Cadastro de site no painel mestre, fim a fim | 2, 4 | **feita** |
 

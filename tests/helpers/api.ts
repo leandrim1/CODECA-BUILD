@@ -31,6 +31,49 @@ export interface TestApiOptions {
   env?: Record<string, string>;
 }
 
+/** Uma requisicao que a plataforma enviou ao site do cliente. */
+export interface WebhookCall {
+  url: string;
+  body: string;
+  headers: Record<string, string>;
+}
+
+/**
+ * Site do cliente, substituindo a rede.
+ *
+ * Um teste que precisasse de um servidor HTTP de verdade para conferir a
+ * assinatura verificaria a rede, nao a assinatura -- e ainda abriria porta em
+ * ambiente de CI. Aqui a entrega e capturada e o corpo fica disponivel para o
+ * teste conferir com o verificador do SDK, que e o que o site faria.
+ */
+export function createWebhookSink(options: { status?: number } = {}) {
+  const calls: WebhookCall[] = [];
+  let status = options.status ?? 200;
+
+  const fetch: typeof globalThis.fetch = async (input, init) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    const headers: Record<string, string> = {};
+    new Headers(init?.headers).forEach((value, key) => {
+      headers[key] = value;
+    });
+    calls.push({ url, body: String(init?.body ?? ''), headers });
+    return new Response(null, { status });
+  };
+
+  return {
+    calls,
+    fetch,
+    /** Muda a resposta do site a partir da proxima entrega. */
+    respondWith: (proximo: number) => {
+      status = proximo;
+    },
+    reset: () => {
+      calls.length = 0;
+    },
+  };
+}
+export type WebhookSink = ReturnType<typeof createWebhookSink>;
+
 /** Segredo do webhook usado nos testes; o mesmo que assina os corpos. */
 export const TEST_WEBHOOK_SECRET = 'segredo-de-webhook-para-testes-com-32-caracteres';
 /** Segredo do job de reconciliacao nos testes. */
@@ -38,6 +81,8 @@ export const TEST_JOB_SECRET = 'segredo-do-job-de-reconciliacao-de-teste';
 
 export interface TestApi {
   db: Database;
+  /** Entregas de webhook capturadas no lugar da rede. */
+  webhooks: WebhookSink;
   database: TestDatabase;
   app: ReturnType<typeof createApp>;
   outbox: MailMessage[];
@@ -53,6 +98,7 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
   const database = await createTestDatabase();
   const mailer = createMemoryMailer();
   const blob = createMemoryBlobStorage();
+  const webhooks = createWebhookSink();
   const billing = options.billing ?? createMemoryBillingProvider(
     options.now ? { now: options.now } : {},
   );
@@ -82,6 +128,7 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     blob,
     domains: options.domains ?? createUnconfiguredDomainProvider(),
     billing,
+    fetch: webhooks.fetch,
     ...(options.now ? { now: options.now } : {}),
   });
 
@@ -91,6 +138,7 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
   return {
     db: database.db,
     database,
+    webhooks,
     app,
     outbox: mailer.outbox,
     blobFiles: blob.files,
@@ -98,6 +146,7 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     client: () => new TestClient(app),
     reset: async () => {
       await database.reset();
+      webhooks.reset();
       mailer.outbox.length = 0;
       blob.files.clear();
       billing.sessions.clear();

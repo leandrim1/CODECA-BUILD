@@ -113,3 +113,37 @@ export function shortCode(length = 8): string {
   }
   return output;
 }
+
+/**
+ * Assina um corpo de webhook que a plataforma envia.
+ *
+ * Mesma convencao dos webhooks que recebemos: o HMAC cobre
+ * `<timestamp>.<corpo bruto>`, e nao apenas o corpo. Incluir o instante e o
+ * que impede o reenvio de uma entrega antiga capturada em transito -- sem
+ * ele, uma requisicao valida seria valida para sempre.
+ *
+ * O corpo precisa ser assinado exatamente como vai ser enviado: serializar
+ * duas vezes pode mudar espacamento ou ordem de chaves, e a conferencia do
+ * outro lado falharia.
+ */
+export function signOutboundWebhook(
+  secret: string,
+  timestampMs: number,
+  rawBody: string,
+): string {
+  return `t=${timestampMs},v1=${createHmac('sha256', secret)
+    .update(`${timestampMs}.${rawBody}`)
+    .digest('hex')}`;
+}
+
+/**
+ * Segredo de assinatura de um webhook de saida.
+ *
+ * Guardado **recuperavel**, ao contrario das chaves de integracao, que ficam
+ * em hash. Nao e descuido: assinar exige o segredo em claro a cada entrega, e
+ * um hash nao serve para isso. A contrapartida e que ele nunca aparece em
+ * log, em auditoria nem numa leitura do painel depois de criado.
+ */
+export function generateWebhookSecret(): string {
+  return `cb_whsec_${randomBytes(32).toString('base64url')}`;
+}
