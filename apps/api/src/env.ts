@@ -43,6 +43,9 @@ export const envSchema = z.object({
 
   /** Token do Vercel Blob. Sem ele, o upload de arquivos fica indisponivel. */
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
+  // Definida pela Vercel ao conectar um Blob store. Stores criados hoje
+  // autenticam por OIDC e nao emitem token de escrita nenhum.
+  BLOB_STORE_ID: z.string().optional(),
 
   /** Credenciais da API da Vercel para registrar dominios dos clientes. */
   VERCEL_API_TOKEN: z.string().optional(),
@@ -123,7 +126,7 @@ export interface FeatureFlags {
 
 export function featureFlags(env: Env): FeatureFlags {
   return {
-    blobStorage: Boolean(env.BLOB_READ_WRITE_TOKEN),
+    blobStorage: Boolean(env.BLOB_READ_WRITE_TOKEN || env.BLOB_STORE_ID),
     vercelDomains: Boolean(env.VERCEL_API_TOKEN && env.VERCEL_PROJECT_ID),
     transactionalEmail: Boolean(env.RESEND_API_KEY),
     billing: Boolean(env.VALIDAPAY_CLIENT_ID && env.VALIDAPAY_CLIENT_SECRET),

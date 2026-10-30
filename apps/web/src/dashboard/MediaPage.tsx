@@ -120,8 +120,9 @@ export function MediaPage() {
 
       {usage.data && !usage.data.blobConfigured ? (
         <Alert tone="warning" title="Armazenamento de arquivos nao configurado">
-          O envio de imagens depende da variavel <code>BLOB_READ_WRITE_TOKEN</code> no ambiente do servidor.
-          Os demais recursos do painel seguem funcionando.
+          O envio de imagens depende de um Blob store conectado ao projeto na Vercel, em
+          <strong> Storage</strong>. Conectar define <code>BLOB_STORE_ID</code> sozinho; nenhuma
+          variavel precisa ser criada a mao. Os demais recursos do painel seguem funcionando.
         </Alert>
       ) : null}
 

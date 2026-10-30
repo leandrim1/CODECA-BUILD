@@ -41,14 +41,31 @@ export function blobPathBelongsToTenant(pathname: string, tenantId: string): boo
   return pathname.startsWith(tenantBlobPrefix(tenantId));
 }
 
-export function createVercelBlobStorage(token: string): BlobStorage {
+/**
+ * Credencial do Blob.
+ *
+ * A Vercel tem duas formas de autenticar, e stores criados hoje usam a
+ * segunda:
+ *
+ * - **Token de escrita** (`BLOB_READ_WRITE_TOKEN`), de vida longa, usado por
+ *   stores antigos e por qualquer maquina fora da Vercel.
+ * - **OIDC**, em que a plataforma injeta um token de vida curta que rotaciona
+ *   sozinho. Conectar um store novo cria apenas `BLOB_STORE_ID`, e nenhum
+ *   token aparece nas variaveis do projeto.
+ *
+ * Passar `token: undefined` nao e descuido: e o que faz o SDK resolver a
+ * credencial sozinho, preferindo OIDC e caindo no token de ambiente quando ele
+ * existe. Passar um token vazio quebraria as duas formas.
+ */
+export function createVercelBlobStorage(token?: string): BlobStorage {
+  const auth = token ? { token } : {};
   return {
     configured: true,
     async put({ pathname, body, contentType }) {
       const { put } = await import('@vercel/blob');
       const result = await put(pathname, body as Buffer, {
         access: 'public',
-        token,
+        ...auth,
         contentType,
         // `addRandomSuffix` evita que dois envios com o mesmo nome se sobreponham.
         addRandomSuffix: true,
@@ -63,7 +80,7 @@ export function createVercelBlobStorage(token: string): BlobStorage {
     },
     async remove(url) {
       const { del } = await import('@vercel/blob');
-      await del(url, { token });
+      await del(url, auth);
     },
   };
 }
@@ -72,8 +89,8 @@ export function createVercelBlobStorage(token: string): BlobStorage {
 export function createUnconfiguredBlobStorage(): BlobStorage {
   const fail = (): never => {
     throw AppError.notConfigured(
-      'O armazenamento de arquivos nao esta configurado. Defina BLOB_READ_WRITE_TOKEN no ambiente '
-        + 'para habilitar o envio de imagens.',
+      'O armazenamento de arquivos nao esta configurado. Conecte um Blob store ao projeto na '
+        + 'Vercel -- isso define BLOB_STORE_ID -- ou defina BLOB_READ_WRITE_TOKEN no ambiente.',
     );
   };
   return {
@@ -83,10 +100,31 @@ export function createUnconfiguredBlobStorage(): BlobStorage {
   };
 }
 
+/** Como este ambiente se autentica no Blob. */
+export type BlobCredential =
+  | { kind: 'token'; token: string }
+  | { kind: 'oidc' }
+  | { kind: 'none' };
+
+/**
+ * Decide a credencial a partir do ambiente.
+ *
+ * Separado da criacao do armazenamento porque e aqui que mora a regra -- o
+ * resto e chamada de SDK. O token tem precedencia: quando alguem o define
+ * explicitamente, e porque quer aquele store, mesmo havendo um conectado.
+ */
+export function resolveBlobCredential(env: Env): BlobCredential {
+  if (env.BLOB_READ_WRITE_TOKEN) return { kind: 'token', token: env.BLOB_READ_WRITE_TOKEN };
+  // Store conectado por OIDC: o `BLOB_STORE_ID` basta, e o token de vida curta
+  // vem da plataforma em tempo de execucao.
+  if (env.BLOB_STORE_ID) return { kind: 'oidc' };
+  return { kind: 'none' };
+}
+
 export function createBlobStorage(env: Env): BlobStorage {
-  return env.BLOB_READ_WRITE_TOKEN
-    ? createVercelBlobStorage(env.BLOB_READ_WRITE_TOKEN)
-    : createUnconfiguredBlobStorage();
+  const credential = resolveBlobCredential(env);
+  if (credential.kind === 'none') return createUnconfiguredBlobStorage();
+  return createVercelBlobStorage(credential.kind === 'token' ? credential.token : undefined);
 }
 
 /** Armazenamento em memoria para os testes. */

@@ -96,7 +96,7 @@ export function UploadButton({
   if (!blobConfigured) {
     return (
       <Alert tone="warning" title="Envio de arquivos indisponivel">
-        Defina <code>BLOB_READ_WRITE_TOKEN</code> no ambiente para habilitar a biblioteca de imagens.
+        Conecte um Blob store ao projeto na Vercel para habilitar a biblioteca de imagens.
       </Alert>
     );
   }

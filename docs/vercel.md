@@ -252,6 +252,24 @@ funcao `api/index.ts`. Ele le o corpo bruto (`c.req.text()`) antes de qualquer
 validacao, porque o HMAC cobre os bytes exatos -- nao ha configuracao adicional
 a fazer na Vercel para isso.
 
+## 6b. Armazenamento de imagens (Vercel Blob)
+
+Em **Storage**, crie um Blob store e conecte-o ao projeto. A Vercel define
+`BLOB_STORE_ID` sozinha e autentica por **OIDC**: o token e de vida curta e
+rotaciona automaticamente, entao **nao ha token para copiar** e nada deve ser
+criado a mao.
+
+Stores antigos, e qualquer execucao fora da Vercel (sua maquina, outro
+provedor), usam `BLOB_READ_WRITE_TOKEN`, que continua aceito e tem
+precedencia quando as duas variaveis existem.
+
+Confirme em `/api/health`: `features.blobStorage` fica `true` com qualquer uma
+das duas.
+
+Nao invente um valor para `BLOB_READ_WRITE_TOKEN`. A aplicacao passa a se
+considerar configurada e o envio falha no meio, o que e pior que o aviso
+honesto de armazenamento indisponivel.
+
 ## 7. Cache e invalidacao
 
 As paginas publicas sao renderizadas no servidor e respondem com:

@@ -16,7 +16,13 @@ export {
   type Mailer,
   type MailMessage,
 } from './lib/mailer.js';
-export { createMemoryBlobStorage, createBlobStorage, type BlobStorage } from './lib/blob.js';
+export {
+  createMemoryBlobStorage,
+  createBlobStorage,
+  resolveBlobCredential,
+  type BlobStorage,
+  type BlobCredential,
+} from './lib/blob.js';
 export {
   createUnconfiguredDomainProvider,
   createVercelDomainProvider,
