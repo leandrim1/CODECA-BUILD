@@ -11,3 +11,13 @@ coverage/
 .DS_Store
 *.log
 .pglite/
+
+# Pacotes do proprio repositorio enviados por engano. Um zip/rar do projeto
+# carrega junto o `.env` e qualquer outro arquivo ignorado -- e o .gitignore
+# nao protege o que esta dentro de um arquivo compactado.
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tgz
