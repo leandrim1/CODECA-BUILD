@@ -28,7 +28,14 @@ implantacoes de *preview*: cada uma com a sua URL propria, enquanto o dominio
 de producao continua servindo o ultimo build antigo. O deploy "funciona", o
 repositorio esta correto e a tela segue errada.
 
-Em *Settings -> Git*, confirme que o *Production Branch* e o branch que voce
+Na importacao a Vercel costuma gravar `main`. Se o repositorio nao tiver um
+branch com esse nome -- ou se ele for renomeado ou apagado depois --, o
+*Branch Tracking* da producao aponta para um branch inexistente e **nenhum push
+vira producao**: todos viram preview, e o dominio segue servindo o build
+anterior indefinidamente.
+
+Em *Settings -> Environments -> Production* (ou *Settings -> Git*, conforme a
+versao do painel), confirme que o *Branch Tracking* e o branch que voce
 realmente publica. Para checar o que esta no ar sem abrir o painel, veja a
 secao 9.
 
@@ -145,6 +152,19 @@ Tres limites deliberados:
 
 Os planos nunca sao sobrescritos: a criacao so acontece com a tabela vazia.
 Preco e limites ajustados no painel mestre sobrevivem a qualquer deploy.
+
+### Nao promova um Preview a producao
+
+A primeira regra tem uma consequencia que nao e obvia no painel da Vercel: uma
+implantacao construida como *Preview* **nao tem migracao nenhuma aplicada**,
+porque o passo foi pulado no build dela. Promove-la a producao (*Promote to
+Production*) publica o codigo novo contra um banco que pode nao ter as tabelas
+que ele espera -- e a tela volta a falhar, agora por outro motivo.
+
+Producao se publica com um build de producao: um push no branch de producao, ou
+*Redeploy* de uma implantacao que ja era de producao **e** aponta para o commit
+desejado. O *Redeploy* reconstroi o commit daquela implantacao, nunca o mais
+recente do branch; para publicar o commit mais novo, faca um push.
 
 **Migracao destrutiva continua exigindo cuidado.** Remover uma coluna ou
 tabela que o codigo no ar ainda usa quebra a aplicacao entre a migracao e a
