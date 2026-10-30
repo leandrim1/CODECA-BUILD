@@ -263,17 +263,26 @@ honesto de armazenamento indisponivel.
 
 ## 7. Cache e invalidacao
 
-As paginas publicas sao renderizadas no servidor e respondem com:
+A plataforma nao renderiza site nenhum, entao nao ha pagina publica para
+cachear aqui. **Toda** resposta da API -- painel e `/api/v1` -- sai com
+`cache-control: no-store` (`apps/api/src/middleware/security.ts`). E
+deliberado: a resposta depende da chave que autenticou e do que ela pode ler,
+e uma copia guardada por intermediario entregaria a um site o conteudo
+destinado a outro.
 
-- `cache-control: public, max-age=0, s-maxage=..., stale-while-revalidate=...` —
-  a borda da Vercel serve a copia pronta e revalida em segundo plano, enquanto o
-  navegador sempre confere;
-- `etag` derivado da versao publicada do site e do caminho, o que permite 304
-  sem refazer o HTML.
+O cache fica no site do cliente, onde o projeto dele decide a estrategia:
 
-Publicar incrementa `published_version` em `site_settings`, o que muda o ETag de
-todas as paginas daquela empresa e invalida o cache sem tocar em nenhuma outra.
-O painel (`/api/*` e a previa) responde `no-store`.
+- **Site Vite que busca no navegador** nao precisa de nada. Cada visita chama
+  a API e a alteracao do cliente aparece sozinha. E o caso da maioria.
+- **Site que renderiza no servidor e guarda cache** (Next.js com ISR, por
+  exemplo) define o tempo de revalidacao no proprio projeto e, se quiser
+  invalidar na hora, cadastra um endereco para receber o webhook
+  `content.published` -- ver a secao 6 do `docs/integracao.md`. Sem o aviso o
+  conteudo novo entra quando o cache expira, o que para muito site e
+  suficiente.
+
+Em nenhum dos dois casos o cliente precisa de um novo deploy para publicar
+conteudo, que e o requisito do produto.
 
 ## 8. Limites a observar
 

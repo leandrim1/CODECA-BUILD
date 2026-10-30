@@ -4,7 +4,6 @@ import {
   addressSchema,
   cnpjSchema,
   emailSchema,
-  httpsUrlSchema,
   phoneSchema,
   slugSchema,
   socialLinksSchema,
@@ -40,21 +39,6 @@ export const updateTenantContactSchema = z.object({
   social: socialLinksSchema,
 });
 export type UpdateTenantContactInput = z.infer<typeof updateTenantContactSchema>;
-
-export const updateSiteSectionsSchema = z.object({
-  /** Secoes do site publico que a empresa pode habilitar ou desabilitar. */
-  showProperties: z.boolean().default(true),
-  showProjects: z.boolean().default(true),
-  showServices: z.boolean().default(true),
-  showGallery: z.boolean().default(true),
-  showTestimonials: z.boolean().default(true),
-  showTeam: z.boolean().default(true),
-  showFaq: z.boolean().default(true),
-  floatingWhatsApp: z.boolean().default(true),
-  privacyPolicyUrl: httpsUrlSchema.default(''),
-  privacyPolicyText: z.string().trim().max(20000).default(''),
-});
-export type UpdateSiteSectionsInput = z.infer<typeof updateSiteSectionsSchema>;
 
 export const tenantStatusSchema = z.enum(TENANT_STATUSES);
 

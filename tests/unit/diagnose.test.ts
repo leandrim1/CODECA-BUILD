@@ -79,3 +79,66 @@ describe('diagnostico de falha do banco', () => {
     expect(texto.split('\n')).toHaveLength(1);
   });
 });
+
+/**
+ * O Drizzle embrulha a falha do driver em `Failed query: <o SQL inteiro>` e
+ * guarda a original em `cause`. Um log que mostrasse apenas a camada de fora
+ * imprimiria paginas de SQL sem dizer o que aconteceu -- e no caso de uma
+ * migracao que se recusou a apagar dado, esconderia justamente a instrucao de
+ * como seguir.
+ */
+describe('erro embrulhado pelo driver', () => {
+  /** Como o Drizzle entrega: mensagem propria por fora, erro do pg em `cause`. */
+  function drizzleError(interno: Error): Error {
+    return Object.assign(new Error('Failed query: select 1 from tenants'), { cause: interno });
+  }
+
+  it('diagnostica pelo erro de dentro, nao pelo embrulho', () => {
+    const failure = describeDatabaseFailure(
+      drizzleError(pgError('password authentication failed for user "neondb_owner"', '28P01')),
+    );
+    expect(failure.code).toBe('28P01');
+    expect(failure.message).toMatch(/password authentication failed/);
+    expect(failure.message).not.toMatch(/Failed query/);
+    expect(failure.cause).toMatch(/credenciais/i);
+  });
+
+  it('desce mais de uma camada de cause', () => {
+    const failure = describeDatabaseFailure(
+      drizzleError(drizzleError(pgError('relation "tenants" already exists', '42P07'))),
+    );
+    expect(failure.code).toBe('42P07');
+    expect(failure.cause).toMatch(/__codeca_migrations/);
+  });
+
+  it('nao trava numa cadeia circular', () => {
+    const circular = new Error('volta em si mesmo');
+    (circular as { cause?: unknown }).cause = circular;
+    expect(describeDatabaseFailure(circular).message).toBe('volta em si mesmo');
+  });
+
+  it('mostra o HINT da instrucao que falhou', () => {
+    // E o caminho da guarda da migracao 0007: o RAISE EXCEPTION explica o que
+    // aconteceu e o HINT diz o que fazer. Sem esta linha, a guarda existiria e
+    // ninguem leria o motivo.
+    const interno = Object.assign(
+      new Error('Migracao 0007 interrompida: ainda ha conteudo do editor antigo em pages (3 linha(s)); '),
+      { code: 'P0001', hint: 'Exporte o que interessa e esvazie as tabelas com TRUNCATE.' },
+    );
+    const texto = formatDatabaseFailure(drizzleError(interno));
+
+    expect(texto).toMatch(/Migracao 0007 interrompida/);
+    expect(texto).toMatch(/\[deploy\] o banco informou: Exporte o que interessa/);
+    expect(texto).not.toMatch(/Failed query/);
+  });
+
+  it('nao vaza credencial que venha dentro do DETAIL', () => {
+    const interno = Object.assign(new Error('falhou'), {
+      code: 'P0001',
+      detail: 'ao conectar em postgresql://usuario:npg_SENHA@ep-x.neon.tech/neondb',
+    });
+    const texto = formatDatabaseFailure(drizzleError(interno));
+    expect(texto).not.toContain('npg_SENHA');
+    expect(texto).toContain('postgresql://***@ep-x.neon.tech/neondb');
+  });
+});

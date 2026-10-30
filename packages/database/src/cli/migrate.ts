@@ -1,4 +1,5 @@
 import { createNeonDatabase } from '../client.js';
+import { formatDatabaseFailure } from '../diagnose.js';
 import { runMigrations } from '../migrator.js';
 
 /** Aplica as migracoes pendentes no banco apontado por DATABASE_URL. */
@@ -22,6 +23,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error('Falha ao aplicar migracoes:', error instanceof Error ? error.message : error);
+  // O mesmo bloco do deploy: `error.message` sozinho e o `Failed query:` do
+  // Drizzle com o SQL inteiro, e a linha que explica a falha fica escondida
+  // em `cause`.
+  console.error(formatDatabaseFailure(error));
   process.exit(1);
 });

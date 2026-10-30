@@ -32,12 +32,30 @@ describe('migracoes e restricoes do schema', () => {
 
     for (const expected of [
       'plans', 'tenants', 'users', 'memberships', 'sessions', 'user_tokens', 'subscriptions',
-      'audit_logs', 'support_access_grants', 'rate_limits', 'domains', 'site_settings', 'pages',
-      'page_versions', 'navigation_menus', 'media_assets', 'redirects', 'properties',
-      'property_images', 'projects', 'project_images', 'project_updates', 'project_update_images',
-      'services', 'testimonials', 'team_members', 'faqs', 'leads', 'lead_notes',
+      'audit_logs', 'support_access_grants', 'rate_limits', 'domains', 'media_assets',
+      'properties', 'property_images', 'projects', 'project_images', 'project_updates',
+      'project_update_images', 'services', 'testimonials', 'team_members', 'faqs', 'leads',
+      'lead_notes', 'sites', 'segments', 'site_modules', 'site_field_policies',
+      'content_documents', 'site_api_keys', 'site_origins', 'banners', 'site_webhooks',
+      'webhook_deliveries',
     ]) {
       expect(names, `tabela ${expected}`).toContain(expected);
+    }
+  });
+
+  it('as tabelas do renderizador nao existem mais', async () => {
+    // A migracao 0007 as derrubou. Se uma delas reaparecer, reapareceu o
+    // construtor visual que o pedido diz para nao ter -- e um banco novo
+    // passaria a divergir de um migrado.
+    const result = await ctx.db.execute(
+      sql.raw(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`),
+    );
+    const names = resultRows<{ table_name: string }>(result).map((r) => r.table_name);
+
+    for (const removida of [
+      'pages', 'page_versions', 'navigation_menus', 'redirects', 'site_settings',
+    ]) {
+      expect(names, `tabela ${removida}`).not.toContain(removida);
     }
   });
 

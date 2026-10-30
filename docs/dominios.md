@@ -117,25 +117,30 @@ mais.
 
 ## 6. Como uma requisicao chega ao site certo
 
+O dominio do cliente **nao aponta para a plataforma**. Quem responde nele e o
+projeto Vercel que a CODECA IA desenvolveu para aquele cliente; a plataforma
+entra depois, como origem do conteudo:
+
 ```
 GET https://www.construtorahorizonte.com.br/imoveis/residencial-aurora
   |
-  +-- vercel.json: host nao e da plataforma -> /api/site
-  +-- normalizeDomain("www.construtorahorizonte.com.br")
-  +-- domains: status = 'active' e ownership_verified = true?
-  +-- tenants: status em ('trialing', 'active')?
-  +-- site_settings: tema e SEO da empresa
-  +-- page_versions: versao publicada da rota
-  +-- renderToStaticMarkup -> HTML + ETag
+  +-- projeto Vercel do cliente (React/Vite ou SSR, desenvolvido sob medida)
+  +-- @codeca/sdk -> GET https://<plataforma>/api/v1/properties/residencial-aurora
+  |     +-- chave de integracao do site (cb_pub_... ou cb_sec_...)
+  |     +-- site_api_keys: chave valida, nao revogada, escopo content:read?
+  |     +-- site_origins: origem autorizada para este site?
+  |     +-- assinatura em dia? (senao, conforme a politica do plano)
+  |     +-- conteudo publicado daquele site -- e so daquele site
+  +-- o proprio projeto renderiza com o design dele
 ```
 
-Se o dominio nao resolver, a resposta e uma pagina de erro da plataforma — nunca
-o site de outra empresa, e nunca o painel. Uma empresa suspensa deixa de
-responder no dominio dela imediatamente, sem precisar de nova publicacao.
+Quem decide o que pode ser lido e **a chave**, nunca o dominio da requisicao.
+E a diferenca que importa: dominio e cabecalho, e cabecalho se falsifica. O
+cadastro de dominio aqui serve para o painel exibir o endereco e montar URLs
+--- nao e mecanismo de autenticacao nem de autorizacao.
 
-Em desenvolvimento nao e preciso dominio: `http://<slug>.localhost:5173` resolve
-pelo slug da empresa (`*.localhost` ja aponta para 127.0.0.1 na maioria dos
-sistemas).
+Em desenvolvimento o site do cliente roda em `localhost` e basta cadastrar essa
+origem para o site daquele projeto.
 
 ## 7. Painel mestre
 

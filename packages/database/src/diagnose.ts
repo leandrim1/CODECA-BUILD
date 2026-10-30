@@ -26,6 +26,8 @@ export interface DatabaseFailure {
   cause: string | null;
   /** O que fazer a respeito. `null` quando nao reconhecido. */
   remedy: string | null;
+  /** `HINT`/`DETAIL` do PostgreSQL, quando a propria instrucao explicou. */
+  hint: string | null;
 }
 
 function errorCode(error: unknown): string | null {
@@ -34,16 +36,50 @@ function errorCode(error: unknown): string | null {
   return typeof code === 'string' && code ? code : null;
 }
 
+/**
+ * Erro mais interno da cadeia de `cause`.
+ *
+ * O Drizzle embrulha a falha do driver em `Failed query: <o SQL inteiro>` e
+ * guarda a original em `cause`. Sem descer a cadeia, o log do build mostra
+ * paginas de SQL e esconde a unica linha que diz o que aconteceu -- inclusive
+ * o `RAISE EXCEPTION` de uma migracao que se recusou a apagar dado.
+ */
+function innermostError(error: unknown): unknown {
+  let atual = error;
+  // Limite de voltas: cadeia circular nao e impossivel e nao vale travar o
+  // log do build por causa dela.
+  for (let i = 0; i < 10; i += 1) {
+    if (typeof atual !== 'object' || atual === null || !('cause' in atual)) break;
+    const proxima = (atual as { cause?: unknown }).cause;
+    if (proxima === undefined || proxima === null || proxima === atual) break;
+    atual = proxima;
+  }
+  return atual;
+}
+
+/** `HINT` e `DETAIL` que o PostgreSQL devolve junto do erro. */
+function postgresHint(error: unknown): string | null {
+  if (typeof error !== 'object' || error === null) return null;
+  const campos = error as { hint?: unknown; detail?: unknown };
+  const partes = [campos.hint, campos.detail]
+    .filter((valor): valor is string => typeof valor === 'string' && valor.trim().length > 0)
+    .map((valor) => scrubConnectionStrings(valor.trim()));
+  return partes.length > 0 ? partes.join(' ') : null;
+}
+
 export function describeDatabaseFailure(error: unknown): DatabaseFailure {
-  const code = errorCode(error);
+  const raiz = innermostError(error);
+  const code = errorCode(raiz) ?? errorCode(error);
+  const hint = postgresHint(raiz);
   const message = scrubConnectionStrings(
-    error instanceof Error ? error.message : String(error),
+    raiz instanceof Error ? raiz.message : String(raiz),
   );
 
   if (code === '28P01' || code === '28000' || /password authentication failed/i.test(message)) {
     return {
       code,
       message,
+      hint,
       cause: 'o banco recusou as credenciais da DATABASE_URL.',
       remedy:
         'Copie a string de conexao atual no painel do Neon e atualize DATABASE_URL na Vercel, '
@@ -55,6 +91,7 @@ export function describeDatabaseFailure(error: unknown): DatabaseFailure {
     return {
       code,
       message,
+      hint,
       cause: 'a DATABASE_URL aponta para um banco que nao existe nesse servidor.',
       remedy: 'Confira o nome do banco no fim da string de conexao do Neon.',
     };
@@ -64,6 +101,7 @@ export function describeDatabaseFailure(error: unknown): DatabaseFailure {
     return {
       code,
       message,
+      hint,
       cause:
         `o banco ja tem as tabelas, mas a tabela ${MIGRATIONS_TABLE} nao registra nenhuma `
         + 'migracao: o schema foi criado por fora, com SQL rodado a mao.',
@@ -84,6 +122,7 @@ export function describeDatabaseFailure(error: unknown): DatabaseFailure {
     return {
       code,
       message,
+      hint,
       cause: 'o servidor do banco nao respondeu no endereco da DATABASE_URL.',
       remedy:
         'Confira o host na string de conexao e se o projeto do Neon continua ativo. '
@@ -95,6 +134,7 @@ export function describeDatabaseFailure(error: unknown): DatabaseFailure {
     return {
       code,
       message,
+      hint,
       cause: 'o driver do Neon nao conseguiu abrir a conexao WebSocket.',
       remedy:
         'Verifique a versao do Node usada no build: o driver precisa de WebSocket global '
@@ -102,15 +142,19 @@ export function describeDatabaseFailure(error: unknown): DatabaseFailure {
     };
   }
 
-  return { code, message, cause: null, remedy: null };
+  return { code, message, hint, cause: null, remedy: null };
 }
 
 /** Bloco pronto para o log do build. */
 export function formatDatabaseFailure(error: unknown): string {
-  const { code, message, cause, remedy } = describeDatabaseFailure(error);
+  const { code, message, cause, remedy, hint } = describeDatabaseFailure(error);
   const lines = [`[deploy] falha ao preparar o banco: ${message}`];
   if (code) lines.push(`[deploy] codigo: ${code}`);
   if (cause) lines.push(`[deploy] causa provavel: ${cause}`);
   if (remedy) lines.push(`[deploy] o que fazer: ${remedy}`);
+  // Vem depois do nosso diagnostico, nao antes: quando a propria instrucao
+  // explicou o que fazer -- e e o caso de uma migracao que se recusou a
+  // apagar dado -- essa e a ultima linha do log, a que fica na tela.
+  if (hint) lines.push(`[deploy] o banco informou: ${hint}`);
   return lines.join('\n');
 }

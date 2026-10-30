@@ -394,7 +394,7 @@ export interface PublicationDecision {
  * Decide a publicacao a partir do estado comercial.
  *
  * Funcao pura: a mesma entrada sempre decide igual, no webhook, na
- * reconciliacao, no painel e no renderizador do site.
+ * reconciliacao, no painel e na API publica.
  *
  * Regras, na ordem em que valem:
  *  - suspensao manual vence tudo;
@@ -409,7 +409,6 @@ export function decidePublication(input: PublicationDecisionInput): PublicationD
   const graceEndsAt = accessUntil ? new Date(accessUntil.getTime() + graceMs) : null;
   const withinAccess = accessUntil !== null && accessUntil.getTime() > now.getTime();
   const withinGrace = graceEndsAt !== null && graceEndsAt.getTime() > now.getTime();
-  const inGracePeriod = !withinAccess && withinGrace;
 
   if (input.adminHold) return { publication: 'blocked_admin', graceEndsAt, inGracePeriod: false };
   if (input.disputeHold) return { publication: 'blocked_dispute', graceEndsAt, inGracePeriod: false };

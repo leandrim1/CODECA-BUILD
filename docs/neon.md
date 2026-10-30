@@ -65,29 +65,40 @@ Nao defina `SEED_DEMO=true` em producao.
 
 ## 4. O que esta no banco
 
-32 tabelas, todas com `id` UUID, `created_at` e `updated_at`:
+37 tabelas, todas com `id` UUID, `created_at` e `updated_at`:
 
 - **Contas e empresas**: `users`, `tenants`, `memberships`, `sessions`,
   `user_tokens`, `plans`, `subscriptions`
-- **Site**: `site_settings`, `pages`, `page_versions`, `navigation_menus`,
-  `redirects`, `domains`
-- **Conteudo**: `properties`, `property_images`, `projects`, `project_images`,
-  `project_updates`, `project_update_images`, `services`, `testimonials`,
-  `team_members`, `faqs`
+- **Sites e configuracao**: `sites`, `segments`, `site_modules`,
+  `site_field_policies`, `domains`
+- **Integracao**: `site_api_keys`, `site_origins`, `site_webhooks`,
+  `webhook_deliveries`
+- **Conteudo**: `content_documents`, `banners`, `properties`,
+  `property_images`, `projects`, `project_images`, `project_updates`,
+  `project_update_images`, `services`, `testimonials`, `team_members`, `faqs`
 - **Midia e captacao**: `media_assets`, `leads`, `lead_notes`
 - **Cobranca**: `charges`, `webhook_events`, `billing_audit_logs`
 - **Operacao**: `audit_logs`, `support_access_grants`, `rate_limits`
+
+As tabelas do editor visual (`pages`, `page_versions`, `navigation_menus`,
+`redirects`, `site_settings`) sairam na migracao
+`0007_remove_tabelas_do_renderizador.sql`. Ela se recusa a rodar se encontrar
+linhas nelas: um banco com conteudo do editor antigo interrompe o deploy com a
+instrucao de como seguir, em vez de apagar.
 
 Decisoes que valem conhecer:
 
 - **`tenant_id` em toda tabela de conteudo**, com chave estrangeira e
   `on delete cascade`. Excluir uma empresa remove o que e dela, e nada mais.
+- **`site_id` junto do `tenant_id`**, com restricao composta contra
+  `sites (id, tenant_id)`. E o isolamento conferido pelo banco: uma linha nao
+  pode apontar para um site de outra empresa nem por erro de programacao.
 - **Tipos enumerados no banco** (`publication_status`, `domain_status`,
   `project_stage`, ...). Um valor fora da lista e rejeitado pelo Postgres, nao
   apenas pela aplicacao.
 - **Indices unicos parciais**: um dominio primario por empresa
-  (`domains_primary_per_tenant_key`), uma pagina inicial por site
-  (`pages_tenant_home_key`) e um dominio por host em toda a plataforma
+  (`domains_primary_per_tenant_key`), um site principal por empresa
+  (`sites_primary_per_tenant_key`) e um dominio por host em toda a plataforma
   (`domains_hostname_key`, global de proposito — dois clientes nao podem
   reivindicar o mesmo dominio).
 - **Slugs unicos por site**, nao globais: duas construtoras podem ter
@@ -102,11 +113,11 @@ Decisoes que valem conhecer:
 
 ## 5. Transacoes
 
-A publicacao de uma pagina precisa ser atomica: travar a pagina, revalidar o
-layout, conferir que toda imagem citada pertence a empresa, gravar a versao e
-avancar o contador do site. Por isso o acesso usa
-`drizzle-orm/neon-serverless` (WebSocket) e nao o driver HTTP, que nao suporta
-transacoes. Ver `packages/database/src/publish.ts`.
+Varias operacoes precisam ser atomicas: cadastrar um site com os modulos do
+segmento, trocar o conjunto de modulos de um site, emitir uma chave de
+integracao, registrar um evento de cobranca, gravar um imovel com as imagens.
+Por isso o acesso usa `drizzle-orm/neon-serverless` (WebSocket) e nao o driver
+HTTP, que nao suporta transacoes.
 
 ## 6. Backup e restauracao
 

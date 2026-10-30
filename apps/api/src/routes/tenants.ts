@@ -1,7 +1,6 @@
 import { and, desc, eq, gte, isNull, schema, sql } from '@codeca/database';
 import {
   AppError,
-  updateSiteSectionsSchema,
   updateTenantContactSchema,
   updateTenantSchema,
   type TenantOverview,

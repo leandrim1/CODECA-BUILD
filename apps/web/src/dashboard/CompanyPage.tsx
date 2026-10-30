@@ -6,7 +6,6 @@ import {
   SOCIAL_NETWORK_LABELS,
   formatWhatsAppNumber,
   isValidWhatsAppNumber,
-  updateSiteSectionsSchema,
   whatsAppLink,
 } from '@codeca/shared';
 import {
@@ -29,7 +28,7 @@ import { authApi, tenantApi } from '../services/endpoints.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { useForm } from '../utils/forms.js';
 
-/** Dados da empresa, contato, WhatsApp, secoes do site e conta do usuario. */
+/** Dados da empresa, contato, WhatsApp e conta do usuario. */
 export function CompanyPage() {
   const tenantId = useTenantId();
   const toast = useToast();
@@ -155,7 +154,7 @@ export function CompanyPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Configuracoes da empresa"
-        description="Dados cadastrais, contato, WhatsApp e quais secoes do site ficam ativas."
+        description="Dados cadastrais, contato e WhatsApp da sua empresa."
       />
 
       {readOnly ? <Alert tone="info" title="Somente leitura">Seu papel nao permite alterar estes dados.</Alert> : null}

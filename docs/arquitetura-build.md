@@ -546,8 +546,9 @@ e restricao composta contra o `tenant_id`. `subscriptions` e `charges` ganham
 `users`, `memberships`, `sessions`, `user_tokens`, `plans`, `audit_logs`,
 `rate_limits`, `webhook_events`, `billing_audit_logs`.
 
-**Em avaliacao** — ver item 10: `pages`, `page_versions`, `navigation_menus`,
-`redirects`, `site_settings` pertencem ao renderizador proprio.
+**Removidas** — `pages`, `page_versions`, `navigation_menus`, `redirects` e
+`site_settings` pertenciam ao renderizador proprio e sairam na migracao
+`0007_remove_tabelas_do_renderizador.sql`.
 
 Cada migracao e aplicada pelo build, como ja acontece. As destrutivas ficam
 para um deploy posterior ao que para de usar a coluna.
@@ -597,9 +598,16 @@ visual, as paginas por blocos, o tema e a previa sairam do codigo na etapa 0;
 o painel ficou so com o que gerencia conteudo.
 
 As tabelas `pages`, `page_versions`, `navigation_menus`, `redirects` e
-`site_settings` continuam no banco por ora, sem uso: remove-las e uma migracao
-destrutiva, e a regra da secao 5 do `docs/vercel.md` vale aqui tambem --
-primeiro o deploy que para de usar, depois o que remove.
+`site_settings` sairam na migracao `0007_remove_tabelas_do_renderizador.sql`,
+o segundo dos dois deploys que a secao 5 do `docs/vercel.md` exige: primeiro o
+que para de usar (esta etapa 0), depois o que remove.
+
+Como a remocao nao tem volta e o banco de producao nao pode ser inspecionado
+daqui, a migracao **confere antes**: se alguma das cinco tabelas tiver linhas,
+ela interrompe com a instrucao de exportar e esvaziar, e o deploy falha sem
+apagar nada -- a versao no ar continua servindo, porque nenhum codigo le essas
+tabelas desde a etapa 0. Num banco vazio, que e o caso esperado, ela passa em
+silencio. `tests/integration/migrations.test.ts` exercita os dois caminhos.
 
 Os dominios tambem mudam de papel: no modelo novo quem aponta o dominio e o
 projeto Vercel do cliente, nao a plataforma. **Decidido: so registro.**
@@ -634,11 +642,14 @@ custa caro. As demais sao incrementais.
 
 ## 12. Decisoes tomadas
 
-1. **O renderizador proprio** — congelar, manter como produto, ou remover?
-   Recomendacao acima: congelar.
-2. **Modo hospedado dos dominios** — a plataforma continua provisionando
-   dominio para algum cliente, ou isso passa inteiramente para o projeto
-   Vercel de cada site?
+1. **O renderizador proprio** — **decidido: remover** (item 10). O codigo saiu
+   na etapa 0 e as tabelas na migracao
+   `0007_remove_tabelas_do_renderizador.sql`. Manter dois caminhos de
+   publicacao custaria mais do que o trabalho perdido.
+2. **Modo hospedado dos dominios** — **decidido: so registro** (item 10). Quem
+   aponta o dominio e o projeto Vercel de cada site; `domains` guarda qual
+   dominio pertence a qual site, para o painel exibir e montar URLs. O
+   provisionamento saiu.
 3. **Previa do rascunho no site do cliente** — **decidido: token de vida
    curta no navegador**, ligado ao site e ao usuario, por minutos. Funciona em
    SPA sem exigir servidor no site do cliente, e nao le dado pessoal.
