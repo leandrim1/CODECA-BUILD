@@ -375,7 +375,7 @@ plataforma utilizavel ao final.
 | 1 | Entidade `site`, migracao e isolamento em dois niveis | — | **feita** |
 | 2 | Registro de modulos, habilitacao e politica de campos por site | 1 | **feita** |
 | 3 | Painel que se adapta aos modulos do site | 2 | pendente |
-| 4 | Chaves de integracao, origens, limites e auditoria | 1 | pendente |
+| 4 | Chaves de integracao, origens, limites e auditoria | 1 | **feita** |
 | 5 | API publica `/api/v1` com escopo por chave | 2, 4 | pendente |
 | 6 | `@codeca/sdk` com tipos, documentacao e exemplo integravel | 5 | pendente |
 | 7 | Configuracao por segmento no painel mestre | 2 | pendente |
