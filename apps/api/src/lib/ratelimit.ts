@@ -26,6 +26,8 @@ export const RATE_LIMITS = {
   upload: { action: 'upload', limit: 120, windowSeconds: 3600 },
   domainCheck: { action: 'domain_check', limit: 30, windowSeconds: 3600 },
   invite: { action: 'invite', limit: 20, windowSeconds: 3600 },
+  /** Leitura da API publica, por chave. Generoso: um site carrega varias de uma vez. */
+  publicApi: { action: 'public_api', limit: 600, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export interface RateLimitResult {

@@ -1,19 +1,24 @@
 import { and, desc, eq, schema } from '@codeca/database';
 import {
+  API_KEY_KINDS,
+  API_KEY_SCOPES,
   AppError,
   MODULE_KEYS,
   MODULE_REGISTRY,
   SITE_STATUSES,
   isModuleKey,
+  maskApiKey,
+  normalizeOrigin,
   uuidSchema,
 } from '@codeca/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
-import { ok, parseJsonBody, parseParams } from '../lib/http.js';
+import { created, noContent, ok, parseJsonBody, parseParams } from '../lib/http.js';
+import { issueApiKey, revokeApiKeyById, rotateApiKey } from '../lib/integration/keys.js';
 import { loadSiteModules } from '../lib/modules.js';
-import { requireAuth, requirePlatform } from '../middleware/auth.js';
+import { requireAuth, requirePlatform, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -31,6 +36,26 @@ const updateSiteSchema = z.object({
   name: z.string().trim().min(1).max(160),
   status: z.enum(SITE_STATUSES),
   internalNotes: z.string().trim().max(4_000).default(''),
+});
+
+const keyParamSchema = z.object({ siteId: uuidSchema, keyId: uuidSchema });
+
+const createKeySchema = z.object({
+  kind: z.enum(API_KEY_KINDS),
+  name: z.string().trim().max(120).default(''),
+  /** Vazio usa o padrao do tipo. */
+  scopes: z.array(z.enum(API_KEY_SCOPES)).default([]),
+});
+
+const rotateKeySchema = z.object({
+  /** Quanto tempo a chave antiga continua valendo. Ate uma semana. */
+  graceMinutes: z.number().int().min(0).max(10_080).default(60),
+});
+
+const originsSchema = z.object({
+  origins: z
+    .array(z.object({ origin: z.string().trim().min(1).max(240), note: z.string().trim().max(240).default('') }))
+    .max(25),
 });
 
 const configureModulesSchema = z.object({
@@ -212,6 +237,181 @@ export function platformSiteRoutes() {
 
     const state = await loadSiteModules(ctx.db, siteId);
     return ok(c, { modules: state.modules });
+  });
+
+  // ------------------------------------------------- credenciais do site
+
+  app.get('/sites/:siteId/keys', requirePlatform('platform:tenants:read'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId } = parseParams(c, siteParamSchema);
+    await loadSite(ctx.db, siteId);
+
+    const rows = await ctx.db
+      .select()
+      .from(schema.siteApiKeys)
+      .where(eq(schema.siteApiKeys.siteId, siteId))
+      .orderBy(desc(schema.siteApiKeys.createdAt));
+
+    return ok(c, {
+      items: rows.map((row) => ({
+        id: row.id,
+        kind: row.kind,
+        name: row.name,
+        scopes: row.scopes,
+        // A publicavel aparece inteira: ela precisa ser copiada para o codigo
+        // do site. Da secreta so resta a mascara -- o valor existiu uma vez.
+        token: row.kind === 'publishable' ? row.token : maskApiKey(row.kind, row.lookup),
+        lastUsedAt: row.lastUsedAt,
+        expiresAt: row.expiresAt,
+        revokedAt: row.revokedAt,
+        createdAt: row.createdAt,
+      })),
+    });
+  });
+
+  app.post('/sites/:siteId/keys', requirePlatform('platform:tenants:write'), async (c) => {
+    const ctx = c.get('ctx');
+    const session = sessionOf(c);
+    const { siteId } = parseParams(c, siteParamSchema);
+    const site = await loadSite(ctx.db, siteId);
+    const input = await parseJsonBody(c, createKeySchema);
+
+    const emitida = await issueApiKey(ctx.db, {
+      tenantId: site.tenantId,
+      siteId,
+      kind: input.kind,
+      name: input.name,
+      ...(input.scopes.length > 0 ? { scopes: input.scopes } : {}),
+      createdByUserId: session.user.id,
+    });
+
+    await auditFromContext(c, {
+      action: AUDIT_ACTIONS.tenantUpdated,
+      entityType: 'site_api_key',
+      entityId: emitida.id,
+      tenantId: site.tenantId,
+      // Nunca o token: o log de auditoria e consultavel.
+      metadata: { kind: emitida.kind, scopes: emitida.scopes },
+    });
+
+    return created(c, {
+      key: {
+        id: emitida.id,
+        kind: emitida.kind,
+        scopes: emitida.scopes,
+        token: emitida.token,
+      },
+      // A secreta nao pode ser consultada depois; a publicavel sim.
+      showOnce: emitida.kind === 'secret',
+    });
+  });
+
+  app.post('/sites/:siteId/keys/:keyId/rotate', requirePlatform('platform:tenants:write'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId, keyId } = parseParams(c, keyParamSchema);
+    const site = await loadSite(ctx.db, siteId);
+    const input = await parseJsonBody(c, rotateKeySchema);
+
+    const [atual] = await ctx.db
+      .select({ id: schema.siteApiKeys.id })
+      .from(schema.siteApiKeys)
+      .where(and(eq(schema.siteApiKeys.id, keyId), eq(schema.siteApiKeys.siteId, siteId)));
+    if (!atual) throw AppError.notFound('Chave nao encontrada.');
+
+    const nova = await rotateApiKey(ctx.db, keyId, input.graceMinutes, ctx.now());
+
+    await auditFromContext(c, {
+      action: AUDIT_ACTIONS.tenantUpdated,
+      entityType: 'site_api_key',
+      entityId: nova.id,
+      tenantId: site.tenantId,
+      metadata: { rotatedFrom: keyId, graceMinutes: input.graceMinutes },
+    });
+
+    return ok(c, {
+      key: { id: nova.id, kind: nova.kind, scopes: nova.scopes, token: nova.token },
+      showOnce: nova.kind === 'secret',
+      previousValidUntilMinutes: input.graceMinutes,
+    });
+  });
+
+  app.delete('/sites/:siteId/keys/:keyId', requirePlatform('platform:tenants:write'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId, keyId } = parseParams(c, keyParamSchema);
+    const site = await loadSite(ctx.db, siteId);
+
+    const revogada = await revokeApiKeyById(ctx.db, siteId, keyId, ctx.now());
+    if (!revogada) throw AppError.notFound('Chave nao encontrada.');
+
+    await auditFromContext(c, {
+      action: AUDIT_ACTIONS.tenantUpdated,
+      entityType: 'site_api_key',
+      entityId: keyId,
+      tenantId: site.tenantId,
+      metadata: { revoked: true },
+    });
+
+    return noContent(c);
+  });
+
+  // ---------------------------------------------- origens autorizadas
+
+  app.get('/sites/:siteId/origins', requirePlatform('platform:tenants:read'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId } = parseParams(c, siteParamSchema);
+    await loadSite(ctx.db, siteId);
+
+    const rows = await ctx.db
+      .select()
+      .from(schema.siteOrigins)
+      .where(eq(schema.siteOrigins.siteId, siteId));
+
+    return ok(c, { items: rows });
+  });
+
+  /** Substitui o conjunto inteiro, pelo mesmo motivo dos modulos. */
+  app.put('/sites/:siteId/origins', requirePlatform('platform:tenants:write'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId } = parseParams(c, siteParamSchema);
+    const site = await loadSite(ctx.db, siteId);
+    const input = await parseJsonBody(c, originsSchema);
+
+    const normalizadas: Array<{ origin: string; note: string }> = [];
+    for (const entrada of input.origins) {
+      const origin = normalizeOrigin(entrada.origin);
+      if (!origin) {
+        throw AppError.badRequest(
+          `Endereco invalido: ${entrada.origin}. Informe o endereco completo do site, como https://exemplo.com.br.`,
+        );
+      }
+      if (!normalizadas.some((o) => o.origin === origin)) {
+        normalizadas.push({ origin, note: entrada.note });
+      }
+    }
+
+    await ctx.db.transaction(async (tx) => {
+      await tx.delete(schema.siteOrigins).where(eq(schema.siteOrigins.siteId, siteId));
+      if (normalizadas.length > 0) {
+        await tx.insert(schema.siteOrigins).values(
+          normalizadas.map((o) => ({
+            tenantId: site.tenantId,
+            siteId,
+            origin: o.origin,
+            note: o.note,
+          })),
+        );
+      }
+    });
+
+    await auditFromContext(c, {
+      action: AUDIT_ACTIONS.tenantUpdated,
+      entityType: 'site_origins',
+      entityId: siteId,
+      tenantId: site.tenantId,
+      metadata: { origins: normalizadas.map((o) => o.origin) },
+    });
+
+    return ok(c, { items: normalizadas });
   });
 
   return app;

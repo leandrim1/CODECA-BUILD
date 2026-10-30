@@ -28,6 +28,7 @@ import {
   LEAD_INTEREST_TYPES,
   LEAD_STATUSES,
   PLATFORM_ROLES,
+  API_KEY_KINDS,
   SEGMENT_CODES,
   SITE_STATUSES,
   PROJECT_CATEGORIES,
@@ -85,6 +86,7 @@ export const leadInterestEnum = pgEnum('lead_interest_type', enumValues(LEAD_INT
 export const leadStatusEnum = pgEnum('lead_status', enumValues(LEAD_STATUSES));
 export const domainStatusEnum = pgEnum('domain_status', enumValues(DOMAIN_STATUSES));
 export const sslStatusEnum = pgEnum('ssl_status', ['pending', 'active', 'error']);
+export const apiKeyKindEnum = pgEnum('api_key_kind', enumValues(API_KEY_KINDS));
 export const segmentCodeEnum = pgEnum('segment_code', enumValues(SEGMENT_CODES));
 export const siteStatusEnum = pgEnum('site_status', enumValues(SITE_STATUSES));
 export const mediaKindEnum = pgEnum('media_kind', enumValues(MEDIA_KINDS));
@@ -371,6 +373,86 @@ export const contentDocuments = pgTable(
       name: 'content_documents_site_tenant_fk',
     }).onDelete('cascade'),
     index('content_documents_site_idx').on(table.siteId),
+  ],
+);
+
+/**
+ * Credenciais de integracao de um site.
+ *
+ * Duas naturezas na mesma tabela porque o ciclo de vida e identico -- criar,
+ * rotacionar, revogar -- e o que muda e o escopo e o sigilo:
+ *
+ * - **publicavel**: viaja no navegador, entao fica legivel em `token`. Nao e
+ *   segredo; e um identificador com escopo, cercado por origem autorizada.
+ * - **secreta**: so o hash e guardado. O valor em claro existe uma unica vez,
+ *   na resposta da criacao. Perdido, rotaciona-se.
+ *
+ * `lookup` viaja em claro dentro do token e tem indice proprio: sem ele,
+ * conferir uma chave exigiria comparar o hash de todas as chaves do banco.
+ */
+export const siteApiKeys = pgTable(
+  'site_api_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    kind: apiKeyKindEnum('kind').notNull(),
+    name: text('name').notNull().default(''),
+    lookup: text('lookup').notNull(),
+    /** SHA-256 do segredo apresentado. Conferido em tempo constante. */
+    secretHash: text('secret_hash').notNull(),
+    /** Token completo, somente para chaves publicaveis. */
+    token: text('token'),
+    scopes: jsonb('scopes').$type<string[]>().notNull().default([]),
+    /** Preenchido na rotacao: a chave antiga vale ate aqui. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    /** Gravado de forma esparsa: uma escrita por requisicao seria desperdicio. */
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('site_api_keys_lookup_key').on(table.lookup),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'site_api_keys_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('site_api_keys_site_idx').on(table.siteId),
+  ],
+);
+
+/**
+ * Origens autorizadas a usar a chave publicavel do site.
+ *
+ * Guardadas ja normalizadas (esquema e host, porta padrao removida) para que a
+ * comparacao na requisicao seja exata. Comparacao por sufixo autorizaria
+ * `exemplo.com.br.invasor.com`.
+ */
+export const siteOrigins = pgTable(
+  'site_origins',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    origin: text('origin').notNull(),
+    note: text('note').notNull().default(''),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('site_origins_site_origin_key').on(table.siteId, table.origin),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'site_origins_site_tenant_fk',
+    }).onDelete('cascade'),
   ],
 );
 

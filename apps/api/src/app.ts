@@ -19,6 +19,7 @@ import { platformRoutes } from './routes/platform.js';
 import { platformBillingRoutes } from './routes/platform-billing.js';
 import { platformSiteRoutes } from './routes/platform-sites.js';
 import { projectRoutes } from './routes/projects.js';
+import { publicApiRoutes } from './routes/public-api.js';
 import { propertyRoutes } from './routes/properties.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { webhookRoutes } from './routes/webhooks.js';
@@ -97,6 +98,10 @@ export function createApp(options: CreateAppOptions = {}) {
   // Webhooks do provedor de pagamento: publicos, autenticados por assinatura
   // HMAC do corpo bruto -- nao por sessao nem CSRF.
   app.route('/webhooks', webhookRoutes());
+
+  // API publica dos sites dos clientes: autenticada por chave de integracao,
+  // nunca por sessao. Versionada desde a primeira rota.
+  app.route('/v1', publicApiRoutes());
 
   // Job de reconciliacao, protegido por segredo proprio (Vercel Cron).
   app.route('/billing', billingJobRoutes());

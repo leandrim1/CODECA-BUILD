@@ -33,6 +33,14 @@ export function cors(env: Env): MiddlewareHandler<AppBindings> {
   const allowed = allowedOrigins(env);
 
   return async (c, next) => {
+    // A API publica dos sites tem politica propria: a origem permitida vem do
+    // cadastro de cada site, nao do endereco do painel. Deixar esta regra
+    // responder por ela recusaria todo preflight de site de cliente.
+    if (c.req.path.startsWith('/api/v1/')) {
+      await next();
+      return;
+    }
+
     const origin = c.req.header('origin');
     const isAllowed = Boolean(origin && allowed.includes(origin));
 
