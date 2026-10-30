@@ -259,15 +259,30 @@ curl -s https://app.SEUDOMINIO.com.br/api/health | jq
 
 | Resposta | Significado |
 | --- | --- |
-| `200` com `status: "ok"` | A API subiu e o banco responde. O problema e outro |
-| `503` com `status: "degradado"` | A API subiu, mas o banco nao responde; o bloco `database` diz o que falhou |
+| `200` com `status: "ok"` | A API subiu. Com `?db=1`, o banco tambem responde |
+| `503` com `status: "degradado"` | So com `?db=1`: a API subiu, mas o banco nao responde; o bloco `database` diz o que falhou |
+| `504 FUNCTION_INVOCATION_TIMEOUT` | A funcao nem atendeu. Nao e o banco: veja os logs de execucao da funcao |
 | `503` com `status: "misconfigured"` | Falta variavel de ambiente; `issues` lista quais |
 | HTML da Vercel, ou `404` | A requisicao nem chegou a API: confira as reescritas por host |
 
 ### O bloco `database`
 
-O health **consulta o banco**, e separa duas capacidades que falham por
-motivos diferentes:
+O health **nao toca no banco por padrao**, e isso e deliberado: um health que
+consulta a dependencia que monitora trava junto com ela, e quem investiga
+perde o unico instrumento. Sem banco no caminho, `/api/health` responde
+sempre, e as duas perguntas ficam separadas:
+
+| Pergunta | Como |
+| --- | --- |
+| A funcao sobe e o roteamento esta certo? | `/api/health` |
+| O banco tambem esta de pe? | `/api/health?db=1` |
+
+**Se `/api/health` nao responde, o problema nao e o banco** -- e a funcao ou a
+implantacao. Um `FUNCTION_INVOCATION_TIMEOUT` nessa rota significa que a
+funcao nem chegou a atender.
+
+Com `?db=1`, a sondagem separa duas capacidades que falham por motivos
+diferentes:
 
 ```json
 {
@@ -358,7 +373,8 @@ houver precos ajustados no painel mestre que voce queira preservar.
 | Corrigi o codigo, fiz deploy e nada mudou | A producao esta em outro build. Confira `deployment.commit` em `/api/health` e o *Production Branch* |
 | Build falha em `prepare-db` / `[deploy] falha ao preparar o banco` | O log traz `causa provavel` e `o que fazer` logo abaixo. Os dois casos comuns sao a `DATABASE_URL` desatualizada (codigo `28P01`) e o schema criado a mao (codigo `42P07`) |
 | Build falha ao registrar o Cron | No plano Hobby o cron precisa ser diario (secao 6) |
-| Cadastro devolve 504 depois de uns 60 s | A transacao nao completa. Veja `database.transaction` em `/api/health` |
+| Cadastro devolve 504 depois de uns 60 s | Veja `database.transaction` em `/api/health?db=1` |
+| `/api/health` (sem `?db=1`) devolve 504 | A funcao nao esta atendendo. O banco nao entra nessa rota: o problema e da funcao ou da implantacao |
 | Telas carregam, mas nada que grava funciona | Mesmo caso: consulta por HTTP passa, transacao por WebSocket nao |
 | A mensagem de erro na tela nao existe mais no codigo | Mesmo caso acima: o bundle servido e de um commit anterior |
 | Cadastro falha com mensagem generica | Variavel obrigatoria ausente; veja `/api/health` |

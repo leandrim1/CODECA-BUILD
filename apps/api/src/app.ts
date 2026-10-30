@@ -54,11 +54,25 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('*', securityHeaders(ctx.env));
   app.use('*', cors(ctx.env));
 
+  /**
+   * Estado da aplicacao.
+   *
+   * **Nao toca no banco por padrao, de proposito.** Um health que consulta a
+   * dependencia que ele monitora trava junto com ela -- e foi o que aconteceu
+   * aqui: com o banco sem responder, o proprio health estourou o tempo da
+   * funcao e perdemos o unico instrumento que tinhamos. Sem banco no caminho,
+   * esta rota responde sempre, e separa duas perguntas que se confundiam:
+   *
+   * - `/api/health` responde? Entao a funcao sobe e o roteamento esta certo.
+   * - `/api/health?db=1` responde? Entao o banco tambem esta de pe.
+   *
+   * Uma falha na primeira nao e problema de banco; e da funcao ou da
+   * implantacao.
+   */
   app.get('/health', async (c) => {
-    // A sondagem do banco e o ponto do health: sem ela a resposta dizia "ok"
-    // com o banco inalcancavel, e a tela ficava sem explicacao nenhuma.
-    const database = await probeDatabase(ctx.db);
-    const healthy = database.query === 'ok' && database.transaction === 'ok';
+    const probeRequested = c.req.query('db') === '1';
+    const database = probeRequested ? await probeDatabase(ctx.db) : null;
+    const healthy = !database || (database.query === 'ok' && database.transaction === 'ok');
     return ok(
       c,
       {
@@ -69,6 +83,8 @@ export function createApp(options: CreateAppOptions = {}) {
         // tela diverge do repositorio: se o commit aqui nao e o esperado, o
         // problema esta na implantacao, nao no codigo.
         deployment: deploymentInfo(),
+        // `null` quando nao foi pedida: ausencia de sondagem nao e sinal de
+        // saude. Use `?db=1` para sondar.
         database,
         time: ctx.now().toISOString(),
       },

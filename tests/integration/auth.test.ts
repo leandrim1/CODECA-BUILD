@@ -371,13 +371,20 @@ describe('cabecalhos de seguranca', () => {
     const response = await api.client().get<{
       status: string;
       deployment: Record<string, string | null>;
-      database: { query: string; transaction: string };
+      database: { query: string; transaction: string } | null;
     }>('/api/health');
     expect(response.status).toBe(200);
     expect(response.body.status).toBe('ok');
-    // O `ok` do health passa a depender do banco: consulta e transacao.
-    expect(response.body.database.query).toBe('ok');
-    expect(response.body.database.transaction).toBe('ok');
+    // Sem `?db=1` o health nao toca no banco: responder sempre e o ponto dele.
+    expect(response.body.database).toBeNull();
+
+    const sondado = await api.client().get<{
+      status: string;
+      database: { query: string; transaction: string };
+    }>('/api/health?db=1');
+    expect(sondado.status).toBe(200);
+    expect(sondado.body.database.query).toBe('ok');
+    expect(sondado.body.database.transaction).toBe('ok');
     expect(Object.keys(response.body.deployment).sort()).toEqual([
       'branch',
       'commit',

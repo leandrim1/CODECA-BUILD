@@ -104,7 +104,12 @@ describe('sondagem do banco', () => {
       domains: createUnconfiguredDomainProvider(),
     });
 
-    const response = await app.request('http://app.localhost/api/health');
+    // Sem sondar, o health responde 200 mesmo com o banco quebrado: ele diz
+    // que a funcao esta de pe, nao que o banco esta.
+    const semSondar = await app.request('http://app.localhost/api/health');
+    expect(semSondar.status).toBe(200);
+
+    const response = await app.request('http://app.localhost/api/health?db=1');
     expect(response.status).toBe(503);
 
     const body = (await response.json()) as {
