@@ -138,7 +138,11 @@ Aplique as migracoes e crie os planos padrao:
 pnpm db:migrate && pnpm db:seed
 ```
 
-Para ja ter um administrador da plataforma, defina `PLATFORM_ADMIN_EMAIL` e
+O painel mestre nao precisa de passo manual: em uma instalacao nova, **a
+primeira conta cadastrada pela tela assume o papel de administrador da
+plataforma** -- e somente a primeira. Para reservar esse papel a um endereco
+especifico, defina `PLATFORM_ADMIN_EMAIL` (so um e-mail, nunca uma senha).
+Para criar o administrador sem passar pela tela, defina tambem
 `PLATFORM_ADMIN_PASSWORD` antes do seed. Para uma construtora de demonstracao
 com site publicado, defina `SEED_DEMO=true` e `SEED_DEMO_PASSWORD`.
 

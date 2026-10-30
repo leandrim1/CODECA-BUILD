@@ -1,7 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { and, eq, schema } from '@codeca/database';
 import { hashPassword } from '@codeca/shared/server';
-import { createTestApi, registerAccount, verifyEmail, type RegisteredAccount, type TestApi } from '../helpers/api.js';
+import {
+  createTestApi,
+  registerAccount,
+  seedPlatformAdmin,
+  verifyEmail,
+  type RegisteredAccount,
+  type TestApi,
+} from '../helpers/api.js';
 
 /**
  * Isolamento multiempresa.
@@ -25,6 +32,10 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await api.reset();
+  // A instalacao ja tem um administrador (como apos o `pnpm db:seed`): assim
+  // as contas abaixo sao usuarios comuns, e nao a primeira conta da
+  // instalacao, que assumiria o painel mestre.
+  await seedPlatformAdmin(api);
   alpha = await registerAccount(api, { email: 'alpha@construtora.com.br', companyName: 'Construtora Alpha' });
   beta = await registerAccount(api, { email: 'beta@construtora.com.br', companyName: 'Construtora Beta' });
   await verifyEmail(api, alpha);

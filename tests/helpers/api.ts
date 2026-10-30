@@ -11,7 +11,7 @@ import {
   type MailMessage,
   type MemoryBillingProvider,
 } from '@codeca/api';
-import { seedDatabase, type Database } from '@codeca/database';
+import { schema, seedDatabase, type Database } from '@codeca/database';
 import { createTestDatabase, type TestDatabase } from './database.js';
 
 /**
@@ -28,6 +28,8 @@ export interface TestApiOptions {
   domains?: DomainProvider;
   billing?: MemoryBillingProvider;
   now?: () => Date;
+  /** Variaveis de ambiente acrescentadas ou sobrescritas neste cenario. */
+  env?: Record<string, string>;
 }
 
 /** Segredo do webhook usado nos testes; o mesmo que assina os corpos. */
@@ -73,6 +75,7 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     VALIDAPAY_WEBHOOK_SECRET: TEST_WEBHOOK_SECRET,
     VALIDAPAY_BASE_URL: 'https://sandbox.validapay.com.br',
     BILLING_RECONCILIATION_SECRET: TEST_JOB_SECRET,
+    ...(options.env ?? {}),
   });
 
   const context = createContext({
@@ -303,4 +306,31 @@ export function extractToken(text: string): string {
   const match = /token=([A-Za-z0-9_\-%]+)/.exec(text);
   if (!match?.[1]) throw new Error('Token nao encontrado na mensagem.');
   return decodeURIComponent(match[1]);
+}
+
+/**
+ * Cria um administrador da plataforma direto no banco, como faz o
+ * `pnpm db:seed`.
+ *
+ * Usado pelos cenarios em que as contas sob teste precisam ser **comuns**:
+ * numa instalacao vazia a primeira conta cadastrada assume o painel mestre, e
+ * sem este administrador previo o teste acabaria medindo a conta do dono da
+ * instalacao em vez de um usuario qualquer.
+ */
+export async function seedPlatformAdmin(
+  api: TestApi,
+  email = 'admin-semente@codecabuild.test',
+): Promise<string> {
+  const [row] = await api.db
+    .insert(schema.users)
+    .values({
+      email,
+      name: 'Administrador da plataforma',
+      passwordHash: 'nao-utilizado-neste-cenario',
+      platformRole: 'platform_admin',
+      emailVerifiedAt: new Date(),
+    })
+    .returning({ id: schema.users.id });
+  if (!row) throw new Error('Nao foi possivel criar o administrador de teste.');
+  return row.id;
 }

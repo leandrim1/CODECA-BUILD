@@ -18,6 +18,7 @@ import {
 import { hashPassword, verifyPassword } from '@codeca/shared/server';
 import { Hono } from 'hono';
 import { AUDIT_ACTIONS, recordAudit } from '../lib/audit.js';
+import { claimFirstPlatformAdmin } from '../lib/bootstrap.js';
 import { clearSessionCookies, setSessionCookies } from '../lib/cookies.js';
 import { assertSameOrigin } from '../lib/csrf.js';
 import { clientIp, created, noContent, ok, parseJsonBody, userAgent } from '../lib/http.js';
@@ -133,7 +134,20 @@ export function authRoutes() {
         companyName: input.companyName,
       });
 
-      return { userId: user.id, tenantId: tenant.id, email: user.email };
+      // Instalacao nova: a primeira conta assume o painel mestre. Dentro da
+      // transacao, para que promocao e cadastro vivam ou morram juntos.
+      const adminClaim = await claimFirstPlatformAdmin(
+        tx as unknown as Database,
+        { userId: user.id, email: user.email },
+        ctx.env,
+      );
+
+      return {
+        userId: user.id,
+        tenantId: tenant.id,
+        email: user.email,
+        becamePlatformAdmin: adminClaim.claimed,
+      };
     });
 
     const verification = await issueUserToken(ctx.db, ctx.env, {
@@ -172,11 +186,29 @@ export function authRoutes() {
       userAgent: userAgent(c),
     });
 
+    if (result.becamePlatformAdmin) {
+      await recordAudit(ctx.db, ctx.env, {
+        actorUserId: result.userId,
+        actorEmail: result.email,
+        action: AUDIT_ACTIONS.platformRoleChanged,
+        entityType: 'user',
+        entityId: result.userId,
+        metadata: { platformRole: 'platform_admin', reason: 'primeira conta da instalacao' },
+        ip,
+        userAgent: userAgent(c),
+      });
+      console.info(
+        `[bootstrap] ${result.email} assumiu o painel mestre por ser a primeira conta da instalacao.`,
+      );
+    }
+
     const session = await resolveSession(ctx.db, ctx.env, issued.sessionToken, ctx.now());
     return created(c, {
       session: session ? serializeSession(session) : null,
       csrfToken: issued.csrfToken,
       emailDelivery: { delivered: delivery.delivered, reason: delivery.reason ?? null },
+      /** `true` quando esta conta assumiu o painel mestre da plataforma. */
+      becamePlatformAdmin: result.becamePlatformAdmin,
     });
   });
 

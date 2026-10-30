@@ -4,6 +4,7 @@ import {
   createTestApi,
   extractToken,
   registerAccount,
+  seedPlatformAdmin,
   verifyEmail,
   TEST_APP_ORIGIN,
   type TestApi,
@@ -21,6 +22,10 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await api.reset();
+  // A instalacao ja tem um administrador (como apos o `pnpm db:seed`): assim
+  // as contas abaixo sao usuarios comuns, e nao a primeira conta da
+  // instalacao, que assumiria o painel mestre.
+  await seedPlatformAdmin(api);
 });
 
 describe('cadastro', () => {

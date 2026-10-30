@@ -40,6 +40,12 @@ empresa passa por `tenantMiddleware` + `requireCapability(...)`.
   Capacidades em `TENANT_CAPABILITIES`.
 - `canAssignRole` impede escalada: ninguem concede um papel acima do seu, e so
   um `owner` cria outro `owner`.
+- **Primeiro acesso**: numa instalacao sem nenhum administrador, a primeira
+  conta cadastrada assume `platform_admin`. A reivindicacao e serializada por
+  um lock de transacao (dois cadastros simultaneos nao geram dois
+  administradores) e vale uma unica vez -- a partir da segunda conta, ninguem
+  mais e promovido. `PLATFORM_ADMIN_EMAIL` restringe o papel a um endereco,
+  para o caso de a URL ficar publica antes do cadastro do dono.
 - **Ser administrador de uma empresa nao da privilegio global.** O papel de
   plataforma (`platform_role`) e um campo separado do usuario e so o painel
   mestre o verifica (`assertPlatformCapability`).

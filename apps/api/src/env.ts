@@ -35,6 +35,12 @@ export const envSchema = z.object({
   PLATFORM_NAME: z.string().min(1).default('Codeca Build'),
   PLATFORM_URL: z.string().min(1).default('https://codecabuild.com'),
 
+  /**
+   * Restringe quem pode assumir o papel de administrador no primeiro cadastro.
+   * Sem ela, a primeira conta criada assume. Guarda um e-mail, nunca uma senha.
+   */
+  PLATFORM_ADMIN_EMAIL: z.string().optional(),
+
   /** Token do Vercel Blob. Sem ele, o upload de arquivos fica indisponivel. */
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
 

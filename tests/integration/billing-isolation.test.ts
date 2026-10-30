@@ -3,6 +3,7 @@ import { eq, schema } from '@codeca/database';
 import {
   createTestApi,
   registerAccount,
+  seedPlatformAdmin,
   verifyEmail,
   type RegisteredAccount,
   type TestApi,
@@ -42,6 +43,10 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await api.reset();
+  // A instalacao ja tem um administrador (como apos o `pnpm db:seed`): assim
+  // as contas abaixo sao usuarios comuns, e nao a primeira conta da
+  // instalacao, que assumiria o painel mestre.
+  await seedPlatformAdmin(api);
   alpha = await registerAccount(api, {
     email: 'alpha@alpha.com.br',
     companyName: 'Construtora Alpha',
