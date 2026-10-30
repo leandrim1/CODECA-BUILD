@@ -1,7 +1,18 @@
 import { useState } from 'react';
 import { Pencil, Plus } from 'lucide-react';
-import { PLAN_FEATURES, PLAN_FEATURE_LABELS, formatBytes } from '@codeca/shared';
 import {
+  PANEL_ON_SUSPENSION,
+  PANEL_ON_SUSPENSION_LABELS,
+  PLAN_FEATURES,
+  PLAN_FEATURE_LABELS,
+  PUBLIC_SITE_ON_SUSPENSION,
+  PUBLIC_SITE_ON_SUSPENSION_LABELS,
+  formatBytes,
+  type PanelOnSuspension,
+  type PublicSiteOnSuspension,
+} from '@codeca/shared';
+import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -10,6 +21,7 @@ import {
   Checkbox,
   Modal,
   PageHeader,
+  Select,
   Switch,
   TextArea,
   TextInput,
@@ -126,6 +138,8 @@ function PlanModal({
     features: (plan?.limits.features ?? []) as string[],
     isPublic: plan?.isPublic ?? true,
     isActive: plan?.isActive ?? true,
+    suspensionPublicSite: plan?.suspension?.publicSite ?? 'serve',
+    suspensionPanel: plan?.suspension?.panel ?? 'read_only',
   });
 
   const save = useMutation(
@@ -143,6 +157,10 @@ function PlanModal({
         description: form.values.description,
         priceCents: Math.round(Number(form.values.priceReais) * 100),
         limits,
+        suspension: {
+          publicSite: form.values.suspensionPublicSite,
+          panel: form.values.suspensionPanel,
+        },
         isPublic: form.values.isPublic,
         isActive: form.values.isActive,
       };
@@ -265,6 +283,44 @@ function PlanModal({
               />
             ))}
           </div>
+        </fieldset>
+
+        <fieldset className="grid gap-4 rounded-lg border border-slate-200 p-4">
+          <legend className="px-1 text-sm font-medium text-slate-700">
+            Quando a assinatura nao esta em dia
+          </legend>
+          <p className="text-xs text-slate-500">
+            Vale apos o periodo de tolerancia. Durante a tolerancia nada muda.
+          </p>
+
+          <Select
+            label="Site do cliente"
+            value={values.suspensionPublicSite}
+            options={PUBLIC_SITE_ON_SUSPENSION.map((code) => ({
+              value: code,
+              label: PUBLIC_SITE_ON_SUSPENSION_LABELS[code],
+            }))}
+            hint="O site e um projeto na Vercel do cliente: a plataforma controla o conteudo que ele busca, nao a hospedagem."
+            onChange={(event) =>
+              setField('suspensionPublicSite', event.target.value as PublicSiteOnSuspension)
+            }
+          />
+
+          <Select
+            label="Painel do cliente"
+            value={values.suspensionPanel}
+            options={PANEL_ON_SUSPENSION.map((code) => ({
+              value: code,
+              label: PANEL_ON_SUSPENSION_LABELS[code],
+            }))}
+            hint="A tela de cobranca continua aberta nos dois casos: sem ela o cliente nao tem como regularizar."
+            onChange={(event) => setField('suspensionPanel', event.target.value as PanelOnSuspension)}
+          />
+
+          <Alert tone="info" title="O conteudo nunca e apagado">
+            Imoveis, obras, imagens e configuracoes continuam salvos em qualquer uma das opcoes, e
+            voltam a aparecer ao regularizar. Nao ha opcao de apagar.
+          </Alert>
         </fieldset>
 
         <Switch

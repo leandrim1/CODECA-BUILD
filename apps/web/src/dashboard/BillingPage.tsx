@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
 import { AlertTriangle, Check, CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
 import {
+  PANEL_ON_SUSPENSION_LABELS,
   PLAN_FEATURES,
   PLAN_FEATURE_LABELS,
+  PUBLIC_SITE_ON_SUSPENSION_LABELS,
   formatBytes,
   formatDateTime,
   type PaymentMethodCode,
@@ -297,6 +299,39 @@ export function BillingPage() {
                     </>
                   ) : null}
                 </Alert>
+
+                {/*
+                  O que esta restringido, em termos concretos.
+                  O cliente suspenso chega nesta tela para entender o que
+                  perdeu e o que nao perdeu. Dizer "suspenso" sem dizer o que
+                  isso faz deixa a pior leitura possivel no lugar: a de que o
+                  conteudo foi apagado.
+                */}
+                {!view.subscription.suspension.current ? (
+                  <Card>
+                    <CardHeader
+                      title="O que esta valendo agora"
+                      description="Enquanto a assinatura nao e regularizada."
+                    />
+                    <CardBody className="grid gap-2 text-sm">
+                      <p className="text-slate-700">
+                        <strong>Seu site:</strong>{' '}
+                        {PUBLIC_SITE_ON_SUSPENSION_LABELS[view.subscription.suspension.publicSite]}
+                      </p>
+                      <p className="text-slate-700">
+                        <strong>Seu painel:</strong>{' '}
+                        {view.subscription.suspension.panel === 'full'
+                          ? 'Sem restricao'
+                          : PANEL_ON_SUSPENSION_LABELS[view.subscription.suspension.panel]}
+                      </p>
+                      <p className="text-slate-700">
+                        <strong>Seu conteudo:</strong> continua salvo. Imoveis, obras, imagens e
+                        configuracoes nao sao apagados por pendencia de pagamento, e voltam a
+                        aparecer assim que a assinatura e regularizada.
+                      </p>
+                    </CardBody>
+                  </Card>
+                ) : null}
 
                 {view.subscription.lastErrorMessage ? (
                   <Alert tone="danger" title="Ultima tentativa de pagamento recusada">

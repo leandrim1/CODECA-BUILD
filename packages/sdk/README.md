@@ -108,6 +108,7 @@ try {
     if (erro.isNotFound) return render404();
     if (erro.isNetworkError) return tentarDeNovo();
     if (erro.isRateLimited) return esperar();
+    if (erro.isSuspended) return mostrarUltimoConteudoConhecido();
     if (erro.isAuthError) console.error('Credencial ou origem', erro.message);
   }
   throw erro;
@@ -116,6 +117,22 @@ try {
 
 `isNetworkError` significa que a plataforma nao chegou a responder -- vale
 repetir. Um `422` repetido daria o mesmo resultado.
+
+`isSuspended` (402 `subscription_required`) e pendencia da assinatura do site,
+nao problema do codigo: a credencial esta correta e repetir nao resolve. Quem
+resolve e a empresa, no painel. O conteudo continua guardado na plataforma e
+volta a responder sozinho, entao o site faz melhor mostrando o que tem em
+cache do que uma pagina de erro.
+
+Aparece somente quando o plano do site escolhe `parar de responder` na
+suspensao; o padrao da plataforma e continuar servindo.
+
+### O aviso em `getSite()`
+
+`site.get()` devolve `notice`: uma frase pronta para exibir ao visitante, ou
+`null`. Vem preenchida quando o plano pede aviso durante uma pendencia. O
+texto nao descreve a pendencia nem cita valores -- se o seu site exibe o
+`notice`, pode exibi-lo como veio.
 
 ---
 

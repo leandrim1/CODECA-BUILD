@@ -16,6 +16,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  TriangleAlert,
   Store,
   Users,
   Wrench,
@@ -137,7 +138,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 export function DashboardLayout() {
   const { tenant, memberships, user, selectTenant, logout, isPlatformAdmin, can } = useAuth();
-  const { enabled } = useSiteModules();
+  const { enabled, readOnly, blocked } = useSiteModules();
   const [menuOpen, setMenuOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const location = useLocation();
@@ -299,6 +300,8 @@ export function DashboardLayout() {
           </Button>
         </header>
 
+        {readOnly || blocked ? <AvisoDeSuspensao bloqueado={blocked} /> : null}
+
         <main className="flex-1" key={location.pathname.split('/').slice(0, 3).join('/')}>
           {/* As telas do painel sao carregadas sob demanda. */}
           <Suspense
@@ -311,6 +314,42 @@ export function DashboardLayout() {
             <Outlet />
           </Suspense>
         </main>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Aviso de assinatura pendente.
+ *
+ * Fica acima do conteudo, em toda tela do painel, por dois motivos: o cliente
+ * precisa saber **antes** de preencher um formulario que nao vai salvar, e
+ * precisa saber que nada foi perdido. O segundo e o que evita o pedido de
+ * suporte em panico -- a reacao natural a um painel que parou de gravar e
+ * supor que o conteudo foi apagado.
+ */
+function AvisoDeSuspensao({ bloqueado }: { bloqueado: boolean }) {
+  return (
+    <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 sm:px-6">
+      <div className="flex flex-wrap items-start gap-3">
+        <TriangleAlert aria-hidden="true" className="mt-0.5 size-5 flex-none text-amber-600" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-amber-900">
+            {bloqueado
+              ? 'O painel esta indisponivel por pendencia da assinatura'
+              : 'O painel esta em somente leitura por pendencia da assinatura'}
+          </p>
+          <p className="mt-0.5 text-sm text-amber-800">
+            Nada foi apagado: imoveis, obras, imagens e configuracoes continuam salvos e voltam a
+            aparecer assim que a assinatura for regularizada.
+          </p>
+        </div>
+        <Link
+          to="/painel/plano"
+          className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700"
+        >
+          Regularizar
+        </Link>
       </div>
     </div>
   );

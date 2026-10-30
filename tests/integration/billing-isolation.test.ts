@@ -386,7 +386,7 @@ describe('publicacao conforme a assinatura', () => {
   });
 
   it('nao publica enquanto a contratacao esta pendente e a avaliacao venceu', async () => {
-    await expireTrial(api, alpha.tenantId);
+    await expireTrial(api, alpha.siteId);
     await startCheckout(alpha, planId);
     const subscription = await loadSubscriptionRow(api, alpha.tenantId);
 
@@ -411,7 +411,7 @@ describe('publicacao conforme a assinatura', () => {
   });
 
   it('publica apos a confirmacao do pagamento', async () => {
-    await expireTrial(api, alpha.tenantId);
+    await expireTrial(api, alpha.siteId);
     await startCheckout(alpha, planId);
     const subscription = await loadSubscriptionRow(api, alpha.tenantId);
     expect(await publicado()).toBe(false);
@@ -433,7 +433,7 @@ describe('publicacao conforme a assinatura', () => {
   });
 
   it('mantem o site no ar durante a tolerancia e suspende quando ela vence', async () => {
-    await expireTrial(api, alpha.tenantId);
+    await expireTrial(api, alpha.siteId);
     const subscription = await loadSubscriptionRow(api, alpha.tenantId);
     await startCheckout(alpha, planId);
     const withToken = await loadSubscriptionRow(api, alpha.tenantId);
@@ -479,7 +479,7 @@ describe('publicacao conforme a assinatura', () => {
   });
 
   it('reativa a publicacao quando o pagamento e regularizado', async () => {
-    await expireTrial(api, alpha.tenantId);
+    await expireTrial(api, alpha.siteId);
     await startCheckout(alpha, planId);
     const subscription = await loadSubscriptionRow(api, alpha.tenantId);
 

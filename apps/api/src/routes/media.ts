@@ -20,7 +20,7 @@ import { clientIp, created, noContent, ok, parseJsonBody, parseParams, parseQuer
 import { countMediaReferences, describeUsage, findReferencedMediaIds } from '../lib/media-usage.js';
 import { assertStorageAvailable, loadEffectivePlan, loadUsage } from '../lib/plan-limits.js';
 import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ratelimit.js';
-import { requireCapability, sessionOf, tenantMiddleware } from '../middleware/auth.js';
+import { requireCapability, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -36,7 +36,6 @@ const mediaParams = z.object({ tenantId: uuidSchema, mediaId: uuidSchema });
 
 export function mediaRoutes() {
   const app = new Hono<AppBindings>();
-  app.use('/:tenantId/*', tenantMiddleware());
 
   // --------------------------------------------------------------- uso
   app.get('/:tenantId/media/usage', requireCapability('media:read'), async (c) => {

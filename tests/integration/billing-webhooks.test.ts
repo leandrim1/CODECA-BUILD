@@ -427,7 +427,7 @@ describe('falha de pagamento e inadimplencia', () => {
   });
 
   it('suspende o site quando a tolerancia vence', async () => {
-    await expireTrial(api, account.tenantId);
+    await expireTrial(api, account.siteId);
     const tenDaysAgo = new Date(Date.now() - 10 * 24 * 3600 * 1000);
     await sendWebhook(
       api,
@@ -446,7 +446,7 @@ describe('falha de pagamento e inadimplencia', () => {
   });
 
   it('o pagamento em atraso reativa a publicacao', async () => {
-    await expireTrial(api, account.tenantId);
+    await expireTrial(api, account.siteId);
     const tenDaysAgo = new Date(Date.now() - 10 * 24 * 3600 * 1000);
     await sendWebhook(api, 'payment.success', payloadFor({ nextChargeDate: tenDaysAgo, chargeId: 'cha_1' }));
     await sendWebhook(
@@ -475,7 +475,7 @@ describe('falha de pagamento e inadimplencia', () => {
   });
 
   it('encerramento por falta de pagamento bloqueia a publicacao', async () => {
-    await expireTrial(api, account.tenantId);
+    await expireTrial(api, account.siteId);
     await sendWebhook(
       api,
       'subscription.expired',
@@ -549,7 +549,7 @@ describe('cancelamento', () => {
   });
 
   it('cancelamento sem periodo pago bloqueia a publicacao na hora', async () => {
-    await expireTrial(api, account.tenantId);
+    await expireTrial(api, account.siteId);
     await sendWebhook(
       api,
       'subscription.canceled',

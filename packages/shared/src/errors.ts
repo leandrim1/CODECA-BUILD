@@ -12,6 +12,7 @@ export type AppErrorCode =
   | 'conflict'
   | 'plan_limit_reached'
   | 'storage_limit_reached'
+  | 'subscription_required'
   | 'rate_limited'
   | 'payload_too_large'
   | 'unsupported_media_type'
@@ -29,6 +30,7 @@ const STATUS_BY_CODE: Record<AppErrorCode, number> = {
   conflict: 409,
   plan_limit_reached: 402,
   storage_limit_reached: 402,
+  subscription_required: 402,
   rate_limited: 429,
   payload_too_large: 413,
   unsupported_media_type: 415,
@@ -85,6 +87,18 @@ export class AppError extends Error {
   static conflict(message: string, details?: unknown): AppError {
     return new AppError('conflict', message, details);
   }
+  /**
+   * Pendencia da assinatura, nao erro de quem chamou.
+   *
+   * Separado de `forbidden` de proposito: 403 manda quem integra conferir a
+   * credencial, e aqui nao ha nada a corrigir no codigo do site. Separado de
+   * `plan_limit_reached` tambem: o limite do plano se resolve apagando ou
+   * despublicando algo; isto se resolve pagando.
+   */
+  static subscriptionRequired(message: string, details?: unknown): AppError {
+    return new AppError('subscription_required', message, details);
+  }
+
   static planLimit(message: string, details?: unknown): AppError {
     return new AppError('plan_limit_reached', message, details);
   }

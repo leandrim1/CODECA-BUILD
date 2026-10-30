@@ -25,6 +25,7 @@ import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { BILLING_ACTIONS, recordBillingAudit } from '../lib/billing/audit.js';
 import { assertPlanContractable, loadPlan, startCheckout } from '../lib/billing/checkout.js';
 import { reconcileCharge, reconcileSubscription } from '../lib/billing/reconcile.js';
+import { resolveSiteBilling } from '../lib/billing/suspension.js';
 import {
   applySubscriptionPatch,
   loadSubscription,
@@ -34,7 +35,7 @@ import {
 } from '../lib/billing/service.js';
 import { ok, parseJsonBody, parseParams, parseQuery } from '../lib/http.js';
 import { loadPlanStatus } from '../lib/plan-limits.js';
-import { requireCapability, requireVerifiedEmail, sessionOf, tenantMiddleware } from '../middleware/auth.js';
+import { requireCapability, requireVerifiedEmail, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -50,7 +51,6 @@ import type { AppBindings } from '../types.js';
 
 export function billingRoutes() {
   const app = new Hono<AppBindings>();
-  app.use('/:tenantId/*', tenantMiddleware());
 
   // ------------------------------------------------------------- resumo
   app.get('/:tenantId/billing', requireCapability('billing:read'), async (c) => {
@@ -58,8 +58,9 @@ export function billingRoutes() {
     const tenant = c.get('tenant');
     const now = ctx.now();
 
-    const subscription = await loadSubscription(ctx.db, tenant.tenantId);
+    const subscription = await loadSubscription(ctx.db, tenant.siteId);
     const { plan, usage } = await loadPlanStatus(ctx.db, tenant.tenantId);
+    const situacao = await resolveSiteBilling(ctx.db, tenant.siteId, now);
 
     const plans = await ctx.db
       .select({
@@ -108,6 +109,16 @@ export function billingRoutes() {
             inGracePeriod: decision?.inGracePeriod ?? false,
             graceEndsAt: decision?.graceEndsAt ?? null,
             gracePeriodDays: subscription.gracePeriodDays,
+            /**
+             * O que a suspensao faz neste plano, e o que vale agora.
+             *
+             * Esta rota e a unica que a politica nunca restringe, entao e
+             * tambem a unica que o painel consegue ler quando a politica e
+             * `blocked` -- e portanto o lugar certo para explicar a situacao
+             * a quem precisa regularizar.
+             */
+            suspension: situacao.effect,
+            suspensionPolicy: situacao.policy,
             paymentMethod: subscription.paymentMethod,
             paymentMethodLabel: subscription.paymentMethod
               ? PAYMENT_METHOD_OPTIONS[subscription.paymentMethod].label
@@ -200,6 +211,7 @@ export function billingRoutes() {
         },
         {
           tenantId: tenant.tenantId,
+          siteId: tenant.siteId,
           planId: input.planId,
           paymentMethod: input.paymentMethod,
           actorUserId: session.user.id,
@@ -340,7 +352,7 @@ export function billingRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const session = sessionOf(c);
-    const subscription = await requireSubscription(ctx.db, tenant.tenantId);
+    const subscription = await requireSubscription(ctx.db, tenant.siteId);
 
     if (!ctx.billing.configured || !subscription.externalSubscriptionId) {
       // Sem provedor ou sem vinculo, ainda vale reavaliar o tempo de acesso.
@@ -368,7 +380,7 @@ export function billingRoutes() {
       subscription,
     );
 
-    const updated = await requireSubscription(ctx.db, tenant.tenantId);
+    const updated = await requireSubscription(ctx.db, tenant.siteId);
     return ok(c, {
       state: updated.status,
       stateLabel: BILLING_STATE_LABELS[updated.status],
@@ -390,7 +402,7 @@ export function billingRoutes() {
       const session = sessionOf(c);
       const input = await parseJsonBody(c, changePlanSchema);
 
-      const subscription = await requireSubscription(ctx.db, tenant.tenantId);
+      const subscription = await requireSubscription(ctx.db, tenant.siteId);
       const plan = await loadPlan(ctx.db, input.planId);
 
       if (plan.id === subscription.planId) {
@@ -493,7 +505,7 @@ export function billingRoutes() {
       const tenant = c.get('tenant');
       const session = sessionOf(c);
       const input = await parseJsonBody(c, cancelSubscriptionSchema);
-      const subscription = await requireSubscription(ctx.db, tenant.tenantId);
+      const subscription = await requireSubscription(ctx.db, tenant.siteId);
 
       if (!subscription.externalSubscriptionId) {
         throw AppError.conflict('Nao ha assinatura contratada para cancelar.');
@@ -564,7 +576,7 @@ export function billingRoutes() {
       const ctx = c.get('ctx');
       const tenant = c.get('tenant');
       const session = sessionOf(c);
-      const subscription = await requireSubscription(ctx.db, tenant.tenantId);
+      const subscription = await requireSubscription(ctx.db, tenant.siteId);
 
       if (!subscription.externalSubscriptionId || !subscription.cancelAtPeriodEnd) {
         throw AppError.conflict('Nao ha cancelamento agendado para desfazer.');

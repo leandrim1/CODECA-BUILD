@@ -428,14 +428,14 @@ export const platformBillingApi = {
     ),
   reconcile: (body: { tenantId?: string; force: boolean; limit: number }) =>
     api.post<ReconcileReportView>('/api/platform/billing/reconcile', body),
-  publicationHold: (body: { tenantId: string; hold: boolean; reason: string }) =>
+  publicationHold: (body: { siteId: string; hold: boolean; reason: string }) =>
     api.post<{
       publicationState: string;
       publicationLabel: string;
       adminHold: boolean;
       message: string;
     }>('/api/platform/billing/publication-hold', body),
-  gracePeriod: (body: { tenantId: string; gracePeriodDays: number; reason: string }) =>
+  gracePeriod: (body: { siteId: string; gracePeriodDays: number; reason: string }) =>
     api.post<{ gracePeriodDays: number; publicationState: string }>(
       '/api/platform/billing/grace-period',
       body,

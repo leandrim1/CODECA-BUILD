@@ -15,7 +15,7 @@ import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
 import { created, noContent, ok, parseJsonBody, parseParams, parseQuery } from '../lib/http.js';
 import { assertFeature, loadEffectivePlan } from '../lib/plan-limits.js';
-import { requireCapability, sessionOf, tenantMiddleware } from '../middleware/auth.js';
+import { requireCapability, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -30,7 +30,6 @@ const leadParams = z.object({ tenantId: uuidSchema, leadId: uuidSchema });
 
 export function leadRoutes() {
   const app = new Hono<AppBindings>();
-  app.use('/:tenantId/*', tenantMiddleware());
 
   app.get('/:tenantId/leads/export', requireCapability('leads:read'), async (c) => {
     const ctx = c.get('ctx');

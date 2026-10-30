@@ -27,6 +27,7 @@ import {
 } from '../lib/integration/public-view.js';
 import { enabledModuleKeys, loadSiteModules } from '../lib/modules.js';
 import { apiKeyMiddleware } from '../middleware/api-key.js';
+import { enforcePublicSuspension } from '../middleware/suspension.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -113,6 +114,8 @@ export function publicApiRoutes() {
   });
 
   app.use('/*', apiKeyMiddleware());
+  // A politica de suspensao do plano decide se este site continua respondendo.
+  app.use('/*', enforcePublicSuspension());
 
   /** Identidade do site e modulos disponiveis. E o `getSite()` do SDK. */
   app.get('/site', async (c) => {
@@ -143,6 +146,14 @@ export function publicApiRoutes() {
         kind: MODULE_REGISTRY[key].kind,
       })),
       scopes: credencial.scopes,
+      /**
+       * Aviso que o site pode exibir ao visitante.
+       *
+       * `null` quando nao ha nada a avisar. O texto e neutro de proposito:
+       * esta resposta chega ao navegador por uma chave publicavel, e o
+       * visitante nao tem parte na pendencia nem deve saber dela.
+       */
+      notice: c.get('publicNotice') ?? null,
     });
   });
 

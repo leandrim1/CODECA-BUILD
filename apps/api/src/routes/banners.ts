@@ -19,7 +19,7 @@ import {
   assertModuleEnabled,
   loadSiteModules,
 } from '../lib/modules.js';
-import { requireCapability, tenantMiddleware } from '../middleware/auth.js';
+import { requireCapability } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -33,7 +33,6 @@ const bannerParamSchema = z.object({ tenantId: uuidSchema, bannerId: uuidSchema 
 
 export function bannerRoutes() {
   const app = new Hono<AppBindings>();
-  app.use('/:tenantId/*', tenantMiddleware());
 
   app.get('/:tenantId/banners', requireCapability('content:read'), async (c) => {
     const ctx = c.get('ctx');

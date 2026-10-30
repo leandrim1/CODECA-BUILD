@@ -158,12 +158,14 @@ export function platformBillingRoutes() {
         tenantName: schema.tenants.displayName,
         tenantSlug: schema.tenants.slug,
         tenantStatus: schema.tenants.status,
+        siteName: schema.sites.name,
         planName: schema.plans.name,
         planCode: schema.plans.code,
         planPriceCents: schema.plans.priceCents,
       })
       .from(schema.subscriptions)
       .innerJoin(schema.tenants, eq(schema.tenants.id, schema.subscriptions.tenantId))
+      .innerJoin(schema.sites, eq(schema.sites.id, schema.subscriptions.siteId))
       .innerJoin(schema.plans, eq(schema.plans.id, schema.subscriptions.planId))
       .where(where)
       .orderBy(desc(schema.subscriptions.updatedAt))
@@ -182,6 +184,10 @@ export function platformBillingRoutes() {
         rows.map((row) => ({
           id: row.subscription.id,
           tenantId: row.subscription.tenantId,
+          // A assinatura e do site: e por ele que as acoes administrativas
+          // agem, e e ele que a tela precisa nomear.
+          siteId: row.subscription.siteId,
+          siteName: row.siteName,
           tenantName: row.tenantName,
           tenantSlug: row.tenantSlug,
           tenantStatus: row.tenantStatus,
@@ -381,7 +387,7 @@ export function platformBillingRoutes() {
     const ctx = c.get('ctx');
     const session = sessionOf(c);
     const input = await parseJsonBody(c, publicationHoldSchema);
-    const subscription = await requireSubscription(ctx.db, input.tenantId);
+    const subscription = await requireSubscription(ctx.db, input.siteId);
 
     const updated = await applySubscriptionPatch(
       { db: ctx.db, now: ctx.now, source: 'admin', actorUserId: session.user.id },
@@ -402,20 +408,20 @@ export function platformBillingRoutes() {
     );
 
     // O conteudo nao e tocado: suspender afeta apenas a publicacao.
-    await ctx.db
-      .update(schema.tenants)
-      .set({
-        status: input.hold ? 'suspended' : 'active',
-        suspendedAt: input.hold ? ctx.now() : null,
-        updatedAt: ctx.now(),
-      })
-      .where(eq(schema.tenants.id, input.tenantId));
-
+    // A empresa **nao** e suspensa junto. Antes era: a assinatura era unica
+    // por empresa e os dois conceitos coincidiam. Agora, suspender a
+    // publicacao de um site deixaria os outros sites da mesma empresa fora do
+    // ar e trancaria o painel inteiro. Suspender a empresa continua possivel,
+    // pela rota de empresas, que e onde essa decisao mora.
+    //
+    // `sites.status` tambem fica como esta: e o rotulo operacional da CODECA
+    // IA (`draft`, `active`, ...), e sobrescreve-lo faria um site em
+    // desenvolvimento virar "no ar" ao liberar a cobranca.
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.tenantStatusChanged,
-      tenantId: input.tenantId,
-      entityType: 'tenant',
-      entityId: input.tenantId,
+      tenantId: subscription.tenantId,
+      entityType: 'site',
+      entityId: input.siteId,
       metadata: { hold: input.hold, reason: input.reason },
     });
 
@@ -434,7 +440,7 @@ export function platformBillingRoutes() {
     const ctx = c.get('ctx');
     const session = sessionOf(c);
     const input = await parseJsonBody(c, gracePeriodSchema);
-    const subscription = await requireSubscription(ctx.db, input.tenantId);
+    const subscription = await requireSubscription(ctx.db, input.siteId);
 
     const updated = await applySubscriptionPatch(
       { db: ctx.db, now: ctx.now, source: 'admin', actorUserId: session.user.id },

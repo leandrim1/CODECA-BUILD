@@ -168,7 +168,7 @@ describe('suspensao manual da publicacao', () => {
     const before = await loadSubscriptionRow(api, company.tenantId);
 
     const response = await admin.client.post('/api/platform/billing/publication-hold', {
-      tenantId: company.tenantId,
+      siteId: company.siteId,
       hold: true,
       reason: 'Conteudo em analise pela equipe de confianca.',
     });
@@ -206,13 +206,13 @@ describe('suspensao manual da publicacao', () => {
   it('reativa e devolve a publicacao ao estado da assinatura', async () => {
     await activate();
     await admin.client.post('/api/platform/billing/publication-hold', {
-      tenantId: company.tenantId,
+      siteId: company.siteId,
       hold: true,
       reason: 'Suspensao temporaria para revisao.',
     });
 
     const response = await admin.client.post('/api/platform/billing/publication-hold', {
-      tenantId: company.tenantId,
+      siteId: company.siteId,
       hold: false,
       reason: 'Revisao concluida sem problemas.',
     });
@@ -228,7 +228,7 @@ describe('suspensao manual da publicacao', () => {
   it('exige justificativa com ao menos dez caracteres', async () => {
     await activate();
     const response = await admin.client.post('/api/platform/billing/publication-hold', {
-      tenantId: company.tenantId,
+      siteId: company.siteId,
       hold: true,
       reason: 'nao',
     });
@@ -238,7 +238,7 @@ describe('suspensao manual da publicacao', () => {
   it('um evento do provedor nao desfaz a suspensao administrativa', async () => {
     await activate();
     await admin.client.post('/api/platform/billing/publication-hold', {
-      tenantId: company.tenantId,
+      siteId: company.siteId,
       hold: true,
       reason: 'Suspensao administrativa em vigor.',
     });
@@ -267,7 +267,7 @@ describe('suspensao manual da publicacao', () => {
 
 describe('tolerancia por empresa', () => {
   it('ajusta a tolerancia e recalcula a publicacao', async () => {
-    await expireTrial(api, company.tenantId);
+    await expireTrial(api, company.siteId);
     await api.db
       .update(schema.subscriptions)
       .set({
@@ -279,7 +279,7 @@ describe('tolerancia por empresa', () => {
 
     // Com 5 dias de tolerancia e 3 dias de atraso, o site esta no ar.
     const toZero = await admin.client.post('/api/platform/billing/grace-period', {
-      tenantId: company.tenantId,
+      siteId: company.siteId,
       gracePeriodDays: 0,
       reason: 'Politica comercial para inadimplencia recorrente.',
     });
@@ -287,7 +287,7 @@ describe('tolerancia por empresa', () => {
     expect(toZero.body.publicationState).toBe('blocked_overdue');
 
     const back = await admin.client.post('/api/platform/billing/grace-period', {
-      tenantId: company.tenantId,
+      siteId: company.siteId,
       gracePeriodDays: 10,
       reason: 'Acordo de regularizacao com o cliente.',
     });

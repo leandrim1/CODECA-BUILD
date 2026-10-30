@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TENANT_STATUSES } from '../constants.js';
 import { planLimitsSchema } from '../plans.js';
-import { planBillingSchema } from './billing.js';
+import { planBillingSchema, suspensionPolicySchema } from './billing.js';
 import { emailSchema, paginationSchema, personNameSchema, slugSchema, uuidSchema } from './common.js';
 import { PLATFORM_ROLES } from '../roles.js';
 
@@ -13,6 +13,8 @@ export const planInputSchema = z.object({
   limits: planLimitsSchema,
   /** Periodicidade, avaliacao e formas de pagamento usadas na ValidaPay. */
   billing: planBillingSchema.prefault({}),
+  /** O que a suspensao faz neste plano. Nenhuma opcao apaga dado. */
+  suspension: suspensionPolicySchema.prefault({}),
   isPublic: z.boolean().default(true),
   isActive: z.boolean().default(true),
 });

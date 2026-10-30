@@ -19,7 +19,7 @@ import { assertFeature, assertWithinLimit, loadEffectivePlan } from '../lib/plan
 import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ratelimit.js';
 import { platformHosts } from '../env.js';
 import type { DomainProviderStatus } from '../lib/vercel-domains.js';
-import { requireCapability, requireVerifiedEmail, tenantMiddleware } from '../middleware/auth.js';
+import { requireCapability, requireVerifiedEmail } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -33,7 +33,6 @@ import type { AppBindings } from '../types.js';
 
 export function domainRoutes() {
   const app = new Hono<AppBindings>();
-  app.use('/:tenantId/*', tenantMiddleware());
 
   app.get('/:tenantId/domains', requireCapability('domains:read'), async (c) => {
     const ctx = c.get('ctx');

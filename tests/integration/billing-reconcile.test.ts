@@ -74,7 +74,7 @@ async function runJob(method: 'GET' | 'POST' = 'POST', secret = TEST_JOB_SECRET)
 
 describe('recuperacao de pagamento sem webhook', () => {
   it('encontra a assinatura paga quando o evento nunca chegou', async () => {
-    await expireTrial(api, account.tenantId);
+    await expireTrial(api, account.siteId);
     const checkout = await startCheckout(account, planId);
 
     // O cliente paga, mas nenhum webhook e entregue.
@@ -99,7 +99,7 @@ describe('recuperacao de pagamento sem webhook', () => {
   });
 
   it('nao duplica periodo nem cobranca quando roda duas vezes', async () => {
-    await expireTrial(api, account.tenantId);
+    await expireTrial(api, account.siteId);
     const checkout = await startCheckout(account, planId);
     api.billing.simulatePaidSession(checkout.checkoutSessionId);
 
@@ -121,7 +121,7 @@ describe('recuperacao de pagamento sem webhook', () => {
   });
 
   it('nao vincula uma assinatura que nao aponta para a nossa sessao', async () => {
-    await expireTrial(api, account.tenantId);
+    await expireTrial(api, account.siteId);
     const checkout = await startCheckout(account, planId);
 
     // Assinatura existe no provedor com o mesmo documento, mas de outra
@@ -142,7 +142,7 @@ describe('recuperacao de pagamento sem webhook', () => {
   });
 
   it('descobre o pagamento de uma cobranca em aberto', async () => {
-    await expireTrial(api, account.tenantId);
+    await expireTrial(api, account.siteId);
     await startCheckout(account, planId);
     const subscription = await loadSubscriptionRow(api, account.tenantId);
 
@@ -210,7 +210,7 @@ describe('recuperacao de pagamento sem webhook', () => {
 
 describe('divergencia de estado', () => {
   it('corrige o estado local a partir do provedor e registra a divergencia', async () => {
-    await expireTrial(api, account.tenantId);
+    await expireTrial(api, account.siteId);
     await startCheckout(account, planId);
 
     // Local diz ativa; o provedor diz cancelada.
@@ -362,7 +362,7 @@ describe('passagem do tempo', () => {
 
 describe('eventos pendentes', () => {
   it('o job reprocessa eventos que ficaram com falha', async () => {
-    await expireTrial(api, account.tenantId);
+    await expireTrial(api, account.siteId);
     await startCheckout(account, planId);
     const subscription = await loadSubscriptionRow(api, account.tenantId);
 
@@ -436,7 +436,7 @@ describe('reconciliacao pelo painel mestre', () => {
       .set({ platformRole: 'platform_admin' })
       .where(eq(schema.users.id, admin.userId));
 
-    await expireTrial(api, account.tenantId);
+    await expireTrial(api, account.siteId);
     const checkout = await startCheckout(account, planId);
     api.billing.simulatePaidSession(checkout.checkoutSessionId);
 

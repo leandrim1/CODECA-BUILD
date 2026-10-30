@@ -10,13 +10,12 @@ import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
 import { ok, parseJsonBody } from '../lib/http.js';
 import { loadPlanStatus } from '../lib/plan-limits.js';
-import { requireCapability, tenantMiddleware } from '../middleware/auth.js';
+import { requireCapability } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
 /** Dados da empresa, identidade visual, SEO e visao geral do painel. */
 export function tenantRoutes() {
   const app = new Hono<AppBindings>();
-  app.use('/:tenantId/*', tenantMiddleware());
 
   // ------------------------------------------------------------- resumo
   app.get('/:tenantId', requireCapability('tenant:read'), async (c) => {

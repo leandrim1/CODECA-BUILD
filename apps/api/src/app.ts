@@ -23,7 +23,8 @@ import { publicApiRoutes } from './routes/public-api.js';
 import { propertyRoutes } from './routes/properties.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { webhookRoutes } from './routes/webhooks.js';
-import { sessionMiddleware } from './middleware/auth.js';
+import { sessionMiddleware, tenantMiddleware } from './middleware/auth.js';
+import { enforceSuspension } from './middleware/suspension.js';
 import type { AppBindings } from './types.js';
 
 /**
@@ -107,8 +108,19 @@ export function createApp(options: CreateAppOptions = {}) {
   app.route('/billing', billingJobRoutes());
 
   // Painel da construtora: sessao obrigatoria e empresa resolvida pela rota.
+  //
+  // Os tres middlewares ficam aqui, e nao em cada roteador, por duas razoes.
+  // A ordem passa a ser visivel num lugar so -- a suspensao depende da
+  // empresa ja resolvida -- e cada um roda **uma vez** por requisicao: como
+  // `route('/', ...)` copia tambem os middlewares do roteador filho, um
+  // `use('/:tenantId/*')` repetido em onze roteadores era executado onze
+  // vezes, resolvendo o contexto da empresa de novo a cada volta.
   const tenantScoped = new Hono<AppBindings>();
   tenantScoped.use('*', sessionMiddleware());
+  tenantScoped.use('/:tenantId/*', tenantMiddleware());
+  // A politica de suspensao do plano decide o que o painel permite. A
+  // cobranca fica fora: bloquear quem precisa pagar impede a regularizacao.
+  tenantScoped.use('/:tenantId/*', enforceSuspension({ exempt: ['/billing'] }));
   tenantScoped.route('/', tenantRoutes());
   tenantScoped.route('/', memberRoutes());
   tenantScoped.route('/', propertyRoutes());

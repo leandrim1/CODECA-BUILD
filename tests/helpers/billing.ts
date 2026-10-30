@@ -248,17 +248,21 @@ export async function startCheckout(
 }
 
 /**
- * Encerra a avaliacao da empresa, como se os 14 dias tivessem passado.
+ * Encerra a avaliacao de **um site**, como se os 14 dias tivessem passado.
  *
  * Necessario nos cenarios de inadimplencia: enquanto a avaliacao vale, o
  * acesso esta garantido por ela, e nenhum atraso de pagamento suspende o site
  * -- o que e o comportamento correto, mas mascara o que esses testes querem
  * verificar.
+ *
+ * Recebe o site, e nao a empresa: desde que a assinatura e por site, agir
+ * pela empresa venceria tambem a assinatura dos outros projetos dela e
+ * mascararia justamente o que distingue um site do outro.
  */
-export async function expireTrial(api: TestApi, tenantId: string): Promise<void> {
+export async function expireTrial(api: TestApi, siteId: string): Promise<void> {
   const past = new Date(Date.now() - 30 * 24 * 3600 * 1000);
   await api.db
     .update(schema.subscriptions)
     .set({ trialEndsAt: past, accessUntil: past, currentPeriodEnd: past })
-    .where(eq(schema.subscriptions.tenantId, tenantId));
+    .where(eq(schema.subscriptions.siteId, siteId));
 }

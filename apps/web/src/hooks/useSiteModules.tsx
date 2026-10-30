@@ -20,6 +20,14 @@ interface SiteModulesValue {
   siteId: string | null;
   modules: SiteModuleView[];
   loading: boolean;
+  /**
+   * `true` quando a assinatura nao esta em dia e o plano pede somente
+   * leitura. A tela avisa antes, em vez de deixar o cliente preencher um
+   * formulario inteiro para levar 403 ao salvar.
+   */
+  readOnly: boolean;
+  /** `true` quando o plano manda bloquear o painel de conteudo. */
+  blocked: boolean;
   /** `true` so quando a resposta chegou e o modulo esta habilitado. */
   enabled: (moduleKey: string) => boolean;
   module: (moduleKey: string) => SiteModuleView | null;
@@ -43,16 +51,25 @@ export function SiteModulesProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SiteModulesValue>(() => {
     const modules = recurso.data?.modules ?? [];
     const porChave = new Map(modules.map((item) => [item.key, item]));
+    const suspensao = recurso.data?.suspension ?? null;
+    // Com a politica `blocked` esta propria rota e recusada, entao o 403 e o
+    // sinal: nao ha resposta para ler, so o erro.
+    const bloqueado =
+      suspensao?.panel === 'blocked'
+      || (recurso.data === null && recurso.error?.status === 403);
+
     return {
       siteId: recurso.data?.siteId ?? null,
       modules,
       loading: recurso.loading && recurso.data === null,
+      readOnly: suspensao !== null && !suspensao.current && suspensao.panel === 'read_only',
+      blocked: bloqueado,
       enabled: (moduleKey) => porChave.get(moduleKey)?.enabled ?? false,
       module: (moduleKey) => porChave.get(moduleKey) ?? null,
       fields: (moduleKey) => porChave.get(moduleKey)?.fields ?? [],
       reload: recurso.reload,
     };
-  }, [recurso.data, recurso.loading, recurso.reload]);
+  }, [recurso.data, recurso.error, recurso.loading, recurso.reload]);
 
   return <SiteModulesContext.Provider value={value}>{children}</SiteModulesContext.Provider>;
 }

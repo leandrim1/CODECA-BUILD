@@ -12,7 +12,8 @@ import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
 import { ok, parseJsonBody, parseParams } from '../lib/http.js';
 import { assertEditableChanges, assertModuleEnabled, loadSiteModules } from '../lib/modules.js';
-import { requireCapability, sessionOf, tenantMiddleware } from '../middleware/auth.js';
+import { resolveSiteBilling } from '../lib/billing/suspension.js';
+import { requireCapability, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -47,14 +48,26 @@ function parseDocumentModuleKey(value: string): DocumentModuleKey {
 
 export function moduleRoutes() {
   const app = new Hono<AppBindings>();
-  app.use('/:tenantId/*', tenantMiddleware());
 
   /** O que o painel deve desenhar para este site. */
   app.get('/:tenantId/modules', requireCapability('content:read'), async (c) => {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const state = await loadSiteModules(ctx.db, tenant.siteId);
-    return ok(c, { siteId: tenant.siteId, modules: state.modules });
+    const situacao = await resolveSiteBilling(ctx.db, tenant.siteId, ctx.now());
+
+    return ok(c, {
+      siteId: tenant.siteId,
+      modules: state.modules,
+      /**
+       * Restricao em vigor agora.
+       *
+       * Vem junto porque o painel ja pede esta rota uma vez ao abrir: sem
+       * isso a tela so descobriria a suspensao ao tentar gravar, depois de o
+       * cliente preencher o formulario inteiro.
+       */
+      suspension: situacao.effect,
+    });
   });
 
   app.get('/:tenantId/modules/:moduleKey/document', requireCapability('content:read'), async (c) => {

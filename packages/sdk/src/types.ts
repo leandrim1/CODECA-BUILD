@@ -139,6 +139,14 @@ export interface SiteInfo {
   };
   modules: Array<{ key: string; name: string; kind: 'document' | 'collection' }>;
   scopes: string[];
+  /**
+   * Aviso para exibir ao visitante, ou `null`.
+   *
+   * Vem preenchido quando o plano do site pede aviso durante uma pendencia
+   * de assinatura. O texto ja chega pronto para ser exibido; nao descreve a
+   * pendencia nem cita valores.
+   */
+  notice: string | null;
 }
 
 export interface InstitutionalContent {

@@ -26,7 +26,7 @@ import {
 import { assertMediaBelongsToTenant, loadGallery, loadMediaByIds, syncGallery } from '../lib/media-refs.js';
 import { assertWithinLimit } from '../lib/plan-limits.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
-import { requireCapability, sessionOf, tenantMiddleware } from '../middleware/auth.js';
+import { requireCapability, sessionOf } from '../middleware/auth.js';
 import {
   assertEditableCreate,
   assertEditablePatch,
@@ -47,7 +47,6 @@ const projectParams = z.object({ tenantId: uuidSchema, projectId: uuidSchema });
 
 export function projectRoutes() {
   const app = new Hono<AppBindings>();
-  app.use('/:tenantId/*', tenantMiddleware());
   app.use('/:tenantId/projects', requireModule('obras'));
   app.use('/:tenantId/projects/*', requireModule('obras'));
 

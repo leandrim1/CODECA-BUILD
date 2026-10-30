@@ -44,6 +44,8 @@ const CHECKOUT_REUSE_WINDOW_MS = 30 * 60 * 1000;
 
 export interface StartCheckoutInput {
   tenantId: string;
+  /** Site contratado. A assinatura e dele, nao da empresa. */
+  siteId: string;
   planId: string;
   paymentMethod: PaymentMethodCode;
   actorUserId: string;
@@ -66,7 +68,7 @@ export async function startCheckout(
   input: StartCheckoutInput,
 ): Promise<StartCheckoutResult> {
   const { db } = ctx;
-  const subscription = await requireSubscription(db, input.tenantId);
+  const subscription = await requireSubscription(db, input.siteId);
   const plan = await loadPlan(db, input.planId);
   const tenant = await loadTenant(db, input.tenantId);
 

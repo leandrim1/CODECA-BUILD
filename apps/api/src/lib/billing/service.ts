@@ -43,24 +43,42 @@ export interface BillingContext {
 
 // --------------------------------------------------------------- leitura
 
+/**
+ * Assinatura de um site.
+ *
+ * A busca e pelo site, e nao pela empresa: o que se contrata e o projeto, e
+ * uma empresa com dois sites pode ter um pago e outro nao. A unicidade esta
+ * no banco (`subscriptions_site_key`), entao no maximo uma linha responde.
+ */
 export async function loadSubscription(
   db: Database,
-  tenantId: string,
+  siteId: string,
 ): Promise<SubscriptionRow | null> {
   const [row] = await db
     .select()
     .from(schema.subscriptions)
-    .where(eq(schema.subscriptions.tenantId, tenantId));
+    .where(eq(schema.subscriptions.siteId, siteId));
   return row ?? null;
 }
 
 export async function requireSubscription(
   db: Database,
-  tenantId: string,
+  siteId: string,
 ): Promise<SubscriptionRow> {
-  const row = await loadSubscription(db, tenantId);
-  if (!row) throw AppError.notFound('Esta empresa nao possui assinatura registrada.');
+  const row = await loadSubscription(db, siteId);
+  if (!row) throw AppError.notFound('Este site nao possui assinatura registrada.');
   return row;
+}
+
+/** Assinaturas de todos os sites de uma empresa. */
+export async function loadSubscriptionsOfTenant(
+  db: Database,
+  tenantId: string,
+): Promise<SubscriptionRow[]> {
+  return db
+    .select()
+    .from(schema.subscriptions)
+    .where(eq(schema.subscriptions.tenantId, tenantId));
 }
 
 export async function findSubscriptionByExternalId(

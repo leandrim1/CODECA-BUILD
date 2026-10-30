@@ -137,7 +137,7 @@ entrega resposta nenhuma a pagina.
 
 ---
 
-## 4. Limites
+## 5. Limites
 
 600 requisicoes por minuto por chave. Um site carrega varias chamadas de uma
 vez; o limite existe contra abuso, nao contra uso normal. Estourado, a API
@@ -145,7 +145,28 @@ responde `429` com `retry-after`.
 
 ---
 
-## 5. Rotacao
+## 6. Quando a assinatura nao esta em dia
+
+O que acontece depende do plano do site, nao da API. O padrao da plataforma e
+**continuar respondendo**: o visitante nao percebe nada e nenhum dado e
+apagado, em nenhum plano.
+
+| Politica do plano | O que o site recebe |
+| --- | --- |
+| servir (padrao) | nada muda |
+| servir com aviso | responde normal, e `getSite().notice` traz uma frase pronta para exibir |
+| parar de responder | **402 `subscription_required`** nas rotas de conteudo |
+
+O 402 nao e erro do seu codigo: a credencial esta correta e repetir nao
+resolve. Por isso o SDK o separa de `isAuthError` -- veja `isSuspended` no
+README do pacote. O conteudo continua guardado e volta sozinho, entao o site
+faz melhor servindo o que tem em cache do que uma pagina de erro.
+
+Durante o periodo de tolerancia nada disso vale: a API responde normal.
+
+---
+
+## 7. Rotacao
 
 Rotacionar emite uma chave nova e marca a anterior para expirar depois de uma
 janela (padrao: 60 minutos).
@@ -159,7 +180,7 @@ sem janela.
 
 ---
 
-## 6. Checklist de um site novo
+## 8. Checklist de um site novo
 
 Tudo abaixo acontece em **`/plataforma/sites`**, na configuracao do projeto.
 

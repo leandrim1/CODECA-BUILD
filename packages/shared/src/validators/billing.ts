@@ -5,6 +5,7 @@ import {
   PAYMENT_METHOD_CODES,
   VALIDAPAY_RECURRENCE_TYPES,
 } from '../billing/states.js';
+import { PANEL_ON_SUSPENSION, PUBLIC_SITE_ON_SUSPENSION } from '../billing/suspension.js';
 import { paginationSchema, uuidSchema } from './common.js';
 
 /**
@@ -73,6 +74,18 @@ export const planBillingSchema = z.object({
 });
 export type PlanBillingInput = z.infer<typeof planBillingSchema>;
 
+/**
+ * Politica de suspensao do plano.
+ *
+ * Nao existe eixo para apagar dado: o schema nao aceita essa opcao porque ela
+ * nao e configuravel. O padrao e o mais conservador -- site no ar, painel em
+ * somente leitura.
+ */
+export const suspensionPolicySchema = z.object({
+  publicSite: z.enum(PUBLIC_SITE_ON_SUSPENSION).default('serve'),
+  panel: z.enum(PANEL_ON_SUSPENSION).default('read_only'),
+});
+
 export const platformSubscriptionQuerySchema = paginationSchema.extend({
   search: z.string().trim().max(120).optional(),
   state: z.enum(BILLING_STATES).optional(),
@@ -117,15 +130,21 @@ export const reconcileSchema = z.object({
  * Nao altera o estado financeiro confirmado pela ValidaPay: grava uma decisao
  * administrativa, com justificativa, em coluna propria e em auditoria.
  */
+/**
+ * Suspensao manual da publicacao.
+ *
+ * Age sobre o **site**, nao sobre a empresa: a assinatura e do site, e uma
+ * empresa com dois projetos pode ter um suspenso e o outro no ar.
+ */
 export const publicationHoldSchema = z.object({
-  tenantId: uuidSchema,
+  siteId: uuidSchema,
   hold: z.boolean(),
   reason: z.string().trim().min(10, 'Descreva o motivo da decisao.').max(400),
 });
 export type PublicationHoldInput = z.infer<typeof publicationHoldSchema>;
 
 export const gracePeriodSchema = z.object({
-  tenantId: uuidSchema,
+  siteId: uuidSchema,
   gracePeriodDays: z.number().int().min(0).max(60),
   reason: z.string().trim().min(5).max(400),
 });

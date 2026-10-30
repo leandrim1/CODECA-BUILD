@@ -117,7 +117,7 @@ export function PlatformBillingPage() {
     setWorking(true);
     try {
       const result = await platformBillingApi.publicationHold({
-        tenantId: holdTarget.tenantId,
+        siteId: holdTarget.siteId,
         hold: !holdTarget.adminHold,
         reason: holdReason,
       });
@@ -149,12 +149,14 @@ export function PlatformBillingPage() {
     () => [
       {
         key: 'tenant',
-        header: 'Empresa',
+        header: 'Site',
+        // A assinatura e do site: a empresa aparece como contexto, e nao
+        // como o assinante, porque uma empresa pode ter mais de uma linha.
         render: (row) => (
           <div className="grid gap-0.5">
-            <span className="text-sm font-medium text-slate-800">{row.tenantName}</span>
+            <span className="text-sm font-medium text-slate-800">{row.siteName}</span>
             <span className="text-xs text-slate-500">
-              {row.tenantSlug} - {row.planName} ({row.planPriceLabel})
+              {row.tenantName} - {row.planName} ({row.planPriceLabel})
             </span>
           </div>
         ),
@@ -634,8 +636,8 @@ export function PlatformBillingPage() {
         onClose={() => setHoldTarget(null)}
         title={
           holdTarget?.adminHold
-            ? `Reativar a publicacao de ${holdTarget.tenantName}`
-            : `Suspender a publicacao de ${holdTarget?.tenantName ?? ''}`
+            ? `Reativar a publicacao de ${holdTarget.siteName}`
+            : `Suspender a publicacao de ${holdTarget?.siteName ?? ''}`
         }
         footer={
           <>

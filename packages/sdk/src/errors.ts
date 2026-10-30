@@ -34,6 +34,19 @@ export class CodecaError extends Error {
   }
 
   /**
+   * Pendencia da assinatura do site.
+   *
+   * Nao e problema do codigo do site e nao se resolve repetindo a chamada:
+   * quem a resolve e a empresa, no painel. Separado de `isAuthError` por
+   * isso -- a credencial esta correta. O conteudo continua guardado na
+   * plataforma e volta a responder quando a pendencia se resolve, entao o
+   * site faz melhor mostrando o que tem em cache do que uma pagina de erro.
+   */
+  get isSuspended(): boolean {
+    return this.code === 'subscription_required';
+  }
+
+  /**
    * Falha de rede ou de transporte: a plataforma nao chegou a responder.
    *
    * Diferente de um erro da plataforma: aqui vale repetir a chamada, enquanto

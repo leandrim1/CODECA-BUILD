@@ -27,7 +27,7 @@ import {
 } from '../lib/http.js';
 import { assertMediaBelongsToTenant, loadMediaByIds } from '../lib/media-refs.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
-import { requireCapability, tenantMiddleware } from '../middleware/auth.js';
+import { requireCapability } from '../middleware/auth.js';
 import {
   assertEditableCreate,
   assertEditablePatch,
@@ -46,7 +46,6 @@ import type { AppBindings } from '../types.js';
 
 export function contentRoutes() {
   const app = new Hono<AppBindings>();
-  app.use('/:tenantId/*', tenantMiddleware());
   // Depoimentos, equipe e perguntas frequentes nao sao modulos do registro e
   // seguem valendo para todo site; so os servicos dependem de habilitacao.
   app.use('/:tenantId/services', requireModule('servicos'));

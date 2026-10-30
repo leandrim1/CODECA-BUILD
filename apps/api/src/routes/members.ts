@@ -14,7 +14,7 @@ import { clientIp, created, noContent, ok, parseJsonBody, parseParams } from '..
 import { assertWithinLimit } from '../lib/plan-limits.js';
 import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ratelimit.js';
 import { buildActionUrl, issueUserToken } from '../lib/tokens.js';
-import { requireCapability, requireVerifiedEmail, sessionOf, tenantMiddleware } from '../middleware/auth.js';
+import { requireCapability, requireVerifiedEmail, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -26,7 +26,6 @@ import type { AppBindings } from '../types.js';
  */
 export function memberRoutes() {
   const app = new Hono<AppBindings>();
-  app.use('/:tenantId/*', tenantMiddleware());
 
   app.get('/:tenantId/members', requireCapability('members:read'), async (c) => {
     const ctx = c.get('ctx');

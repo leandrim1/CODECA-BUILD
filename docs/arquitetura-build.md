@@ -352,26 +352,90 @@ fronteira fica explicita na documentacao de cada modulo.
 
 ## 7. Assinatura e suspensao
 
-A assinatura passa a ser **do site**, nao da empresa — o pedido a vincula ao
-cliente e ao site contratado. Uma empresa com dois sites pode ter um no plano
-pago e outro nao.
+A assinatura e **do site**, nao da empresa. A unicidade esta no banco
+(`subscriptions_site_key`), entao uma construtora com o institucional em um
+plano e o portal de lancamentos em outro e o caso normal, nao a excecao.
 
-A maquina de estados de cobranca que ja existe (`BillingState`,
-`PublicationState`, idempotencia em tres camadas, reconciliacao) e reaproveitada
-inteira. O que muda e o que a suspensao **faz**.
+A maquina de estados de cobranca que ja existia (`BillingState`,
+`PublicationState`, idempotencia em tres camadas, reconciliacao) foi
+reaproveitada inteira. O que mudou e o que a suspensao **faz**.
 
-Hoje a suspensao tira o site do ar. No modelo novo o site e um projeto da
-Vercel do cliente, e derruba-lo nao e nem desejavel nem totalmente possivel.
-Por isso a suspensao vira **politica configuravel por plano**:
+Antes, suspender tirava o site do ar: a plataforma servia o site e bastava
+parar de servir. Agora o site e um projeto na Vercel do cliente -- a
+plataforma entrega conteudo por API e nao hospeda nada. Suspender deixou de
+ser um ato e passou a ser **politica do plano**:
 
-| Eixo | Opcoes |
-| --- | --- |
-| Site publico | manter servindo \| manter com aviso \| parar de responder |
-| Painel | somente leitura \| bloqueado |
-| Dados | **nunca apagados** — nao e configuravel |
+| Eixo | Opcoes | Onde vale |
+| --- | --- | --- |
+| Site publico | servir \| servir com aviso \| parar de responder | `/api/v1` |
+| Painel | somente leitura \| bloqueado | rotas do painel, menos cobranca |
+| Dados | **nunca apagados** — nao e configuravel | em lugar nenhum |
 
-O padrao proposto: site publico continua no ar, painel em somente leitura.
-O cliente ve o que tem, nao perde nada, e volta ao normal ao regularizar.
+Padrao: **site no ar, painel em somente leitura**. Derrubar o site de quem
+atrasou uma fatura custa ao visitante, que nao tem parte no atraso, e costuma
+gerar cancelamento em vez de pagamento.
+
+### O dado nunca e apagado
+
+Esta e a unica regra do capitulo que nao e configuravel, e ela esta em codigo
+em tres lugares: `SuspensionEffect.dataDeleted` e do tipo `false`, o schema do
+plano nao tem esse eixo, e `tests/unit/suspension.test.ts` percorre todas as
+combinacoes de estado e politica para confirmar. `suspensionEffect` tambem nao
+tem caminho que remova nada -- ela so decide o que responder.
+
+Ate esta etapa a promessa estava apenas escrita aqui. Agora
+`tests/integration/billing-suspension.test.ts` cria um imovel, aplica a
+politica mais severa possivel (`stop` + `blocked`), confere que a linha
+continua no banco com o mesmo titulo e situacao, e que ela volta a aparecer ao
+regularizar.
+
+### A funcao pura, e por que ela existe
+
+`suspensionEffect(publication, policy)` traduz o estado de publicacao na
+restricao que vale agora. E pura pelo mesmo motivo que `decidePublication`: a
+API publica, o painel e as telas decidem pela mesma regra. Duas
+implementacoes divergem no primeiro caso de borda, e aqui o caso de borda
+custa o site de um cliente no ar, ou um cliente trancado fora do painel.
+
+A tolerancia nao chega aqui: `decidePublication` devolve `allowed` durante
+ela, entao a politica nem e consultada. Um cartao recusado que o cliente
+resolve em dois dias nao derruba nada.
+
+### A cobranca nunca e bloqueada
+
+`enforceSuspension` recebe uma lista de isencoes, e ela tem um item:
+`/billing`. Bloquear quem precisa pagar impede a propria regularizacao -- o
+cliente ficaria sem como sair da suspensao.
+
+Isso tambem decide onde o painel descobre a propria situacao. Com a politica
+`blocked`, `GET /modules` e recusado junto com o resto; `GET /billing`, nao.
+Por isso e essa rota que carrega `suspension` e `suspensionPolicy`, e e para
+`/painel/plano` que o aviso aponta.
+
+### O que o visitante ve
+
+Com `serve_with_notice`, `GET /v1/site` passa a trazer `notice`. O texto e
+neutro de proposito: chega ao navegador por uma chave **publicavel**, que e
+publica por definicao, e o visitante nao tem parte na pendencia nem deve
+saber dela. Um teste confere que o aviso nao contem "inadimplente",
+"pagamento", "assinatura", valor nem data.
+
+Com `stop`, as rotas respondem **402 `subscription_required`** -- nao 403. A
+diferenca importa para quem integra: 403 manda conferir a credencial, e aqui
+nao ha nada a corrigir no codigo do site. O SDK expoe `error.isSuspended`.
+
+### Suspender um site nao suspende a empresa
+
+A rota administrativa passou a receber `siteId`. Antes ela tambem marcava a
+**empresa** como suspensa, o que fazia sentido quando a assinatura era unica
+por empresa e os dois conceitos coincidiam; agora derrubaria os outros sites
+da mesma construtora e trancaria o painel inteiro. Suspender a empresa
+continua possivel, pela rota de empresas, que e onde essa decisao mora.
+
+`sites.status` tambem fica intacto: e o rotulo operacional da CODECA IA
+(`draft`, `active`, ...), e sobrescreve-lo faria um site em desenvolvimento
+virar "no ar" ao liberar a cobranca. Publicacao e situacao do projeto sao
+eixos diferentes, como `publicationStatus` e `commercialStatus` num imovel.
 
 ---
 
@@ -475,7 +539,7 @@ plataforma utilizavel ao final.
 | 6 | `@codeca/sdk` com tipos, documentacao e exemplo integravel | 5 | **feita** |
 | 7 | Configuracao por segmento no painel mestre | 2 | pendente |
 | 8 | Webhook `content.published` para o site do cliente | 5 | pendente |
-| 9 | Assinatura por site e politica de suspensao | 1 | pendente |
+| 9 | Assinatura por site e politica de suspensao | 1 | **feita** |
 | 10 | Cadastro de site no painel mestre, fim a fim | 2, 4 | **feita** |
 
 As etapas 1 e 2 sao fundacao: tudo depende delas, e mudar de ideia depois

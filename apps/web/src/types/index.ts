@@ -16,6 +16,8 @@ import type {
   SafeIcon,
   SiteStatus,
   SocialNetwork,
+  SuspensionEffect,
+  SuspensionPolicy,
   TenantRole,
   TenantStatus,
   UsageSnapshot,
@@ -369,6 +371,8 @@ export interface PlanRecord {
   description: string;
   priceCents: number;
   limits: PlanLimits;
+  /** O que a suspensao faz neste plano. Nenhuma opcao apaga dado. */
+  suspension: SuspensionPolicy;
   isPublic: boolean;
   isActive: boolean;
   tenantCount: number;
@@ -423,6 +427,10 @@ export interface BillingSubscriptionView {
   inGracePeriod: boolean;
   graceEndsAt: string | null;
   gracePeriodDays: number;
+  /** O que esta restringido agora. */
+  suspension: SuspensionEffect;
+  /** O que o plano faz quando a assinatura nao esta em dia. */
+  suspensionPolicy: SuspensionPolicy;
   paymentMethod: PaymentMethodCode | null;
   paymentMethodLabel: string | null;
   automaticRenewal: boolean | null;
@@ -500,6 +508,9 @@ export interface BillingOverview {
 export interface PlatformSubscriptionRow {
   id: string;
   tenantId: string;
+  /** Site assinante. As acoes administrativas agem sobre ele. */
+  siteId: string;
+  siteName: string;
   tenantName: string;
   tenantSlug: string;
   tenantStatus: string;
@@ -627,6 +638,8 @@ export interface BannerRecord {
 export interface SiteModulesResponse {
   siteId: string;
   modules: SiteModuleView[];
+  /** Restricao em vigor por causa da assinatura. */
+  suspension: SuspensionEffect;
 }
 
 /**

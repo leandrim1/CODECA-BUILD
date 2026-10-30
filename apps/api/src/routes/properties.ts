@@ -26,7 +26,7 @@ import { assertMediaBelongsToTenant, loadGallery, loadMediaByIds, syncGallery } 
 import { assertEditableCreate, assertEditablePatch, loadSiteModules } from '../lib/modules.js';
 import { assertWithinLimit, loadEffectivePlan } from '../lib/plan-limits.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
-import { requireCapability, tenantMiddleware } from '../middleware/auth.js';
+import { requireCapability } from '../middleware/auth.js';
 import { requireModule } from '../middleware/modules.js';
 import type { AppBindings } from '../types.js';
 
@@ -43,7 +43,6 @@ const propertyParams = z.object({ tenantId: uuidSchema, propertyId: uuidSchema }
 
 export function propertyRoutes() {
   const app = new Hono<AppBindings>();
-  app.use('/:tenantId/*', tenantMiddleware());
   // Site sem o modulo nao tem imovel nenhum -- nem para ler.
   app.use('/:tenantId/properties', requireModule('imoveis'));
   app.use('/:tenantId/properties/*', requireModule('imoveis'));

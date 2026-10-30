@@ -20,6 +20,7 @@ import type {
   AddressInput,
   LeadInterestType,
   PlanBillingInput,
+  SuspensionPolicy,
   PlanLimits,
   SocialNetwork,
 } from '@codeca/shared';
@@ -150,6 +151,17 @@ export const plans = pgTable(
       recurrenceInterval: 1,
       trialDays: null,
       paymentMethods: ['creditcard'],
+    }),
+    /**
+     * O que a suspensao faz neste plano.
+     *
+     * Fica no plano, e nao na assinatura: o que acontece ao atrasar e
+     * caracteristica comercial do plano, igual para todo cliente que o
+     * assina. Nenhuma opcao apaga dado -- isso nao e configuravel.
+     */
+    suspension: jsonb('suspension').$type<SuspensionPolicy>().notNull().default({
+      publicSite: 'serve',
+      panel: 'read_only',
     }),
     /** Produto e preco correspondentes na ValidaPay, criados ao sincronizar. */
     externalProductId: text('external_product_id'),
@@ -632,7 +644,12 @@ export const subscriptions = pgTable(
     updatedAt,
   },
   (table) => [
-    uniqueIndex('subscriptions_tenant_key').on(table.tenantId),
+    /**
+     * Uma assinatura por **site**, nao por empresa: o que se contrata e o
+     * projeto. Uma empresa com dois sites pode ter um pago e outro nao.
+     */
+    uniqueIndex('subscriptions_site_key').on(table.siteId),
+    index('subscriptions_tenant_idx').on(table.tenantId),
     index('subscriptions_plan_idx').on(table.planId),
     index('subscriptions_status_idx').on(table.status),
     index('subscriptions_sync_idx').on(table.lastSyncedAt),
@@ -648,7 +665,6 @@ export const subscriptions = pgTable(
       foreignColumns: [sites.id, sites.tenantId],
       name: 'subscriptions_site_tenant_fk',
     }).onDelete('cascade'),
-    index('subscriptions_site_idx').on(table.siteId),
   ],
 );
 
