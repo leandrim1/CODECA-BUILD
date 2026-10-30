@@ -44,6 +44,31 @@ As duas funcoes:
 - `api/index.ts` — a API (`createApp`), servida em `/api/*`
 - `api/site.ts` — os sites publicos (`createSiteApp`), renderizados no servidor
 
+### Formato dos handlers — nao use `export default`
+
+As duas funcoes exportam **um handler por metodo HTTP**:
+
+```ts
+export const GET = handler;
+export const POST = handler;
+// PUT, PATCH, DELETE, OPTIONS, HEAD
+```
+
+Isso nao e estilo. O runtime Node da Vercel trata o `export default` como um
+handler `(req, res) => void` e **descarta o valor devolvido**. Como o
+`handle()` do Hono devolve uma `Response`, nada chega a ser escrito: a
+requisicao fica aberta ate o runtime mata-la, e **toda rota responde 504**. O
+log de execucao mostra o aviso em cada invocacao:
+
+```
+WARN: default export returned a `Response`.
+The default-export signature is `(req, res) => void` -- returns are ignored.
+```
+
+Exportar por metodo ativa o modo Web-standard, em que a `Response` devolvida e
+de fato enviada. `tests/integration/vercel-handlers.test.ts` prende esse
+formato, inclusive a ausencia do `export default`.
+
 ## 2. Ajustar a reescrita por host — passo obrigatorio
 
 Em `vercel.json`:
@@ -373,6 +398,7 @@ houver precos ajustados no painel mestre que voce queira preservar.
 | Corrigi o codigo, fiz deploy e nada mudou | A producao esta em outro build. Confira `deployment.commit` em `/api/health` e o *Production Branch* |
 | Build falha em `prepare-db` / `[deploy] falha ao preparar o banco` | O log traz `causa provavel` e `o que fazer` logo abaixo. Os dois casos comuns sao a `DATABASE_URL` desatualizada (codigo `28P01`) e o schema criado a mao (codigo `42P07`) |
 | Build falha ao registrar o Cron | No plano Hobby o cron precisa ser diario (secao 6) |
+| **Toda** rota `/api/*` responde 504, inclusive `/api/health` | Handler exportado como `export default`: a Vercel descarta a `Response`. Veja "Formato dos handlers", secao 1 |
 | Cadastro devolve 504 depois de uns 60 s | Veja `database.transaction` em `/api/health?db=1` |
 | `/api/health` (sem `?db=1`) devolve 504 | A funcao nao esta atendendo. O banco nao entra nessa rota: o problema e da funcao ou da implantacao |
 | Telas carregam, mas nada que grava funciona | Mesmo caso: consulta por HTTP passa, transacao por WebSocket nao |
