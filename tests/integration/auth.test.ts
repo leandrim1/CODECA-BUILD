@@ -364,4 +364,21 @@ describe('cabecalhos de seguranca', () => {
     expect(response.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin');
     expect(response.headers.get('cache-control')).toBe('no-store');
   });
+
+  it('o health identifica a implantacao que respondeu', async () => {
+    // Quando a tela diverge do repositorio, esta e a resposta que diz se o
+    // problema e o codigo ou o deploy. As chaves existem mesmo fora da Vercel.
+    const response = await api.client().get<{
+      status: string;
+      deployment: Record<string, string | null>;
+    }>('/api/health');
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe('ok');
+    expect(Object.keys(response.body.deployment).sort()).toEqual([
+      'branch',
+      'commit',
+      'environment',
+      'region',
+    ]);
+  });
 });

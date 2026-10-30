@@ -19,6 +19,19 @@ traz tudo:
 Nao defina um *Root Directory* no painel da Vercel: o build sai da raiz do
 monorepo, porque as funcoes em `api/` importam `@codeca/api` pelo workspace.
 
+### Confira o *Production Branch*
+
+A Vercel grava o branch de producao **no momento da importacao** e nao
+acompanha mudancas posteriores do branch padrao no GitHub. Se o branch for
+renomeado, apagado ou trocado depois, os pushes passam a gerar apenas
+implantacoes de *preview*: cada uma com a sua URL propria, enquanto o dominio
+de producao continua servindo o ultimo build antigo. O deploy "funciona", o
+repositorio esta correto e a tela segue errada.
+
+Em *Settings -> Git*, confirme que o *Production Branch* e o branch que voce
+realmente publica. Para checar o que esta no ar sem abrir o painel, veja a
+secao 9.
+
 As duas funcoes:
 
 - `api/index.ts` — a API (`createApp`), servida em `/api/*`
@@ -206,8 +219,44 @@ curl -s https://app.SEUDOMINIO.com.br/api/health | jq
 Quando o cadastro falha com uma mensagem generica no painel, e quase sempre o
 segundo caso: a funcao nao conseguiu iniciar por configuracao incompleta.
 
+### Qual versao esta no ar
+
+As duas respostas acima trazem um bloco `deployment`, preenchido pelas
+variaveis de sistema da Vercel:
+
+```json
+{
+  "deployment": {
+    "commit": "f697a34",
+    "branch": "claude/friendly-johnson-b0ze15",
+    "environment": "production",
+    "region": "gru1"
+  }
+}
+```
+
+Compare `commit` com o ultimo commit do seu branch. Esta e a unica forma
+confiavel de separar duas falhas que se parecem:
+
+| Observado | Conclusao |
+| --- | --- |
+| `commit` e antigo | A producao esta presa em outro build. Verifique o *Production Branch* (secao 1) e se o ultimo deploy foi marcado *Production*, nao *Preview* |
+| `commit` esta certo, mas a tela erra | O codigo no ar e o atual. O problema e de configuracao ou de dados — ou o navegador guardou o bundle anterior (recarregue com Ctrl+Shift+R) |
+| `environment` responde `preview` | Voce abriu a URL de um preview, nao a de producao |
+| `deployment` todo `null` | Nao esta rodando na Vercel, ou as *System Environment Variables* foram desligadas no projeto |
+
+O bloco traz apenas metadados de build — commit, branch, ambiente e regiao.
+Nenhum segredo passa por ele. Em um repositorio privado, ele revela o nome do
+branch e o commit a quem acessar `/api/health`; nao ha nada acionavel nisso,
+mas vale saber.
+
 Com a API no ar e o cadastro ainda falhando, os dois suspeitos seguintes sao o
-banco sem migracoes e o banco sem planos:
+banco sem migracoes e o banco sem planos. O build de producao cuida dos dois
+(secao 5), entao isto so acontece quando aquele build nao rodou com o
+`DATABASE_URL` certo — por exemplo, se a variavel foi criada ou corrigida
+depois dele. **Um novo deploy resolve**, e e o caminho preferido.
+
+Se precisar aplicar na mao, contra o banco de producao:
 
 ```bash
 DATABASE_URL="postgresql://..." pnpm db:migrate
@@ -217,13 +266,18 @@ DATABASE_URL="postgresql://..." pnpm db:migrate
 DATABASE_URL="postgresql://..." pnpm db:seed
 ```
 
-Sem o seed nao existe o plano de avaliacao, e o cadastro responde
-"Nenhum plano inicial configurado. Rode o seed de planos."
+Sem planos nao existe o de avaliacao, e o cadastro responde "Nenhum plano
+inicial configurado. Rode o seed de planos.". Note a diferenca entre os dois
+caminhos: o build **cria** os planos padrao apenas quando a tabela esta vazia,
+enquanto `db:seed` **reescreve** os planos existentes — use-o apenas se nao
+houver precos ajustados no painel mestre que voce queira preservar.
 
 ## 10. Problemas comuns
 
 | Sintoma | Causa |
 | --- | --- |
+| Corrigi o codigo, fiz deploy e nada mudou | A producao esta em outro build. Confira `deployment.commit` em `/api/health` e o *Production Branch* |
+| A mensagem de erro na tela nao existe mais no codigo | Mesmo caso acima: o bundle servido e de um commit anterior |
 | Cadastro falha com mensagem generica | Variavel obrigatoria ausente; veja `/api/health` |
 | `/api/health` responde 503 `misconfigured` | `DATABASE_URL` ausente ou `AUTH_SECRET` com menos de 32 caracteres |
 | "Nenhum plano inicial configurado" | `pnpm db:seed` nunca rodou no banco de producao |

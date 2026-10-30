@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { EnvError } from './env.js';
+import { deploymentInfo } from './lib/deployment.js';
 
 /**
  * Aplicacao de contingencia para ambiente mal configurado.
@@ -37,6 +38,10 @@ export function createConfigErrorApp(error: unknown, basePath = '/api') {
         data: {
           status: 'misconfigured',
           issues,
+          // Aqui a identidade do deploy importa ainda mais: uma variavel
+          // adicionada depois do ultimo build so vale no proximo deploy, e e
+          // por este commit que se percebe que o build e antigo.
+          deployment: deploymentInfo(),
           hint: 'Defina as variaveis no projeto da Vercel e faca um novo deploy.',
         },
       },

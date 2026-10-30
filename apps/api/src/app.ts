@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { createContext, type AppContext, type CreateContextOptions } from './context.js';
+import { deploymentInfo } from './lib/deployment.js';
 import { ok } from './lib/http.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { cors, securityHeaders } from './middleware/security.js';
@@ -57,6 +58,10 @@ export function createApp(options: CreateAppOptions = {}) {
       status: 'ok',
       platform: ctx.env.PLATFORM_NAME,
       features: ctx.features,
+      // Qual codigo esta de fato no ar. E a unica resposta confiavel quando a
+      // tela diverge do repositorio: se o commit aqui nao e o esperado, o
+      // problema esta na implantacao, nao no codigo.
+      deployment: deploymentInfo(),
       time: ctx.now().toISOString(),
     }),
   );

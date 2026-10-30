@@ -7,6 +7,7 @@ export {
   configurationIssues,
 } from './config-error.js';
 export { parseEnv, envSchema, featureFlags, platformHosts, type Env, type FeatureFlags } from './env.js';
+export { deploymentInfo, type DeploymentInfo } from './lib/deployment.js';
 export { createMemoryMailer, createMailer, type Mailer, type MailMessage } from './lib/mailer.js';
 export { createMemoryBlobStorage, createBlobStorage, type BlobStorage } from './lib/blob.js';
 export {
