@@ -8,12 +8,14 @@ import {
   PROPERTY_PURPOSE_LABELS,
   PROPERTY_TYPE_LABELS,
   PUBLICATION_STATUS_LABELS,
+  SITE_STATUS_LABELS,
   TENANT_ROLE_LABELS,
   TENANT_STATUS_LABELS,
   type LeadStatus,
   type ProjectStatus,
   type PropertyCommercialStatus,
   type PublicationStatus,
+  type SiteStatus,
   type TenantStatus,
 } from '@codeca/shared';
 import type { BadgeTone } from '@codeca/ui';
@@ -32,6 +34,7 @@ export const labels = {
   leadInterest: LEAD_INTEREST_LABELS,
   tenantStatus: TENANT_STATUS_LABELS,
   tenantRole: TENANT_ROLE_LABELS,
+  siteStatus: SITE_STATUS_LABELS,
 } as const;
 
 export function publicationTone(status: PublicationStatus): BadgeTone {
@@ -66,6 +69,13 @@ export function tenantTone(status: TenantStatus): BadgeTone {
   if (status === 'active') return 'success';
   if (status === 'trialing') return 'info';
   if (status === 'suspended') return 'danger';
+  return 'neutral';
+}
+
+export function siteTone(status: SiteStatus): BadgeTone {
+  if (status === 'active') return 'success';
+  if (status === 'suspended') return 'danger';
+  if (status === 'draft') return 'warning';
   return 'neutral';
 }
 

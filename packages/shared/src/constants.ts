@@ -223,6 +223,20 @@ export type SegmentCode = (typeof SEGMENT_CODES)[number];
 export const SITE_STATUSES = ['draft', 'active', 'suspended', 'archived'] as const;
 export type SiteStatus = (typeof SITE_STATUSES)[number];
 
+/**
+ * Como o estado do site e dito ao cliente.
+ *
+ * Em termos do projeto dele, nao da plataforma: `draft` e um site que a
+ * CODECA IA ainda esta conectando, nao um rascunho que o cliente precisa
+ * publicar -- o cliente nao publica nada aqui.
+ */
+export const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
+  draft: 'Em conexao pela CODECA IA',
+  active: 'Integrado',
+  suspended: 'Integracao suspensa',
+  archived: 'Arquivado',
+};
+
 export const SOCIAL_NETWORKS = ['instagram', 'facebook', 'linkedin', 'youtube', 'tiktok', 'x'] as const;
 export type SocialNetwork = (typeof SOCIAL_NETWORKS)[number];
 

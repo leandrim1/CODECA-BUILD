@@ -6,6 +6,9 @@ import type {
   PaymentMethodCode,
   PublicationState,
   PlanLimits,
+  EffectivePlan,
+  OverviewDomain,
+  TenantOverview,
   ProjectCategory,
   ProjectStage,
   ProjectStatus,
@@ -68,13 +71,7 @@ export interface SessionResponse {
   platform: { name: string; url: string };
 }
 
-export interface EffectivePlan {
-  planId: string;
-  planCode: string;
-  planName: string;
-  limits: PlanLimits;
-  overridden: boolean;
-}
+export type { EffectivePlan };
 
 export interface TenantAccess {
   role: TenantRole;
@@ -111,39 +108,16 @@ export interface TenantResponse {
   usage: UsageSnapshot;
 }
 
-export interface OverviewCounts {
-  total: number;
-  published: number;
-  drafts: number;
-}
+/**
+ * Visao geral do painel.
+ *
+ * Declarada em `@codeca/shared` e usada pelos dois lados. Antes cada lado
+ * tinha a sua copia, e foi assim que o painel continuou lendo `pages` depois
+ * de a API parar de enviar: o `typecheck` nao tinha como notar.
+ */
+export type OverviewResponse = TenantOverview;
 
-export interface OverviewResponse {
-  pages: OverviewCounts;
-  properties: OverviewCounts & { available: number; sold: number };
-  projects: { total: number; published: number; inProgress: number; completed: number };
-  services: { total: number; published: number };
-  leads: { total: number; novos: number; emAtendimento: number; convertidos: number; last30Days: number };
-  media: { total: number; bytes: number };
-  recentLeads: Array<{
-    id: string;
-    name: string;
-    interestType: LeadInterestType;
-    status: LeadStatus;
-    createdAt: string;
-  }>;
-  domains: DomainSummary[];
-  site: { publishedVersion: number; lastPublishedAt: string | null };
-  plan: EffectivePlan;
-  usage: UsageSnapshot;
-}
-
-export interface DomainSummary {
-  id: string;
-  hostname: string;
-  status: DomainStatus;
-  isPrimary: boolean;
-  sslStatus: 'pending' | 'active' | 'error';
-}
+export type DomainSummary = OverviewDomain;
 
 export interface DomainRecord extends DomainSummary {
   statusLabel: string;

@@ -1,9 +1,10 @@
-import { and, desc, eq, gte, schema, sql } from '@codeca/database';
+import { and, desc, eq, gte, isNull, schema, sql } from '@codeca/database';
 import {
   AppError,
   updateSiteSectionsSchema,
   updateTenantContactSchema,
   updateTenantSchema,
+  type TenantOverview,
 } from '@codeca/shared';
 import { Hono } from 'hono';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
@@ -100,6 +101,14 @@ export function tenantRoutes() {
       .from(schema.services)
       .where(eq(schema.services.tenantId, tenantId));
 
+    const [bannerStats] = await ctx.db
+      .select({
+        total: countOf,
+        active: sql<number>`cast(count(*) filter (where ${schema.banners.isActive}) as int)`,
+      })
+      .from(schema.banners)
+      .where(eq(schema.banners.siteId, tenant.siteId));
+
     const [leadStats] = await ctx.db
       .select({
         total: countOf,
@@ -145,22 +154,66 @@ export function tenantRoutes() {
       .where(eq(schema.domains.tenantId, tenantId))
       .orderBy(desc(schema.domains.isPrimary));
 
+    const [site] = await ctx.db
+      .select({
+        id: schema.sites.id,
+        name: schema.sites.name,
+        status: schema.sites.status,
+      })
+      .from(schema.sites)
+      .where(eq(schema.sites.id, tenant.siteId));
+
+    if (!site) throw AppError.notFound('Site nao encontrado.');
+
+    /**
+     * Ultimo acesso do site a API.
+     *
+     * E a unica evidencia honesta de que a integracao esta de pe: a
+     * plataforma nao publica o site e nao tem como saber se ele esta no ar,
+     * mas sabe se ele veio buscar conteudo. Nulo significa cadastrado e nunca
+     * integrado -- que e exatamente o que o cliente precisa ver no primeiro
+     * dia, com o aviso de que a CODECA IA ainda vai conectar.
+     */
+    const [acesso] = await ctx.db
+      .select({ lastUsedAt: sql<Date | null>`max(${schema.siteApiKeys.lastUsedAt})` })
+      .from(schema.siteApiKeys)
+      .where(
+        and(
+          eq(schema.siteApiKeys.siteId, tenant.siteId),
+          isNull(schema.siteApiKeys.revokedAt),
+        ),
+      );
+
     const planStatus = await loadPlanStatus(ctx.db, tenantId);
 
-    return ok(c, {
+    // Tipado pelo contrato compartilhado: deixar de enviar um campo que o
+    // painel le passa a ser erro de compilacao, nao surpresa em producao.
+    const resposta: TenantOverview = {
+      site: {
+        id: site.id,
+        name: site.name,
+        status: site.status,
+        lastApiAccessAt: acesso?.lastUsedAt ? new Date(acesso.lastUsedAt).toISOString() : null,
+      },
       properties: propertyStats ?? { total: 0, published: 0, drafts: 0, available: 0, sold: 0 },
       projects: projectStats ?? { total: 0, published: 0, inProgress: 0, completed: 0 },
       services: serviceStats ?? { total: 0, published: 0 },
+      banners: bannerStats ?? { total: 0, active: 0 },
       leads: {
         ...(leadStats ?? { total: 0, novos: 0, emAtendimento: 0, convertidos: 0 }),
         last30Days: leads30d?.total ?? 0,
       },
       media: { total: mediaStats?.total ?? 0, bytes: Number(mediaStats?.bytes ?? 0) },
-      recentLeads,
+      recentLeads: recentLeads.map((lead) => ({
+        ...lead,
+        createdAt: lead.createdAt.toISOString(),
+      })),
       domains,
       plan: planStatus.plan,
       usage: planStatus.usage,
-    });
+    };
+
+    return ok(c, resposta);
   });
 
   // ------------------------------------------------- dados da empresa

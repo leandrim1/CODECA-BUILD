@@ -144,6 +144,21 @@ export interface UsageSnapshot {
   storageBytes: number;
 }
 
+/**
+ * Plano em vigor para uma empresa, com os ajustes individuais ja aplicados.
+ *
+ * `overridden` existe porque a plataforma pode afrouxar um limite para um
+ * cliente sem criar um plano novo: a tela precisa dizer que o numero exibido
+ * nao e o do plano publicado.
+ */
+export interface EffectivePlan {
+  planId: string;
+  planCode: string;
+  planName: string;
+  limits: PlanLimits;
+  overridden: boolean;
+}
+
 export interface LimitCheck {
   allowed: boolean;
   limit: number;

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq, schema } from '@codeca/database';
+import { parseApiKey } from '@codeca/shared';
 import {
   createTestApi,
   registerAccount,
@@ -92,9 +93,15 @@ describe('emissao', () => {
       .where(eq(schema.siteApiKeys.siteId, empresa.siteId));
 
     expect(row!.token).toBeNull();
-    const segredo = token.split('_').at(-1)!;
-    expect(row!.secretHash).not.toContain(segredo);
-    expect(JSON.stringify(row)).not.toContain(segredo);
+    // Pelo proprio `parseApiKey`, e nao por `split('_')`: o alfabeto base64url
+    // inclui `_`, entao cortar no ultimo deles devolve um pedaco do segredo --
+    // e devolve string vazia quando o segredo termina em `_`, caso em que
+    // `not.toContain('')` falha sempre. Era uma falha intermitente de ~1 em 64.
+    const parsed = parseApiKey(token)!;
+    expect(parsed).not.toBeNull();
+    expect(parsed.secret.length).toBeGreaterThan(24);
+    expect(row!.secretHash).not.toContain(parsed.secret);
+    expect(JSON.stringify(row)).not.toContain(parsed.secret);
   });
 
   it('a chave publicavel continua legivel: ela nao e segredo', async () => {
