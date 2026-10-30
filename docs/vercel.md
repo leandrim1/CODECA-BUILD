@@ -112,16 +112,38 @@ da empresa. Ver [dominios.md](dominios.md).
 
 ## 5. Migracoes no deploy
 
-O build **nao** aplica migracoes: um deploy nao deve alterar o schema sem
-alguem olhando. Rode a partir da sua maquina, com o `DATABASE_URL` de producao:
+**O build prepara o banco sozinho.** Antes de compilar o painel, o
+`buildCommand` roda `pnpm run db:deploy`, que:
+
+1. aplica as migracoes pendentes;
+2. cria os planos padrao **se a tabela estiver vazia**.
+
+Numa instalacao nova isso significa zero passo manual: o deploy sobe com as
+tabelas criadas e os planos no lugar, e a primeira conta cadastrada pela tela
+assume o painel mestre.
+
+Tres limites deliberados:
+
+| Regra | Por que |
+| --- | --- |
+| So roda quando `VERCEL_ENV` e `production` | Preview e Development costumam apontar para o mesmo banco; um preview com schema diferente alteraria a producao |
+| Sem `DATABASE_URL`, apenas avisa e segue | A aplicacao sobe e informa o que falta em `/api/health`, em vez de deixar quem opera sem nenhum deploy |
+| Migracao que falha **derruba o build** | Publicar codigo que espera um schema inexistente e pior do que nao publicar |
+
+Os planos nunca sao sobrescritos: a criacao so acontece com a tabela vazia.
+Preco e limites ajustados no painel mestre sobrevivem a qualquer deploy.
+
+**Migracao destrutiva continua exigindo cuidado.** Remover uma coluna ou
+tabela que o codigo no ar ainda usa quebra a aplicacao entre a migracao e a
+troca do codigo. Faca em dois deploys: primeiro o que para de usar, depois o
+que remove.
+
+Para aplicar migracoes fora do deploy -- da sua maquina, contra qualquer
+banco:
 
 ```bash
 DATABASE_URL="postgresql://..." pnpm db:migrate
 ```
-
-Aplique a migracao antes do deploy quando ela so adiciona (coluna nova,
-tabela nova, indice novo) e depois do deploy quando ela remove algo que o
-codigo antigo ainda usa.
 
 ## 6. Cron da reconciliacao de cobranca
 

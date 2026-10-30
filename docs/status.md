@@ -20,6 +20,9 @@ Legenda:
 | Monorepo pnpm (`apps/*`, `packages/*`) | Pronto | TypeScript estrito em todos os pacotes |
 | Schema no Neon com 29 tabelas | Pronto | UUIDs, timestamps, enums, FKs, indices |
 | Migracoes versionadas | Pronto | `packages/database/migrations`, aplicadas tambem nos testes |
+| Migracoes aplicadas no deploy | Pronto | o build de producao na Vercel aplica as pendentes e falha se alguma quebrar |
+| Planos padrao em instalacao nova | Pronto | criados apenas com a tabela vazia; nunca sobrescrevem ajustes do painel |
+| Primeiro administrador sem passo manual | Pronto | a primeira conta cadastrada assume o painel mestre, uma unica vez |
 | Seed de planos / admin / demonstracao | Pronto | `pnpm db:seed` |
 | Conexao com transacoes | Pronto | driver `neon-serverless`; publicacao e atomica |
 | `.env.example` sem credenciais reais | Pronto | somente nomes e exemplos ficticios |

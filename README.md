@@ -138,6 +138,9 @@ Aplique as migracoes e crie os planos padrao:
 pnpm db:migrate && pnpm db:seed
 ```
 
+Na Vercel isso e automatico: o build aplica as migracoes pendentes e, numa
+instalacao vazia, cria os planos padrao. Ver [docs/vercel.md](docs/vercel.md#5-migracoes-no-deploy).
+
 O painel mestre nao precisa de passo manual: em uma instalacao nova, **a
 primeira conta cadastrada pela tela assume o papel de administrador da
 plataforma** -- e somente a primeira. Para reservar esse papel a um endereco
