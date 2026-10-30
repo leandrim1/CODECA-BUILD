@@ -17,7 +17,6 @@ export interface MediaUsage {
   services: number;
   testimonials: number;
   teamMembers: number;
-  pages: number;
   total: number;
 }
 
@@ -81,23 +80,6 @@ export async function countMediaReferences(
     .from(schema.teamMembers)
     .where(and(eq(schema.teamMembers.tenantId, tenantId), eq(schema.teamMembers.photoId, mediaId)));
 
-  const [draftPages] = await db
-    .select({ value: countOf })
-    .from(schema.pages)
-    .where(
-      and(eq(schema.pages.tenantId, tenantId), sql`${schema.pages.draftLayout}::text like ${needle}`),
-    );
-
-  const [publishedPages] = await db
-    .select({ value: countOf })
-    .from(schema.pageVersions)
-    .where(
-      and(
-        eq(schema.pageVersions.tenantId, tenantId),
-        sql`${schema.pageVersions.layout}::text like ${needle}`,
-      ),
-    );
-
   const usage: MediaUsage = {
     propertyCovers: propertyCovers?.value ?? 0,
     propertyGalleries: propertyGalleries?.value ?? 0,
@@ -107,7 +89,6 @@ export async function countMediaReferences(
     services: services?.value ?? 0,
     testimonials: testimonials?.value ?? 0,
     teamMembers: teamMembers?.value ?? 0,
-    pages: (draftPages?.value ?? 0) + (publishedPages?.value ?? 0),
     total: 0,
   };
   usage.total =
@@ -118,8 +99,7 @@ export async function countMediaReferences(
     + usage.projectUpdates
     + usage.services
     + usage.testimonials
-    + usage.teamMembers
-    + usage.pages;
+    + usage.teamMembers;
   return usage;
 }
 
@@ -147,6 +127,5 @@ export function describeUsage(usage: MediaUsage): string[] {
   if (usage.services > 0) parts.push(`${usage.services} servico(s)`);
   if (usage.testimonials > 0) parts.push(`${usage.testimonials} depoimento(s)`);
   if (usage.teamMembers > 0) parts.push(`${usage.teamMembers} integrante(s) da equipe`);
-  if (usage.pages > 0) parts.push(`${usage.pages} pagina(s)`);
   return parts;
 }

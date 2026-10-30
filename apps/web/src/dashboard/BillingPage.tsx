@@ -406,7 +406,6 @@ export function BillingPage() {
                         current={view.usage.projects}
                         limit={view.plan.limits.maxProjects}
                       />
-                      <Meter label="Paginas" current={view.usage.pages} limit={view.plan.limits.maxPages} />
                       <Meter label="Usuarios ativos" current={view.usage.users} limit={view.plan.limits.maxUsers} />
                       <Meter label="Dominios" current={view.usage.domains} limit={view.plan.limits.maxDomains} />
                       <Meter

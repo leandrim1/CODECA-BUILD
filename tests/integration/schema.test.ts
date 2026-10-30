@@ -74,18 +74,6 @@ describe('migracoes e restricoes do schema', () => {
     await expect(ctx.db.insert(schema.properties).values({ ...base, tenantId: tenantA })).rejects.toThrow();
   });
 
-  it('permite apenas uma pagina inicial por empresa', async () => {
-    const { tenantA } = await seedTwoTenants();
-    const draftLayout = { schemaVersion: 1 as const, sections: [] };
-    await ctx.db
-      .insert(schema.pages)
-      .values({ tenantId: tenantA, slug: 'home', title: 'Home', isHome: true, draftLayout });
-    await expect(
-      ctx.db
-        .insert(schema.pages)
-        .values({ tenantId: tenantA, slug: 'outra', title: 'Outra', isHome: true, draftLayout }),
-    ).rejects.toThrow();
-  });
 
   it('apaga o conteudo da empresa em cascata ao excluir o tenant', async () => {
     const { tenantA } = await seedTwoTenants();
@@ -131,7 +119,7 @@ describe('seed', () => {
     expect(rows.map((p) => p.code).sort()).toEqual(['essencial', 'profissional', 'trial']);
   });
 
-  it('cria administrador da plataforma e construtora de demonstracao publicada', async () => {
+  it('cria administrador da plataforma e construtora de demonstracao com conteudo', async () => {
     await ctx.reset();
     const result = await seedDatabase(ctx.db, {
       platformAdmin: { email: 'Admin@Plataforma.com', password: 'senhaSegura123' },
@@ -145,22 +133,6 @@ describe('seed', () => {
     expect(admin?.passwordHash?.startsWith('scrypt$')).toBe(true);
 
     const tenantId = result.demoTenantId as string;
-    const pages = await ctx.db.select().from(schema.pages).where(eq(schema.pages.tenantId, tenantId));
-    expect(pages.length).toBeGreaterThan(0);
-    expect(pages.every((p) => p.status === 'published' && p.publishedVersionId !== null)).toBe(true);
-
-    const versions = await ctx.db
-      .select()
-      .from(schema.pageVersions)
-      .where(eq(schema.pageVersions.tenantId, tenantId));
-    expect(versions).toHaveLength(pages.length);
-
-    const [settings] = await ctx.db
-      .select()
-      .from(schema.siteSettings)
-      .where(eq(schema.siteSettings.tenantId, tenantId));
-    expect(settings?.publishedVersion).toBe(pages.length);
-
     const published = await ctx.db
       .select()
       .from(schema.properties)

@@ -71,7 +71,6 @@ export function PlatformPlansPage() {
                   <ul className="grid gap-1 text-sm text-slate-600">
                     <li>{plan.limits.maxPublishedProperties} imoveis publicados</li>
                     <li>{plan.limits.maxProjects} obras</li>
-                    <li>{plan.limits.maxPages} paginas</li>
                     <li>{plan.limits.maxUsers} usuarios</li>
                     <li>{plan.limits.maxDomains} dominio(s)</li>
                     <li>{formatBytes(plan.limits.storageBytes)} de armazenamento</li>
@@ -122,7 +121,6 @@ function PlanModal({
     maxUsers: String(plan?.limits.maxUsers ?? 5),
     maxPublishedProperties: String(plan?.limits.maxPublishedProperties ?? 40),
     maxProjects: String(plan?.limits.maxProjects ?? 20),
-    maxPages: String(plan?.limits.maxPages ?? 20),
     maxDomains: String(plan?.limits.maxDomains ?? 1),
     storageMb: String(Math.round((plan?.limits.storageBytes ?? 2048 * MB) / MB)),
     features: (plan?.limits.features ?? []) as string[],
@@ -136,7 +134,6 @@ function PlanModal({
         maxUsers: Number(form.values.maxUsers),
         maxPublishedProperties: Number(form.values.maxPublishedProperties),
         maxProjects: Number(form.values.maxProjects),
-        maxPages: Number(form.values.maxPages),
         maxDomains: Number(form.values.maxDomains),
         storageBytes: Number(form.values.storageMb) * MB,
         features: form.values.features,
@@ -234,13 +231,6 @@ function PlanModal({
             inputMode="numeric"
             value={values.maxProjects}
             onChange={(event) => setField('maxProjects', event.target.value)}
-          />
-          <TextInput
-            label="Paginas"
-            inputMode="numeric"
-            value={values.maxPages}
-            hint="Nao deixe abaixo de 8: o site inicial ja cria 8 paginas."
-            onChange={(event) => setField('maxPages', event.target.value)}
           />
           <TextInput
             label="Dominios"

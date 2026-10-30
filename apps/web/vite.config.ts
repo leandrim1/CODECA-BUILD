@@ -36,32 +36,16 @@ function codecaDevServer(env: Record<string, string>): Plugin {
 
       const context = apiModule.createContext();
       const apiListener = getRequestListener(apiModule.createApp({ context }).fetch);
-      const siteListener = getRequestListener(apiModule.createSiteApp({ context }).fetch);
-      const platformHosts = apiModule.platformHosts(context.env);
 
       server.middlewares.use((req, res, next) => {
-        const url = req.url ?? '/';
-        if (url.startsWith('/api/')) {
+        if ((req.url ?? '/').startsWith('/api/')) {
           apiListener(req, res);
           return;
         }
-
-        const host = (req.headers.host ?? '').toLowerCase().split(':')[0] ?? '';
-        const isPlatform =
-          host === '' || host === 'localhost' || host === '127.0.0.1' || platformHosts.includes(host);
-
-        if (!isPlatform) {
-          siteListener(req, res);
-          return;
-        }
-
         next();
       });
 
-      server.config.logger.info(
-        '\n  [codeca] API em /api e sites publicos por host ativos neste servidor.'
-          + '\n  [codeca] Para abrir o site de uma construtora: http://<slug>.localhost:5173\n',
-      );
+      server.config.logger.info('\n  [codeca] API em /api ativa neste servidor.\n');
     },
   };
 }

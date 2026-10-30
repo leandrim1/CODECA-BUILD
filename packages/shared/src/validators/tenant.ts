@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { TENANT_STATUSES } from '../constants.js';
-import { themeSchema } from '../theme.js';
 import {
   addressSchema,
   cnpjSchema,
@@ -41,22 +40,6 @@ export const updateTenantContactSchema = z.object({
   social: socialLinksSchema,
 });
 export type UpdateTenantContactInput = z.infer<typeof updateTenantContactSchema>;
-
-export const robotsPolicySchema = z.enum(['index', 'noindex']);
-
-export const updateSeoSchema = z.object({
-  defaultTitle: z.string().trim().max(120).default(''),
-  titleTemplate: z.string().trim().max(120).default('%s'),
-  defaultDescription: z.string().trim().max(320).default(''),
-  shareImageUrl: httpsUrlSchema.default(''),
-  canonicalBaseUrl: httpsUrlSchema.default(''),
-  robots: robotsPolicySchema.default('index'),
-  googleSiteVerification: z.string().trim().max(120).default(''),
-  sitemapEnabled: z.boolean().default(true),
-});
-export type UpdateSeoInput = z.infer<typeof updateSeoSchema>;
-
-export const updateThemeSchema = themeSchema;
 
 export const updateSiteSectionsSchema = z.object({
   /** Secoes do site publico que a empresa pode habilitar ou desabilitar. */

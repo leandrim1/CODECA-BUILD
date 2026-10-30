@@ -29,7 +29,6 @@ export const planLimitsSchema = z.object({
   maxUsers: z.number().int().min(1),
   maxPublishedProperties: z.number().int().min(0),
   maxProjects: z.number().int().min(0),
-  maxPages: z.number().int().min(1),
   maxDomains: z.number().int().min(0),
   storageBytes: z.number().int().min(0),
   features: z.array(z.enum(PLAN_FEATURES)),
@@ -67,7 +66,6 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
       maxUsers: 2,
       maxPublishedProperties: 5,
       maxProjects: 3,
-      maxPages: 10,
       maxDomains: 0,
       storageBytes: 200 * MB,
       features: ['multi_page'],
@@ -89,7 +87,6 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
       maxUsers: 5,
       maxPublishedProperties: 40,
       maxProjects: 20,
-      maxPages: 20,
       maxDomains: 1,
       storageBytes: 2 * 1024 * MB,
       features: ['custom_domain', 'multi_page', 'version_history', 'lead_export'],
@@ -110,7 +107,6 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
       maxUsers: 15,
       maxPublishedProperties: 300,
       maxProjects: 150,
-      maxPages: 60,
       maxDomains: 3,
       storageBytes: 10 * 1024 * MB,
       features: [...PLAN_FEATURES],
@@ -144,7 +140,6 @@ export interface UsageSnapshot {
   users: number;
   publishedProperties: number;
   projects: number;
-  pages: number;
   domains: number;
   storageBytes: number;
 }

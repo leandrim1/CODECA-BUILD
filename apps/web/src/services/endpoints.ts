@@ -10,9 +10,6 @@ import type {
   MediaAssetRecord,
   MemberRecord,
   OverviewResponse,
-  PageDetail,
-  PageSummary,
-  PageVersionSummary,
   Paginated,
   PlanRecord,
   PlatformTenantRow,
@@ -34,13 +31,8 @@ import type {
   SessionPayload,
 } from '../types/index.js';
 import type {
-  NavigationMenuInput,
-  PageLayout,
   PaymentMethodCode,
   PlanLimits,
-  PublicSeo,
-  PublicSiteSections,
-  Theme,
   UsageSnapshot,
 } from '@codeca/shared';
 
@@ -85,10 +77,6 @@ export const tenantApi = {
   overview: (tenantId: string) => api.get<OverviewResponse>(`${tenantBase(tenantId)}/overview`),
   update: (tenantId: string, body: unknown) => api.patch<unknown>(tenantBase(tenantId), body),
   updateContact: (tenantId: string, body: unknown) => api.patch<unknown>(`${tenantBase(tenantId)}/contact`, body),
-  updateTheme: (tenantId: string, theme: Theme) => api.put<{ theme: Theme }>(`${tenantBase(tenantId)}/theme`, theme),
-  updateSeo: (tenantId: string, seo: PublicSeo) => api.put<{ seo: PublicSeo }>(`${tenantBase(tenantId)}/seo`, seo),
-  updateSections: (tenantId: string, sections: PublicSiteSections) =>
-    api.put<{ sections: PublicSiteSections }>(`${tenantBase(tenantId)}/sections`, sections),
   plan: (tenantId: string) =>
     api.get<{
       plan: EffectivePlan;
@@ -115,50 +103,6 @@ export const memberApi = {
     api.patch<unknown>(`${tenantBase(tenantId)}/members/${membershipId}`, { role }),
   remove: (tenantId: string, membershipId: string) =>
     api.delete<void>(`${tenantBase(tenantId)}/members/${membershipId}`),
-};
-
-export const pageApi = {
-  list: (tenantId: string) => api.get<{ pages: PageSummary[] }>(`${tenantBase(tenantId)}/pages`),
-  detail: (tenantId: string, pageId: string) =>
-    api.get<{ page: PageDetail; published: { layout: PageLayout; version: number } | null }>(
-      `${tenantBase(tenantId)}/pages/${pageId}`,
-    ),
-  create: (tenantId: string, body: unknown) => api.post<{ page: PageSummary }>(`${tenantBase(tenantId)}/pages`, body),
-  update: (tenantId: string, pageId: string, body: unknown) =>
-    api.patch<{ page: PageSummary }>(`${tenantBase(tenantId)}/pages/${pageId}`, body),
-  remove: (tenantId: string, pageId: string) => api.delete<void>(`${tenantBase(tenantId)}/pages/${pageId}`),
-  saveDraft: (tenantId: string, pageId: string, layout: PageLayout, baseRevision?: number) =>
-    api.put<{ draftRevision: number; draftUpdatedAt: string }>(`${tenantBase(tenantId)}/pages/${pageId}/draft`, {
-      layout,
-      ...(baseRevision !== undefined ? { baseRevision } : {}),
-    }),
-  publish: (tenantId: string, pageId: string, note = '') =>
-    api.post<{ version: number; versionId: string; siteVersion: number; publishedAt: string }>(
-      `${tenantBase(tenantId)}/pages/${pageId}/publish`,
-      { note },
-    ),
-  versions: (tenantId: string, pageId: string) =>
-    api.get<{ versions: PageVersionSummary[]; historyEnabled: boolean; planName: string }>(
-      `${tenantBase(tenantId)}/pages/${pageId}/versions`,
-    ),
-  restore: (tenantId: string, pageId: string, versionId: string, publish: boolean) =>
-    api.post<{ layout: PageLayout; published: { version: number; siteVersion: number } | null }>(
-      `${tenantBase(tenantId)}/pages/${pageId}/restore`,
-      { versionId, publish },
-    ),
-  navigation: (tenantId: string) =>
-    api.get<{ menus: Array<{ id: string; key: string; label: string; items: NavigationMenuInput['items'] }> }>(
-      `${tenantBase(tenantId)}/navigation`,
-    ),
-  saveNavigation: (tenantId: string, key: string, body: NavigationMenuInput) =>
-    api.put<unknown>(`${tenantBase(tenantId)}/navigation/${key}`, body),
-  redirects: (tenantId: string) =>
-    api.get<{ redirects: Array<{ id: string; fromPath: string; toPath: string; statusCode: number; enabled: boolean }> }>(
-      `${tenantBase(tenantId)}/redirects`,
-    ),
-  createRedirect: (tenantId: string, body: unknown) => api.post<unknown>(`${tenantBase(tenantId)}/redirects`, body),
-  removeRedirect: (tenantId: string, redirectId: string) =>
-    api.delete<void>(`${tenantBase(tenantId)}/redirects/${redirectId}`),
 };
 
 export const propertyApi = {
@@ -298,7 +242,6 @@ export const platformApi = {
       domains: { total: number; active: number; pending: number };
       storageBytes: number;
       leadsLast30Days: number;
-      publishedPages: number;
       byPlan: Array<{ planCode: string; planName: string; tenants: number }>;
       recentTenants: Array<{ id: string; displayName: string; slug: string; status: string; createdAt: string }>;
     }>('/api/platform/overview'),
@@ -334,14 +277,6 @@ export const platformApi = {
   supportGrants: () => api.get<{ grants: SupportGrantRow[] }>('/api/platform/support-access'),
   audit: (params: Record<string, string | number | undefined> = {}) =>
     api.get<Paginated<AuditLogRow>>(`/api/platform/audit${query(params)}`),
-};
-
-export const previewApi = {
-  /** Dados do site para a previa do editor, com o rascunho em edicao. */
-  siteData: (tenantId: string, path: string) =>
-    api.get<import('@codeca/shared').PublicSiteData>(
-      `/api/public/preview/${tenantId}${query({ path })}`,
-    ),
 };
 
 /**

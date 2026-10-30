@@ -10,12 +10,16 @@ import {
 } from '../helpers/api.js';
 
 /**
- * Fluxo completo, do cadastro da construtora ao site no ar.
+ * Fluxo completo do painel, do cadastro da construtora ao conteudo pronto.
  *
- * Este teste nao verifica uma regra isolada: ele percorre a jornada inteira na
- * ordem em que um cliente real a percorre, usando a API publicada, e confirma
- * que cada etapa deixou o efeito esperado no banco e no HTML servido no
- * dominio da empresa. E a prova de que as partes funcionam juntas.
+ * Nao verifica uma regra isolada: percorre a jornada na ordem em que um
+ * cliente real a percorre, pela API publicada, e confirma que cada etapa
+ * deixou o efeito esperado no banco. E a prova de que as partes funcionam
+ * juntas.
+ *
+ * O que este teste **nao** cobre mais: a entrega do conteudo ao site do
+ * cliente. A plataforma deixou de renderizar os sites, e a verificacao ponta a
+ * ponta volta contra a API publica, quando ela existir (etapa 5).
  */
 
 let api: TestApi;
@@ -43,15 +47,6 @@ function createVerifiedDomainProvider(): DomainProvider {
   };
 }
 
-/** Requisicao ao site publico, como um navegador faria no dominio do cliente. */
-async function visit(path: string): Promise<{ status: number; body: string }> {
-  const response = await api.siteApp.request(`https://${HOST}${path}`, {
-    method: 'GET',
-    headers: { host: HOST, 'x-forwarded-proto': 'https' },
-  });
-  return { status: response.status, body: await response.text() };
-}
-
 beforeAll(async () => {
   api = await createTestApi({ domains: createVerifiedDomainProvider() });
 });
@@ -67,7 +62,7 @@ beforeEach(async () => {
     companyName: 'Construtora Horizonte',
   });
   await verifyEmail(api, account);
-  // O plano Essencial libera dominio proprio e historico de versoes.
+  // O plano Essencial libera dominio proprio.
   const [plan] = await api.db.select().from(schema.plans).where(eq(schema.plans.code, 'essencial'));
   await api.db
     .update(schema.tenants)
@@ -75,36 +70,18 @@ beforeEach(async () => {
     .where(eq(schema.tenants.id, account.tenantId));
 });
 
-describe('da criacao da empresa ate o site publicado', () => {
-  it('percorre cadastro, conteudo, editor, publicacao, dominio e site no ar', async () => {
+describe('da criacao da empresa ao conteudo pronto', () => {
+  it('percorre cadastro, midia, conteudo, dominio e resumo', async () => {
     const { client, tenantId } = account;
 
-    // ----------------------------------------------------------- 1. provisionamento
-    // O cadastro ja criou site, paginas iniciais e assinatura de avaliacao.
-    const pages = await client.get(`/api/tenants/${tenantId}/pages`);
-    expect(pages.status, pages.errorMessage ?? '').toBe(200);
-    expect(pages.body.pages.length).toBeGreaterThan(1);
+    // ------------------------------------------------------- 1. cadastro
+    const [membership] = await api.db
+      .select()
+      .from(schema.memberships)
+      .where(eq(schema.memberships.tenantId, tenantId));
+    expect(membership?.role).toBe('owner');
 
-    const home = pages.body.pages.find((page: { isHome: boolean }) => page.isHome) as {
-      id: string;
-      slug: string;
-    };
-    expect(home).toBeDefined();
-
-    // --------------------------------------------------------- 2. identidade visual
-    const theme = await client.put(`/api/tenants/${tenantId}/theme`, {
-      colors: { primary: '#1f4ed8', secondary: '#0f172a', accent: '#f59e0b' },
-      typography: { headingFont: 'manrope', bodyFont: 'inter', baseSizePx: 16 },
-      buttons: { style: 'solid', shape: 'pill' },
-      radiusPx: 12,
-      contentWidth: 'wide',
-      cardStyle: 'outlined',
-      header: { style: 'light', sticky: true },
-      footer: { style: 'dark', showSocial: true },
-    });
-    expect(theme.status, theme.errorMessage ?? '').toBe(200);
-
-    // -------------------------------------------------------- 3. biblioteca de midia
+    // ------------------------------------------------ 2. biblioteca de midia
     const form = new FormData();
     form.set('file', new File([new Uint8Array(4096)], 'fachada-aurora.jpg', { type: 'image/jpeg' }));
     form.set('alt', 'Fachada do Residencial Aurora');
@@ -113,7 +90,15 @@ describe('da criacao da empresa ate o site publicado', () => {
     const mediaId = upload.body.asset.id as string;
     expect(api.blobFiles.size).toBe(1);
 
-    // -------------------------------------------------------------- 4. conteudo
+    // O caminho no Blob e prefixado pela empresa: uma empresa nao escreve no
+    // espaco de outra nem por engano.
+    const [asset] = await api.db
+      .select()
+      .from(schema.mediaAssets)
+      .where(eq(schema.mediaAssets.id, mediaId));
+    expect(asset!.blobPathname.startsWith(`tenants/${tenantId}/`)).toBe(true);
+
+    // -------------------------------------------------------- 3. conteudo
     const property = await client.post(`/api/tenants/${tenantId}/properties`, {
       title: 'Residencial Aurora',
       description: 'Apartamentos de tres dormitorios com varanda gourmet no Cambui.',
@@ -132,8 +117,6 @@ describe('da criacao da empresa ate o site publicado', () => {
       featured: true,
     });
     expect(property.status, property.errorMessage ?? '').toBe(201);
-    const propertyId = property.body.property.id as string;
-    const propertySlug = property.body.property.slug as string;
 
     const project = await client.post(`/api/tenants/${tenantId}/projects`, {
       title: 'Edificio Horizonte Norte',
@@ -163,132 +146,17 @@ describe('da criacao da empresa ate o site publicado', () => {
     });
     expect(service.status, service.errorMessage ?? '').toBe(201);
 
-    // ------------------------------------------------------------- 5. editor visual
-    // Mesma operacao que o painel faz ao editar o titulo do hero e salvar.
-    const homeBefore = await client.get(`/api/tenants/${tenantId}/pages/${home.id}`);
-    const draftLayout = homeBefore.body.page.draftLayout as {
-      schemaVersion: 1;
-      sections: Array<{ type: string; props: Record<string, unknown> }>;
-    };
-    const hero = draftLayout.sections.find((section) => section.type === 'hero');
-    expect(hero, 'a pagina inicial precisa comecar com um hero').toBeDefined();
-    hero!.props.title = 'Construimos o bairro onde voce quer morar';
-
-    const savedDraft = await client.put(`/api/tenants/${tenantId}/pages/${home.id}/draft`, {
-      layout: draftLayout,
-      baseRevision: homeBefore.body.page.draftRevision,
-    });
-    expect(savedDraft.status, savedDraft.errorMessage ?? '').toBe(200);
-
-    // O site ainda nao mostra nada: o rascunho nao e conteudo publicado.
+    // --------------------------------------------------------- 4. dominio
     await attachDomainByApi(tenantId);
-    expect((await visit('/')).status).toBe(404);
 
-    // --------------------------------------------------------------- 6. publicacao
-    for (const page of pages.body.pages as Array<{ id: string }>) {
-      const published = await client.post(`/api/tenants/${tenantId}/pages/${page.id}/publish`, {
-        note: 'Primeira publicacao',
-      });
-      expect(published.status, published.errorMessage ?? '').toBe(200);
-    }
-
-    // ------------------------------------------------------------- 7. site no ar
-    const site = await visit('/');
-    expect(site.status).toBe(200);
-    const html = site.body;
-
-    expect(html).toContain('Construimos o bairro onde voce quer morar');
-    expect(html).toContain('Construtora Horizonte');
-    expect(html).toContain('Residencial Aurora');
-    expect(html).toContain('Incorporacao e lancamentos');
-    // O tema da empresa chega como variavel CSS.
-    expect(html).toContain('#1f4ed8');
-    // Nada de dado privado no HTML publico.
-    expect(html).not.toContain('senhaSegura123');
-
-    const detail = await visit(`/imoveis/${propertySlug}`);
-    expect(detail.status).toBe(200);
-    expect(detail.body).toContain('Varanda gourmet');
-
-    const sitemap = await visit('/sitemap.xml');
-    expect(sitemap.status).toBe(200);
-    expect(sitemap.body).toContain(`/imoveis/${propertySlug}`);
-
-    // -------------------------------------------------- 8. interessado pelo site
-    const visitor = api.client().withHost(HOST);
-    const lead = await visitor.post(
-      '/api/public/leads',
-      {
-        name: 'Marina Souza',
-        phone: '(19) 98888-7777',
-        email: 'marina@exemplo.com.br',
-        interestType: 'compra_imovel',
-        message: 'Gostaria de visitar o decorado.',
-        propertyId,
-        sourcePath: `/imoveis/${propertySlug}`,
-        consent: true,
-      },
-      { origin: `http://${HOST}` },
-    );
-    expect(lead.status, lead.errorMessage ?? '').toBe(201);
-
-    const leads = await client.get(`/api/tenants/${tenantId}/leads`);
-    expect(leads.body.items).toHaveLength(1);
-    expect(leads.body.items[0].name).toBe('Marina Souza');
-    expect(leads.body.items[0].propertyTitle ?? leads.body.items[0].propertyId).toBeTruthy();
-
-    // ------------------------------------------------ 9. nova versao e restauracao
-    const heroEdit = await client.get(`/api/tenants/${tenantId}/pages/${home.id}`);
-    const secondLayout = heroEdit.body.page.draftLayout as {
-      sections: Array<{ type: string; props: Record<string, unknown> }>;
-    };
-    secondLayout.sections.find((section) => section.type === 'hero')!.props.title = 'Titulo trocado por engano';
-    await client.put(`/api/tenants/${tenantId}/pages/${home.id}/draft`, { layout: secondLayout });
-    await client.post(`/api/tenants/${tenantId}/pages/${home.id}/publish`, { note: 'Segunda' });
-
-    expect((await visit('/')).body).toContain('Titulo trocado por engano');
-
-    const versions = await client.get(`/api/tenants/${tenantId}/pages/${home.id}/versions`);
-    expect(versions.body.versions.length).toBeGreaterThanOrEqual(2);
-    const firstVersion = (versions.body.versions as Array<{ id: string; version: number }>).find(
-      (version) => version.version === 1,
-    );
-    expect(firstVersion).toBeDefined();
-
-    const restored = await client.post(`/api/tenants/${tenantId}/pages/${home.id}/restore`, {
-      versionId: firstVersion!.id,
-      publish: true,
-    });
-    expect(restored.status, restored.errorMessage ?? '').toBe(200);
-
-    const restoredHtml = (await visit('/')).body;
-    expect(restoredHtml).toContain('Construimos o bairro onde voce quer morar');
-    expect(restoredHtml).not.toContain('Titulo trocado por engano');
-
-    // ------------------------------------------------------- 10. registro no banco
-    const [siteSettings] = await api.db
-      .select()
-      .from(schema.siteSettings)
-      .where(eq(schema.siteSettings.tenantId, tenantId));
-    expect(siteSettings!.publishedVersion).toBeGreaterThan(1);
-    expect(siteSettings!.lastPublishedAt).not.toBeNull();
-
-    // Cada versao registra quem publicou e quando.
-    const versionRows = await api.db
-      .select()
-      .from(schema.pageVersions)
-      .where(eq(schema.pageVersions.pageId, home.id));
-    expect(versionRows.length).toBeGreaterThanOrEqual(3); // v1, v2 e a restauracao
-    for (const row of versionRows) {
-      expect(row.publishedByUserId).toBe(account.userId);
-      expect(row.tenantId).toBe(tenantId);
-    }
-
-    const audit = await client.get(`/api/tenants/${tenantId}/overview`);
-    expect(audit.status).toBe(200);
-    expect(audit.body.properties.published).toBe(1);
-    expect(audit.body.projects.published).toBe(1);
-    expect(audit.body.leads.total).toBe(1);
+    // ----------------------------------------------- 5. resumo do painel
+    const overview = await client.get(`/api/tenants/${tenantId}/overview`);
+    expect(overview.status).toBe(200);
+    expect(overview.body.properties.published).toBe(1);
+    expect(overview.body.projects.published).toBe(1);
+    expect(overview.body.services.published).toBe(1);
+    expect(overview.body.media.total).toBe(1);
+    expect(overview.body.domains[0].hostname).toBe(HOST);
   });
 
   /** Cadastra o dominio pelo painel, como o cliente faz, e o torna principal. */

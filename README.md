@@ -33,7 +33,7 @@ requisicao e renderizados no servidor.
 | Camada | Tecnologia |
 | --- | --- |
 | Interface | React 19, TypeScript, Vite, Tailwind CSS 4, Lucide React |
-| API | Hono sobre funcoes Node da Vercel (`api/index.ts`, `api/site.ts`) |
+| API | Hono sobre funcao Node da Vercel (`api/index.ts`) |
 | Banco | Neon PostgreSQL + Drizzle ORM (driver `neon-serverless`, com transacoes) |
 | Arquivos | Vercel Blob |
 | Pagamentos | ValidaPay (OAuth2 client_credentials, webhooks com HMAC) |
@@ -44,14 +44,13 @@ requisicao e renderizados no servidor.
 ## Estrutura do repositorio
 
 ```
-api/                      funcoes da Vercel (entrada da API e dos sites publicos)
+api/                      funcao da Vercel (entrada da API)
 apps/
   api/                    aplicacao HTTP: rotas, autenticacao, autorizacao, regras
-  web/                    painel da construtora, painel mestre e editor visual
+  web/                    painel da construtora e painel mestre
 packages/
   database/               schema Drizzle, migracoes versionadas, publicacao, seed
   shared/                 contratos Zod, catalogo de blocos, papeis, planos, tema
-  site-renderer/          componentes e CSS dos sites publicos (SSR e previa)
   ui/                     componentes de interface do painel
 tests/
   integration/            API inteira contra Postgres real (PGlite)
@@ -60,10 +59,10 @@ tests/
 docs/                     guias de Neon, Vercel, Blob, DNS, seguranca e status
 ```
 
-`packages/shared` e o contrato: um bloco do editor, um campo de imovel ou um
-papel de usuario sao definidos ali uma vez e reutilizados pela API, pelo painel
-e pelo renderizador. Alterar o schema de um bloco invalida automaticamente os
-conteudos que deixariam de ser validos.
+`packages/shared` e o contrato: um campo de imovel, um estado de cobranca ou um
+papel de usuario sao definidos ali uma vez e reutilizados pela API e pelo
+painel. E tambem onde os modulos editaveis de cada site serao declarados --
+ver `docs/arquitetura-build.md`.
 
 ## Como funciona o multiempresa
 
@@ -103,7 +102,7 @@ e confirmado ela fica `pending` e o site nao vai ao ar.
 | Preco sempre do banco, nunca do navegador | `startSubscriptionSchema` aceita apenas plano e forma de pagamento |
 | Webhook verificado antes de ser lido | HMAC sobre `<t>.<corpo bruto>`, com janela de tolerancia |
 | Evento repetido nao cobra duas vezes | id do evento e id da cobranca unicos, estados monotonicos |
-| Site publicado so com pagamento confirmado | `decidePublication`, avaliada tambem no renderizador |
+| Site publicado so com pagamento confirmado | `decidePublication`, uma funcao pura usada pelo webhook, pelo job e pelo painel |
 | Inadimplencia nao apaga nada | suspensao afeta a publicacao; conteudo e painel permanecem |
 | Divergencia se resolve sozinha | job de reconciliacao (Vercel Cron) |
 
@@ -157,18 +156,16 @@ pnpm dev
 
 - Painel: <http://localhost:5173>
 - API: <http://localhost:5173/api/health>
-- Site de uma construtora: `http://<slug>.localhost:5173`
 
-O plugin `codecaDevServer` em `apps/web/vite.config.ts` monta a API e o
-renderizador dentro do servidor do Vite usando o mesmo criterio de host da
-producao, por isso nao ha um segundo processo para iniciar. Sem
+O plugin `codecaDevServer` em `apps/web/vite.config.ts` monta a API dentro do
+servidor do Vite, por isso nao ha um segundo processo para iniciar. Sem
 `DATABASE_URL`, o Vite avisa e sobe apenas a interface.
 
 ## Scripts
 
 | Comando | O que faz |
 | --- | --- |
-| `pnpm dev` | Painel + API + sites publicos no servidor do Vite |
+| `pnpm dev` | Painel + API no servidor do Vite |
 | `pnpm build` | Compila os pacotes e gera `apps/web/dist` |
 | `pnpm typecheck` | Compila os pacotes e roda o TypeScript em todo o repositorio |
 | `pnpm test` | Suite completa do Vitest |

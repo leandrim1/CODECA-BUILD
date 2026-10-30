@@ -123,7 +123,7 @@ describe('viewer', () => {
 
     expect((await viewer.post(`/api/tenants/${owner.tenantId}/services`, { title: 'Servico' })).status).toBe(403);
     expect(
-      (await viewer.put(`/api/tenants/${owner.tenantId}/theme`, { schemaVersion: 1 })).status,
+      (await viewer.patch(`/api/tenants/${owner.tenantId}/contact`, { contactEmail: 'x@y.com.br' })).status,
     ).toBe(403);
     expect(
       (await viewer.post(`/api/tenants/${owner.tenantId}/members/invite`, {
@@ -136,18 +136,17 @@ describe('viewer', () => {
 });
 
 describe('editor', () => {
-  it('gerencia conteudo e publica, mas nao administra a empresa', async () => {
+  it('gerencia conteudo, mas nao administra a empresa', async () => {
     const editor = await addMember('editor', 'editor@construtora.com.br');
 
     const created = await editor.post(`/api/tenants/${owner.tenantId}/properties`, PROPERTY);
     expect(created.status).toBe(201);
 
-    const pages = await editor.get(`/api/tenants/${owner.tenantId}/pages`);
-    const home = pages.body.pages.find((p: { isHome: boolean }) => p.isHome) as { id: string };
-    const published = await editor.post(`/api/tenants/${owner.tenantId}/pages/${home.id}/publish`, {
-      note: 'Publicado pelo editor',
-    });
-    expect(published.status).toBe(200);
+    const updated = await editor.patch(
+      `/api/tenants/${owner.tenantId}/properties/${created.body.property.id}`,
+      { ...PROPERTY, title: 'Residencial Aurora II' },
+    );
+    expect(updated.status).toBe(200);
 
     // Nao administra equipe, dados da empresa nem dominios.
     expect(
@@ -172,21 +171,6 @@ describe('editor', () => {
     ).toBe(403);
   });
 
-  it('nao restaura versoes anteriores', async () => {
-    const editor = await addMember('editor', 'editor2@construtora.com.br');
-    const pages = await editor.get(`/api/tenants/${owner.tenantId}/pages`);
-    const home = pages.body.pages.find((p: { isHome: boolean }) => p.isHome) as { id: string };
-    await editor.post(`/api/tenants/${owner.tenantId}/pages/${home.id}/publish`, { note: 'v1' });
-
-    const versions = await editor.get(`/api/tenants/${owner.tenantId}/pages/${home.id}/versions`);
-    const versionId = versions.body.versions[0].id as string;
-
-    const response = await editor.post(`/api/tenants/${owner.tenantId}/pages/${home.id}/restore`, {
-      versionId,
-      publish: false,
-    });
-    expect(response.status).toBe(403);
-  });
 });
 
 describe('admin', () => {

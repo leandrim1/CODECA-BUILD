@@ -75,11 +75,6 @@ export async function loadUsage(db: Database, tenantId: string): Promise<UsageSn
     .from(schema.projects)
     .where(eq(schema.projects.tenantId, tenantId));
 
-  const [pages] = await db
-    .select({ value: countOf })
-    .from(schema.pages)
-    .where(eq(schema.pages.tenantId, tenantId));
-
   const [domains] = await db
     .select({ value: countOf })
     .from(schema.domains)
@@ -94,7 +89,6 @@ export async function loadUsage(db: Database, tenantId: string): Promise<UsageSn
     users: users?.value ?? 0,
     publishedProperties: publishedProperties?.value ?? 0,
     projects: projects?.value ?? 0,
-    pages: pages?.value ?? 0,
     domains: domains?.value ?? 0,
     storageBytes: Number(storage?.value ?? 0),
   };
@@ -120,13 +114,12 @@ export function assertFeature(plan: EffectivePlan, feature: PlanFeature): void {
   }
 }
 
-type CountableLimit = 'maxUsers' | 'maxPublishedProperties' | 'maxProjects' | 'maxPages' | 'maxDomains';
+type CountableLimit = 'maxUsers' | 'maxPublishedProperties' | 'maxProjects' | 'maxDomains';
 
 const LIMIT_LABELS: Record<CountableLimit, string> = {
   maxUsers: 'usuarios ativos',
   maxPublishedProperties: 'imoveis publicados',
   maxProjects: 'obras cadastradas',
-  maxPages: 'paginas',
   maxDomains: 'dominios',
 };
 
@@ -134,7 +127,6 @@ const USAGE_KEY: Record<CountableLimit, keyof UsageSnapshot> = {
   maxUsers: 'users',
   maxPublishedProperties: 'publishedProperties',
   maxProjects: 'projects',
-  maxPages: 'pages',
   maxDomains: 'domains',
 };
 

@@ -222,7 +222,6 @@ export function OverviewPage() {
                       limit={data.plan.limits.maxPublishedProperties}
                     />
                     <Meter label="Obras" current={data.usage.projects} limit={data.plan.limits.maxProjects} />
-                    <Meter label="Paginas" current={data.usage.pages} limit={data.plan.limits.maxPages} />
                     <Meter label="Usuarios" current={data.usage.users} limit={data.plan.limits.maxUsers} />
                     <Meter
                       label="Armazenamento"

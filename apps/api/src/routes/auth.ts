@@ -1,4 +1,4 @@
-import { and, eq, isNull, provisionTenantDefaults, schema, type Database } from '@codeca/database';
+import { and, eq, isNull, schema, type Database } from '@codeca/database';
 import {
   AppError,
   DEFAULT_GRACE_PERIOD_DAYS,
@@ -127,11 +127,6 @@ export function authRoutes() {
         currentPeriodStart: ctx.now(),
         currentPeriodEnd: trialEndsAt,
         gracePeriodDays: DEFAULT_GRACE_PERIOD_DAYS,
-      });
-
-      await provisionTenantDefaults(tx as unknown as Database, {
-        tenantId: tenant.id,
-        companyName: input.companyName,
       });
 
       // Instalacao nova: a primeira conta assume o painel mestre. Dentro da

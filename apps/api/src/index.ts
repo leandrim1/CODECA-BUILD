@@ -1,5 +1,4 @@
 export { createApp, type App, type CreateAppOptions } from './app.js';
-export { createSiteApp, type SiteApp, type CreateSiteAppOptions } from './site-app.js';
 export { createContext, type AppContext, type CreateContextOptions } from './context.js';
 export {
   createConfigErrorApp,

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq, schema } from '@codeca/database';
+import { decidePublication } from '@codeca/shared';
 import {
   createTestApi,
   registerAccount,
@@ -74,22 +75,29 @@ async function attachDomain(tenantId: string, hostname: string): Promise<void> {
   });
 }
 
-async function publishAllPages(account: RegisteredAccount): Promise<void> {
-  const pages = await account.client.get(`/api/tenants/${account.tenantId}/pages`);
-  for (const page of pages.body.pages as Array<{ id: string }>) {
-    const result = await account.client.post(
-      `/api/tenants/${account.tenantId}/pages/${page.id}/publish`,
-      { note: 'teste' },
-    );
-    expect(result.status, result.errorMessage ?? '').toBe(200);
-  }
-}
-
-async function visit(path = '/'): Promise<number> {
-  const response = await api.siteApp.request(`https://${ALPHA_HOST}${path}`, {
-    headers: { host: ALPHA_HOST, 'x-forwarded-proto': 'https' },
+/**
+ * Estado de publicacao da empresa alpha.
+ *
+ * Antes isto media o site renderizado pela propria plataforma. Com o site do
+ * cliente fora da plataforma, o que a cobranca controla e o estado que a API
+ * publica passa a respeitar -- e e ele que os testes conferem. A verificacao
+ * ponta a ponta contra a API publica volta quando ela existir (etapa 5).
+ */
+async function publicado(): Promise<boolean> {
+  const row = await loadSubscriptionRow(api, alpha.tenantId);
+  // A decisao e recalculada aqui, e nao lida da coluna, pelo mesmo motivo que
+  // o renderizador a recalculava a cada requisicao: a tolerancia vence pelo
+  // relogio, nao por um evento. Ler a coluna daria "no ar" ate algum job
+  // rodar -- exatamente o atraso que esta regra existe para evitar.
+  const decision = decidePublication({
+    state: row.status,
+    accessUntil: row.accessUntil,
+    gracePeriodDays: row.gracePeriodDays,
+    adminHold: row.adminHold,
+    disputeHold: row.disputeHold,
+    now: new Date(),
   });
-  return response.status;
+  return decision.publication === 'allowed';
 }
 
 describe('isolamento entre empresas', () => {
@@ -363,11 +371,10 @@ describe('isolamento entre empresas', () => {
 describe('publicacao conforme a assinatura', () => {
   beforeEach(async () => {
     await attachDomain(alpha.tenantId, ALPHA_HOST);
-    await publishAllPages(alpha);
   });
 
   it('publica durante a avaliacao', async () => {
-    expect(await visit()).toBe(200);
+    expect(await publicado()).toBe(true);
   });
 
   it('nao publica enquanto a contratacao esta pendente e a avaliacao venceu', async () => {
@@ -392,14 +399,14 @@ describe('publicacao conforme a assinatura', () => {
       status: 'pending',
       publicationState: 'blocked_pending',
     });
-    expect(await visit()).toBe(404);
+    expect(await publicado()).toBe(false);
   });
 
   it('publica apos a confirmacao do pagamento', async () => {
     await expireTrial(api, alpha.tenantId);
     await startCheckout(alpha, planId);
     const subscription = await loadSubscriptionRow(api, alpha.tenantId);
-    expect(await visit()).toBe(404);
+    expect(await publicado()).toBe(false);
 
     await sendWebhook(
       api,
@@ -414,7 +421,7 @@ describe('publicacao conforme a assinatura', () => {
       }),
     );
 
-    expect(await visit()).toBe(200);
+    expect(await publicado()).toBe(true);
   });
 
   it('mantem o site no ar durante a tolerancia e suspende quando ela vence', async () => {
@@ -451,7 +458,7 @@ describe('publicacao conforme a assinatura', () => {
     );
 
     // Dentro da tolerancia: o site continua no ar.
-    expect(await visit()).toBe(200);
+    expect(await publicado()).toBe(true);
 
     // A tolerancia vence: o site sai do ar na requisicao seguinte, sem
     // depender de nenhum job ter rodado.
@@ -460,7 +467,7 @@ describe('publicacao conforme a assinatura', () => {
       .set({ accessUntil: new Date(Date.now() - 10 * 24 * 3600 * 1000) })
       .where(eq(schema.subscriptions.tenantId, alpha.tenantId));
 
-    expect(await visit()).toBe(404);
+    expect(await publicado()).toBe(false);
   });
 
   it('reativa a publicacao quando o pagamento e regularizado', async () => {
@@ -477,7 +484,7 @@ describe('publicacao conforme a assinatura', () => {
         publicationState: 'blocked_overdue',
       })
       .where(eq(schema.subscriptions.tenantId, alpha.tenantId));
-    expect(await visit()).toBe(404);
+    expect(await publicado()).toBe(false);
 
     await sendWebhook(
       api,
@@ -492,7 +499,7 @@ describe('publicacao conforme a assinatura', () => {
       }),
     );
 
-    expect(await visit()).toBe(200);
+    expect(await publicado()).toBe(true);
   });
 
   it('a suspensao preserva conteudo, imagens e acesso ao painel', async () => {
@@ -527,7 +534,7 @@ describe('publicacao conforme a assinatura', () => {
         publicationState: 'blocked_overdue',
       })
       .where(eq(schema.subscriptions.tenantId, alpha.tenantId));
-    expect(await visit()).toBe(404);
+    expect(await publicado()).toBe(false);
 
     // Conteudo intacto e painel acessivel para regularizar.
     const properties = await alpha.client.get(`/api/tenants/${alpha.tenantId}/properties`);
@@ -538,28 +545,9 @@ describe('publicacao conforme a assinatura', () => {
     expect(media.status).toBe(200);
     expect(media.body.items.some((item: { id: string }) => item.id === asset!.id)).toBe(true);
 
-    const pages = await alpha.client.get(`/api/tenants/${alpha.tenantId}/pages`);
-    expect(pages.status).toBe(200);
-    expect(pages.body.pages.length).toBeGreaterThan(0);
-
     const billing = await alpha.client.get(`/api/tenants/${alpha.tenantId}/billing`);
     expect(billing.status).toBe(200);
     expect(billing.body.subscription.publicationState).toBe('blocked_overdue');
   });
 
-  it('a previa do painel continua funcionando com o site suspenso', async () => {
-    await api.db
-      .update(schema.subscriptions)
-      .set({
-        status: 'past_due',
-        accessUntil: new Date(Date.now() - 30 * 24 * 3600 * 1000),
-        publicationState: 'blocked_overdue',
-      })
-      .where(eq(schema.subscriptions.tenantId, alpha.tenantId));
-    expect(await visit()).toBe(404);
-
-    // A previa autenticada existe justamente para o cliente ver o que tem.
-    const preview = await alpha.client.get(`/api/render/preview/${alpha.tenantId}?path=/`);
-    expect(preview.status).toBe(200);
-  });
 });

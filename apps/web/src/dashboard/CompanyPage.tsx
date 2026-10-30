@@ -8,7 +8,6 @@ import {
   isValidWhatsAppNumber,
   updateSiteSectionsSchema,
   whatsAppLink,
-  type PublicSiteSections,
 } from '@codeca/shared';
 import {
   Alert,
@@ -58,7 +57,6 @@ export function CompanyPage() {
     businessHours: '',
     social: {} as Record<string, string>,
   });
-  const [sections, setSections] = useState<PublicSiteSections | null>(null);
 
   useEffect(() => {
     const data = tenant.data;
@@ -88,7 +86,6 @@ export function CompanyPage() {
       businessHours: data.tenant.businessHours,
       social: (data.tenant.social ?? {}) as Record<string, string>,
     });
-    if (data.settings?.sections) setSections(updateSiteSectionsSchema.parse(data.settings.sections));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant.data]);
 
@@ -147,14 +144,6 @@ export function CompanyPage() {
     },
   );
 
-  const saveSections = useMutation((next: PublicSiteSections) => tenantApi.updateSections(tenantId, next), {
-    onSuccess: () => {
-      toast.success('Secoes do site atualizadas');
-      tenant.reload();
-    },
-    onError: (error) => toast.error('Nao foi possivel salvar', error.message),
-  });
-
   const whatsappPreview = whatsAppLink(
     contact.values.whatsapp,
     { kind: 'generic' },
@@ -175,7 +164,6 @@ export function CompanyPage() {
         items={[
           { id: 'empresa', label: 'Empresa' },
           { id: 'contato', label: 'Contato e WhatsApp' },
-          { id: 'secoes', label: 'Secoes do site' },
           { id: 'conta', label: 'Minha conta' },
         ]}
         active={tab}
@@ -412,85 +400,6 @@ export function CompanyPage() {
                       />
                     ))}
                   </fieldset>
-                </CardBody>
-              </Card>
-            ) : null}
-
-            {tab === 'secoes' && sections ? (
-              <Card>
-                <CardHeader
-                  title="Secoes do site publico"
-                  description="Desligar uma secao remove o conteudo dela do site, mesmo que algum bloco a utilize."
-                  actions={
-                    <Button
-                      icon={<Save aria-hidden="true" className="size-4" />}
-                      loading={saveSections.loading}
-                      disabled={!can('site:edit')}
-                      onClick={() => void saveSections.run(sections)}
-                    >
-                      Salvar
-                    </Button>
-                  }
-                />
-                <CardBody className="grid gap-1 lg:max-w-2xl">
-                  <Switch
-                    label="Imoveis"
-                    checked={sections.showProperties}
-                    onChange={(checked) => setSections({ ...sections, showProperties: checked })}
-                  />
-                  <Switch
-                    label="Obras e projetos"
-                    checked={sections.showProjects}
-                    onChange={(checked) => setSections({ ...sections, showProjects: checked })}
-                  />
-                  <Switch
-                    label="Servicos"
-                    checked={sections.showServices}
-                    onChange={(checked) => setSections({ ...sections, showServices: checked })}
-                  />
-                  <Switch
-                    label="Galeria"
-                    checked={sections.showGallery}
-                    onChange={(checked) => setSections({ ...sections, showGallery: checked })}
-                  />
-                  <Switch
-                    label="Depoimentos"
-                    checked={sections.showTestimonials}
-                    onChange={(checked) => setSections({ ...sections, showTestimonials: checked })}
-                  />
-                  <Switch
-                    label="Equipe"
-                    checked={sections.showTeam}
-                    onChange={(checked) => setSections({ ...sections, showTeam: checked })}
-                  />
-                  <Switch
-                    label="Perguntas frequentes"
-                    checked={sections.showFaq}
-                    onChange={(checked) => setSections({ ...sections, showFaq: checked })}
-                  />
-                  <Switch
-                    label="Botao flutuante de WhatsApp"
-                    hint="Aparece no canto da tela em todas as paginas."
-                    checked={sections.floatingWhatsApp}
-                    onChange={(checked) => setSections({ ...sections, floatingWhatsApp: checked })}
-                  />
-
-                  <div className="mt-4 grid gap-4 border-t border-slate-200 pt-4">
-                    <TextInput
-                      label="Link da politica de privacidade"
-                      value={sections.privacyPolicyUrl}
-                      placeholder="https://"
-                      hint="Se preferir, cole o texto no campo abaixo e a plataforma publica a pagina."
-                      onChange={(event) => setSections({ ...sections, privacyPolicyUrl: event.target.value })}
-                    />
-                    <TextArea
-                      label="Texto da politica de privacidade"
-                      rows={6}
-                      value={sections.privacyPolicyText}
-                      hint="Informe como os dados dos interessados sao usados e por quanto tempo sao guardados."
-                      onChange={(event) => setSections({ ...sections, privacyPolicyText: event.target.value })}
-                    />
-                  </div>
                 </CardBody>
               </Card>
             ) : null}

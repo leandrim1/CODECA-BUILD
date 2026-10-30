@@ -217,40 +217,6 @@ describe('exclusao de midia', () => {
     expect(rows).toHaveLength(0);
   });
 
-  it('considera referencia dentro do layout de uma pagina', async () => {
-    const uploaded = await account.client.request('POST', `/api/tenants/${account.tenantId}/media`, {
-      formData: imageUpload('na-pagina.jpg'),
-    });
-    const mediaId = uploaded.body.asset.id as string;
-    const blobUrl = uploaded.body.asset.blobUrl as string;
-
-    const pages = await account.client.get(`/api/tenants/${account.tenantId}/pages`);
-    const pageId = pages.body.pages.find((p: { isHome: boolean }) => p.isHome).id as string;
-
-    await account.client.put(`/api/tenants/${account.tenantId}/pages/${pageId}/draft`, {
-      layout: {
-        schemaVersion: 1,
-        sections: [
-          {
-            id: 'image-1',
-            type: 'image',
-            props: { image: { mediaId, url: blobUrl, alt: 'Foto', width: 1200, height: 800 } },
-            style: {},
-            responsive: {},
-            visible: true,
-            order: 0,
-            name: '',
-          },
-        ],
-      },
-    });
-
-    const usage = await account.client.get(`/api/tenants/${account.tenantId}/media/${mediaId}/usage`);
-    expect(usage.body.usage.pages).toBe(1);
-
-    const blocked = await account.client.delete(`/api/tenants/${account.tenantId}/media/${mediaId}`);
-    expect(blocked.status).toBe(409);
-  });
 
   it('lista apenas arquivos sem referencia quando pedido', async () => {
     const used = await account.client.request('POST', `/api/tenants/${account.tenantId}/media`, {

@@ -29,7 +29,7 @@ beforeEach(async () => {
 });
 
 describe('cadastro', () => {
-  it('cria usuario, construtora, vinculo de proprietario e site inicial', async () => {
+  it('cria usuario, construtora e vinculo de proprietario', async () => {
     const account = await registerAccount(api, {
       email: 'marina@horizonte.com.br',
       companyName: 'Construtora Horizonte',
@@ -46,18 +46,6 @@ describe('cadastro', () => {
       .where(eq(schema.memberships.tenantId, account.tenantId));
     expect(membership?.role).toBe('owner');
     expect(membership?.status).toBe('active');
-
-    const pages = await api.db.select().from(schema.pages).where(eq(schema.pages.tenantId, account.tenantId));
-    expect(pages.length).toBeGreaterThan(0);
-    expect(pages.filter((p) => p.isHome)).toHaveLength(1);
-    // As paginas nascem como rascunho: o site so vai ao ar apos publicar.
-    expect(pages.every((p) => p.status === 'draft')).toBe(true);
-
-    const [settings] = await api.db
-      .select()
-      .from(schema.siteSettings)
-      .where(eq(schema.siteSettings.tenantId, account.tenantId));
-    expect(settings).toBeDefined();
 
     const [subscription] = await api.db
       .select()
@@ -249,13 +237,11 @@ describe('confirmacao de e-mail', () => {
   it('confirma com o token do e-mail e libera operacoes sensiveis', async () => {
     const account = await registerAccount(api, { email: 'confirma@a.com.br', companyName: 'Alpha' });
 
-    const pages = await account.client.get(`/api/tenants/${account.tenantId}/pages`);
-    const homeId = pages.body.pages.find((p: { isHome: boolean }) => p.isHome).id;
-
-    // Sem e-mail confirmado, publicar e bloqueado.
+    // Sem e-mail confirmado, convidar alguem para a empresa e bloqueado.
+    const convite = { email: 'equipe@a.com.br', role: 'editor' as const, name: 'Equipe' };
     const blocked = await account.client.post(
-      `/api/tenants/${account.tenantId}/pages/${homeId}/publish`,
-      { note: '' },
+      `/api/tenants/${account.tenantId}/members/invite`,
+      convite,
     );
     expect(blocked.status).toBe(403);
     expect(blocked.errorCode).toBe('email_not_verified');
@@ -263,11 +249,10 @@ describe('confirmacao de e-mail', () => {
     await verifyEmail(api, account);
 
     const allowed = await account.client.post(
-      `/api/tenants/${account.tenantId}/pages/${homeId}/publish`,
-      { note: 'Primeira publicacao' },
+      `/api/tenants/${account.tenantId}/members/invite`,
+      convite,
     );
-    expect(allowed.status).toBe(200);
-    expect(allowed.body.version).toBe(1);
+    expect(allowed.status, allowed.errorMessage ?? '').toBe(201);
   });
 
   it('recusa o mesmo token duas vezes', async () => {

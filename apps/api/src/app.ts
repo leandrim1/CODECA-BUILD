@@ -13,13 +13,10 @@ import { domainRoutes } from './routes/domains.js';
 import { leadRoutes } from './routes/leads.js';
 import { mediaRoutes } from './routes/media.js';
 import { memberRoutes } from './routes/members.js';
-import { pageRoutes } from './routes/pages.js';
 import { platformRoutes } from './routes/platform.js';
 import { platformBillingRoutes } from './routes/platform-billing.js';
 import { projectRoutes } from './routes/projects.js';
 import { propertyRoutes } from './routes/properties.js';
-import { publicRoutes } from './routes/public.js';
-import { renderRoutes } from './routes/render.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { sessionMiddleware } from './middleware/auth.js';
@@ -101,18 +98,11 @@ export function createApp(options: CreateAppOptions = {}) {
   // Job de reconciliacao, protegido por segredo proprio (Vercel Cron).
   app.route('/billing', billingJobRoutes());
 
-  // Endpoints publicos dos sites: identificam a empresa pelo dominio.
-  app.route('/public', publicRoutes());
-
-  // Previa do site no dominio do painel, com a mesma renderizacao do site no ar.
-  app.route('/render', renderRoutes());
-
   // Painel da construtora: sessao obrigatoria e empresa resolvida pela rota.
   const tenantScoped = new Hono<AppBindings>();
   tenantScoped.use('*', sessionMiddleware());
   tenantScoped.route('/', tenantRoutes());
   tenantScoped.route('/', memberRoutes());
-  tenantScoped.route('/', pageRoutes());
   tenantScoped.route('/', propertyRoutes());
   tenantScoped.route('/', projectRoutes());
   tenantScoped.route('/', contentRoutes());

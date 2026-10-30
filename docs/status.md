@@ -137,7 +137,7 @@ Legenda:
 | Cancelamento (agendado ou imediato) | Pronto, depende de credencial | quem decide o efeito e a ValidaPay, conforme o periodo pago |
 | Desfazer cancelamento agendado | Pronto, depende de credencial | — |
 | Estorno, contestacao e chargeback | Pronto | estorno total suspende o site para revisao; parcial fica registrado |
-| Controle de publicacao por estado da assinatura | Pronto | funcao pura usada pelo webhook, pelo job, pelo painel e pelo renderizador |
+| Controle de publicacao por estado da assinatura | Pronto | funcao pura usada pelo webhook, pelo job e pelo painel |
 | Periodo de tolerancia configuravel | Pronto | padrao 5 dias, ajustavel por empresa no painel mestre |
 | Reconciliacao periodica | Pronto, depende de segredo | Vercel Cron diario (limite do plano Hobby; Pro aceita de 2 em 2 horas). O webhook e o caminho principal e a sincronizacao sob demanda cobre o resto |
 | Painel mestre de cobranca | Pronto | assinaturas, cobrancas, eventos com falha, reprocessar, reconciliar, suspender |

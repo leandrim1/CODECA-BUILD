@@ -5,7 +5,6 @@ import type {
   LeadStatus,
   PaymentMethodCode,
   PublicationState,
-  PageLayout,
   PlanLimits,
   ProjectCategory,
   ProjectStage,
@@ -14,13 +13,10 @@ import type {
   PropertyPurpose,
   PropertyType,
   PublicationStatus,
-  PublicSeo,
-  PublicSiteSections,
   SafeIcon,
   SocialNetwork,
   TenantRole,
   TenantStatus,
-  Theme,
   UsageSnapshot,
   PlatformRole,
   TenantCapability,
@@ -101,17 +97,8 @@ export interface TenantDetail {
   createdAt: string;
 }
 
-export interface SiteSettingsPayload {
-  theme: Theme;
-  sections: PublicSiteSections;
-  seo: PublicSeo;
-  publishedVersion: number;
-  lastPublishedAt: string | null;
-}
-
 export interface TenantResponse {
   tenant: TenantDetail;
-  settings: SiteSettingsPayload | null;
   access: TenantAccess;
   plan: EffectivePlan;
   usage: UsageSnapshot;
@@ -330,39 +317,6 @@ export interface MediaAssetRecord {
   title: string;
   tag: string;
   createdAt: string;
-}
-
-export interface PageSummary {
-  id: string;
-  slug: string;
-  title: string;
-  isHome: boolean;
-  status: PublicationStatus;
-  showInNavigation: boolean;
-  sortOrder: number;
-  draftRevision: number;
-  draftUpdatedAt: string;
-  publishedAt: string | null;
-  publishedVersionId: string | null;
-  updatedAt: string;
-}
-
-export interface PageDetail extends PageSummary {
-  draftLayout: PageLayout;
-  seoTitle: string;
-  seoDescription: string;
-  seoImageUrl: string;
-  canonicalUrl: string;
-  robots: 'index' | 'noindex';
-}
-
-export interface PageVersionSummary {
-  id: string;
-  version: number;
-  note: string;
-  createdAt: string;
-  authorName: string | null;
-  authorEmail: string | null;
 }
 
 export interface LeadRecord {

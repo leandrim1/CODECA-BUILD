@@ -33,12 +33,6 @@ const TABLES = {
     slug: schema.services.slug,
     id: schema.services.id,
   },
-  pages: {
-    table: schema.pages,
-    tenantId: schema.pages.tenantId,
-    slug: schema.pages.slug,
-    id: schema.pages.id,
-  },
 } satisfies Record<string, SluggableTable>;
 
 export type SluggableEntity = keyof typeof TABLES;

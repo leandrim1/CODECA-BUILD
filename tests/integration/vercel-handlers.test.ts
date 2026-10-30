@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import * as apiFunction from '../../api/index.js';
-import * as siteFunction from '../../api/site.js';
 
 /**
  * Formato dos handlers da Vercel.
@@ -17,10 +16,9 @@ import * as siteFunction from '../../api/site.js';
 
 const METODOS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'] as const;
 
-describe.each([
-  ['api/index.ts', apiFunction as Record<string, unknown>, 'http://app.exemplo.com/api/health'],
-  ['api/site.ts', siteFunction as Record<string, unknown>, 'http://cliente.exemplo.com/'],
-])('%s', (_nome, modulo, url) => {
+describe.each([['api/index.ts', apiFunction as Record<string, unknown>, 'http://app.exemplo.com/api/health']])(
+  '%s',
+  (_nome, modulo, url) => {
   it('exporta um handler por metodo HTTP', () => {
     for (const metodo of METODOS) {
       expect(typeof modulo[metodo]).toBe('function');

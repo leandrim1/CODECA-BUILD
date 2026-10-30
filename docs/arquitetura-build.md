@@ -320,14 +320,19 @@ Tres caminhos, com custos diferentes:
 3. **Remover.** Codebase menor e mais coerente. Custo: trabalho ja feito vai
    fora, e nao ha volta barata.
 
-Recomendacao: **congelar** durante a transicao. Nao apaga trabalho enquanto o
-caminho novo ainda nao esta provado em producao, e nao cobra manutencao de um
-produto que talvez nao seja vendido. A decisao entre 1 e 3 fica para quando o
-primeiro cliente estiver integrado de verdade.
+**Decidido: remover.** A opcao escolhida foi a 3. O renderizador, o editor
+visual, as paginas por blocos, o tema e a previa sairam do codigo na etapa 0;
+o painel ficou so com o que gerencia conteudo.
+
+As tabelas `pages`, `page_versions`, `navigation_menus`, `redirects` e
+`site_settings` continuam no banco por ora, sem uso: remove-las e uma migracao
+destrutiva, e a regra da secao 5 do `docs/vercel.md` vale aqui tambem --
+primeiro o deploy que para de usar, depois o que remove.
 
 Os dominios tambem mudam de papel: no modelo novo quem aponta o dominio e o
-projeto Vercel do cliente, nao a plataforma. `domains` passa a ser associacao
-e registro, nao provisionamento — salvo se o modo hospedado continuar.
+projeto Vercel do cliente, nao a plataforma. **Decidido: so registro.**
+`domains` guarda qual dominio pertence a qual site, para exibir no painel e
+montar URLs; o provisionamento sai.
 
 ---
 
@@ -354,16 +359,16 @@ custa caro. As demais sao incrementais.
 
 ---
 
-## 12. Decisoes que dependem de voce
+## 12. Decisoes tomadas
 
 1. **O renderizador proprio** — congelar, manter como produto, ou remover?
    Recomendacao acima: congelar.
 2. **Modo hospedado dos dominios** — a plataforma continua provisionando
    dominio para algum cliente, ou isso passa inteiramente para o projeto
    Vercel de cada site?
-3. **Previa do rascunho no site do cliente** — exigir chave secreta no
-   servidor do site (mais seguro, exige SSR) ou aceitar um token de previa de
-   vida curta no navegador (funciona em SPA, janela de exposicao menor)?
+3. **Previa do rascunho no site do cliente** — **decidido: token de vida
+   curta no navegador**, ligado ao site e ao usuario, por minutos. Funciona em
+   SPA sem exigir servidor no site do cliente, e nao le dado pessoal.
 
-O restante das decisoes do pedido esta resolvido neste documento e nao
-precisa de confirmacao para comecar a etapa 1.
+As tres decisoes estao tomadas. O documento segue como referencia do desenho;
+as etapas avancam a partir dele.

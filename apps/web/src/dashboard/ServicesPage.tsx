@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pencil, Plus, Trash2, Wrench } from 'lucide-react';
 import { PUBLICATION_STATUSES, SAFE_ICONS, slugify, type PublicationStatus } from '@codeca/shared';
-import { BlockIcon } from '@codeca/site-renderer';
+import { SafeIcon } from '../components/SafeIcon.js';
 import {
   Badge,
   Button,
@@ -79,7 +79,7 @@ export function ServicesPage() {
                   <CardBody className="grid gap-2">
                     <div className="flex items-start justify-between gap-2">
                       <span className="grid size-10 place-items-center rounded-lg bg-brand-50 text-brand-700">
-                        <BlockIcon name={service.icon} width={20} height={20} />
+                        <SafeIcon name={service.icon} size={20} />
                       </span>
                       <Badge tone={publicationTone(service.publicationStatus)}>
                         {labels.publication[service.publicationStatus]}
@@ -290,7 +290,7 @@ function ServiceFormModal({
                     : 'border-transparent text-slate-500 hover:bg-slate-100',
                 )}
               >
-                <BlockIcon name={icon} width={17} height={17} />
+                <SafeIcon name={icon} size={17} />
               </button>
             ))}
           </div>

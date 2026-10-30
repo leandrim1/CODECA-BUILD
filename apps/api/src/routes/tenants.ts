@@ -1,8 +1,6 @@
 import { and, desc, eq, gte, schema, sql } from '@codeca/database';
 import {
   AppError,
-  themeSchema,
-  updateSeoSchema,
   updateSiteSectionsSchema,
   updateTenantContactSchema,
   updateTenantSchema,
@@ -51,22 +49,10 @@ export function tenantRoutes() {
 
     if (!row) throw AppError.notFound('Empresa nao encontrada.');
 
-    const [settings] = await ctx.db
-      .select({
-        theme: schema.siteSettings.theme,
-        sections: schema.siteSettings.sections,
-        seo: schema.siteSettings.seo,
-        publishedVersion: schema.siteSettings.publishedVersion,
-        lastPublishedAt: schema.siteSettings.lastPublishedAt,
-      })
-      .from(schema.siteSettings)
-      .where(eq(schema.siteSettings.tenantId, tenant.tenantId));
-
     const planStatus = await loadPlanStatus(ctx.db, tenant.tenantId);
 
     return ok(c, {
       tenant: row,
-      settings: settings ?? null,
       access: {
         role: tenant.role,
         capabilities: [...tenant.capabilities],
@@ -85,15 +71,6 @@ export function tenantRoutes() {
     const tenantId = tenant.tenantId;
     const countOf = sql<number>`cast(count(*) as int)`;
     const since30d = new Date(ctx.now().getTime() - 30 * 24 * 3600 * 1000);
-
-    const [pagesStats] = await ctx.db
-      .select({
-        total: countOf,
-        published: sql<number>`cast(count(*) filter (where ${schema.pages.status} = 'published') as int)`,
-        drafts: sql<number>`cast(count(*) filter (where ${schema.pages.status} = 'draft') as int)`,
-      })
-      .from(schema.pages)
-      .where(eq(schema.pages.tenantId, tenantId));
 
     const [propertyStats] = await ctx.db
       .select({
@@ -169,18 +146,9 @@ export function tenantRoutes() {
       .where(eq(schema.domains.tenantId, tenantId))
       .orderBy(desc(schema.domains.isPrimary));
 
-    const [settings] = await ctx.db
-      .select({
-        publishedVersion: schema.siteSettings.publishedVersion,
-        lastPublishedAt: schema.siteSettings.lastPublishedAt,
-      })
-      .from(schema.siteSettings)
-      .where(eq(schema.siteSettings.tenantId, tenantId));
-
     const planStatus = await loadPlanStatus(ctx.db, tenantId);
 
     return ok(c, {
-      pages: pagesStats ?? { total: 0, published: 0, drafts: 0 },
       properties: propertyStats ?? { total: 0, published: 0, drafts: 0, available: 0, sold: 0 },
       projects: projectStats ?? { total: 0, published: 0, inProgress: 0, completed: 0 },
       services: serviceStats ?? { total: 0, published: 0 },
@@ -191,10 +159,6 @@ export function tenantRoutes() {
       media: { total: mediaStats?.total ?? 0, bytes: Number(mediaStats?.bytes ?? 0) },
       recentLeads,
       domains,
-      site: {
-        publishedVersion: settings?.publishedVersion ?? 0,
-        lastPublishedAt: settings?.lastPublishedAt ?? null,
-      },
       plan: planStatus.plan,
       usage: planStatus.usage,
     });
@@ -248,64 +212,6 @@ export function tenantRoutes() {
       metadata: { section: 'contato' },
     });
     return ok(c, { updated: true });
-  });
-
-  // ------------------------------------------------- identidade visual
-  app.put('/:tenantId/theme', requireCapability('site:edit'), async (c) => {
-    const ctx = c.get('ctx');
-    const tenant = c.get('tenant');
-    const theme = await parseJsonBody(c, themeSchema);
-
-    await ctx.db
-      .update(schema.siteSettings)
-      .set({ theme, updatedAt: ctx.now() })
-      .where(eq(schema.siteSettings.tenantId, tenant.tenantId));
-
-    await auditFromContext(c, {
-      action: AUDIT_ACTIONS.themeUpdated,
-      entityType: 'site_settings',
-      entityId: tenant.tenantId,
-      metadata: {},
-    });
-    return ok(c, { theme });
-  });
-
-  app.put('/:tenantId/seo', requireCapability('seo:write'), async (c) => {
-    const ctx = c.get('ctx');
-    const tenant = c.get('tenant');
-    const seo = await parseJsonBody(c, updateSeoSchema);
-
-    await ctx.db
-      .update(schema.siteSettings)
-      .set({ seo, updatedAt: ctx.now() })
-      .where(eq(schema.siteSettings.tenantId, tenant.tenantId));
-
-    await auditFromContext(c, {
-      action: AUDIT_ACTIONS.seoUpdated,
-      entityType: 'site_settings',
-      entityId: tenant.tenantId,
-      metadata: {},
-    });
-    return ok(c, { seo });
-  });
-
-  app.put('/:tenantId/sections', requireCapability('site:edit'), async (c) => {
-    const ctx = c.get('ctx');
-    const tenant = c.get('tenant');
-    const sections = await parseJsonBody(c, updateSiteSectionsSchema);
-
-    await ctx.db
-      .update(schema.siteSettings)
-      .set({ sections, updatedAt: ctx.now() })
-      .where(eq(schema.siteSettings.tenantId, tenant.tenantId));
-
-    await auditFromContext(c, {
-      action: AUDIT_ACTIONS.sectionsUpdated,
-      entityType: 'site_settings',
-      entityId: tenant.tenantId,
-      metadata: {},
-    });
-    return ok(c, { sections });
   });
 
   // ---------------------------------------------------- plano e limites

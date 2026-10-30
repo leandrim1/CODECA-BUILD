@@ -21,7 +21,6 @@
   "dependencies": {
     "@codeca/database": "workspace:*",
     "@codeca/shared": "workspace:*",
-    "@codeca/site-renderer": "workspace:*",
     "@vercel/blob": "^2.8.2",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.14",

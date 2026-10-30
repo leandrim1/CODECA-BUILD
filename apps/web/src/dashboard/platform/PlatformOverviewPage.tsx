@@ -25,7 +25,6 @@ export function PlatformOverviewPage() {
               <Stat icon={Building2} label="Construtoras" value={data.tenants.total} detail={`${data.tenants.active} ativas - ${data.tenants.trialing} em avaliacao`} />
               <Stat icon={Users} label="Usuarios" value={data.users} detail="Contas na plataforma" />
               <Stat icon={Globe} label="Dominios" value={data.domains.total} detail={`${data.domains.active} ativos - ${data.domains.pending} pendentes`} />
-              <Stat icon={FileText} label="Paginas publicadas" value={data.publishedPages} detail={`${data.leadsLast30Days} interessados em 30 dias`} />
               <Stat icon={HardDrive} label="Armazenamento" value={0} detail={formatBytes(data.storageBytes)} hideValue />
             </section>
 

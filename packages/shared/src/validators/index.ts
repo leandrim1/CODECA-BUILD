@@ -4,7 +4,6 @@ export * from './tenant.js';
 export * from './property.js';
 export * from './project.js';
 export * from './content.js';
-export * from './page.js';
 export * from './media.js';
 export * from './lead.js';
 export * from './platform.js';

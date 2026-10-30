@@ -6,7 +6,6 @@ import {
   ilike,
   isNull,
   gt,
-  provisionTenantDefaults,
   schema,
   sql,
   type Database,
@@ -83,11 +82,6 @@ export function platformRoutes() {
       .from(schema.leads)
       .where(gte(schema.leads.createdAt, since30d));
 
-    const [publishedPages] = await ctx.db
-      .select({ total: countOf })
-      .from(schema.pages)
-      .where(eq(schema.pages.status, 'published'));
-
     const byPlan = await ctx.db
       .select({ planCode: schema.plans.code, planName: schema.plans.name, tenants: countOf })
       .from(schema.tenants)
@@ -112,7 +106,6 @@ export function platformRoutes() {
       domains: domains ?? { total: 0, active: 0, pending: 0 },
       storageBytes: Number(storage?.bytes ?? 0),
       leadsLast30Days: leads?.total ?? 0,
-      publishedPages: publishedPages?.total ?? 0,
       byPlan,
       recentTenants,
     });
@@ -281,11 +274,6 @@ export function platformRoutes() {
         tenantId: tenant.id,
         planId: plan.id,
         status: 'trialing',
-      });
-
-      await provisionTenantDefaults(tx as unknown as Database, {
-        tenantId: tenant.id,
-        companyName: input.displayName,
       });
 
       return { tenantId: tenant.id, ownerId: owner.id };

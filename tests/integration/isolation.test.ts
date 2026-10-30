@@ -267,47 +267,6 @@ describe('conteudos', () => {
   });
 });
 
-describe('paginas e publicacao', () => {
-  it('nao le nem publica pagina de outra empresa', async () => {
-    const pages = await beta.client.get(`/api/tenants/${beta.tenantId}/pages`);
-    const home = pages.body.pages.find((p: { isHome: boolean }) => p.isHome) as { id: string };
-
-    expect((await alpha.client.get(`/api/tenants/${alpha.tenantId}/pages/${home.id}`)).status).toBe(404);
-    expect(
-      (await alpha.client.post(`/api/tenants/${alpha.tenantId}/pages/${home.id}/publish`, { note: '' })).status,
-    ).toBe(404);
-    expect(
-      (
-        await alpha.client.put(`/api/tenants/${alpha.tenantId}/pages/${home.id}/draft`, {
-          layout: { schemaVersion: 1, sections: [] },
-        })
-      ).status,
-    ).toBe(404);
-  });
-
-  it('nao restaura versao de pagina de outra empresa', async () => {
-    const pages = await beta.client.get(`/api/tenants/${beta.tenantId}/pages`);
-    const home = pages.body.pages.find((p: { isHome: boolean }) => p.isHome) as { id: string };
-    await beta.client.post(`/api/tenants/${beta.tenantId}/pages/${home.id}/publish`, { note: 'v1' });
-
-    const versions = await beta.client.get(`/api/tenants/${beta.tenantId}/pages/${home.id}/versions`);
-    const versionId = versions.body.versions[0].id as string;
-
-    // O historico de versoes depende do plano; liberamos para que o teste
-    // verifique o isolamento e nao o limite comercial.
-    await upgradeToProfessional(alpha.tenantId);
-
-    const myPages = await alpha.client.get(`/api/tenants/${alpha.tenantId}/pages`);
-    const myHome = myPages.body.pages.find((p: { isHome: boolean }) => p.isHome) as { id: string };
-
-    // Tenta restaurar, na propria pagina, uma versao que pertence a outra empresa.
-    const response = await alpha.client.post(
-      `/api/tenants/${alpha.tenantId}/pages/${myHome.id}/restore`,
-      { versionId, publish: false },
-    );
-    expect(response.status).toBe(404);
-  });
-});
 
 describe('biblioteca de midia', () => {
   it('nao referencia arquivo de outra empresa ao cadastrar conteudo', async () => {

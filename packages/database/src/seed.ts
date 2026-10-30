@@ -3,14 +3,10 @@ import {
   DEFAULT_PLANS,
   addressSchema,
   slugify,
-  updateSeoSchema,
-  themeSchema,
 } from '@codeca/shared';
 import { hashPassword } from '@codeca/shared/server';
 import { eq, lt } from 'drizzle-orm';
 import type { Database } from './client.js';
-import { provisionTenantDefaults } from './provision.js';
-import { publishPage } from './publish.js';
 import {
   faqs,
   leads,
@@ -18,13 +14,11 @@ import {
   sessions,
   userTokens,
   memberships,
-  pages,
   plans,
   projectUpdates,
   projects,
   properties,
   services,
-  siteSettings,
   subscriptions,
   teamMembers,
   tenants,
@@ -212,43 +206,6 @@ async function seedDemoTenant(
     accessUntil: periodEnd,
     gracePeriodDays: DEFAULT_GRACE_PERIOD_DAYS,
   });
-
-  await provisionTenantDefaults(db, { tenantId: tenant.id, companyName: DEMO_NAME });
-
-  await db
-    .update(siteSettings)
-    .set({
-      theme: themeSchema.parse({
-        colors: {
-          primary: '#0E5C4A',
-          secondary: '#10261F',
-          accent: '#E0A422',
-          background: '#FFFFFF',
-          surface: '#F4F7F5',
-          text: '#10261F',
-          muted: '#5E7268',
-          border: '#DDE6E0',
-          inverse: '#FFFFFF',
-        },
-        typography: { headingFont: 'manrope', bodyFont: 'inter', baseSizePx: 16, headingScale: 1.28 },
-        buttons: { style: 'solid', shape: 'rounded', uppercase: false },
-        radiusPx: 12,
-        contentWidth: 'default',
-        cardStyle: 'elevated',
-        header: { style: 'light', layout: 'logo-left', sticky: true },
-        footer: { style: 'dark', showSocial: true },
-      }),
-      seo: updateSeoSchema.parse({
-        defaultTitle: `${DEMO_NAME} | Construcao e incorporacao em Campinas`,
-        titleTemplate: `%s | ${DEMO_NAME}`,
-        defaultDescription:
-          'Construtora em Campinas especializada em empreendimentos residenciais, obras comerciais e reformas estruturais.',
-        robots: 'index',
-        sitemapEnabled: true,
-      }),
-      updatedAt: new Date(),
-    })
-    .where(eq(siteSettings.tenantId, tenant.id));
 
   // ------------------------------------------------------------- servicos
   const serviceSeed = [
@@ -656,21 +613,7 @@ async function seedDemoTenant(
     },
   ]);
 
-  // Publica todas as paginas para que o site de demonstracao fique no ar.
-  const tenantPages = await db
-    .select({ id: pages.id })
-    .from(pages)
-    .where(eq(pages.tenantId, tenant.id));
-  for (const page of tenantPages) {
-    await publishPage(db, {
-      tenantId: tenant.id,
-      pageId: page.id,
-      userId: owner.id,
-      note: 'Publicacao inicial do seed',
-    });
-  }
-
-  log(`Construtora de demonstracao criada: ${DEMO_NAME} (${tenantPages.length} paginas publicadas)`);
+  log(`Construtora de demonstracao criada: ${DEMO_NAME}`);
   log(`Acesso de demonstracao: ${email}`);
   return tenant.id;
 }

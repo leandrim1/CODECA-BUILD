@@ -39,14 +39,13 @@ versao do painel), confirme que o *Branch Tracking* e o branch que voce
 realmente publica. Para checar o que esta no ar sem abrir o painel, veja a
 secao 9.
 
-As duas funcoes:
+A unica funcao:
 
 - `api/index.ts` — a API (`createApp`), servida em `/api/*`
-- `api/site.ts` — os sites publicos (`createSiteApp`), renderizados no servidor
 
 ### Formato dos handlers — nao use `export default`
 
-As duas funcoes exportam **um handler por metodo HTTP**:
+A funcao exporta **um handler por metodo HTTP**:
 
 ```ts
 export const GET = handler;
@@ -69,45 +68,24 @@ Exportar por metodo ativa o modo Web-standard, em que a `Response` devolvida e
 de fato enviada. `tests/integration/vercel-handlers.test.ts` prende esse
 formato, inclusive a ausencia do `export default`.
 
-## 2. Ajustar a reescrita por host — passo obrigatorio
+## 2. Reescritas
 
-Em `vercel.json`:
+Em `vercel.json`, duas regras, nesta ordem:
 
 ```json
-{
-  "source": "/(.*)",
-  "destination": "/api/site",
-  "missing": [
-    {
-      "type": "host",
-      "value": "(?:app\\.codecabuild\\.com|[^.]+\\.vercel\\.app|localhost(?::\\d+)?|127\\.0\\.0\\.1(?::\\d+)?)"
-    }
-  ]
-}
+"rewrites": [
+  { "source": "/api/(.*)", "destination": "/api/index" },
+  { "source": "/(.*)", "destination": "/index.html" }
+]
 ```
 
-Leia como: *"todo caminho vai para o renderizador dos sites, exceto quando o
-host for um host da plataforma"*. Troque `app\.codecabuild\.com` pelo dominio do
-seu painel, escapando os pontos. Para mais de um host da plataforma, separe com
-`|`:
+A primeira entrega a API; a segunda devolve o painel (SPA) para qualquer outro
+caminho. A ordem importa: invertida, o painel engoliria as chamadas de API.
 
-```
-(?:app\.seudominio\.com|admin\.seudominio\.com|[^.]+\.vercel\.app|localhost(?::\d+)?|127\.0\.0\.1(?::\d+)?)
-```
-
-Se esquecer esse ajuste, o dominio do painel passa a ser tratado como site de
-cliente e responde 404 — e o sintoma mais comum de uma primeira implantacao.
-
-Mantenha a entrada `*.vercel.app`: e o que faz os deploys de previa abrirem o
-painel.
-
-A ordem das reescritas importa: `/api/*` primeiro, os sites publicos depois e,
-por fim, `/index.html` para o painel (SPA).
-
-A mesma lista tambem precisa estar em `PLATFORM_HOSTS`, que e o que a API usa
-para nao resolver um host da plataforma como site de cliente. O host de
-`APP_URL` e os `*.vercel.app` entram automaticamente (ver
-`platformHosts()` em `apps/api/src/env.ts`).
+Nao ha mais reescrita por host. A plataforma deixou de renderizar os sites dos
+clientes -- cada site e um projeto Vercel proprio, com o proprio dominio -- e o
+unico host que este projeto atende e o do painel. `PLATFORM_HOSTS` continua
+valendo para a politica de origem (CORS) e para os cookies de sessao.
 
 ## 3. Variaveis de ambiente
 

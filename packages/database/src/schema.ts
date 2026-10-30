@@ -18,14 +18,9 @@ import { sql } from 'drizzle-orm';
 import type {
   AddressInput,
   LeadInterestType,
-  NavigationMenuInput,
-  PageLayout,
   PlanBillingInput,
   PlanLimits,
-  PublicSeo,
-  PublicSiteSections,
   SocialNetwork,
-  Theme,
 } from '@codeca/shared';
 import {
   CURRENCIES,
@@ -622,101 +617,6 @@ export const domains = pgTable(
   ],
 );
 
-export const siteSettings = pgTable(
-  'site_settings',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    tenantId: uuid('tenant_id')
-      .notNull()
-      .references(() => tenants.id, { onDelete: 'cascade' }),
-    theme: jsonb('theme').$type<Theme>().notNull(),
-    sections: jsonb('sections').$type<PublicSiteSections>().notNull(),
-    seo: jsonb('seo').$type<PublicSeo>().notNull(),
-    /** Incrementado a cada publicacao; usado em ETag e invalidacao de cache. */
-    publishedVersion: integer('published_version').notNull().default(0),
-    lastPublishedAt: timestamp('last_published_at', { withTimezone: true }),
-    createdAt,
-    updatedAt,
-  },
-  (table) => [uniqueIndex('site_settings_tenant_key').on(table.tenantId)],
-);
-
-export const pages = pgTable(
-  'pages',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    tenantId: uuid('tenant_id')
-      .notNull()
-      .references(() => tenants.id, { onDelete: 'cascade' }),
-    slug: text('slug').notNull(),
-    title: text('title').notNull(),
-    isHome: boolean('is_home').notNull().default(false),
-    status: publicationStatusEnum('status').notNull().default('draft'),
-    /** Conteudo em edicao. O site publico nunca le este campo. */
-    draftLayout: jsonb('draft_layout').$type<PageLayout>().notNull(),
-    draftRevision: integer('draft_revision').notNull().default(0),
-    draftUpdatedAt: timestamp('draft_updated_at', { withTimezone: true }).notNull().defaultNow(),
-    /** Versao atualmente publicada; o site publico le somente daqui. */
-    publishedVersionId: uuid('published_version_id'),
-    seoTitle: text('seo_title').notNull().default(''),
-    seoDescription: text('seo_description').notNull().default(''),
-    seoImageUrl: text('seo_image_url').notNull().default(''),
-    canonicalUrl: text('canonical_url').notNull().default(''),
-    robots: robotsPolicyEnum('robots').notNull().default('index'),
-    showInNavigation: boolean('show_in_navigation').notNull().default(false),
-    sortOrder: integer('sort_order').notNull().default(0),
-    publishedAt: timestamp('published_at', { withTimezone: true }),
-    publishedByUserId: uuid('published_by_user_id').references(() => users.id, { onDelete: 'set null' }),
-    createdAt,
-    updatedAt,
-  },
-  (table) => [
-    uniqueIndex('pages_tenant_slug_key').on(table.tenantId, table.slug),
-    uniqueIndex('pages_tenant_home_key')
-      .on(table.tenantId)
-      .where(sql`${table.isHome}`),
-    index('pages_tenant_status_idx').on(table.tenantId, table.status),
-  ],
-);
-
-export const pageVersions = pgTable(
-  'page_versions',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    tenantId: uuid('tenant_id')
-      .notNull()
-      .references(() => tenants.id, { onDelete: 'cascade' }),
-    pageId: uuid('page_id')
-      .notNull()
-      .references(() => pages.id, { onDelete: 'cascade' }),
-    version: integer('version').notNull(),
-    layout: jsonb('layout').$type<PageLayout>().notNull(),
-    note: text('note').notNull().default(''),
-    publishedByUserId: uuid('published_by_user_id').references(() => users.id, { onDelete: 'set null' }),
-    createdAt,
-  },
-  (table) => [
-    uniqueIndex('page_versions_page_version_key').on(table.pageId, table.version),
-    index('page_versions_tenant_idx').on(table.tenantId),
-  ],
-);
-
-export const navigationMenus = pgTable(
-  'navigation_menus',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    tenantId: uuid('tenant_id')
-      .notNull()
-      .references(() => tenants.id, { onDelete: 'cascade' }),
-    key: text('key').notNull(),
-    label: text('label').notNull(),
-    items: jsonb('items').$type<NavigationMenuInput['items']>().notNull().default([]),
-    createdAt,
-    updatedAt,
-  },
-  (table) => [uniqueIndex('navigation_menus_tenant_key_key').on(table.tenantId, table.key)],
-);
-
 export const mediaAssets = pgTable(
   'media_assets',
   {
@@ -746,23 +646,6 @@ export const mediaAssets = pgTable(
     index('media_assets_tenant_created_idx').on(table.tenantId, table.createdAt),
     index('media_assets_tenant_tag_idx').on(table.tenantId, table.tag),
   ],
-);
-
-export const redirects = pgTable(
-  'redirects',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    tenantId: uuid('tenant_id')
-      .notNull()
-      .references(() => tenants.id, { onDelete: 'cascade' }),
-    fromPath: text('from_path').notNull(),
-    toPath: text('to_path').notNull(),
-    statusCode: smallint('status_code').notNull().default(301),
-    enabled: boolean('enabled').notNull().default(true),
-    createdAt,
-    updatedAt,
-  },
-  (table) => [uniqueIndex('redirects_tenant_from_key').on(table.tenantId, table.fromPath)],
 );
 
 // ----------------------------------------------------------------- conteudo
@@ -1103,12 +986,7 @@ export type SubscriptionRow = typeof subscriptions.$inferSelect;
 export type AuditLogRow = typeof auditLogs.$inferSelect;
 export type SupportAccessGrantRow = typeof supportAccessGrants.$inferSelect;
 export type DomainRow = typeof domains.$inferSelect;
-export type SiteSettingsRow = typeof siteSettings.$inferSelect;
-export type PageRow = typeof pages.$inferSelect;
-export type PageVersionRow = typeof pageVersions.$inferSelect;
-export type NavigationMenuRow = typeof navigationMenus.$inferSelect;
 export type MediaAssetRow = typeof mediaAssets.$inferSelect;
-export type RedirectRow = typeof redirects.$inferSelect;
 export type PropertyRow = typeof properties.$inferSelect;
 export type PropertyImageRow = typeof propertyImages.$inferSelect;
 export type ProjectRow = typeof projects.$inferSelect;
