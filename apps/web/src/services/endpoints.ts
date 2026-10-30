@@ -1,5 +1,10 @@
 import { api, query } from './api.js';
 import type {
+  IssuedKey,
+  PlatformSite,
+  SiteApiKeyRow,
+  SiteModuleView,
+  SiteStatus,
   AuditLogRow,
   BillingOverview,
   ChargeView,
@@ -424,4 +429,67 @@ export const platformBillingApi = {
       page: number;
       pageSize: number;
     }>(`/api/platform/billing/history${query(params)}`),
+};
+
+/**
+ * Configuracao dos sites pelo painel mestre.
+ *
+ * E aqui que a CODECA IA define o que cada projeto tem: modulos, campos que o
+ * cliente pode editar, origens autorizadas e credenciais de integracao.
+ */
+export const platformSiteApi = {
+  list: () =>
+    api.get<{
+      items: Array<{
+        id: string;
+        name: string;
+        slug: string;
+        status: SiteStatus;
+        isPrimary: boolean;
+        tenantId: string;
+        tenantName: string;
+        segment: string | null;
+        createdAt: string;
+      }>;
+    }>('/api/platform/sites'),
+
+  detail: (siteId: string) =>
+    api.get<{ site: PlatformSite; modules: SiteModuleView[] }>(`/api/platform/sites/${siteId}`),
+
+  update: (siteId: string, body: { name: string; status: SiteStatus; internalNotes: string }) =>
+    api.patch<{ site: PlatformSite }>(`/api/platform/sites/${siteId}`, body),
+
+  saveModules: (
+    siteId: string,
+    body: {
+      modules: Array<{ key: string; enabled: boolean; settings: Record<string, unknown> }>;
+      fieldPolicies: Array<{ moduleKey: string; fieldKey: string; editable: boolean; note: string }>;
+    },
+  ) => api.put<{ modules: SiteModuleView[] }>(`/api/platform/sites/${siteId}/modules`, body),
+
+  origins: (siteId: string) =>
+    api.get<{ items: Array<{ id: string; origin: string; note: string }> }>(
+      `/api/platform/sites/${siteId}/origins`,
+    ),
+
+  saveOrigins: (siteId: string, body: { origins: Array<{ origin: string; note: string }> }) =>
+    api.put<{ items: Array<{ origin: string; note: string }> }>(
+      `/api/platform/sites/${siteId}/origins`,
+      body,
+    ),
+
+  keys: (siteId: string) =>
+    api.get<{ items: SiteApiKeyRow[] }>(`/api/platform/sites/${siteId}/keys`),
+
+  createKey: (siteId: string, body: { kind: 'publishable' | 'secret'; name: string }) =>
+    api.post<{ key: IssuedKey; showOnce: boolean }>(`/api/platform/sites/${siteId}/keys`, body),
+
+  rotateKey: (siteId: string, keyId: string, body: { graceMinutes: number }) =>
+    api.post<{ key: IssuedKey; showOnce: boolean; previousValidUntilMinutes: number }>(
+      `/api/platform/sites/${siteId}/keys/${keyId}/rotate`,
+      body,
+    ),
+
+  revokeKey: (siteId: string, keyId: string) =>
+    api.delete<void>(`/api/platform/sites/${siteId}/keys/${keyId}`),
 };

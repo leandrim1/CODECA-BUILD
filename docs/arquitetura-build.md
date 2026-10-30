@@ -191,6 +191,37 @@ servidor em toda operacao. As chaves de integracao **nao** dao acesso ao
 painel, e a sessao do painel **nao** serve para a API publica. Dois mundos
 separados de proposito.
 
+### A tela de configuracao, em `/plataforma/sites`
+
+E por onde a CODECA IA liga um projeto novo a plataforma, sem `curl` e sem
+abrir o banco. A tela lista todos os sites com a empresa dona de cada um e
+abre a configuracao em quatro abas:
+
+| Aba | O que decide | Rotas |
+| --- | --- | --- |
+| Identidade | nome, situacao (`draft`, `active`, `suspended`, `archived`) e nota interna | `GET`/`PATCH /api/platform/sites/:siteId` |
+| Modulos e campos | o que o cliente enxerga e o que ele pode editar | `PUT /api/platform/sites/:siteId/modules` |
+| Origens | de quais enderecos a chave publicavel e aceita | `GET`/`PUT /api/platform/sites/:siteId/origins` |
+| Chaves | emitir, rotacionar e revogar credenciais | `/api/platform/sites/:siteId/keys` |
+
+Tres cuidados que a tela carrega de proposito:
+
+1. **A chave secreta aparece uma vez.** O modal que a mostra diz isso e avisa,
+   antes de fechar, que ela nao vai em `VITE_*`, em componente de cliente nem
+   no repositorio. Depois dele so existe o hash no banco.
+2. **A nota interna e da CODECA IA.** Ela vive em `sites.internal_notes`, que
+   nenhuma rota do cliente le -- nem o painel da empresa, nem `/api/v1`.
+3. **Revogar derruba; rotacionar nao.** A confirmacao de revogacao explica a
+   diferenca e aponta a rotacao, que mantem a chave antiga valendo por uma
+   janela.
+
+A situacao do site e um rotulo operacional: mudar para `suspended` nao apaga
+documento, imovel, obra nem imagem nenhuma -- `tests/integration/platform-sites.test.ts`
+cobre justamente isso.
+
+O que ainda nao esta aqui: o segmento do site (etapa 7) e a assinatura por
+site (etapa 9) continuam fora da tela.
+
 ---
 
 ## 5. API publica e SDK
@@ -381,7 +412,7 @@ plataforma utilizavel ao final.
 | 7 | Configuracao por segmento no painel mestre | 2 | pendente |
 | 8 | Webhook `content.published` para o site do cliente | 5 | pendente |
 | 9 | Assinatura por site e politica de suspensao | 1 | pendente |
-| 10 | Cadastro de site no painel mestre, fim a fim | 2, 4, 9 | pendente |
+| 10 | Cadastro de site no painel mestre, fim a fim | 2, 4 | **feita** |
 
 As etapas 1 e 2 sao fundacao: tudo depende delas, e mudar de ideia depois
 custa caro. As demais sao incrementais.

@@ -44,9 +44,9 @@ A chave publicavel viaja no navegador, a vista de qualquer um. O que impede um
 terceiro de usa-la no proprio site e a origem: o navegador envia `Origin` e
 nao deixa a pagina mentir sobre ele.
 
-Cadastre o endereco do site no painel mestre antes de usar a chave. Sem
-nenhuma origem cadastrada, a chave publicavel **nao atende** -- falhar assim e
-melhor do que atender a qualquer um.
+Cadastre o endereco do site em `/plataforma/sites`, aba **Origens**, antes de
+usar a chave. Sem nenhuma origem cadastrada, a chave publicavel **nao
+atende** -- falhar assim e melhor do que atender a qualquer um.
 
 A comparacao e **exata** sobre a origem normalizada (esquema + host, porta
 padrao removida). Nada de sufixo: `termina com .construtora.com.br`
@@ -161,9 +161,14 @@ sem janela.
 
 ## 6. Checklist de um site novo
 
+Tudo abaixo acontece em **`/plataforma/sites`**, na configuracao do projeto.
+
 1. Cadastrar o site no painel mestre (ja acontece com a empresa).
-2. Configurar os modulos e a politica de campos do projeto.
-3. Cadastrar as origens: producao e, se usar, a previa da Vercel.
-4. Emitir a chave publicavel e copiar para o codigo do site.
-5. Emitir a chave secreta **apenas se** o site tiver servidor proprio.
+2. Aba **Modulos e campos**: habilitar o que o cliente enxerga e marcar o que
+   ele pode editar.
+3. Aba **Origens**: cadastrar producao e, se usar, a previa da Vercel.
+4. Aba **Chaves**: emitir a chave publicavel e copiar para o codigo do site.
+5. Na mesma aba, emitir a chave secreta **apenas se** o site tiver servidor
+   proprio -- ela aparece uma unica vez.
 6. Conferir `GET /api/v1/site` a partir do site.
+7. Aba **Identidade**: trocar a situacao de `draft` para `active`.

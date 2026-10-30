@@ -14,6 +14,7 @@ import type {
   PropertyType,
   PublicationStatus,
   SafeIcon,
+  SiteStatus,
   SocialNetwork,
   TenantRole,
   TenantStatus,
@@ -23,6 +24,9 @@ import type {
   DomainStatus,
   AddressInput,
 } from '@codeca/shared';
+
+// Reexportado porque as respostas do painel mestre o usam diretamente.
+export type { SiteStatus } from '@codeca/shared';
 
 /** Formas das respostas da API, conforme devolvidas pelos endpoints. */
 
@@ -547,4 +551,57 @@ export interface ReconcileReportView {
   pendingEventsReplayed: number;
   divergences: Array<{ kind: string; id: string; detail: string }>;
   failures: Array<{ kind: string; id: string; error: string }>;
+}
+
+/** Site como o painel mestre o enxerga. */
+export interface PlatformSite {
+  id: string;
+  tenantId: string;
+  name: string;
+  slug: string;
+  status: SiteStatus;
+  isPrimary: boolean;
+  internalNotes: string;
+  segmentId: string | null;
+}
+
+export interface SiteModuleFieldView {
+  key: string;
+  label: string;
+  type: string;
+  editableByDefault: boolean;
+  editable: boolean;
+  overridden: boolean;
+  required?: boolean;
+  help?: string;
+}
+
+export interface SiteModuleView {
+  key: string;
+  name: string;
+  description: string;
+  kind: 'document' | 'collection';
+  enabled: boolean;
+  settings: Record<string, unknown>;
+  fields: SiteModuleFieldView[];
+}
+
+export interface SiteApiKeyRow {
+  id: string;
+  kind: 'publishable' | 'secret';
+  name: string;
+  scopes: string[];
+  token: string | null;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+/** Chave recem-emitida. A secreta so aparece aqui, uma vez. */
+export interface IssuedKey {
+  id: string;
+  kind: 'publishable' | 'secret';
+  scopes: string[];
+  token: string;
 }

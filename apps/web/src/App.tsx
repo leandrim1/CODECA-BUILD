@@ -35,6 +35,7 @@ const BillingPage = lazy(() => import('./dashboard/BillingPage.js').then((m) => 
 const CompanyPage = lazy(() => import('./dashboard/CompanyPage.js').then((m) => ({ default: m.CompanyPage })));
 const PlatformOverviewPage = lazy(() => import('./dashboard/platform/PlatformOverviewPage.js').then((m) => ({ default: m.PlatformOverviewPage })));
 const PlatformTenantsPage = lazy(() => import('./dashboard/platform/PlatformTenantsPage.js').then((m) => ({ default: m.PlatformTenantsPage })));
+const PlatformSitesPage = lazy(() => import('./dashboard/platform/PlatformSitesPage.js').then((m) => ({ default: m.PlatformSitesPage })));
 const PlatformPlansPage = lazy(() => import('./dashboard/platform/PlatformPlansPage.js').then((m) => ({ default: m.PlatformPlansPage })));
 const PlatformBillingPage = lazy(() => import('./dashboard/platform/PlatformBillingPage.js').then((m) => ({ default: m.PlatformBillingPage })));
 const PlatformDomainsPage = lazy(() => import('./dashboard/platform/PlatformDomainsPage.js').then((m) => ({ default: m.PlatformDomainsPage })));
@@ -96,6 +97,7 @@ export function App() {
           >
             <Route index element={<PlatformOverviewPage />} />
             <Route path="empresas" element={<PlatformTenantsPage />} />
+            <Route path="sites" element={<PlatformSitesPage />} />
             <Route path="planos" element={<PlatformPlansPage />} />
             <Route path="cobranca" element={<PlatformBillingPage />} />
             <Route path="dominios" element={<PlatformDomainsPage />} />
