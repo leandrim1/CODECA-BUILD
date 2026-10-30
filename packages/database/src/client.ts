@@ -37,6 +37,22 @@ let cachedUrl: string | null = null;
  */
 const CONNECTION_TIMEOUT_MS = 10_000;
 
+/**
+ * Tempo maximo de uma consulta enviada por HTTP.
+ *
+ * `poolQueryViaFetch` faz as consultas simples sairem por `fetch`, que nao tem
+ * prazo proprio: um endpoint que aceita a conexao e nao responde prende a
+ * funcao ate o limite da plataforma, e o navegador recebe 504 sem causa. Com
+ * prazo, o erro chega enquanto ainda ha tempo de responder direito.
+ */
+const QUERY_TIMEOUT_MS = 15_000;
+
+/** Junta o prazo ao sinal que o driver ja tenha passado, sem descartar nenhum. */
+function withDeadline(signal: AbortSignal | null | undefined, ms: number): AbortSignal {
+  const deadline = AbortSignal.timeout(ms);
+  return signal ? AbortSignal.any([signal, deadline]) : deadline;
+}
+
 function configureNeon(): void {
   // O driver do Neon abre uma conexao WebSocket para tudo que precisa de
   // transacao. O Node so passou a ter WebSocket global na versao 22, e quando
@@ -49,6 +65,9 @@ function configureNeon(): void {
   // Consultas simples saem por HTTP, sem abrir WebSocket. Transacoes nao: elas
   // dependem do construtor acima.
   neonConfig.poolQueryViaFetch = true;
+
+  neonConfig.fetchFunction ??= (input: Parameters<typeof fetch>[0], init?: RequestInit) =>
+    fetch(input, { ...init, signal: withDeadline(init?.signal, QUERY_TIMEOUT_MS) });
 }
 
 export function createNeonDatabase(connectionString: string): DatabaseHandle {

@@ -34,6 +34,16 @@ export function createConsoleMailer(): Mailer {
   };
 }
 
+/**
+ * Prazo do provedor de e-mail.
+ *
+ * O envio acontece dentro da requisicao de cadastro. Sem prazo, um provedor
+ * que nao responde prende a funcao ate o limite da plataforma e derruba um
+ * cadastro que ja tinha dado certo no banco. A confirmacao pode ser reenviada;
+ * a conta criada nao pode ser perdida.
+ */
+const MAIL_TIMEOUT_MS = 8_000;
+
 export function createResendMailer(apiKey: string, from: string): Mailer {
   return {
     configured: true,
@@ -46,6 +56,7 @@ export function createResendMailer(apiKey: string, from: string): Mailer {
             'content-type': 'application/json',
           },
           body: JSON.stringify({ from, to: [message.to], subject: message.subject, text: message.text }),
+          signal: AbortSignal.timeout(MAIL_TIMEOUT_MS),
         });
         if (!response.ok) {
           const detail = await response.text();
