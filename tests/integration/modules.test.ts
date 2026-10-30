@@ -257,3 +257,152 @@ describe('painel mestre', () => {
     expect(response.status).toBe(403);
   });
 });
+
+/**
+ * Colecoes: imoveis, obras e servicos.
+ *
+ * Estas tres nasceram antes do registro de modulos e por isso ficaram de fora
+ * da verificacao: a rota respondia a qualquer site, habilitado ou nao, e o
+ * endereco na URL -- travado no registro desde o inicio -- podia ser trocado
+ * pelo cliente a vontade. O painel que esconde o modulo nao resolvia nada
+ * disso.
+ */
+describe('colecoes respeitam o modulo do site', () => {
+  const TODOS = [
+    'institucional',
+    'contato',
+    'banners',
+    'imoveis',
+    'obras',
+    'servicos',
+  ] as const;
+
+  /** Deixa habilitado tudo menos o modulo informado. */
+  async function desabilitar(moduleKey: string) {
+    const response = await configurar(
+      empresa.siteId,
+      TODOS.map((key) => ({ key, enabled: key !== moduleKey })),
+    );
+    expect(response.status, response.errorMessage ?? '').toBe(200);
+  }
+
+  const cenarios = [
+    { modulo: 'imoveis', caminho: 'properties', corpo: { title: 'Casa no centro', type: 'casa', purpose: 'venda' } },
+    { modulo: 'obras', caminho: 'projects', corpo: { title: 'Residencial Aurora', category: 'residencial' } },
+    { modulo: 'servicos', caminho: 'services', corpo: { title: 'Consultoria' } },
+  ];
+
+  it.each(cenarios)('sem o modulo $modulo a listagem nao responde', async ({ modulo, caminho }) => {
+    await desabilitar(modulo);
+
+    const response = await empresa.client.get(`/api/tenants/${empresa.tenantId}/${caminho}`);
+
+    // 403 e nao lista vazia: uma lista vazia sugere que poderia ser
+    // preenchida, e este site nao tem o modulo.
+    expect(response.status).toBe(403);
+    expect(response.errorMessage).toContain('nao esta habilitado');
+  });
+
+  it.each(cenarios)('sem o modulo $modulo a criacao e recusada', async ({ modulo, caminho, corpo }) => {
+    await desabilitar(modulo);
+
+    const response = await empresa.client.post(
+      `/api/tenants/${empresa.tenantId}/${caminho}`,
+      corpo,
+    );
+
+    expect(response.status).toBe(403);
+  });
+
+  it.each(cenarios)('com o modulo $modulo habilitado a criacao segue normal', async ({ caminho, corpo }) => {
+    const response = await empresa.client.post(
+      `/api/tenants/${empresa.tenantId}/${caminho}`,
+      corpo,
+    );
+
+    expect(response.status, response.errorMessage ?? '').toBe(201);
+  });
+});
+
+describe('campo travado nas colecoes', () => {
+  /** Cria um imovel e devolve o id. */
+  async function criarImovel(): Promise<string> {
+    const response = await empresa.client.post(`/api/tenants/${empresa.tenantId}/properties`, {
+      title: 'Apartamento Jardim',
+      type: 'apartamento',
+      purpose: 'venda',
+    });
+    expect(response.status, response.errorMessage ?? '').toBe(201);
+    return response.body.property.id as string;
+  }
+
+  it('o endereco na URL nao e alterado pelo cliente', async () => {
+    const id = await criarImovel();
+
+    const response = await empresa.client.patch(
+      `/api/tenants/${empresa.tenantId}/properties/${id}`,
+      { slug: 'outro-endereco' },
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.errorMessage).toContain('Endereco na URL');
+  });
+
+  it('reenviar o mesmo endereco na URL nao e alteracao', async () => {
+    const id = await criarImovel();
+    const atual = await empresa.client.get(`/api/tenants/${empresa.tenantId}/properties/${id}`);
+
+    // O formulario reenvia tudo: recusar por reenviar o mesmo valor tornaria
+    // a tela impossivel de usar.
+    const response = await empresa.client.patch(
+      `/api/tenants/${empresa.tenantId}/properties/${id}`,
+      { slug: atual.body.property.slug, title: 'Apartamento Jardim II' },
+    );
+
+    expect(response.status, response.errorMessage ?? '').toBe(200);
+    expect(response.body.property.title).toBe('Apartamento Jardim II');
+  });
+
+  it('a moeda do imovel e definida com a CODECA IA', async () => {
+    const response = await empresa.client.post(`/api/tenants/${empresa.tenantId}/properties`, {
+      title: 'Sala comercial',
+      type: 'sala_comercial',
+      purpose: 'venda',
+      currency: 'USD',
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.errorMessage).toContain('Moeda');
+  });
+
+  it('a moeda preenchida pelo schema nao conta como escolha do cliente', async () => {
+    // O cliente nao mandou `currency`: o Zod preencheu com o padrao. Tratar
+    // isso como alteracao recusaria toda criacao de imovel.
+    const response = await empresa.client.post(`/api/tenants/${empresa.tenantId}/properties`, {
+      title: 'Terreno na praia',
+      type: 'terreno',
+      purpose: 'venda',
+    });
+
+    expect(response.status, response.errorMessage ?? '').toBe(201);
+    expect(response.body.property.currency).toBe('BRL');
+  });
+
+  it('a excecao do site libera o campo travado', async () => {
+    const id = await criarImovel();
+    const liberacao = await configurar(
+      empresa.siteId,
+      [{ key: 'imoveis', enabled: true }],
+      [{ moduleKey: 'imoveis', fieldKey: 'slug', editable: true }],
+    );
+    expect(liberacao.status, liberacao.errorMessage ?? '').toBe(200);
+
+    const response = await empresa.client.patch(
+      `/api/tenants/${empresa.tenantId}/properties/${id}`,
+      { slug: 'endereco-escolhido-pelo-cliente' },
+    );
+
+    expect(response.status, response.errorMessage ?? '').toBe(200);
+    expect(response.body.property.slug).toBe('endereco-escolhido-pelo-cliente');
+  });
+});

@@ -605,3 +605,40 @@ export interface IssuedKey {
   scopes: string[];
   token: string;
 }
+
+/** Banner da abertura do site. */
+export interface BannerRecord {
+  id: string;
+  title: string;
+  subtitle: string;
+  imageId: string | null;
+  image: MediaRef | null;
+  buttonLabel: string;
+  buttonUrl: string;
+  sortOrder: number;
+  isActive: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** O que o painel do cliente desenha para o site dele. */
+export interface SiteModulesResponse {
+  siteId: string;
+  modules: SiteModuleView[];
+}
+
+/**
+ * Conteudo de um modulo de instancia unica.
+ *
+ * `fields` acompanha o documento porque a tela precisa saber, campo a campo,
+ * o que este site deixa editar -- e a resposta e a mesma que a escrita
+ * confere.
+ */
+export interface ModuleDocumentResponse {
+  moduleKey: string;
+  data: Record<string, unknown>;
+  fields: SiteModuleFieldView[];
+  updatedAt: string | null;
+}

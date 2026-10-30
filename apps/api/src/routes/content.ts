@@ -16,10 +16,25 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
-import { created, noContent, ok, parseJsonBody, parseParams, parseQuery } from '../lib/http.js';
+import {
+  created,
+  noContent,
+  ok,
+  parseJsonBody,
+  parseJsonBodyWithRaw,
+  parseParams,
+  parseQuery,
+} from '../lib/http.js';
 import { assertMediaBelongsToTenant, loadMediaByIds } from '../lib/media-refs.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
 import { requireCapability, tenantMiddleware } from '../middleware/auth.js';
+import {
+  assertEditableCreate,
+  assertEditablePatch,
+  assertModuleEnabled,
+  loadSiteModules,
+} from '../lib/modules.js';
+import { requireModule } from '../middleware/modules.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -32,6 +47,10 @@ import type { AppBindings } from '../types.js';
 export function contentRoutes() {
   const app = new Hono<AppBindings>();
   app.use('/:tenantId/*', tenantMiddleware());
+  // Depoimentos, equipe e perguntas frequentes nao sao modulos do registro e
+  // seguem valendo para todo site; so os servicos dependem de habilitacao.
+  app.use('/:tenantId/services', requireModule('servicos'));
+  app.use('/:tenantId/services/*', requireModule('servicos'));
 
   // ----------------------------------------------------------- servicos
   app.get('/:tenantId/services', requireCapability('content:read'), async (c) => {
@@ -74,7 +93,11 @@ export function contentRoutes() {
   app.post('/:tenantId/services', requireCapability('content:write'), async (c) => {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
-    const input = await parseJsonBody(c, serviceInputSchema);
+    const { data: input, raw } = await parseJsonBodyWithRaw(c, serviceInputSchema);
+
+    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
+    assertEditableCreate('servicos', raw, overrides);
+
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.imageId]);
 
     const slug = await buildUniqueSlug(ctx.db, 'services', {
@@ -116,6 +139,16 @@ export function contentRoutes() {
     const tenant = c.get('tenant');
     const { serviceId } = parseParams(c, z.object({ tenantId: uuidSchema, serviceId: uuidSchema }));
     const input = await parseJsonBody(c, serviceUpdateSchema);
+
+    const [atual] = await ctx.db
+      .select()
+      .from(schema.services)
+      .where(and(eq(schema.services.id, serviceId), eq(schema.services.tenantId, tenant.tenantId)));
+    if (!atual) throw AppError.notFound('Servico nao encontrado.');
+
+    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
+    assertEditablePatch('servicos', atual, input as Record<string, unknown>, overrides);
+
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.imageId ?? null]);
 
     const updates: Record<string, unknown> = { updatedAt: ctx.now() };
@@ -399,6 +432,12 @@ export function contentRoutes() {
       z.object({ tenantId: uuidSchema, entity: z.enum(['services', 'testimonials', 'team', 'faqs']) }),
     );
     const input = await parseJsonBody(c, reorderSchema);
+
+    // Esta rota atende quatro entidades, entao a verificacao de modulo nao
+    // cabe no middleware: so a de servicos tem modulo no registro.
+    if (entity === 'services') {
+      await assertModuleEnabled(ctx.db, tenant.siteId, 'servicos');
+    }
 
     const table =
       entity === 'services'

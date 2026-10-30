@@ -31,6 +31,7 @@ import {
 } from '@codeca/ui';
 import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useMutation, useResource } from '../hooks/useResource.js';
+import { useModulePolicy } from '../hooks/useSiteModules.js';
 import { projectApi } from '../services/endpoints.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { GalleryField, ImageField } from '../components/MediaPicker.js';
@@ -295,6 +296,7 @@ function ProjectFormModal({
   onSaved: () => void;
 }) {
   const tenantId = useTenantId();
+  const politica = useModulePolicy('obras');
   const toast = useToast();
   const form = useForm({ ...EMPTY_PROJECT });
   const [cover, setCover] = useState<MediaRef | null>(null);
@@ -338,7 +340,9 @@ function ProjectFormModal({
   const save = useMutation(
     () => {
       const values = form.values;
-      const body = {
+      // Campo travado sai do corpo: reenvia-lo levaria 403 mesmo sem o
+      // cliente ter tocado nele.
+      const body = politica.semTravados({
         title: values.title,
         ...(values.slug ? { slug: values.slug } : {}),
         shortDescription: values.shortDescription,
@@ -360,7 +364,7 @@ function ProjectFormModal({
         seoDescription: values.seoDescription,
         coverImageId: values.coverImageId,
         galleryImageIds: values.galleryImageIds,
-      };
+      });
       return projectId ? projectApi.update(tenantId, projectId, body) : projectApi.create(tenantId, body);
     },
     {
@@ -411,6 +415,11 @@ function ProjectFormModal({
               value={values.slug}
               error={errors.slug}
               placeholder={slugify(values.title)}
+              readOnly={!politica.editavel('slug')}
+              disabled={!politica.editavel('slug')}
+              {...(politica.travaExplicada('slug')
+                ? { hint: politica.travaExplicada('slug')! }
+                : {})}
               onChange={(event) => setField('slug', slugify(event.target.value))}
             />
             <Select

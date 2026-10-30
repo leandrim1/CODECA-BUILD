@@ -5,25 +5,25 @@ import {
   ChevronDown,
   CreditCard,
   Globe,
+  GalleryHorizontalEnd,
   HardHat,
   Image,
   LayoutDashboard,
-  LayoutTemplate,
   LogOut,
   type LucideIcon,
+  Mail,
   Menu,
-  Palette,
-  PanelsTopLeft,
-  Search,
   Settings,
   ShieldCheck,
   Sparkles,
+  Store,
   Users,
   Wrench,
   X,
 } from 'lucide-react';
 import { Badge, Button, Spinner, cx } from '@codeca/ui';
 import { useAuth } from '../hooks/useAuth.js';
+import { useSiteModules } from '../hooks/useSiteModules.js';
 import { labels, tenantTone } from '../utils/labels.js';
 
 /**
@@ -39,6 +39,13 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   capability?: Parameters<ReturnType<typeof useAuth>['can']>[0];
+  /**
+   * Modulo que precisa estar habilitado para este site.
+   *
+   * Sem modulo, o item vale para todo site: midia, interessados, dominio,
+   * equipe, plano e empresa nao dependem de como o projeto foi montado.
+   */
+  module?: string;
   end?: boolean;
 }
 
@@ -47,27 +54,70 @@ interface NavGroup {
   items: NavItem[];
 }
 
+/**
+ * Menu do painel.
+ *
+ * Dois filtros, e eles respondem a perguntas diferentes: `capability` e sobre
+ * o **papel de quem entrou**, `module` e sobre o **site da empresa**. Um
+ * editor nao ve a equipe; um site institucional sem carteira nao ve imoveis.
+ * Nenhum dos dois protege nada por si -- o servidor recusa a operacao de
+ * qualquer forma -- mas um menu que oferece o que nao existe e um painel que
+ * parece quebrado.
+ */
 const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Visao geral',
     items: [{ to: '/painel', label: 'Visao geral', icon: LayoutDashboard, end: true }],
   },
   {
-    title: 'Site',
+    title: 'Conteudo do site',
     items: [
-      { to: '/painel/editor', label: 'Editor do site', icon: LayoutTemplate, capability: 'site:edit' },
-      { to: '/painel/paginas', label: 'Paginas', icon: PanelsTopLeft, capability: 'site:read' },
-      { to: '/painel/personalizacao', label: 'Personalizacao', icon: Palette, capability: 'site:read' },
-      { to: '/painel/midia', label: 'Biblioteca de imagens', icon: Image, capability: 'media:read' },
-    ],
-  },
-  {
-    title: 'Conteudo',
-    items: [
-      { to: '/painel/imoveis', label: 'Imoveis', icon: Building2, capability: 'content:read' },
-      { to: '/painel/obras', label: 'Obras e projetos', icon: HardHat, capability: 'content:read' },
-      { to: '/painel/servicos', label: 'Servicos', icon: Wrench, capability: 'content:read' },
+      {
+        to: '/painel/institucional',
+        label: 'Institucional',
+        icon: Store,
+        capability: 'content:read',
+        module: 'institucional',
+      },
+      {
+        to: '/painel/contato',
+        label: 'Contato',
+        icon: Mail,
+        capability: 'content:read',
+        module: 'contato',
+      },
+      {
+        to: '/painel/banners',
+        label: 'Banners',
+        icon: GalleryHorizontalEnd,
+        capability: 'content:read',
+        module: 'banners',
+      },
+      {
+        to: '/painel/imoveis',
+        label: 'Imoveis',
+        icon: Building2,
+        capability: 'content:read',
+        module: 'imoveis',
+      },
+      {
+        to: '/painel/obras',
+        label: 'Obras e projetos',
+        icon: HardHat,
+        capability: 'content:read',
+        module: 'obras',
+      },
+      {
+        to: '/painel/servicos',
+        label: 'Servicos',
+        icon: Wrench,
+        capability: 'content:read',
+        module: 'servicos',
+      },
+      // Depoimentos, equipe e perguntas frequentes ainda nao sao modulos do
+      // registro, entao valem para todo site.
       { to: '/painel/galeria', label: 'Galeria e depoimentos', icon: Sparkles, capability: 'content:read' },
+      { to: '/painel/midia', label: 'Biblioteca de imagens', icon: Image, capability: 'media:read' },
     ],
   },
   {
@@ -78,7 +128,6 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Configuracoes',
     items: [
       { to: '/painel/dominio', label: 'Dominio proprio', icon: Globe, capability: 'domains:read' },
-      { to: '/painel/seo', label: 'SEO', icon: Search, capability: 'seo:read' },
       { to: '/painel/equipe', label: 'Equipe e usuarios', icon: ShieldCheck, capability: 'members:read' },
       { to: '/painel/plano', label: 'Plano e assinatura', icon: CreditCard, capability: 'billing:read' },
       { to: '/painel/empresa', label: 'Configuracoes da empresa', icon: Settings, capability: 'tenant:read' },
@@ -88,6 +137,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 export function DashboardLayout() {
   const { tenant, memberships, user, selectTenant, logout, isPlatformAdmin, can } = useAuth();
+  const { enabled } = useSiteModules();
   const [menuOpen, setMenuOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const location = useLocation();
@@ -96,7 +146,13 @@ export function DashboardLayout() {
 
   const visibleGroups = NAV_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => !item.capability || can(item.capability)),
+    items: group.items.filter((item) => {
+      if (item.capability && !can(item.capability)) return false;
+      if (!item.module) return true;
+      // Enquanto a configuracao nao chega, o item de modulo fica fora: e
+      // melhor o menu crescer do que oferecer uma tela que nao existe.
+      return enabled(item.module);
+    }),
   })).filter((group) => group.items.length > 0);
 
   return (

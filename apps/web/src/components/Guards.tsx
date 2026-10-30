@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Alert, Button, EmptyState, Spinner } from '@codeca/ui';
-import { Building2 } from 'lucide-react';
+import { Building2, PackageOpen } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
+import { useSiteModules } from '../hooks/useSiteModules.js';
 
 /** Telas de espera, protecao de rotas e estados de erro reutilizaveis. */
 
@@ -76,6 +77,46 @@ export function RequirePlatformAdmin({ children }: { children: ReactNode }) {
       </div>
     );
   }
+  return <>{children}</>;
+}
+
+/**
+ * Exige que o modulo esteja habilitado para o site da empresa.
+ *
+ * O menu nao mostra a tela, mas o endereco continua digitavel e um link
+ * antigo continua existindo. Aqui a resposta e explicita: este site nao tem
+ * esse modulo, e quem resolve isso e a CODECA IA -- nao e falha do cliente
+ * nem algo que ele possa ligar sozinho.
+ */
+export function RequireModule({
+  moduleKey,
+  children,
+}: {
+  moduleKey: string;
+  children: ReactNode;
+}) {
+  const { enabled, loading, module } = useSiteModules();
+
+  if (loading) {
+    return (
+      <div className="panel-shell">
+        <Spinner label="Carregando o site" />
+      </div>
+    );
+  }
+
+  if (!enabled(moduleKey)) {
+    return (
+      <div className="panel-shell">
+        <EmptyState
+          icon={<PackageOpen aria-hidden="true" className="size-10" />}
+          title={`${module(moduleKey)?.name ?? 'Este recurso'} nao faz parte deste site`}
+          description="Cada site da CODECA IA e montado com os modulos que o projeto precisa. Para incluir este, fale com a equipe que desenvolveu o seu site."
+        />
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }
 

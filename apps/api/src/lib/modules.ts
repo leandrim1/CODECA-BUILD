@@ -136,3 +136,62 @@ export function assertEditableChanges(
   }
   return mudou;
 }
+
+/**
+ * Recusa a criacao de um registro que define campo travado para este site.
+ *
+ * Recebe o corpo **como chegou**, e nao o resultado do schema: um valor que o
+ * Zod preencheu por omissao nao e escolha do cliente, e tratar o padrao como
+ * alteracao recusaria toda criacao assim que qualquer campo com padrao fosse
+ * travado.
+ */
+export function assertEditableCreate(
+  moduleKey: ModuleKey,
+  bruto: Record<string, unknown>,
+  overrides: FieldPolicyOverrides,
+): string[] {
+  const enviadas = Object.keys(bruto).filter((chave) => bruto[chave] !== undefined);
+  const travados = blockedFields(moduleKey, enviadas, overrides);
+  if (travados.length > 0) {
+    const rotulos = travados.map((key) => {
+      const campo = MODULE_REGISTRY[moduleKey].fields.find((f) => f.key === key);
+      return campo?.label ?? key;
+    });
+    throw AppError.forbidden(
+      `Estes campos sao mantidos pela CODECA IA e nao podem ser definidos aqui: ${rotulos.join(', ')}.`,
+    );
+  }
+  return enviadas;
+}
+
+/**
+ * Versao de `assertEditableChanges` para alteracao parcial de um registro.
+ *
+ * Um `PATCH` manda so o que a tela editou, e a linha do banco tem colunas que
+ * nao sao campos de modulo (`id`, `createdAt`). Comparar os dois inteiros
+ * acusaria essas colunas como alteradas e recusaria toda alteracao, entao a
+ * comparacao se restringe as chaves efetivamente enviadas.
+ */
+export function assertEditablePatch(
+  moduleKey: ModuleKey,
+  atual: Record<string, unknown>,
+  enviado: Record<string, unknown>,
+  overrides: FieldPolicyOverrides,
+): string[] {
+  const enviadas = Object.keys(enviado).filter((chave) => enviado[chave] !== undefined);
+  const recorte = Object.fromEntries(enviadas.map((chave) => [chave, normalize(atual[chave])]));
+  const submetido = Object.fromEntries(enviadas.map((chave) => [chave, normalize(enviado[chave])]));
+  return assertEditableChanges(moduleKey, recorte, submetido, overrides);
+}
+
+/**
+ * Aproxima a forma do banco da forma do JSON.
+ *
+ * Uma coluna `date` volta como `Date` e chega como texto; sem isto, reenviar
+ * a mesma data contaria como alteracao e um campo de data travado nunca
+ * poderia ser reenviado pelo formulario.
+ */
+function normalize(valor: unknown): unknown {
+  if (valor instanceof Date) return valor.toISOString().slice(0, 10);
+  return valor ?? null;
+}

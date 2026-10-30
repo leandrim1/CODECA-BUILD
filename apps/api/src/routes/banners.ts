@@ -4,9 +4,21 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
-import { created, noContent, ok, parseJsonBody, parseParams } from '../lib/http.js';
+import {
+  created,
+  noContent,
+  ok,
+  parseJsonBody,
+  parseJsonBodyWithRaw,
+  parseParams,
+} from '../lib/http.js';
 import { assertMediaBelongsToTenant } from '../lib/media-refs.js';
-import { assertEditableChanges, assertModuleEnabled, loadSiteModules } from '../lib/modules.js';
+import {
+  assertEditableChanges,
+  assertEditableCreate,
+  assertModuleEnabled,
+  loadSiteModules,
+} from '../lib/modules.js';
 import { requireCapability, tenantMiddleware } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
@@ -42,12 +54,11 @@ export function bannerRoutes() {
     const tenant = c.get('tenant');
     await assertModuleEnabled(ctx.db, tenant.siteId, 'banners');
 
-    const input = await parseJsonBody(c, bannerInputSchema);
+    const { data: input, raw } = await parseJsonBodyWithRaw(c, bannerInputSchema);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.imageId]);
 
     const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
-    // Na criacao tudo e alteracao: o documento de partida e vazio.
-    assertEditableChanges('banners', {}, input as unknown as Record<string, unknown>, overrides);
+    assertEditableCreate('banners', raw, overrides);
 
     const [row] = await ctx.db
       .insert(schema.banners)

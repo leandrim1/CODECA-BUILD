@@ -32,6 +32,7 @@ import {
 } from '@codeca/ui';
 import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useDebounced, useMutation, useResource } from '../hooks/useResource.js';
+import { useModulePolicy } from '../hooks/useSiteModules.js';
 import { propertyApi } from '../services/endpoints.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { GalleryField, ImageField } from '../components/MediaPicker.js';
@@ -369,6 +370,7 @@ function PropertyFormModal({
   onSaved: () => void;
 }) {
   const tenantId = useTenantId();
+  const politica = useModulePolicy('imoveis');
   const toast = useToast();
   const form = useForm({ ...EMPTY_FORM });
   const [cover, setCover] = useState<MediaRef | null>(null);
@@ -426,7 +428,9 @@ function PropertyFormModal({
 
   function payload() {
     const values = form.values;
-    return {
+    // Campo travado sai do corpo: reenvia-lo levaria 403 mesmo sem o cliente
+    // ter tocado nele, e o servidor sabe o proprio valor.
+    return politica.semTravados({
       title: values.title,
       ...(values.slug ? { slug: values.slug } : {}),
       reference: values.reference,
@@ -465,7 +469,7 @@ function PropertyFormModal({
       seoDescription: values.seoDescription,
       coverImageId: values.coverImageId,
       galleryImageIds: values.galleryImageIds,
-    };
+    });
   }
 
   const save = useMutation(
@@ -519,7 +523,12 @@ function PropertyFormModal({
               value={values.slug}
               error={errors.slug}
               placeholder={slugify(values.title)}
-              hint="Gerado a partir do titulo quando vazio."
+              readOnly={!politica.editavel('slug')}
+              disabled={!politica.editavel('slug')}
+              hint={
+                politica.travaExplicada('slug') ??
+                'Gerado a partir do titulo quando vazio.'
+              }
               onChange={(event) => setField('slug', slugify(event.target.value))}
             />
             <TextInput
@@ -582,6 +591,10 @@ function PropertyFormModal({
               label="Moeda"
               value={values.currency}
               options={CURRENCIES.map((code) => ({ value: code, label: code }))}
+              disabled={!politica.editavel('currency')}
+              {...(politica.travaExplicada('currency')
+                ? { hint: politica.travaExplicada('currency')! }
+                : {})}
               onChange={(event) => setField('currency', event.target.value)}
             />
             <TextInput

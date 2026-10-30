@@ -10,7 +10,8 @@ import { cx } from './utils.js';
  */
 
 export interface FieldShellProps {
-  label: string;
+  /** Aceita no para rotulos com marcacao, como o cadeado de campo travado. */
+  label: ReactNode;
   hint?: string;
   error?: string | undefined;
   required?: boolean;
@@ -52,7 +53,7 @@ const CONTROL =
   + 'aria-[invalid=true]:border-rose-400 aria-[invalid=true]:focus:outline-rose-400/40';
 
 export interface TextInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
-  label: string;
+  label: ReactNode;
   hint?: string;
   error?: string | undefined;
 }
@@ -75,7 +76,7 @@ export function TextInput({ label, hint, error, required, className, ...rest }: 
 }
 
 export interface TextAreaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'id'> {
-  label: string;
+  label: ReactNode;
   hint?: string;
   error?: string | undefined;
 }

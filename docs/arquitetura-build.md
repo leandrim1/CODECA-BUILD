@@ -120,7 +120,16 @@ Dois cuidados que valem registro:
 - **O registro e o schema nao podem derivar.** O registro descreve os campos
   que o painel desenha e a politica governa; o schema valida o que entra no
   banco. Afastados, um campo passa a existir na tela sem validacao, ou a ser
-  validado sem ninguem poder edita-lo. Um teste confere os dois sentidos.
+  validado sem ninguem poder edita-lo. Um teste confere os dois sentidos, nos
+  documentos **e nas colecoes**.
+
+  A verificacao das colecoes nasceu de um caso real: `imoveis`, `obras` e
+  `servicos` vieram de antes do registro, e dezenove campos que a API aceitava
+  (`currency`, `builtAreaM2`, `showLocation`, `seoTitle`, `sortOrder` entre
+  eles) nunca foram declarados. Como `isFieldEditable` nega o que nao foi
+  declarado, cada um era um campo gravavel que a politica considerava travado
+  -- uma contradicao que so apareceu quando a verificacao passou a valer para
+  as colecoes.
 - **A politica guarda so as excecoes.** Uma linha por campo de cada site
   repetiria o padrao e envelheceria sozinha: um campo acrescentado hoje
   ficaria invisivel para todo site configurado ontem.
@@ -190,6 +199,61 @@ Continua como esta: sessao com cookie, CSRF, e permissao verificada no
 servidor em toda operacao. As chaves de integracao **nao** dao acesso ao
 painel, e a sessao do painel **nao** serve para a API publica. Dois mundos
 separados de proposito.
+
+### O painel do cliente se adapta ao site
+
+O menu do painel nao e fixo. `GET /api/tenants/:tenantId/modules` responde o
+que aquele projeto tem, e a moldura monta o menu a partir dessa resposta --
+carregada uma vez, num contexto, e nao tela por tela.
+
+Dois filtros convivem no menu e respondem a perguntas diferentes:
+
+| Filtro | Pergunta | Exemplo |
+| --- | --- | --- |
+| `capability` | o papel de **quem entrou** alcanca isto? | um editor nao ve Equipe |
+| `module` | o **site da empresa** tem isto? | um site institucional nao ve Imoveis |
+
+Midia, interessados, dominio, equipe, plano e empresa nao tem modulo: valem
+para todo site, porque nao dependem de como o projeto foi montado.
+
+**Esconder na tela nao e proteger.** O endereco continua digitavel e um link
+antigo continua existindo, entao cada rota de modulo tem `RequireModule`, que
+explica que o site nao tem aquele modulo em vez de mostrar uma tela vazia. E,
+antes disso, a API recusa: `requireModule` nas rotas de imoveis, obras e
+servicos, inclusive na **leitura** -- uma lista vazia sugere que poderia ser
+preenchida.
+
+#### Campo travado aparece, e sai do corpo
+
+A tela mostra o campo travado com o valor e um cadeado, e nao o esconde: o
+cliente que nao ve o dado acha que ele nao existe e pede para cadastrar algo
+que ja esta lá.
+
+Na gravacao, porem, o campo travado **sai do corpo**. Todo formulario reenvia
+tudo, e reenviar o campo travado levaria 403 em cada gravacao mesmo sem o
+cliente ter tocado nele; sem o campo, o servidor usa o proprio valor -- a
+moeda padrao do imovel, o endereco derivado do titulo.
+
+Na criacao a conta e diferente da alteracao. `assertEditableCreate` olha o
+corpo **como chegou**, nao o resultado do schema: um valor que o Zod preencheu
+por omissao nao e escolha do cliente, e tratar o padrao como escolha recusaria
+toda criacao de imovel assim que a moeda fosse travada.
+
+#### Os documentos ganham uma tela so
+
+`institucional` e `contato` dividem `DocumentModulePage`, que desenha o
+formulario a partir dos campos que a API devolve. Uma tela por modulo
+significaria que habilitar um modulo novo exige deploy do painel -- o oposto
+do que a secao 6 promete.
+
+#### O que ainda nao e modulo
+
+Depoimentos, equipe e perguntas frequentes continuam no painel, fora do
+registro, e por isso aparecem para todo site. Vale registrar o incomodo: como
+nao estao no registro, tambem **nao estao em `/api/v1` nem no SDK** -- o
+cliente edita um conteudo que nenhum site consegue ler. Transforma-los em
+modulo (com rota publica e tipo no SDK) ou retira-los do painel e uma decisao
+em aberto.
 
 ### A tela de configuracao, em `/plataforma/sites`
 
@@ -405,7 +469,7 @@ plataforma utilizavel ao final.
 | 0 | Remocao do renderizador e do editor visual | — | **feita** |
 | 1 | Entidade `site`, migracao e isolamento em dois niveis | — | **feita** |
 | 2 | Registro de modulos, habilitacao e politica de campos por site | 1 | **feita** |
-| 3 | Painel que se adapta aos modulos do site | 2 | pendente |
+| 3 | Painel que se adapta aos modulos do site | 2 | **feita** |
 | 4 | Chaves de integracao, origens, limites e auditoria | 1 | **feita** |
 | 5 | API publica `/api/v1` com escopo por chave | 2, 4 | **feita** |
 | 6 | `@codeca/sdk` com tipos, documentacao e exemplo integravel | 5 | **feita** |

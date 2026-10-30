@@ -1,7 +1,10 @@
 import { api, query } from './api.js';
 import type {
+  BannerRecord,
   IssuedKey,
+  ModuleDocumentResponse,
   PlatformSite,
+  SiteModulesResponse,
   SiteApiKeyRow,
   SiteModuleView,
   SiteStatus,
@@ -180,6 +183,40 @@ export const contentApi = {
 
   reorder: (tenantId: string, entity: 'services' | 'testimonials' | 'team' | 'faqs', ids: string[]) =>
     api.post<unknown>(`${tenantBase(tenantId)}/content/${entity}/reorder`, { ids }),
+};
+
+/**
+ * Modulos do site e conteudo dos de instancia unica.
+ *
+ * O painel pergunta aqui o que desenhar. Nenhuma tela do cliente decide
+ * sozinha o que mostrar: a resposta vem do site configurado pela CODECA IA.
+ */
+export const moduleApi = {
+  list: (tenantId: string) =>
+    api.get<SiteModulesResponse>(`${tenantBase(tenantId)}/modules`),
+
+  document: (tenantId: string, moduleKey: string) =>
+    api.get<ModuleDocumentResponse>(`${tenantBase(tenantId)}/modules/${moduleKey}/document`),
+
+  saveDocument: (tenantId: string, moduleKey: string, body: Record<string, unknown>) =>
+    api.put<{ moduleKey: string; data: Record<string, unknown> }>(
+      `${tenantBase(tenantId)}/modules/${moduleKey}/document`,
+      body,
+    ),
+};
+
+export const bannerApi = {
+  list: (tenantId: string) =>
+    api.get<{ banners: BannerRecord[] }>(`${tenantBase(tenantId)}/banners`),
+
+  create: (tenantId: string, body: unknown) =>
+    api.post<{ banner: BannerRecord }>(`${tenantBase(tenantId)}/banners`, body),
+
+  update: (tenantId: string, bannerId: string, body: unknown) =>
+    api.patch<{ banner: BannerRecord }>(`${tenantBase(tenantId)}/banners/${bannerId}`, body),
+
+  remove: (tenantId: string, bannerId: string) =>
+    api.delete<void>(`${tenantBase(tenantId)}/banners/${bannerId}`),
 };
 
 export const mediaApi = {

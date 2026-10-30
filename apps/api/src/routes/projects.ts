@@ -14,11 +14,25 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
-import { created, noContent, ok, parseJsonBody, parseParams, parseQuery } from '../lib/http.js';
+import {
+  created,
+  noContent,
+  ok,
+  parseJsonBody,
+  parseJsonBodyWithRaw,
+  parseParams,
+  parseQuery,
+} from '../lib/http.js';
 import { assertMediaBelongsToTenant, loadGallery, loadMediaByIds, syncGallery } from '../lib/media-refs.js';
 import { assertWithinLimit } from '../lib/plan-limits.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
 import { requireCapability, sessionOf, tenantMiddleware } from '../middleware/auth.js';
+import {
+  assertEditableCreate,
+  assertEditablePatch,
+  loadSiteModules,
+} from '../lib/modules.js';
+import { requireModule } from '../middleware/modules.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -34,6 +48,8 @@ const projectParams = z.object({ tenantId: uuidSchema, projectId: uuidSchema });
 export function projectRoutes() {
   const app = new Hono<AppBindings>();
   app.use('/:tenantId/*', tenantMiddleware());
+  app.use('/:tenantId/projects', requireModule('obras'));
+  app.use('/:tenantId/projects/*', requireModule('obras'));
 
   app.get('/:tenantId/projects', requireCapability('content:read'), async (c) => {
     const ctx = c.get('ctx');
@@ -136,7 +152,10 @@ export function projectRoutes() {
   app.post('/:tenantId/projects', requireCapability('content:write'), async (c) => {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
-    const input = await parseJsonBody(c, projectInputSchema);
+    const { data: input, raw } = await parseJsonBodyWithRaw(c, projectInputSchema);
+
+    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
+    assertEditableCreate('obras', raw, overrides);
 
     await assertWithinLimit(ctx.db, tenant.tenantId, 'maxProjects');
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.coverImageId, ...input.galleryImageIds]);
@@ -204,6 +223,9 @@ export function projectRoutes() {
       .from(schema.projects)
       .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, tenant.tenantId)));
     if (!current) throw AppError.notFound('Obra nao encontrada.');
+
+    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
+    assertEditablePatch('obras', current, input as Record<string, unknown>, overrides);
 
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [
       input.coverImageId ?? null,

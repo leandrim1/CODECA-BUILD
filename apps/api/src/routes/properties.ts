@@ -13,11 +13,21 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
-import { created, noContent, ok, parseJsonBody, parseParams, parseQuery } from '../lib/http.js';
+import {
+  created,
+  noContent,
+  ok,
+  parseJsonBody,
+  parseJsonBodyWithRaw,
+  parseParams,
+  parseQuery,
+} from '../lib/http.js';
 import { assertMediaBelongsToTenant, loadGallery, loadMediaByIds, syncGallery } from '../lib/media-refs.js';
+import { assertEditableCreate, assertEditablePatch, loadSiteModules } from '../lib/modules.js';
 import { assertWithinLimit, loadEffectivePlan } from '../lib/plan-limits.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
 import { requireCapability, tenantMiddleware } from '../middleware/auth.js';
+import { requireModule } from '../middleware/modules.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -34,6 +44,9 @@ const propertyParams = z.object({ tenantId: uuidSchema, propertyId: uuidSchema }
 export function propertyRoutes() {
   const app = new Hono<AppBindings>();
   app.use('/:tenantId/*', tenantMiddleware());
+  // Site sem o modulo nao tem imovel nenhum -- nem para ler.
+  app.use('/:tenantId/properties', requireModule('imoveis'));
+  app.use('/:tenantId/properties/*', requireModule('imoveis'));
 
   // ------------------------------------------------------------ listagem
   app.get('/:tenantId/properties', requireCapability('content:read'), async (c) => {
@@ -162,7 +175,10 @@ export function propertyRoutes() {
   app.post('/:tenantId/properties', requireCapability('content:write'), async (c) => {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
-    const input = await parseJsonBody(c, propertyInputSchema);
+    const { data: input, raw } = await parseJsonBodyWithRaw(c, propertyInputSchema);
+
+    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
+    assertEditableCreate('imoveis', raw, overrides);
 
     if (input.publicationStatus === 'published') {
       await assertWithinLimit(ctx.db, tenant.tenantId, 'maxPublishedProperties');
@@ -243,6 +259,9 @@ export function propertyRoutes() {
       .from(schema.properties)
       .where(and(eq(schema.properties.id, propertyId), eq(schema.properties.tenantId, tenant.tenantId)));
     if (!current) throw AppError.notFound('Imovel nao encontrado.');
+
+    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
+    assertEditablePatch('imoveis', current, input as Record<string, unknown>, overrides);
 
     // Publicar um imovel que estava em rascunho consome uma vaga do plano.
     if (input.publicationStatus === 'published' && current.publicationStatus !== 'published') {

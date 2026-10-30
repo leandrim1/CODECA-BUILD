@@ -20,6 +20,7 @@ import {
 } from '@codeca/ui';
 import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useMutation, useResource } from '../hooks/useResource.js';
+import { useModulePolicy } from '../hooks/useSiteModules.js';
 import { contentApi } from '../services/endpoints.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { ImageField } from '../components/MediaPicker.js';
@@ -158,6 +159,7 @@ function ServiceFormModal({
   onSaved: () => void;
 }) {
   const tenantId = useTenantId();
+  const politica = useModulePolicy('servicos');
   const toast = useToast();
   const form = useForm({
     title: service?.title ?? '',
@@ -193,7 +195,9 @@ function ServiceFormModal({
 
   const save = useMutation(
     () => {
-      const body = {
+      // Campo travado sai do corpo: reenvia-lo levaria 403 mesmo sem o
+      // cliente ter tocado nele.
+      const body = politica.semTravados({
         title: form.values.title,
         ...(form.values.slug ? { slug: form.values.slug } : {}),
         summary: form.values.summary,
@@ -204,7 +208,7 @@ function ServiceFormModal({
         imageId: form.values.imageId,
         seoTitle: form.values.seoTitle,
         seoDescription: form.values.seoDescription,
-      };
+      });
       return service ? contentApi.updateService(tenantId, service.id, body) : contentApi.createService(tenantId, body);
     },
     {
@@ -251,6 +255,11 @@ function ServiceFormModal({
           value={values.slug}
           error={errors.slug}
           placeholder={slugify(values.title)}
+          readOnly={!politica.editavel('slug')}
+          disabled={!politica.editavel('slug')}
+          {...(politica.travaExplicada('slug')
+            ? { hint: politica.travaExplicada('slug')! }
+            : {})}
           onChange={(event) => setField('slug', slugify(event.target.value))}
         />
         <TextInput

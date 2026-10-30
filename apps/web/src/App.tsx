@@ -2,7 +2,14 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ToastProvider } from '@codeca/ui';
 import { AuthProvider } from './hooks/useAuth.js';
-import { LoadingScreen, RequireAuth, RequirePlatformAdmin, RequireTenant } from './components/Guards.js';
+import {
+  LoadingScreen,
+  RequireAuth,
+  RequireModule,
+  RequirePlatformAdmin,
+  RequireTenant,
+} from './components/Guards.js';
+import { SiteModulesProvider } from './hooks/useSiteModules.js';
 import { AuthLayout } from './layouts/AuthLayout.js';
 import { DashboardLayout } from './layouts/DashboardLayout.js';
 import { PlatformLayout } from './layouts/PlatformLayout.js';
@@ -23,6 +30,8 @@ import { OverviewPage } from './dashboard/OverviewPage.js';
  * carregamento tardio, de modo que o editor, o renderizador de previa e o
  * painel mestre nao pesem no primeiro acesso ao painel.
  */
+const DocumentModulePage = lazy(() => import('./dashboard/DocumentModulePage.js').then((m) => ({ default: m.DocumentModulePage })));
+const BannersPage = lazy(() => import('./dashboard/BannersPage.js').then((m) => ({ default: m.BannersPage })));
 const MediaPage = lazy(() => import('./dashboard/MediaPage.js').then((m) => ({ default: m.MediaPage })));
 const PropertiesPage = lazy(() => import('./dashboard/PropertiesPage.js').then((m) => ({ default: m.PropertiesPage })));
 const ProjectsPage = lazy(() => import('./dashboard/ProjectsPage.js').then((m) => ({ default: m.ProjectsPage })));
@@ -66,16 +75,65 @@ export function App() {
             element={
               <RequireAuth>
                 <RequireTenant>
-                  <DashboardLayout />
+                  {/* Os modulos do site chegam antes do menu: e o que decide
+                      quais telas existem para esta empresa. */}
+                  <SiteModulesProvider>
+                    <DashboardLayout />
+                  </SiteModulesProvider>
                 </RequireTenant>
               </RequireAuth>
             }
           >
             <Route index element={<OverviewPage />} />
             <Route path="midia" element={<MediaPage />} />
-            <Route path="imoveis" element={<PropertiesPage />} />
-            <Route path="obras" element={<ProjectsPage />} />
-            <Route path="servicos" element={<ServicesPage />} />
+            <Route
+              path="institucional"
+              element={
+                <RequireModule moduleKey="institucional">
+                  <DocumentModulePage moduleKey="institucional" />
+                </RequireModule>
+              }
+            />
+            <Route
+              path="contato"
+              element={
+                <RequireModule moduleKey="contato">
+                  <DocumentModulePage moduleKey="contato" />
+                </RequireModule>
+              }
+            />
+            <Route
+              path="banners"
+              element={
+                <RequireModule moduleKey="banners">
+                  <BannersPage />
+                </RequireModule>
+              }
+            />
+            <Route
+              path="imoveis"
+              element={
+                <RequireModule moduleKey="imoveis">
+                  <PropertiesPage />
+                </RequireModule>
+              }
+            />
+            <Route
+              path="obras"
+              element={
+                <RequireModule moduleKey="obras">
+                  <ProjectsPage />
+                </RequireModule>
+              }
+            />
+            <Route
+              path="servicos"
+              element={
+                <RequireModule moduleKey="servicos">
+                  <ServicesPage />
+                </RequireModule>
+              }
+            />
             <Route path="galeria" element={<GalleryPage />} />
             <Route path="interessados" element={<LeadsPage />} />
             <Route path="dominio" element={<DomainsPage />} />

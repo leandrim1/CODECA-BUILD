@@ -3,13 +3,18 @@ import {
   DOCUMENT_SCHEMAS,
   MODULE_KEYS,
   MODULE_REGISTRY,
+  bannerInputSchema,
   blockedFields,
   changedKeys,
   effectiveFields,
   isFieldEditable,
   isModuleKey,
   policyKey,
+  projectInputSchema,
+  propertyInputSchema,
+  serviceInputSchema,
   type DocumentModuleKey,
+  type ModuleKey,
 } from '@codeca/shared';
 
 /**
@@ -23,6 +28,22 @@ import {
  */
 
 const DOCUMENTOS: DocumentModuleKey[] = ['institucional', 'contato'];
+
+/**
+ * Schema de escrita de cada modulo de colecao.
+ *
+ * As colecoes nasceram antes do registro, e a deriva apareceu justamente
+ * aqui: nove campos de imovel e oito de obra existiam no schema sem
+ * declaracao nenhuma no registro. Como `isFieldEditable` nega o que nao foi
+ * declarado, cada um deles era um campo que a API aceitava e a politica
+ * tratava como travado.
+ */
+const COLECOES: Array<[ModuleKey, { shape: Record<string, unknown> }]> = [
+  ['imoveis', propertyInputSchema],
+  ['obras', projectInputSchema],
+  ['servicos', serviceInputSchema],
+  ['banners', bannerInputSchema],
+];
 
 describe('registro e validacao andam juntos', () => {
   it.each(DOCUMENTOS)('todo campo de %s declarado tem validacao', (key) => {
@@ -41,6 +62,27 @@ describe('registro e validacao andam juntos', () => {
 
     // Validar um campo que o registro nao declara significa um dado que
     // nenhuma tela mostra e nenhuma politica governa.
+    const invisiveis = validados.filter((campo) => !declarados.includes(campo));
+    expect(invisiveis, `campos sem declaracao em ${key}`).toEqual([]);
+  });
+
+  it.each(COLECOES.map(([key]) => key))('todo campo de %s declarado tem validacao', (key) => {
+    const [, schema] = COLECOES.find(([chave]) => chave === key)!;
+    const validados = Object.keys(schema.shape);
+    const declarados = MODULE_REGISTRY[key].fields.map((f) => f.key);
+
+    const semValidacao = declarados.filter((campo) => !validados.includes(campo));
+    expect(semValidacao, `campos sem validacao em ${key}`).toEqual([]);
+  });
+
+  it.each(COLECOES.map(([key]) => key))('toda validacao de %s tem campo declarado', (key) => {
+    const [, schema] = COLECOES.find(([chave]) => chave === key)!;
+    const validados = Object.keys(schema.shape);
+    const declarados = MODULE_REGISTRY[key].fields.map((f) => f.key);
+
+    // Um campo aceito pela API e ausente do registro e pior do que invisivel:
+    // a politica o trata como travado, porque o que nao foi declarado nao
+    // pode ser gravado por engano.
     const invisiveis = validados.filter((campo) => !declarados.includes(campo));
     expect(invisiveis, `campos sem declaracao em ${key}`).toEqual([]);
   });

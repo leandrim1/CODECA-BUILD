@@ -38,6 +38,33 @@ export async function parseJsonBody<T extends z.ZodType>(c: Context, schema: T):
   return result.data;
 }
 
+/**
+ * Igual a `parseJsonBody`, mas devolve tambem o corpo como chegou.
+ *
+ * A politica de campos precisa saber o que o **cliente** mandou, nao o que o
+ * schema preencheu: um campo travado com valor padrao (a moeda de um imovel,
+ * por exemplo) apareceria como alteracao do cliente e recusaria toda criacao.
+ */
+export async function parseJsonBodyWithRaw<T extends z.ZodType>(
+  c: Context,
+  schema: T,
+): Promise<{ data: z.output<T>; raw: Record<string, unknown> }> {
+  let raw: unknown;
+  try {
+    raw = await c.req.json();
+  } catch {
+    throw AppError.badRequest('Corpo da requisicao deve ser um JSON valido.');
+  }
+  const result = schema.safeParse(raw);
+  if (!result.success) throw validationError(result.error);
+  return {
+    data: result.data,
+    raw: raw !== null && typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {},
+  };
+}
+
 export function parseQuery<T extends z.ZodType>(c: Context, schema: T): z.output<T> {
   const result = schema.safeParse(c.req.query());
   if (!result.success) throw validationError(result.error);
