@@ -75,8 +75,48 @@ parametro de site para forjar.
 | Rota | O que devolve |
 | --- | --- |
 | `GET /api/v1/site` | Identidade do site, modulos habilitados e escopos da chave |
+| `GET /api/v1/content/institucional` | Documento institucional |
+| `GET /api/v1/content/contato` | Documento de contato |
+| `GET /api/v1/banners` | Banners ativos, ja filtrados pela janela de exibicao |
+| `GET /api/v1/properties` | Imoveis publicados, com filtros e paginacao |
+| `GET /api/v1/properties/:slug` | Um imovel, com galeria |
+| `GET /api/v1/projects` | Obras publicadas |
+| `GET /api/v1/projects/:slug` | Uma obra, com galeria |
+| `GET /api/v1/services` | Servicos publicados |
+| `POST /api/v1/leads` | Recebe o formulario de contato |
 
-O conteudo dos modulos chega na etapa 5.
+Um modulo que o site nao tem responde **404**, nao 403: para quem le o site,
+ele simplesmente nao existe. Dizer "proibido" revelaria que a rota existe em
+outros sites.
+
+### Filtros de imoveis
+
+`purpose`, `type`, `city`, `neighborhood`, `minPrice`, `maxPrice`, `bedrooms`,
+`featured`, `search`, `page`, `pageSize` (maximo 50).
+
+A listagem traz apenas a **capa** de cada imovel. A galeria completa vem no
+detalhe, por `slug` -- carregar dezenas de imagens que a listagem nao usa
+seria desperdicio em toda abertura de pagina.
+
+### Previa de rascunho
+
+`?preview=true` inclui o que ainda nao foi publicado, e exige a chave
+**secreta**. Pedir previa com a publicavel responde 403: seria conteudo nao
+publicado chegando ao navegador de um visitante.
+
+### Formulario de contato
+
+`POST /api/v1/leads` e a **unica escrita** aceita com chave publicavel, porque
+o formulario roda no navegador. A protecao vem da origem autorizada, do limite
+por IP e de um campo-armadilha (`honeypot`): preenchido, a API responde sucesso
+e nao grava nada -- responder erro ensinaria o robo a contorna-lo.
+
+O consentimento (`consent: true`) e obrigatorio. O IP e guardado apenas como
+hash. A resposta confirma o recebimento e **nao devolve o registro**: quem
+envia nao consegue ler de volta.
+
+Vinculos (`propertyId`, `projectId`, `serviceId`) sao conferidos contra o
+proprio site; um id de outra empresa simplesmente nao cola.
 
 ### Preflight
 
