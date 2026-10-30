@@ -58,7 +58,17 @@ isso que a chave publicavel nao le nada que ja nao seja publico.
 
 ---
 
-## 3. Chamando a API
+## 3. O SDK
+
+O jeito recomendado de consumir e o pacote `@codeca/sdk`, documentado em
+`packages/sdk/README.md`. Ele cuida do envelope da resposta, do prazo e dos
+erros tipados -- e recusa uma chave secreta no navegador antes de ela chegar a
+producao.
+
+A secao abaixo descreve o HTTP por baixo dele, para quem precisar chamar
+direto.
+
+## 4. Chamando a API
 
 ```ts
 const resposta = await fetch('https://app.codecabuild.com.br/api/v1/site', {

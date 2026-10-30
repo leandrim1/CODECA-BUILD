@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["node"],
+    "lib": ["ES2023", "DOM"]
+  },
+  "comment": "Verificacoes de contrato entre pacotes, resolvidas pelo compilador.",
+  "include": ["tests/types/**/*.ts"]
+}

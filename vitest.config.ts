@@ -13,9 +13,10 @@ export default defineConfig({
       // O alias mais especifico vem primeiro.
       '@codeca/shared/server': resolve('./packages/shared/src/server/index.ts'),
       '@codeca/shared': resolve('./packages/shared/src/index.ts'),
+      '@codeca/sdk/server': resolve('./packages/sdk/src/server.ts'),
+      '@codeca/sdk': resolve('./packages/sdk/src/index.ts'),
       '@codeca/database': resolve('./packages/database/src/index.ts'),
       '@codeca/ui': resolve('./packages/ui/src/index.ts'),
-      '@codeca/site-renderer': resolve('./packages/site-renderer/src/index.ts'),
       '@codeca/api': resolve('./apps/api/src/index.ts'),
     },
   },

@@ -11,8 +11,8 @@
   "scripts": {
     "dev": "pnpm --filter @codeca/web dev",
     "build": "pnpm run build:packages && pnpm run db:deploy && pnpm --filter @codeca/web build",
-    "build:packages": "pnpm --filter @codeca/shared --filter @codeca/database --filter @codeca/ui --filter @codeca/api build",
-    "typecheck": "pnpm run build:packages && tsc -p tsconfig.json && pnpm --filter @codeca/web typecheck",
+    "build:packages": "pnpm --filter @codeca/shared --filter @codeca/sdk --filter @codeca/database --filter @codeca/ui --filter @codeca/api build",
+    "typecheck": "pnpm run build:packages && tsc -p tsconfig.json && tsc -p tsconfig.contracts.json && pnpm --filter @codeca/web typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "pnpm run typecheck && pnpm run test",
@@ -28,6 +28,8 @@
     "hono": "^4.13.14"
   },
   "devDependencies": {
+    "@codeca/sdk": "workspace:*",
+    "@codeca/shared": "workspace:*",
     "@electric-sql/pglite": "^0.5.13",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.3.3",

@@ -15,6 +15,12 @@ importers:
         specifier: ^4.13.14
         version: 4.13.14
     devDependencies:
+      '@codeca/sdk':
+        specifier: workspace:*
+        version: link:packages/sdk
+      '@codeca/shared':
+        specifier: workspace:*
+        version: link:packages/shared
       '@electric-sql/pglite':
         specifier: ^0.5.13
         version: 0.5.13
@@ -183,6 +189,12 @@ importers:
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+
+  packages/sdk:
+    devDependencies:
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
