@@ -97,7 +97,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (options.raw) {
     const text = await response.text();
     if (!response.ok) {
-      throw new ApiError(response.status, 'internal_error', 'Nao foi possivel concluir a operacao.');
+      throw new ApiError(response.status, 'internal_error', opaqueErrorMessage(response.status));
     }
     return text as T;
   }
@@ -118,7 +118,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     throw new ApiError(
       response.status,
       error?.code ?? 'internal_error',
-      error?.message ?? 'Nao foi possivel concluir a operacao.',
+      error?.message ?? opaqueErrorMessage(response.status),
       error?.details,
     );
   }
@@ -150,3 +150,30 @@ export const api = {
     request<T>(path, { ...options, method: 'DELETE' }),
   upload: <T>(path: string, formData: FormData) => request<T>(path, { method: 'POST', formData }),
 };
+
+/**
+ * Mensagem para uma resposta de erro que nao traz o nosso envelope JSON.
+ *
+ * Acontece quando a falha e anterior a aplicacao: funcao que nao iniciou,
+ * rota inexistente, proxy ou limite da plataforma. Sem o codigo HTTP a tela
+ * vira um beco sem saida ("nao foi possivel") e nao ha o que investigar, por
+ * isso ele entra na mensagem junto de uma pista do que costuma causar.
+ */
+function opaqueErrorMessage(status: number): string {
+  if (status === 404) {
+    return 'Endereco nao encontrado no servidor (404). Verifique a implantacao da API.';
+  }
+  if (status === 413) {
+    return 'O envio excedeu o tamanho aceito pelo servidor (413).';
+  }
+  if (status === 504 || status === 408) {
+    return `O servidor demorou demais para responder (${status}). Tente novamente.`;
+  }
+  if (status >= 500) {
+    return (
+      `O servidor respondeu ${status} sem detalhes. Isso costuma indicar configuracao `
+      + 'incompleta na implantacao; consulte /api/health.'
+    );
+  }
+  return `Nao foi possivel concluir a operacao (HTTP ${status}).`;
+}

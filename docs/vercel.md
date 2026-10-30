@@ -167,10 +167,45 @@ O painel (`/api/*` e a previa) responde `no-store`.
 | Memoria | 1024 MB | Suficiente para o SSR do site inteiro |
 | Corpo da requisicao | 4,5 MB (limite da plataforma) | O upload limita o arquivo a 4 MB |
 
-## 9. Problemas comuns
+## 9. Diagnostico rapido
+
+Antes de investigar qualquer coisa, pergunte ao proprio deploy:
+
+```bash
+curl -s https://app.SEUDOMINIO.com.br/api/health | jq
+```
+
+| Resposta | Significado |
+| --- | --- |
+| `200` com `status: "ok"` e `features` | A API subiu. O problema e outro |
+| `503` com `status: "misconfigured"` | Falta variavel de ambiente; `issues` lista quais |
+| HTML da Vercel, ou `404` | A requisicao nem chegou a API: confira as reescritas por host |
+
+Quando o cadastro falha com uma mensagem generica no painel, e quase sempre o
+segundo caso: a funcao nao conseguiu iniciar por configuracao incompleta.
+
+Com a API no ar e o cadastro ainda falhando, os dois suspeitos seguintes sao o
+banco sem migracoes e o banco sem planos:
+
+```bash
+DATABASE_URL="postgresql://..." pnpm db:migrate
+```
+
+```bash
+DATABASE_URL="postgresql://..." pnpm db:seed
+```
+
+Sem o seed nao existe o plano de avaliacao, e o cadastro responde
+"Nenhum plano inicial configurado. Rode o seed de planos."
+
+## 10. Problemas comuns
 
 | Sintoma | Causa |
 | --- | --- |
+| Cadastro falha com mensagem generica | Variavel obrigatoria ausente; veja `/api/health` |
+| `/api/health` responde 503 `misconfigured` | `DATABASE_URL` ausente ou `AUTH_SECRET` com menos de 32 caracteres |
+| "Nenhum plano inicial configurado" | `pnpm db:seed` nunca rodou no banco de producao |
+| `relation "users" does not exist` nos logs | `pnpm db:migrate` nunca rodou no banco de producao |
 | Painel responde 404 | O dominio do painel nao esta na reescrita por host |
 | Site do cliente mostra o painel | O host do cliente casa com a regex da plataforma (ou falta `\.` escapado) |
 | `Configuracao de ambiente invalida` nos logs | Variavel obrigatoria ausente; a mensagem nomeia quais |
