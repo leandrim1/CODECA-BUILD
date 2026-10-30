@@ -259,9 +259,41 @@ curl -s https://app.SEUDOMINIO.com.br/api/health | jq
 
 | Resposta | Significado |
 | --- | --- |
-| `200` com `status: "ok"` e `features` | A API subiu. O problema e outro |
+| `200` com `status: "ok"` | A API subiu e o banco responde. O problema e outro |
+| `503` com `status: "degradado"` | A API subiu, mas o banco nao responde; o bloco `database` diz o que falhou |
 | `503` com `status: "misconfigured"` | Falta variavel de ambiente; `issues` lista quais |
 | HTML da Vercel, ou `404` | A requisicao nem chegou a API: confira as reescritas por host |
+
+### O bloco `database`
+
+O health **consulta o banco**, e separa duas capacidades que falham por
+motivos diferentes:
+
+```json
+{
+  "database": {
+    "query": "ok",
+    "transaction": "falha",
+    "latencyMs": 42,
+    "code": null,
+    "cause": "a consulta simples passa e a transacao nao: ..."
+  }
+}
+```
+
+| `query` | `transaction` | Significado |
+| --- | --- | --- |
+| `ok` | `ok` | O banco esta saudavel |
+| `ok` | `falha` | O driver do Neon nao consegue abrir WebSocket. **Tudo que le funciona; tudo que escreve estoura o tempo** -- cadastro, publicacao e cobranca devolvem 504 |
+| `falha` | `nao testada` | O banco nao respondeu: `code` e `cause` dizem se e credencial, host ou outra coisa |
+
+Essa separacao existe porque o driver do Neon resolve consulta simples por HTTP
+e so abre WebSocket quando ha transacao. Sem separar, a falha aparece como "o
+site as vezes funciona".
+
+A resposta traz o codigo e a causa classificada, nunca a mensagem crua do
+driver -- o health e publico. A mensagem completa fica no log da funcao,
+prefixada com `[health]`.
 
 Quando o cadastro falha com uma mensagem generica no painel, e quase sempre o
 segundo caso: a funcao nao conseguiu iniciar por configuracao incompleta.
@@ -326,6 +358,8 @@ houver precos ajustados no painel mestre que voce queira preservar.
 | Corrigi o codigo, fiz deploy e nada mudou | A producao esta em outro build. Confira `deployment.commit` em `/api/health` e o *Production Branch* |
 | Build falha em `prepare-db` / `[deploy] falha ao preparar o banco` | O log traz `causa provavel` e `o que fazer` logo abaixo. Os dois casos comuns sao a `DATABASE_URL` desatualizada (codigo `28P01`) e o schema criado a mao (codigo `42P07`) |
 | Build falha ao registrar o Cron | No plano Hobby o cron precisa ser diario (secao 6) |
+| Cadastro devolve 504 depois de uns 60 s | A transacao nao completa. Veja `database.transaction` em `/api/health` |
+| Telas carregam, mas nada que grava funciona | Mesmo caso: consulta por HTTP passa, transacao por WebSocket nao |
 | A mensagem de erro na tela nao existe mais no codigo | Mesmo caso acima: o bundle servido e de um commit anterior |
 | Cadastro falha com mensagem generica | Variavel obrigatoria ausente; veja `/api/health` |
 | `/api/health` responde 503 `misconfigured` | `DATABASE_URL` ausente ou `AUTH_SECRET` com menos de 32 caracteres |

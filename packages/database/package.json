@@ -32,11 +32,13 @@
     "@codeca/shared": "workspace:*",
     "@neondatabase/serverless": "^1.2.0",
     "drizzle-orm": "^0.45.4",
+    "ws": "8.18.3",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.13",
     "@types/node": "^22.10.2",
+    "@types/ws": "8.18.1",
     "drizzle-kit": "^0.31.11",
     "typescript": "~5.9.3"
   }

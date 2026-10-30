@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { createContext, type AppContext, type CreateContextOptions } from './context.js';
+import { probeDatabase } from './lib/db-probe.js';
 import { deploymentInfo } from './lib/deployment.js';
 import { ok } from './lib/http.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
@@ -53,18 +54,27 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('*', securityHeaders(ctx.env));
   app.use('*', cors(ctx.env));
 
-  app.get('/health', (c) =>
-    ok(c, {
-      status: 'ok',
-      platform: ctx.env.PLATFORM_NAME,
-      features: ctx.features,
-      // Qual codigo esta de fato no ar. E a unica resposta confiavel quando a
-      // tela diverge do repositorio: se o commit aqui nao e o esperado, o
-      // problema esta na implantacao, nao no codigo.
-      deployment: deploymentInfo(),
-      time: ctx.now().toISOString(),
-    }),
-  );
+  app.get('/health', async (c) => {
+    // A sondagem do banco e o ponto do health: sem ela a resposta dizia "ok"
+    // com o banco inalcancavel, e a tela ficava sem explicacao nenhuma.
+    const database = await probeDatabase(ctx.db);
+    const healthy = database.query === 'ok' && database.transaction === 'ok';
+    return ok(
+      c,
+      {
+        status: healthy ? 'ok' : 'degradado',
+        platform: ctx.env.PLATFORM_NAME,
+        features: ctx.features,
+        // Qual codigo esta de fato no ar. E a unica resposta confiavel quando a
+        // tela diverge do repositorio: se o commit aqui nao e o esperado, o
+        // problema esta na implantacao, nao no codigo.
+        deployment: deploymentInfo(),
+        database,
+        time: ctx.now().toISOString(),
+      },
+      healthy ? 200 : 503,
+    );
+  });
 
   app.route('/auth', authRoutes());
 

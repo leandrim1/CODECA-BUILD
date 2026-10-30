@@ -371,9 +371,13 @@ describe('cabecalhos de seguranca', () => {
     const response = await api.client().get<{
       status: string;
       deployment: Record<string, string | null>;
+      database: { query: string; transaction: string };
     }>('/api/health');
     expect(response.status).toBe(200);
     expect(response.body.status).toBe('ok');
+    // O `ok` do health passa a depender do banco: consulta e transacao.
+    expect(response.body.database.query).toBe('ok');
+    expect(response.body.database.transaction).toBe('ok');
     expect(Object.keys(response.body.deployment).sort()).toEqual([
       'branch',
       'commit',

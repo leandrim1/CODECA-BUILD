@@ -1,4 +1,5 @@
 import { Pool, neonConfig } from '@neondatabase/serverless';
+import WebSocketConstructor from 'ws';
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT, PgTransaction } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/neon-serverless';
@@ -27,17 +28,32 @@ export interface DatabaseHandle {
 let cached: DatabaseHandle | null = null;
 let cachedUrl: string | null = null;
 
+/**
+ * Tempo maximo esperando uma conexao nova.
+ *
+ * Sem limite, uma conexao que nao se estabelece consome o orcamento inteiro da
+ * funcao e o navegador recebe um 504 sem causa. Com limite, o erro chega
+ * depressa e com nome.
+ */
+const CONNECTION_TIMEOUT_MS = 10_000;
+
 function configureNeon(): void {
-  // O Node 22 traz WebSocket global; em runtimes mais antigos o driver avisa.
-  if (!neonConfig.webSocketConstructor && typeof globalThis.WebSocket !== 'undefined') {
-    neonConfig.webSocketConstructor = globalThis.WebSocket as never;
-  }
+  // O driver do Neon abre uma conexao WebSocket para tudo que precisa de
+  // transacao. O Node so passou a ter WebSocket global na versao 22, e quando
+  // ele falta o driver nao avisa: a conexao simplesmente nao completa, a
+  // funcao estoura o tempo e a tela recebe um 504 sem explicacao. Fornecer o
+  // construtor do pacote `ws` tira a versao do Node da equacao -- e o caminho
+  // que a propria documentacao do Neon indica para Node.
+  neonConfig.webSocketConstructor ??= WebSocketConstructor as never;
+
+  // Consultas simples saem por HTTP, sem abrir WebSocket. Transacoes nao: elas
+  // dependem do construtor acima.
   neonConfig.poolQueryViaFetch = true;
 }
 
 export function createNeonDatabase(connectionString: string): DatabaseHandle {
   configureNeon();
-  const pool = new Pool({ connectionString });
+  const pool = new Pool({ connectionString, connectionTimeoutMillis: CONNECTION_TIMEOUT_MS });
   const db = drizzle(pool, { schema, casing: 'snake_case' }) as unknown as Database;
   return { db, close: () => pool.end() };
 }

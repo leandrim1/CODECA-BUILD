@@ -52,6 +52,12 @@ export async function claimFirstPlatformAdmin(
 
   // Serializa a reivindicacao: dois cadastros ao mesmo tempo nao viram dois
   // administradores. O lock e liberado no fim da transacao.
+  //
+  // O limite de espera e deliberado. Se uma transacao anterior ficou presa
+  // segurando o lock, sem ele o cadastro seguinte espera para sempre, estoura
+  // o tempo da funcao e deixa mais uma transacao presa -- uma falha que se
+  // alimenta. Com o limite, o cadastro falha em segundos e com causa.
+  await tx.execute(sql`set local lock_timeout = '5s'`);
   await tx.execute(sql`select pg_advisory_xact_lock(${BOOTSTRAP_LOCK_KEY})`);
 
   const [existing] = await tx
