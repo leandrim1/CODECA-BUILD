@@ -6,15 +6,18 @@ import { ok } from './lib/http.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { cors, securityHeaders } from './middleware/security.js';
 import { authRoutes } from './routes/auth.js';
+import { bannerRoutes } from './routes/banners.js';
 import { billingRoutes } from './routes/billing.js';
 import { billingJobRoutes } from './routes/billing-jobs.js';
 import { contentRoutes } from './routes/content.js';
 import { domainRoutes } from './routes/domains.js';
 import { leadRoutes } from './routes/leads.js';
 import { mediaRoutes } from './routes/media.js';
+import { moduleRoutes } from './routes/modules.js';
 import { memberRoutes } from './routes/members.js';
 import { platformRoutes } from './routes/platform.js';
 import { platformBillingRoutes } from './routes/platform-billing.js';
+import { platformSiteRoutes } from './routes/platform-sites.js';
 import { projectRoutes } from './routes/projects.js';
 import { propertyRoutes } from './routes/properties.js';
 import { tenantRoutes } from './routes/tenants.js';
@@ -106,6 +109,8 @@ export function createApp(options: CreateAppOptions = {}) {
   tenantScoped.route('/', propertyRoutes());
   tenantScoped.route('/', projectRoutes());
   tenantScoped.route('/', contentRoutes());
+  tenantScoped.route('/', moduleRoutes());
+  tenantScoped.route('/', bannerRoutes());
   tenantScoped.route('/', mediaRoutes());
   tenantScoped.route('/', leadRoutes());
   tenantScoped.route('/', domainRoutes());
@@ -116,6 +121,7 @@ export function createApp(options: CreateAppOptions = {}) {
   const platformScoped = new Hono<AppBindings>();
   platformScoped.use('*', sessionMiddleware());
   platformScoped.route('/', platformRoutes());
+  platformScoped.route('/', platformSiteRoutes());
   platformScoped.route('/', platformBillingRoutes());
   app.route('/platform', platformScoped);
 

@@ -273,6 +273,107 @@ export const sites = pgTable(
   ],
 );
 
+/**
+ * Modulos habilitados em um site.
+ *
+ * O catalogo dos modulos vive em `packages/shared`; aqui fica so o que varia
+ * por projeto. `moduleKey` e texto, e nao enum, de proposito: acrescentar um
+ * modulo passa a ser uma entrada no registro, sem `ALTER TYPE` e sem migracao.
+ */
+export const siteModules = pgTable(
+  'site_modules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    moduleKey: text('module_key').notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    /** Ajustes do modulo neste site. Validados pelo registro. */
+    settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('site_modules_site_key').on(table.siteId, table.moduleKey),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'site_modules_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('site_modules_site_idx').on(table.siteId),
+  ],
+);
+
+/**
+ * Excecoes a politica de campos de um site.
+ *
+ * Guarda **somente o que difere do padrao** declarado no registro. Uma linha
+ * por campo de cada site repetiria o padrao milhares de vezes e envelheceria
+ * sozinha: um campo novo no registro ficaria invisivel para todo site criado
+ * antes dele.
+ */
+export const siteFieldPolicies = pgTable(
+  'site_field_policies',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    moduleKey: text('module_key').notNull(),
+    fieldKey: text('field_key').notNull(),
+    /** O cliente pode editar este campo neste site. */
+    editable: boolean('editable').notNull(),
+    /** Por que a CODECA IA travou o campo. Aparece no painel do cliente. */
+    note: text('note').notNull().default(''),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('site_field_policies_key').on(table.siteId, table.moduleKey, table.fieldKey),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'site_field_policies_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('site_field_policies_site_idx').on(table.siteId),
+  ],
+);
+
+/**
+ * Conteudo dos modulos de instancia unica.
+ *
+ * Institucional e contato tem cardinalidade um por site e nenhuma busca, entao
+ * tabela tipada seria peso sem retorno. O JSONB aceita qualquer coisa, por
+ * isso a escrita passa obrigatoriamente pelo schema do registro.
+ */
+export const contentDocuments = pgTable(
+  'content_documents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    moduleKey: text('module_key').notNull(),
+    data: jsonb('data').$type<Record<string, unknown>>().notNull().default({}),
+    updatedByUserId: uuid('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('content_documents_site_key').on(table.siteId, table.moduleKey),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'content_documents_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('content_documents_site_idx').on(table.siteId),
+  ],
+);
+
 export const users = pgTable(
   'users',
   {
@@ -949,6 +1050,44 @@ export const projectUpdateImages = pgTable(
   (table) => [
     uniqueIndex('project_update_images_unique').on(table.projectUpdateId, table.mediaAssetId),
     index('project_update_images_media_idx').on(table.mediaAssetId),
+  ],
+);
+
+/**
+ * Destaques rotativos na abertura do site.
+ *
+ * A visibilidade e uma janela (`startsAt`/`endsAt`) alem do interruptor:
+ * campanha com data marcada entra e sai sozinha, sem alguem precisar lembrar
+ * de desligar no domingo a noite.
+ */
+export const banners = pgTable(
+  'banners',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    title: text('title').notNull(),
+    subtitle: text('subtitle').notNull().default(''),
+    imageId: uuid('image_id').references(() => mediaAssets.id, { onDelete: 'set null' }),
+    buttonLabel: text('button_label').notNull().default(''),
+    buttonUrl: text('button_url').notNull().default(''),
+    sortOrder: integer('sort_order').notNull().default(0),
+    isActive: boolean('is_active').notNull().default(true),
+    startsAt: timestamp('starts_at', { withTimezone: true }),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'banners_site_tenant_fk',
+    }).onDelete('cascade'),
+    index('banners_site_order_idx').on(table.siteId, table.sortOrder),
+    index('banners_site_active_idx').on(table.siteId, table.isActive),
   ],
 );
 

@@ -111,11 +111,23 @@ cliente nao exige migracao.
 
 ### Modulos da primeira versao
 
-`institucional`, `banners`, `imoveis`, `obras`, `servicos`, `contato`.
+`institucional` e `contato` sao documentos de instancia unica, em JSONB
+validado. `banners`, `imoveis`, `obras` e `servicos` sao colecoes, em tabela
+tipada com indice.
 
-Destes, **`banners` nao existe hoje** e precisa ser criado. Os demais tem
-tabela equivalente e serao adaptados — principalmente ganhando `site_id` e
-passando a respeitar a politica de campos.
+Dois cuidados que valem registro:
+
+- **O registro e o schema nao podem derivar.** O registro descreve os campos
+  que o painel desenha e a politica governa; o schema valida o que entra no
+  banco. Afastados, um campo passa a existir na tela sem validacao, ou a ser
+  validado sem ninguem poder edita-lo. Um teste confere os dois sentidos.
+- **A politica guarda so as excecoes.** Uma linha por campo de cada site
+  repetiria o padrao e envelheceria sozinha: um campo acrescentado hoje
+  ficaria invisivel para todo site configurado ontem.
+
+A verificacao de escrita compara **valor a valor**, nao a lista de chaves
+enviadas. Um formulario reenvia tudo, e recusar por reenviar o mesmo valor
+tornaria a tela impossivel de usar.
 
 ### Segmentos
 
@@ -361,12 +373,12 @@ plataforma utilizavel ao final.
 | --- | --- | --- | --- |
 | 0 | Remocao do renderizador e do editor visual | — | **feita** |
 | 1 | Entidade `site`, migracao e isolamento em dois niveis | — | **feita** |
-| 2 | Registro de modulos, habilitacao e politica de campos por site | 1 | pendente |
+| 2 | Registro de modulos, habilitacao e politica de campos por site | 1 | **feita** |
 | 3 | Painel que se adapta aos modulos do site | 2 | pendente |
 | 4 | Chaves de integracao, origens, limites e auditoria | 1 | pendente |
 | 5 | API publica `/api/v1` com escopo por chave | 2, 4 | pendente |
 | 6 | `@codeca/sdk` com tipos, documentacao e exemplo integravel | 5 | pendente |
-| 7 | Modulo de banners e configuracao por segmento | 2 | pendente |
+| 7 | Configuracao por segmento no painel mestre | 2 | pendente |
 | 8 | Webhook `content.published` para o site do cliente | 5 | pendente |
 | 9 | Assinatura por site e politica de suspensao | 1 | pendente |
 | 10 | Cadastro de site no painel mestre, fim a fim | 2, 4, 9 | pendente |
