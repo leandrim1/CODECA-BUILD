@@ -287,9 +287,16 @@ Cada execucao, com trabalho limitado para caber no tempo da funcao:
 Nada duplica: a reconciliacao passa pelas mesmas funcoes monotonicas do
 webhook. Uma suspensao administrativa nao e desfeita por ela.
 
-Na Vercel, o `vercel.json` ja agenda `23 */2 * * *`. Defina `CRON_SECRET` com o
-mesmo valor de `BILLING_RECONCILIATION_SECRET`: o Cron envia esse cabecalho
-automaticamente.
+Na Vercel, o `vercel.json` ja agenda `23 5 * * *` -- diario, porque o plano
+Hobby so aceita cron diario e recusa a implantacao com qualquer expressao mais
+frequente. No plano Pro, `23 */2 * * *` reconcilia a cada duas horas. Defina
+`CRON_SECRET` com o mesmo valor de `BILLING_RECONCILIATION_SECRET`: o Cron
+envia esse cabecalho automaticamente.
+
+A cadencia do cron nao define quanto tempo um cliente espera: o webhook
+continua atualizando a assinatura em segundos, e o botao **Consultar
+novamente**, na tela de cobranca da empresa, reavalia a assinatura sob
+demanda.
 
 ## 8. Configuracao
 

@@ -183,8 +183,36 @@ DATABASE_URL="postgresql://..." pnpm db:migrate
 O `vercel.json` ja agenda o job:
 
 ```json
-"crons": [{ "path": "/api/billing/reconcile", "schedule": "23 */2 * * *" }]
+"crons": [{ "path": "/api/billing/reconcile", "schedule": "23 5 * * *" }]
 ```
+
+### A cadencia depende do plano
+
+No plano **Hobby a Vercel so aceita cron diario**: uma expressao que dispare
+mais de uma vez por dia **falha a implantacao**, com erro no momento de
+registrar o cron. Como o cron so e registrado em producao, o erro nao aparece
+em nenhum preview -- ele surge no primeiro deploy de producao, e foi assim que
+apareceu aqui. O horario tambem e aproximado no Hobby: um job marcado para
+05:23 roda em algum momento daquela hora.
+
+Por isso o padrao e diario. No plano **Pro**, para reconciliar a cada duas
+horas, troque por `"23 */2 * * *"` e faca um novo deploy.
+
+A reconciliacao e uma **rede de seguranca**, nao o caminho principal: quem
+atualiza o estado da assinatura em segundos e o webhook. Ela existe para o
+caso de um webhook se perder. Com a cadencia diaria, esse caso raro pode levar
+ate 24 h para se corrigir sozinho -- inclusive no sentido que mais incomoda, o
+de um cliente que pagou e segue suspenso.
+
+Duas saidas cobrem isso sem esperar o cron:
+
+- a empresa tem **Consultar novamente** na propria tela de cobranca, que chama
+  `POST /api/tenants/:id/billing/refresh` e reavalia a assinatura na hora;
+- o painel mestre tem **Reconciliar agora**, que roda o job inteiro, e um botao
+  por empresa para reconciliar so aquela assinatura.
+
+Se a operacao depender de reconciliacao frequente, o plano Pro e o caminho
+correto -- ou um agendador externo chamando a rota com o mesmo segredo.
 
 A rota exige `Authorization: Bearer <segredo>`. A Vercel envia esse cabecalho
 automaticamente quando a variavel `CRON_SECRET` existe no projeto, por isso
@@ -192,8 +220,7 @@ automaticamente quando a variavel `CRON_SECRET` existe no projeto, por isso
 `BILLING_RECONCILIATION_SECRET`**. Sem isso, o Cron dispara e recebe 401.
 
 O job tem trabalho limitado por execucao (50 assinaturas e 50 cobrancas) para
-caber no tempo da funcao; o que sobra fica para a passagem seguinte. Ele tambem
-pode ser disparado a mao pelo painel mestre, em **Cobranca > Reconciliar agora**.
+caber no tempo da funcao; o que sobra fica para a passagem seguinte.
 
 O webhook de pagamento chega em `/api/webhooks/validapay` e e servido pela mesma
 funcao `api/index.ts`. Ele le o corpo bruto (`c.req.text()`) antes de qualquer

@@ -139,7 +139,7 @@ Legenda:
 | Estorno, contestacao e chargeback | Pronto | estorno total suspende o site para revisao; parcial fica registrado |
 | Controle de publicacao por estado da assinatura | Pronto | funcao pura usada pelo webhook, pelo job, pelo painel e pelo renderizador |
 | Periodo de tolerancia configuravel | Pronto | padrao 5 dias, ajustavel por empresa no painel mestre |
-| Reconciliacao periodica | Pronto, depende de segredo | Vercel Cron a cada 2 horas; recalculo do tempo funciona sem credencial |
+| Reconciliacao periodica | Pronto, depende de segredo | Vercel Cron diario (limite do plano Hobby; Pro aceita de 2 em 2 horas). O webhook e o caminho principal e a sincronizacao sob demanda cobre o resto |
 | Painel mestre de cobranca | Pronto | assinaturas, cobrancas, eventos com falha, reprocessar, reconciliar, suspender |
 | Auditoria das decisoes de cobranca | Pronto | `billing_audit_logs` com estado anterior, novo, origem e autor |
 | Emissao de nota fiscal pela ValidaPay | Nao implementado | a API oferece (`emitirNf`, `nfConfigId`); exige configuracao fiscal da conta |

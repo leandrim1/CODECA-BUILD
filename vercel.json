@@ -58,7 +58,7 @@
   "crons": [
     {
       "path": "/api/billing/reconcile",
-      "schedule": "23 */2 * * *"
+      "schedule": "23 5 * * *"
     }
   ]
 }
