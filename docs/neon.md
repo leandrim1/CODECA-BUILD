@@ -52,8 +52,9 @@ migracao ja aplicada em producao — crie outra.
 pnpm db:seed
 ```
 
-Cria (ou confirma) os tres planos padrao — Avaliacao, Essencial e Profissional,
-definidos em `packages/shared/src/plans.ts`. Variaveis opcionais:
+Cria (ou confirma) os quatro planos padrao — Avaliacao, Essencial,
+Profissional e Empresas, definidos em `packages/shared/src/plans.ts`. Variaveis
+opcionais:
 
 | Variavel | Efeito |
 | --- | --- |

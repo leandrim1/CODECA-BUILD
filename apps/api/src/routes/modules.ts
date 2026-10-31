@@ -4,7 +4,9 @@ import {
   DOCUMENT_SCHEMAS,
   MODULE_REGISTRY,
   isModuleKey,
+  planHasFeature,
   type DocumentModuleKey,
+  type SiteModulesPayload,
 } from '@codeca/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -13,6 +15,7 @@ import { auditFromContext } from '../lib/audit-context.js';
 import { ok, parseJsonBody, parseParams } from '../lib/http.js';
 import { assertEditableChanges, assertModuleEnabled, loadSiteModules } from '../lib/modules.js';
 import { resolveSiteBilling } from '../lib/billing/suspension.js';
+import { loadEffectivePlan } from '../lib/plan-limits.js';
 import { queueContentPublished } from '../lib/integration/outbound.js';
 import { requireCapability, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
@@ -50,14 +53,28 @@ function parseDocumentModuleKey(value: string): DocumentModuleKey {
 export function moduleRoutes() {
   const app = new Hono<AppBindings>();
 
-  /** O que o painel deve desenhar para este site. */
+  /**
+   * O que o painel deve desenhar para este site.
+   *
+   * Esta rota fica **fora** do bloqueio de plano sem painel, de proposito: e
+   * por ela que a tela descobre que nao ha painel a desenhar. Deduzir isso de
+   * uma recusa faria o menu aparecer e sumir, e um cliente do plano Essencial
+   * veria por um instante exatamente o que nao contratou.
+   */
   app.get('/:tenantId/modules', requireCapability('content:read'), async (c) => {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
-    const state = await loadSiteModules(ctx.db, tenant.siteId);
+    const plano = await loadEffectivePlan(ctx.db, tenant.tenantId);
+    const incluido = planHasFeature(plano.limits, 'cms_panel');
     const situacao = await resolveSiteBilling(ctx.db, tenant.siteId, ctx.now());
 
-    return ok(c, {
+    // Sem painel no plano, nao se consulta modulo: a lista vazia e a resposta
+    // certa, e evita duas consultas que nao vao para a tela.
+    const state = incluido
+      ? await loadSiteModules(ctx.db, tenant.siteId)
+      : { modules: [], overrides: {} };
+
+    const resposta: SiteModulesPayload = {
       siteId: tenant.siteId,
       modules: state.modules,
       /**
@@ -68,7 +85,10 @@ export function moduleRoutes() {
        * cliente preencher o formulario inteiro.
        */
       suspension: situacao.effect,
-    });
+      panel: { included: incluido, planCode: plano.planCode, planName: plano.planName },
+    };
+
+    return ok(c, resposta);
   });
 
   app.get('/:tenantId/modules/:moduleKey/document', requireCapability('content:read'), async (c) => {

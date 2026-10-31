@@ -10,6 +10,9 @@ import type {
   OverviewDomain,
   SegmentView,
   TenantOverview,
+  EffectiveField,
+  SiteModulesPayload,
+  SiteModuleView as SharedSiteModuleView,
   ProjectCategory,
   ProjectStage,
   ProjectStatus,
@@ -555,26 +558,15 @@ export interface PlatformSite {
   segmentId: string | null;
 }
 
-export interface SiteModuleFieldView {
-  key: string;
-  label: string;
-  type: string;
-  editableByDefault: boolean;
-  editable: boolean;
-  overridden: boolean;
-  required?: boolean;
-  help?: string;
-}
-
-export interface SiteModuleView {
-  key: string;
-  name: string;
-  description: string;
-  kind: 'document' | 'collection';
-  enabled: boolean;
-  settings: Record<string, unknown>;
-  fields: SiteModuleFieldView[];
-}
+/**
+ * Modulo e campo como o painel os recebe.
+ *
+ * Reexportados de `@codeca/shared`, nao declarados aqui: uma copia a mao de
+ * cada lado foi o que deixou a visao geral lendo um campo que a API havia
+ * parado de enviar, com o `typecheck` passando.
+ */
+export type SiteModuleFieldView = EffectiveField;
+export type SiteModuleView = SharedSiteModuleView;
 
 export interface SiteApiKeyRow {
   id: string;
@@ -614,12 +606,7 @@ export interface BannerRecord {
 }
 
 /** O que o painel do cliente desenha para o site dele. */
-export interface SiteModulesResponse {
-  siteId: string;
-  modules: SiteModuleView[];
-  /** Restricao em vigor por causa da assinatura. */
-  suspension: SuspensionEffect;
-}
+export type SiteModulesResponse = SiteModulesPayload;
 
 /**
  * Conteudo de um modulo de instancia unica.

@@ -4,6 +4,7 @@ import {
   PANEL_ON_SUSPENSION,
   PANEL_ON_SUSPENSION_LABELS,
   PLAN_FEATURES,
+  PLAN_FEATURES_NOT_ENFORCED,
   PLAN_FEATURE_LABELS,
   PUBLIC_SITE_ON_SUSPENSION,
   PUBLIC_SITE_ON_SUSPENSION_LABELS,
@@ -271,6 +272,16 @@ function PlanModal({
               <Checkbox
                 key={feature}
                 label={PLAN_FEATURE_LABELS[feature]}
+                /*
+                  Alguns recursos a plataforma apenas registra. Dizer isso na
+                  propria caixa evita que alguem procure depois a verificacao
+                  que nao existe -- ou venda achando que ela existe.
+                */
+                hint={
+                  PLAN_FEATURES_NOT_ENFORCED.includes(feature)
+                    ? 'Compromisso comercial: a plataforma registra, mas nao tem como garantir.'
+                    : undefined
+                }
                 checked={values.features.includes(feature)}
                 onChange={(checked) =>
                   setField(

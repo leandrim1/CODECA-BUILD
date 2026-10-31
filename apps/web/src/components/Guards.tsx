@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { Alert, Button, EmptyState, Spinner } from '@codeca/ui';
 import { Building2, PackageOpen } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
+import type { ModuleKey } from '@codeca/shared';
 import { useSiteModules } from '../hooks/useSiteModules.js';
 
 /** Telas de espera, protecao de rotas e estados de erro reutilizaveis. */
@@ -92,7 +93,7 @@ export function RequireModule({
   moduleKey,
   children,
 }: {
-  moduleKey: string;
+  moduleKey: ModuleKey;
   children: ReactNode;
 }) {
   const { enabled, loading, module } = useSiteModules();

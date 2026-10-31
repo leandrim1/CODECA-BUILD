@@ -31,7 +31,7 @@ Legenda:
 
 | Item | Status | Observacao |
 | --- | --- | --- |
-| Cadastro de construtora + proprietario | Pronto | cria empresa, site, paginas iniciais e assinatura de avaliacao |
+| Cadastro de empresa + proprietario | Pronto | cria empresa, site com os modulos do segmento padrao e assinatura de avaliacao |
 | Login, logout, sessoes ativas, encerrar outras sessoes | Pronto | token opaco, cookie HttpOnly |
 | Verificacao de e-mail | Pronto, depende de credencial | sem `RESEND_API_KEY` o link vai para o log do servidor |
 | Recuperacao de senha | Pronto, depende de credencial | idem |
@@ -42,59 +42,60 @@ Legenda:
 | Acesso de suporte explicito, temporario e auditado | Pronto | `support_access_grants`, somente leitura |
 | Autenticacao em dois fatores | Nao implementado | — |
 
-## Painel da construtora
+## Painel do cliente
 
 | Item | Status | Observacao |
 | --- | --- | --- |
-| Visao geral com indicadores | Pronto | contagens e ultimas atividades vindas do banco; nenhuma metrica inventada |
-| Editor visual (tres paineis) | Pronto | lista de secoes, previa por dispositivo, propriedades |
-| 22 blocos com schema validado | Pronto | catalogo em `packages/shared/src/blocks/catalog.ts` |
-| Adicionar, remover, duplicar, reordenar, ocultar secao | Pronto | arrastar e soltar com `@dnd-kit` |
-| Ajustes responsivos por secao | Pronto | previa com largura real e media queries de verdade |
-| Paginas: criar, slug, pagina inicial, excluir | Pronto | slug unico por site; slugs reservados recusados |
-| Menus de navegacao e redirecionamentos | Pronto | — |
-| Personalizacao (logo, cores, fontes, bordas, cards) | Pronto | variaveis CSS por empresa, previa antes de publicar |
-| Biblioteca de imagens | Pronto, depende de credencial | sem `BLOB_READ_WRITE_TOKEN` o envio e recusado com aviso |
+| Visao geral com indicadores | Pronto | contagens vindas do banco; os cartoes seguem os modulos do site |
+| Menu que se adapta aos modulos do site | Pronto | dois filtros: papel de quem entrou e modulos do projeto |
+| Institucional e contato (documento unico) | Pronto | formulario montado a partir dos campos que a API declara |
+| Banners | Pronto | ordem, periodo de exibicao e ativo/inativo |
 | Imoveis (CRUD, filtros, paginacao, galeria) | Pronto | status de publicacao separado do status comercial |
 | Obras e projetos (CRUD, etapas, atualizacoes com fotos) | Pronto | percentual aparece somente quando informado |
-| Servicos, sobre, diferenciais, equipe, depoimentos, FAQ | Pronto | ordenacao e publicacao por item |
+| Servicos | Pronto | ordenacao e publicacao por item |
+| Depoimentos, equipe e FAQ | Editaveis, **sem leitura publica** | tem tabela e tela, mas nao sao modulos do registro nem estao em `/api/v1`: nenhum site consegue le-los. Decisao pendente |
+| Biblioteca de imagens | Pronto, depende de credencial | sem `BLOB_READ_WRITE_TOKEN` o envio e recusado com aviso |
 | Interessados (filtros, status, observacoes internas) | Pronto | — |
 | Exportacao de interessados em CSV | Pronto | recurso de plano (`lead_export`) |
-| Dominio proprio | Pronto, depende de credencial | sem `VERCEL_API_TOKEN`/`VERCEL_PROJECT_ID` fica em "Aguardando DNS" |
-| SEO (titulo, descricao, favicon, imagem, canonical, sitemap, robots) | Pronto | — |
+| Dominio proprio | Pronto, apenas registro | guarda qual dominio pertence a qual site; quem aponta o DNS e o projeto Vercel do cliente |
+| Campo travado pela CODECA IA aparece como leitura | Pronto | com explicacao de por que esta travado |
 | Equipe e usuarios | Pronto | convite, troca de papel, remocao, hierarquia respeitada |
-| Plano e assinatura (uso vs. limites) | Pronto | sem cobranca automatica (abaixo) |
+| Plano e assinatura (uso vs. limites) | Pronto | — |
 | Configuracoes da empresa | Pronto | dados, contato, WhatsApp, redes sociais |
+| Somente leitura na suspensao | Pronto | aviso no topo de toda tela, dizendo que nada foi apagado |
+| Painel indisponivel no plano sem `cms_panel` | Pronto | aviso de upgrade, nunca de inadimplencia; cobranca e cadastro seguem acessiveis |
 
-## Rascunho, versoes e publicacao
-
-| Item | Status | Observacao |
-| --- | --- | --- |
-| Rascunho salvo separado da versao publicada | Pronto | validacao bloco a bloco ja no rascunho |
-| Concorrencia otimista no salvamento | Pronto | `baseRevision`; duas abas nao se sobrescrevem (409) |
-| Publicar em transacao | Pronto | trava a pagina, revalida layout, confere midia, grava versao |
-| Historico de versoes com autor e data | Pronto | recurso de plano (`version_history`) |
-| Restaurar versao anterior | Pronto | gera nova versao; nada e perdido |
-| Invalidacao de cache ao publicar | Pronto | `published_version` muda o ETag das paginas da empresa |
-| Site publico serve somente conteudo publicado | Pronto | coberto por teste |
-
-## Sites publicos
+## Conteudo e publicacao
 
 | Item | Status | Observacao |
 | --- | --- | --- |
-| Resolucao por dominio verificado e ativo | Pronto | empresa suspensa deixa de responder |
-| Renderizacao no servidor (SSR) | Pronto | `renderToStaticMarkup`, HTML completo na primeira resposta |
-| Paginas de imovel e de obra com metadados proprios | Pronto | `/imoveis/<slug>`, `/obras/<slug>` |
-| Metatags, Open Graph, canonical, JSON-LD | Pronto | dados estruturados apenas de registros existentes |
-| `sitemap.xml` e `robots.txt` por site | Pronto | podem ser desligados nas configuracoes |
-| 404 proprio e redirecionamentos | Pronto | — |
-| Cache na borda com `s-maxage` e ETag/304 | Pronto | revalidacao sem refazer o HTML |
-| Site funciona sem JavaScript | Pronto | menu, FAQ e galeria em CSS; so o formulario usa ~1 KB de JS, com `<noscript>` |
-| Formulario de contato com os interesses previstos | Pronto | validacao no servidor, rate limiting, honeypot, consentimento |
-| Botao de WhatsApp com mensagem contextualizada | Pronto | numero da propria empresa, nunca compartilhado |
-| `loading="lazy"`, `decoding="async"`, primeira imagem eager | Pronto | — |
-| Geracao estatica no build (SSG/ISR por arquivo) | Nao implementado | o cache na borda cumpre o mesmo papel com invalidacao por versao |
-| Redimensionamento/conversao automatica de imagens | Nao implementado | as imagens sao servidas como enviadas |
+| Modulos por site, habilitados individualmente | Pronto | o painel do cliente desenha so o que o projeto tem |
+| Politica de campo por site | Pronto | apenas as excecoes sao gravadas; conferida tambem na escrita |
+| Documentos de instancia unica (institucional, contato) | Pronto | nascem preenchidos com o que a empresa informou no cadastro |
+| Colecoes (imoveis, obras, servicos, banners) | Pronto | tabelas proprias, com filtro, ordenacao e indices |
+| Rascunho e publicado por registro | Pronto | `publication_status`; a API publica entrega so o publicado |
+| Aviso de publicacao ao site do cliente | Pronto | webhook `content.published` assinado, com fila persistida e retentativa |
+| Biblioteca de midia no Vercel Blob | Pronto | prefixo por empresa, tipo e tamanho validados no servidor |
+
+## API publica e SDK
+
+| Item | Status | Observacao |
+| --- | --- | --- |
+| `/api/v1` versionada | Pronto | contrato fechado desde o primeiro dia |
+| Chave publicavel e chave secreta por site | Pronto | guardadas em hash; a secreta aparece uma unica vez |
+| Escopo por chave, verificado a cada requisicao | Pronto | nunca o `siteId` enviado pelo cliente sozinho |
+| Origens autorizadas por site | Pronto | sem sufixo: `termina com` autorizaria dominio de terceiro |
+| Limite de requisicoes por chave | Pronto | — |
+| Dados de interessados fora da chave publicavel | Pronto | nome, telefone e e-mail ficam atras do painel autenticado |
+| `@codeca/sdk` com tipos e verificacao de webhook | Pronto | Web Crypto, para rodar tambem na borda |
+| Publicacao do SDK no npm | Nao implementado | o pacote esta pronto em forma; falta processo de versao |
+| Documentacao OpenAPI | Nao implementado | hoje a referencia e `docs/integracao.md` |
+
+**Nota de historico:** este arquivo descrevia, ate a etapa A, um renderizador
+publico com SSR, paginas por blocos, historico de versoes e `sitemap.xml`. Esse
+caminho foi removido na etapa 0 -- o site de cada cliente e um projeto Vercel
+da CODECA IA, e a plataforma entrega conteudo por API. As duas secoes acima
+substituem as que descreviam o modelo antigo.
 
 ## Painel mestre da plataforma
 
@@ -120,9 +121,11 @@ Legenda:
 
 | Item | Status | Observacao |
 | --- | --- | --- |
-| Planos no banco, com limites e recursos | Pronto | Avaliacao, Essencial, Profissional |
-| Verificacao de limites no backend | Pronto | usuarios, imoveis publicados, obras, paginas, dominios, armazenamento |
-| Recursos por plano | Pronto | dominio proprio, historico, exportacao, blocos avancados, SEO avancado, selo |
+| Planos no banco, com limites e recursos | Pronto | Avaliacao (R$ 0), Essencial (R$ 15,90), Profissional (R$ 59,90), Empresas (R$ 119,90) |
+| Verificacao de limites no backend | Pronto | usuarios, imoveis publicados, obras, dominios, armazenamento |
+| Recursos por plano | Pronto | painel de conteudo, dominio proprio, exportacao de interessados, hospedagem incluida |
+| Plano sem painel de conteudo (Essencial) | Pronto | bloqueio proprio, com mensagem de upgrade -- nunca de inadimplencia |
+| Hospedagem incluida | Registrado, nao aplicado | a plataforma nao hospeda site; o campo diz o que foi vendido |
 | Periodicidade e formas de pagamento por plano | Pronto | editaveis no painel mestre (`plans.billing`) |
 | Sincronizacao do plano como produto + preco recorrente | Pronto, depende de credencial | `POST /v1/products`; plano gratuito nao e sincronizavel (a API exige valor > 0) |
 | Contratacao por sessao de checkout hospedada | Pronto, depende de credencial | `POST /v1/checkout-sessions`; o cartao e tokenizado na pagina da ValidaPay |

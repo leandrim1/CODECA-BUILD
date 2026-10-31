@@ -8,10 +8,9 @@ import {
   effectiveFields,
   isModuleKey,
   policyKey,
-  type EffectiveField,
   type FieldPolicyOverrides,
   type ModuleKey,
-  type ModuleKind,
+  type SiteModuleView,
 } from '@codeca/shared';
 
 /**
@@ -23,15 +22,6 @@ import {
  * exatamente a mesma coisa.
  */
 
-export interface SiteModuleView {
-  key: ModuleKey;
-  name: string;
-  description: string;
-  kind: ModuleKind;
-  enabled: boolean;
-  settings: Record<string, unknown>;
-  fields: EffectiveField[];
-}
 
 export interface SiteModuleState {
   modules: SiteModuleView[];

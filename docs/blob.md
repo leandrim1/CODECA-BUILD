@@ -51,9 +51,10 @@ tambem e consultada com `tenant_id` fixado pela sessao.
 
 - **4 MB por arquivo** (`MAX_UPLOAD_BYTES`), abaixo do limite de corpo de
   requisicao da Vercel (4,5 MB).
-- **Total por empresa** definido pelo plano: 200 MB na Avaliacao, 2 GB no
-  Essencial, 10 GB no Profissional. A verificacao acontece no servidor, somando
-  `media_assets.size_bytes` da empresa antes de aceitar o envio.
+- **Total por empresa** definido pelo plano: 200 MB na Avaliacao, 500 MB no
+  Essencial, 2 GB no Profissional, 10 GB no Empresas. A verificacao acontece no
+  servidor, somando `media_assets.size_bytes` da empresa antes de aceitar o
+  envio.
 - O tipo e validado pelo mime declarado **e** pela extensao derivada dele; o
   nome original nao define o caminho gravado.
 

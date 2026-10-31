@@ -4,26 +4,45 @@ import type { PlanBillingInput } from './validators/billing.js';
 
 /** Limites e recursos controlados por plano. Verificados sempre no backend. */
 
+/**
+ * Recursos controlados por plano.
+ *
+ * Quatro, e cada um existe de verdade. Sairam `visual_editor_advanced_blocks`,
+ * `version_history`, `multi_page`, `seo_advanced` e `remove_platform_badge`:
+ * os cinco descreviam o editor visual removido na etapa 0, nenhum era
+ * verificado em lugar nenhum, e os planos continuavam anunciando o que a
+ * plataforma nao faz mais.
+ *
+ * `included_hosting` e diferente dos outros tres: e um compromisso comercial
+ * registrado, nao um recurso que a plataforma aplica. Quem publica o site do
+ * cliente e o projeto Vercel dele, entao a plataforma nao tem como garantir
+ * hospedagem -- so registrar que foi vendida, para o painel mestre e a tela
+ * de plano mostrarem. Esta distincao fica aqui para ninguem procurar depois a
+ * verificacao que nao existe.
+ */
 export const PLAN_FEATURES = [
+  'cms_panel',
   'custom_domain',
-  'visual_editor_advanced_blocks',
-  'version_history',
   'lead_export',
-  'multi_page',
-  'seo_advanced',
-  'remove_platform_badge',
+  'included_hosting',
 ] as const;
 export type PlanFeature = (typeof PLAN_FEATURES)[number];
 
 export const PLAN_FEATURE_LABELS: Record<PlanFeature, string> = {
+  cms_panel: 'Painel de conteudo para o cliente',
   custom_domain: 'Dominio proprio',
-  visual_editor_advanced_blocks: 'Blocos avancados no editor',
-  version_history: 'Historico de versoes',
   lead_export: 'Exportacao de interessados',
-  multi_page: 'Multiplas paginas',
-  seo_advanced: 'SEO avancado (canonical, sitemap, robots)',
-  remove_platform_badge: 'Remover selo da plataforma',
+  included_hosting: 'Hospedagem incluida',
 };
+
+/**
+ * Recursos que a plataforma apenas registra, sem aplicar.
+ *
+ * O painel mestre mostra o aviso a partir desta lista, em vez de repetir a
+ * explicacao em cada tela.
+ */
+export const PLAN_FEATURES_NOT_ENFORCED: readonly PlanFeature[] = ['included_hosting'];
+
 
 export const planLimitsSchema = z.object({
   maxUsers: z.number().int().min(1),
@@ -60,7 +79,7 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
   {
     code: 'trial',
     name: 'Avaliacao',
-    description: 'Para conhecer a plataforma antes de publicar um dominio proprio.',
+    description: 'Para conhecer o painel antes de contratar.',
     priceCents: 0,
     limits: {
       maxUsers: 2,
@@ -68,7 +87,8 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
       maxProjects: 3,
       maxDomains: 0,
       storageBytes: 200 * MB,
-      features: ['multi_page'],
+      // A avaliacao inclui o painel: e justamente o que se quer avaliar.
+      features: ['cms_panel'],
     },
     // Avaliacao nao e cobrada: nao vira preco na ValidaPay.
     billing: {
@@ -81,15 +101,42 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
   {
     code: 'essencial',
     name: 'Essencial',
-    description: 'Site institucional com imoveis e obras, dominio proprio incluso.',
-    priceCents: 19900,
+    description: 'Site personalizado com dominio proprio. O conteudo e mantido pela CODECA IA.',
+    priceCents: 1590,
+    limits: {
+      maxUsers: 2,
+      maxPublishedProperties: 20,
+      maxProjects: 10,
+      maxDomains: 1,
+      storageBytes: 500 * MB,
+      /**
+       * **Sem `cms_panel`**: este plano nao inclui o painel de conteudo.
+       *
+       * O acesso continua existindo -- o cliente entra, ve a cobranca e pede
+       * upgrade. Sem login, pedir upgrade viraria uma ligacao telefonica.
+       */
+      features: ['custom_domain'],
+    },
+    billing: {
+      recurrenceType: 'MONTHLY',
+      recurrenceInterval: 1,
+      trialDays: null,
+      // Sem boleto: a tarifa come a mensalidade neste preco.
+      paymentMethods: ['creditcard', 'pix_automatico', 'pix'],
+    },
+  },
+  {
+    code: 'profissional',
+    name: 'Profissional',
+    description: 'Site personalizado com painel para a empresa gerenciar o proprio conteudo.',
+    priceCents: 5990,
     limits: {
       maxUsers: 5,
-      maxPublishedProperties: 40,
-      maxProjects: 20,
+      maxPublishedProperties: 100,
+      maxProjects: 50,
       maxDomains: 1,
       storageBytes: 2 * 1024 * MB,
-      features: ['custom_domain', 'multi_page', 'version_history', 'lead_export'],
+      features: ['cms_panel', 'custom_domain', 'lead_export'],
     },
     billing: {
       recurrenceType: 'MONTHLY',
@@ -99,17 +146,17 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
     },
   },
   {
-    code: 'profissional',
-    name: 'Profissional',
-    description: 'Para construtoras com carteira ampla de imoveis e obras.',
-    priceCents: 39900,
+    code: 'empresas',
+    name: 'Empresas',
+    description: 'Tudo do Profissional, com a hospedagem do site por conta da CODECA IA.',
+    priceCents: 11990,
     limits: {
       maxUsers: 15,
-      maxPublishedProperties: 300,
-      maxProjects: 150,
+      maxPublishedProperties: 400,
+      maxProjects: 200,
       maxDomains: 3,
       storageBytes: 10 * 1024 * MB,
-      features: [...PLAN_FEATURES],
+      features: ['cms_panel', 'custom_domain', 'lead_export', 'included_hosting'],
     },
     billing: {
       recurrenceType: 'MONTHLY',

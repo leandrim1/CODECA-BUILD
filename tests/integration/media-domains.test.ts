@@ -70,7 +70,7 @@ beforeEach(async () => {
   await usePlan('profissional');
 });
 
-async function usePlan(code: 'trial' | 'essencial' | 'profissional'): Promise<void> {
+async function usePlan(code: 'trial' | 'essencial' | 'profissional' | 'empresas'): Promise<void> {
   const [plan] = await api.db.select().from(schema.plans).where(eq(schema.plans.code, code));
   await api.db.update(schema.tenants).set({ planId: plan!.id }).where(eq(schema.tenants.id, account.tenantId));
 }
@@ -147,10 +147,11 @@ describe('upload de midia', () => {
           maxUsers: 2,
           maxPublishedProperties: 5,
           maxProjects: 3,
-          maxPages: 10,
           maxDomains: 1,
           storageBytes: 1024,
-          features: ['custom_domain'],
+          // `cms_panel` porque o teste e sobre o limite de armazenamento: sem
+          // o painel no plano, a recusa viria antes e por outro motivo.
+          features: ['cms_panel', 'custom_domain'],
         },
       })
       .returning();
@@ -352,12 +353,18 @@ describe('dominios proprios', () => {
   });
 
   it('mantem apenas um dominio principal por empresa', async () => {
+    // Empresas: o unico plano com mais de um dominio, e este teste precisa de
+    // dois para ter o que disputar.
+    await usePlan('empresas');
+
     const first = await account.client.post(`/api/tenants/${account.tenantId}/domains`, {
       domain: 'www.alpha-um.com.br',
     });
+    expect(first.status, first.errorMessage ?? '').toBe(201);
     const second = await account.client.post(`/api/tenants/${account.tenantId}/domains`, {
       domain: 'www.alpha-dois.com.br',
     });
+    expect(second.status, second.errorMessage ?? '').toBe(201);
     await api.db.update(schema.domains).set({ status: 'active' }).where(eq(schema.domains.tenantId, account.tenantId));
 
     await account.client.post(`/api/tenants/${account.tenantId}/domains/${first.body.domain.id}/primary`);
@@ -381,7 +388,7 @@ describe('dominios proprios', () => {
   });
 
   it('respeita a quantidade de dominios do plano', async () => {
-    await usePlan('essencial'); // maxDomains = 1
+    await usePlan('profissional'); // maxDomains = 1, com painel
     const first = await account.client.post(`/api/tenants/${account.tenantId}/domains`, {
       domain: 'www.alpha-um.com.br',
     });

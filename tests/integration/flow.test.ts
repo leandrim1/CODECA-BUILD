@@ -63,7 +63,9 @@ beforeEach(async () => {
   });
   await verifyEmail(api, account);
   // O plano Essencial libera dominio proprio.
-  const [plan] = await api.db.select().from(schema.plans).where(eq(schema.plans.code, 'essencial'));
+  // Profissional, e nao Essencial: o Essencial nao inclui o painel de
+  // conteudo, e este teste percorre justamente o painel.
+  const [plan] = await api.db.select().from(schema.plans).where(eq(schema.plans.code, 'profissional'));
   await api.db
     .update(schema.tenants)
     .set({ planId: plan!.id })

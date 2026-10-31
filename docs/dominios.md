@@ -50,7 +50,11 @@ Em **Dominio proprio**:
    **Verificar novamente**.
 
 O recurso depende do plano (`custom_domain`) e do limite `maxDomains` — 0 na
-Avaliacao, 1 no Essencial, 3 no Profissional. Ambos sao verificados no servidor.
+Avaliacao, 1 no Essencial, 1 no Profissional, 3 no Empresas. Ambos sao
+verificados no servidor.
+
+No Essencial o cliente nao tem painel, entao quem conecta o dominio e a CODECA
+IA; o dominio continua incluso no plano.
 
 ## 3. Registros de DNS
 

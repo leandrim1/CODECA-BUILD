@@ -25,6 +25,7 @@ import { propertyRoutes } from './routes/properties.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { sessionMiddleware, tenantMiddleware } from './middleware/auth.js';
+import { requirePanelPlan } from './middleware/plan-panel.js';
 import { enforceSuspension } from './middleware/suspension.js';
 import type { AppBindings } from './types.js';
 
@@ -119,8 +120,21 @@ export function createApp(options: CreateAppOptions = {}) {
   const tenantScoped = new Hono<AppBindings>();
   tenantScoped.use('*', sessionMiddleware());
   tenantScoped.use('/:tenantId/*', tenantMiddleware());
-  // A politica de suspensao do plano decide o que o painel permite. A
-  // cobranca fica fora: bloquear quem precisa pagar impede a regularizacao.
+  /**
+   * Duas camadas, na ordem em que as perguntas se fazem.
+   *
+   * Primeiro: **o plano inclui o painel?** O Essencial nao inclui, e nesse
+   * caso nem faz sentido perguntar sobre a assinatura.
+   *
+   * Depois: **a assinatura esta em dia?** Essa e a politica de suspensao.
+   *
+   * As duas deixam `/billing` passar pela mesma razao -- bloquear quem precisa
+   * pagar ou fazer upgrade e impedir a propria saida da limitacao.
+   */
+  tenantScoped.use(
+    '/:tenantId/*',
+    requirePanelPlan({ exempt: ['', '/contact', '/plan', '/billing', '/modules'] }),
+  );
   tenantScoped.use('/:tenantId/*', enforceSuspension({ exempt: ['/billing'] }));
   tenantScoped.route('/', tenantRoutes());
   tenantScoped.route('/', memberRoutes());

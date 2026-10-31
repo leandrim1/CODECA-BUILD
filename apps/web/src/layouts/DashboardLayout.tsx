@@ -22,6 +22,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
+import type { ModuleKey } from '@codeca/shared';
 import { Badge, Button, Spinner, cx } from '@codeca/ui';
 import { useAuth } from '../hooks/useAuth.js';
 import { useSiteModules } from '../hooks/useSiteModules.js';
@@ -46,7 +47,15 @@ interface NavItem {
    * Sem modulo, o item vale para todo site: midia, interessados, dominio,
    * equipe, plano e empresa nao dependem de como o projeto foi montado.
    */
-  module?: string;
+  module?: ModuleKey;
+  /**
+   * Continua disponivel quando o plano nao inclui o painel de conteudo.
+   *
+   * Marcado so no que e **conta**, nao conteudo: plano e cadastro da empresa.
+   * O servidor recusa o resto de qualquer forma, e um menu que oferece telas
+   * que respondem 402 parece quebrado.
+   */
+  semPainel?: boolean;
   end?: boolean;
 }
 
@@ -68,7 +77,7 @@ interface NavGroup {
 const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Visao geral',
-    items: [{ to: '/painel', label: 'Visao geral', icon: LayoutDashboard, end: true }],
+    items: [{ to: '/painel', label: 'Visao geral', icon: LayoutDashboard, end: true, semPainel: true }],
   },
   {
     title: 'Conteudo do site',
@@ -130,15 +139,15 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/painel/dominio', label: 'Dominio proprio', icon: Globe, capability: 'domains:read' },
       { to: '/painel/equipe', label: 'Equipe e usuarios', icon: ShieldCheck, capability: 'members:read' },
-      { to: '/painel/plano', label: 'Plano e assinatura', icon: CreditCard, capability: 'billing:read' },
-      { to: '/painel/empresa', label: 'Configuracoes da empresa', icon: Settings, capability: 'tenant:read' },
+      { to: '/painel/plano', label: 'Plano e assinatura', icon: CreditCard, capability: 'billing:read', semPainel: true },
+      { to: '/painel/empresa', label: 'Configuracoes da empresa', icon: Settings, capability: 'tenant:read', semPainel: true },
     ],
   },
 ];
 
 export function DashboardLayout() {
   const { tenant, memberships, user, selectTenant, logout, isPlatformAdmin, can } = useAuth();
-  const { enabled, readOnly, blocked } = useSiteModules();
+  const { enabled, readOnly, blocked, panelIncluded, planName } = useSiteModules();
   const [menuOpen, setMenuOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const location = useLocation();
@@ -149,6 +158,8 @@ export function DashboardLayout() {
     ...group,
     items: group.items.filter((item) => {
       if (item.capability && !can(item.capability)) return false;
+      // O plano sem painel esconde conteudo inteiro; o que e conta permanece.
+      if (!panelIncluded) return item.semPainel === true;
       if (!item.module) return true;
       // Enquanto a configuracao nao chega, o item de modulo fica fora: e
       // melhor o menu crescer do que oferecer uma tela que nao existe.
@@ -300,7 +311,17 @@ export function DashboardLayout() {
           </Button>
         </header>
 
-        {readOnly || blocked ? <AvisoDeSuspensao bloqueado={blocked} /> : null}
+        {/*
+          Dois avisos que nunca aparecem juntos, e nao podem ser confundidos:
+          sem painel no plano, o cliente esta em dia e precisa de upgrade;
+          suspenso, ele precisa pagar. Trocar as mensagens faria um cliente
+          pagante achar que esta devendo.
+        */}
+        {!panelIncluded ? (
+          <AvisoDePlanoSemPainel planName={planName} />
+        ) : readOnly || blocked ? (
+          <AvisoDeSuspensao bloqueado={blocked} />
+        ) : null}
 
         <main className="flex-1" key={location.pathname.split('/').slice(0, 3).join('/')}>
           {/* As telas do painel sao carregadas sob demanda. */}
@@ -314,6 +335,38 @@ export function DashboardLayout() {
             <Outlet />
           </Suspense>
         </main>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Aviso de plano que nao inclui o painel de conteudo.
+ *
+ * Fala de upgrade e nomeia o plano atual. Nao fala em regularizar nem em
+ * pendencia: o cliente esta em dia, e sugerir o contrario rende uma ligacao
+ * para o suporte em vez de uma contratacao.
+ */
+function AvisoDePlanoSemPainel({ planName }: { planName: string }) {
+  return (
+    <div className="border-b border-brand-200 bg-brand-50 px-4 py-3 sm:px-6">
+      <div className="flex flex-wrap items-start gap-3">
+        <Sparkles aria-hidden="true" className="mt-0.5 size-5 flex-none text-brand-600" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-brand-900">
+            {planName ? `O plano ${planName} nao inclui o painel de conteudo` : 'Seu plano nao inclui o painel de conteudo'}
+          </p>
+          <p className="mt-0.5 text-sm text-brand-800">
+            O conteudo do seu site e mantido pela CODECA IA. Para editar textos, imagens e
+            produtos por conta propria, contrate o plano Profissional.
+          </p>
+        </div>
+        <Link
+          to="/painel/plano"
+          className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          Ver planos
+        </Link>
       </div>
     </div>
   );

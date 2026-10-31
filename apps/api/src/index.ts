@@ -57,4 +57,6 @@ export type {
   ChargeStatusResponse,
 } from './lib/validapay/types.js';
 export { AUDIT_ACTIONS } from './lib/audit.js';
+// Exportado para teste: decide quem escapa das politicas do painel.
+export { subPathAllowed, tenantSubPath } from './middleware/tenant-path.js';
 export { SESSION_COOKIE, CSRF_COOKIE, CSRF_HEADER } from './lib/cookies.js';

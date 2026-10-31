@@ -11,6 +11,7 @@ export type AppErrorCode =
   | 'not_found'
   | 'conflict'
   | 'plan_limit_reached'
+  | 'plan_without_panel'
   | 'storage_limit_reached'
   | 'subscription_required'
   | 'rate_limited'
@@ -29,6 +30,7 @@ const STATUS_BY_CODE: Record<AppErrorCode, number> = {
   not_found: 404,
   conflict: 409,
   plan_limit_reached: 402,
+  plan_without_panel: 402,
   storage_limit_reached: 402,
   subscription_required: 402,
   rate_limited: 429,
@@ -101,6 +103,23 @@ export class AppError extends Error {
 
   static planLimit(message: string, details?: unknown): AppError {
     return new AppError('plan_limit_reached', message, details);
+  }
+
+  /**
+   * O plano contratado nao inclui o painel de conteudo.
+   *
+   * Codigo proprio, e nao `subscription_required`, porque as duas situacoes
+   * dizem ao cliente coisas **opostas**. `subscription_required` significa
+   * "regularize o pagamento"; esta significa "esta em dia, mas o plano nao
+   * cobre isto -- faca upgrade". Reaproveitar o codigo da inadimplencia faria
+   * um cliente pagante achar que esta devendo, e e o tipo de erro que gera
+   * ligacao para o suporte em vez de upgrade.
+   *
+   * Separado de `plan_limit_reached` tambem: limite se resolve apagando algo,
+   * e aqui nao ha nada a apagar.
+   */
+  static planWithoutPanel(message: string, details?: unknown): AppError {
+    return new AppError('plan_without_panel', message, details);
   }
   static rateLimited(message = 'Muitas tentativas. Tente novamente em alguns instantes.'): AppError {
     return new AppError('rate_limited', message);

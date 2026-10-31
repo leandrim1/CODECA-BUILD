@@ -57,7 +57,10 @@ beforeEach(async () => {
   });
   await verifyEmail(api, account);
 
-  const plan = await syncPlanCode(api, 'essencial');
+  // Profissional, e nao Essencial: um dos casos cadastra conteudo para
+  // confirmar que o cancelamento nao apaga nada, e o Essencial nao inclui o
+  // painel. Nada aqui depende do preco em si -- ele vem do plano.
+  const plan = await syncPlanCode(api, 'profissional');
   planId = plan.id;
   priceId = plan.priceId;
   priceCents = plan.priceCents;

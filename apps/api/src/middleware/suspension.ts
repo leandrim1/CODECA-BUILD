@@ -7,6 +7,7 @@ import {
   panelWritesBlocked,
 } from '@codeca/shared';
 import { resolveSiteBilling } from '../lib/billing/suspension.js';
+import { subPathAllowed, tenantSubPath } from './tenant-path.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -28,7 +29,8 @@ import type { AppBindings } from '../types.js';
  */
 export interface SuspensionOptions {
   /**
-   * Trechos de caminho que a politica nunca restringe.
+   * Sufixos de rota que a politica nunca restringe, contados depois do id da
+   * empresa.
    *
    * Existe por uma razao so, e ela e importante o suficiente para ficar
    * explicita na composicao da aplicacao: a tela de cobranca.
@@ -38,8 +40,7 @@ export interface SuspensionOptions {
 
 export function enforceSuspension(options: SuspensionOptions): MiddlewareHandler<AppBindings> {
   return async (c, next) => {
-    const caminho = c.req.path;
-    if (options.exempt.some((trecho) => caminho.includes(trecho))) {
+    if (subPathAllowed(tenantSubPath(c), options.exempt)) {
       await next();
       return;
     }

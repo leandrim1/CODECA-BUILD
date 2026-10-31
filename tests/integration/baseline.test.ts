@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq, schema } from '@codeca/database';
 import { ensureBaselinePlans } from '@codeca/database';
-import { planBillingSchema, planLimitsSchema } from '@codeca/shared';
+import { DEFAULT_PLANS, planBillingSchema, planLimitsSchema } from '@codeca/shared';
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
 import { fileURLToPath } from 'node:url';
@@ -35,10 +35,10 @@ describe('instalacao vazia', () => {
     const result = await ensureBaselinePlans(database.db);
 
     expect(result.skipped).toBe(false);
-    expect(result.plansCreated).toBe(3);
+    expect(result.plansCreated).toBe(DEFAULT_PLANS.length);
 
     const rows = await database.db.select().from(schema.plans).orderBy(schema.plans.priceCents);
-    expect(rows.map((row) => row.code)).toEqual(['trial', 'essencial', 'profissional']);
+    expect(rows.map((row) => row.code)).toEqual(DEFAULT_PLANS.map((p) => p.code));
 
     for (const row of rows) {
       // Os mesmos schemas que a API usa ao ler o plano.
@@ -62,7 +62,7 @@ describe('instalacao vazia', () => {
     expect(segunda.plansCreated).toBe(0);
 
     const rows = await database.db.select().from(schema.plans);
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(DEFAULT_PLANS.length);
   });
 });
 
@@ -100,7 +100,6 @@ describe('instalacao em uso', () => {
         maxUsers: 50,
         maxPublishedProperties: 1000,
         maxProjects: 500,
-        maxPages: 100,
         maxDomains: 10,
         storageBytes: 50 * 1024 * 1024 * 1024,
         features: [],
@@ -136,7 +135,7 @@ describe('passo de deploy', () => {
         planos: await ensureBaselinePlans(db),
       };
       expect(primeiro.migracoes.applied.length).toBeGreaterThan(0);
-      expect(primeiro.planos.plansCreated).toBe(3);
+      expect(primeiro.planos.plansCreated).toBe(DEFAULT_PLANS.length);
 
       const segundo = {
         migracoes: await runMigrations(db, migrationsDir),
@@ -148,7 +147,7 @@ describe('passo de deploy', () => {
       expect(segundo.planos.skipped).toBe(true);
 
       const rows = await db.select({ code: schema.plans.code }).from(schema.plans);
-      expect(rows).toHaveLength(3);
+      expect(rows).toHaveLength(DEFAULT_PLANS.length);
     } finally {
       await client.close();
     }

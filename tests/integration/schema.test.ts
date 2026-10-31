@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq, schema, seedDatabase, sql } from '@codeca/database';
+import { DEFAULT_PLANS } from '@codeca/shared';
 import { createTestDatabase, resultRows, type TestDatabase } from '../helpers/database.js';
 
 let ctx: TestDatabase;
@@ -130,11 +131,17 @@ describe('seed', () => {
     await ctx.reset();
     const first = await seedDatabase(ctx.db);
     const second = await seedDatabase(ctx.db);
-    expect(first.plans).toBe(3);
-    expect(second.plans).toBe(3);
+
+    // Derivado de DEFAULT_PLANS, nao fixado: acrescentar um plano comercial e
+    // decisao de produto, e nao deveria custar a edicao de um teste que so
+    // conferia idempotencia.
+    expect(first.plans).toBe(DEFAULT_PLANS.length);
+    expect(second.plans).toBe(DEFAULT_PLANS.length);
     const rows = await ctx.db.select().from(schema.plans);
-    expect(rows).toHaveLength(3);
-    expect(rows.map((p) => p.code).sort()).toEqual(['essencial', 'profissional', 'trial']);
+    expect(rows).toHaveLength(DEFAULT_PLANS.length);
+    expect(rows.map((p) => p.code).sort()).toEqual(
+      DEFAULT_PLANS.map((p) => p.code).sort(),
+    );
   });
 
   it('cria administrador da plataforma e construtora de demonstracao com conteudo', async () => {
@@ -190,7 +197,6 @@ async function seedTwoTenants(): Promise<{
         maxUsers: 5,
         maxPublishedProperties: 50,
         maxProjects: 20,
-        maxPages: 10,
         maxDomains: 2,
         storageBytes: 1024,
         features: [],

@@ -490,6 +490,49 @@ Padrao: **site no ar, painel em somente leitura**. Derrubar o site de quem
 atrasou uma fatura custa ao visitante, que nao tem parte no atraso, e costuma
 gerar cancelamento em vez de pagamento.
 
+### Plano sem painel e suspensao sao coisas diferentes
+
+O plano Essencial vende site e dominio **sem** o painel de conteudo: quem
+mantem o conteudo e a CODECA IA. Isso bloqueia as mesmas rotas que a
+suspensao, e por isso vale escrever onde esta a diferenca:
+
+| | Suspensao | Plano sem painel |
+| --- | --- | --- |
+| Motivo | assinatura em atraso | plano em dia, mas nao cobre |
+| Saida | pagar | upgrade |
+| Duracao | ate regularizar | permanente no plano atual |
+| Codigo | `subscription_required` | `plan_without_panel` |
+| Camada | `enforceSuspension` | `requirePanelPlan` |
+
+Sao duas camadas e dois codigos de proposito. Juntar faria um cliente pagante
+ler "regularize sua assinatura" -- e ligar para o suporte em vez de contratar
+o plano acima. As duas liberam a tela de cobranca pelo mesmo motivo: bloquear
+quem precisa pagar ou fazer upgrade e impedir a propria saida da limitacao.
+
+Sem painel no plano, o cliente ainda alcanca o que e **conta**: cadastro da
+empresa, contato, plano e cobranca. Fica de fora tudo o que administra o site.
+A escolha de manter o login existindo e deliberada -- sem ele, pedir upgrade
+viraria uma ligacao telefonica.
+
+**`cms_panel` controla o painel, nao a integracao.** A API publica continua
+respondendo para um site cujo plano nao inclui painel: num projeto do
+Essencial e a CODECA IA que mantem o conteudo, e o site precisa ler. Quem
+decide se um site do Essencial e integrado e a CODECA IA, ao emitir ou nao a
+chave.
+
+### Recursos de plano: quatro, e um deles nao e aplicado
+
+`cms_panel`, `custom_domain`, `lead_export` e `included_hosting`. Sairam
+`visual_editor_advanced_blocks`, `version_history`, `multi_page`,
+`seo_advanced` e `remove_platform_badge`: os cinco descreviam o editor visual
+removido na etapa 0, nenhum era verificado em lugar nenhum, e os planos
+seguiam anunciando o que a plataforma nao faz mais.
+
+`included_hosting` e diferente dos outros tres: **a plataforma registra, nao
+aplica.** Quem publica o site e o projeto Vercel do cliente, entao nao ha como
+garantir hospedagem daqui -- so registrar que foi vendida, para o painel
+mestre e a tela de plano mostrarem. A caixa no painel mestre diz isso.
+
 ### O dado nunca e apagado
 
 Esta e a unica regra do capitulo que nao e configuravel, e ela esta em codigo

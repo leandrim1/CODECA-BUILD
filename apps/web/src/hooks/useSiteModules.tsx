@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useResource } from './useResource.js';
 import { useAuth } from './useAuth.js';
 import { moduleApi } from '../services/endpoints.js';
+import type { ModuleKey } from '@codeca/shared';
 import type { SiteModuleFieldView, SiteModuleView } from '../types/index.js';
 
 /**
@@ -29,10 +30,20 @@ interface SiteModulesValue {
   /** `true` quando o plano manda bloquear o painel de conteudo. */
   blocked: boolean;
   /** `true` so quando a resposta chegou e o modulo esta habilitado. */
-  enabled: (moduleKey: string) => boolean;
-  module: (moduleKey: string) => SiteModuleView | null;
+  enabled: (moduleKey: ModuleKey) => boolean;
+  module: (moduleKey: ModuleKey) => SiteModuleView | null;
   /** Campos do modulo com a politica do site aplicada. */
-  fields: (moduleKey: string) => SiteModuleFieldView[];
+  fields: (moduleKey: ModuleKey) => SiteModuleFieldView[];
+  /**
+   * `false` quando o plano contratado nao inclui o painel de conteudo.
+   *
+   * Diferente de `blocked`, e a diferenca precisa chegar a tela: `blocked` e
+   * assinatura em atraso e pede para regularizar; isto e plano em dia que nao
+   * cobre o painel, e pede upgrade.
+   */
+  panelIncluded: boolean;
+  /** Nome do plano contratado, para a mensagem nomear o que falta. */
+  planName: string;
   reload: () => void;
 }
 
@@ -61,6 +72,11 @@ export function SiteModulesProvider({ children }: { children: ReactNode }) {
     return {
       siteId: recurso.data?.siteId ?? null,
       modules,
+      // Enquanto carrega, assume incluido: a moldura nasce normal e so troca
+      // se a resposta disser o contrario. O inverso faria todo painel piscar
+      // um aviso de upgrade antes de desenhar o menu.
+      panelIncluded: recurso.data?.panel.included ?? true,
+      planName: recurso.data?.panel.planName ?? '',
       loading: recurso.loading && recurso.data === null,
       readOnly: suspensao !== null && !suspensao.current && suspensao.panel === 'read_only',
       blocked: bloqueado,
@@ -88,7 +104,7 @@ export function useSiteModules(): SiteModulesValue {
  * servidor recusa o que nao pode mesmo ser gravado. O contrario -- travar
  * tudo enquanto carrega -- faria o formulario parecer quebrado.
  */
-export function useModulePolicy(moduleKey: string) {
+export function useModulePolicy(moduleKey: ModuleKey) {
   const { fields, loading, enabled } = useSiteModules();
   const lista = fields(moduleKey);
 

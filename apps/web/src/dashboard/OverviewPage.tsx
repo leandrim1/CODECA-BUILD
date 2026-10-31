@@ -11,7 +11,13 @@ import {
   Users,
   Wrench,
 } from 'lucide-react';
-import { DOMAIN_STATUS_LABELS, formatBytes, formatDateTime, relativeTime } from '@codeca/shared';
+import {
+  DOMAIN_STATUS_LABELS,
+  formatBytes,
+  formatDateTime,
+  relativeTime,
+  type ModuleKey,
+} from '@codeca/shared';
 import { Alert, Badge, Button, Card, CardBody, CardHeader, EmptyState, Meter, PageHeader } from '@codeca/ui';
 import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useResource } from '../hooks/useResource.js';
@@ -38,7 +44,7 @@ type Indicador = {
   label: string;
   to: string;
   /** Modulo que precisa estar habilitado neste site; sem isso, vale sempre. */
-  module?: string;
+  module?: ModuleKey;
   capability?: Parameters<ReturnType<typeof useAuth>['can']>[0];
   value: (data: OverviewResponse) => number;
   detail: (data: OverviewResponse) => string;
@@ -102,13 +108,50 @@ const INDICADORES: Indicador[] = [
 export function OverviewPage() {
   const tenantId = useTenantId();
   const { user, tenant, can } = useAuth();
-  const { enabled } = useSiteModules();
-  const overview = useResource(() => tenantApi.overview(tenantId), [tenantId]);
+  const { enabled, panelIncluded, planName } = useSiteModules();
+  const overview = useResource(() => tenantApi.overview(tenantId), [tenantId], {
+    // Sem painel no plano a rota responde 402: nem pede.
+    enabled: panelIncluded,
+  });
+
+  const saudacao = `Ola, ${user?.name.split(' ')[0] ?? 'tudo bem'}`;
+
+  if (!panelIncluded) {
+    return (
+      <div className="panel-shell grid gap-6">
+        <PageHeader title={saudacao} description={`Sua conta na CODECA Build.`} />
+        <Card>
+          <CardBody className="grid gap-3">
+            <h2 className="text-lg font-semibold text-slate-900">
+              O conteudo do seu site e mantido pela CODECA IA
+            </h2>
+            <p className="text-sm text-slate-600">
+              {planName
+                ? `O plano ${planName} inclui o site personalizado e o dominio proprio. Para`
+                : 'Seu plano inclui o site personalizado e o dominio proprio. Para'}{' '}
+              alterar textos, imagens e produtos por conta propria, sem depender de pedido,
+              contrate o plano Profissional.
+            </p>
+            <p className="text-sm text-slate-600">
+              Precisa de uma alteracao agora? Fale com a equipe que desenvolveu o seu site.
+            </p>
+            {can('billing:read') ? (
+              <div>
+                <Link to="/painel/plano">
+                  <Button>Ver planos e assinatura</Button>
+                </Link>
+              </div>
+            ) : null}
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="panel-shell grid gap-6">
       <PageHeader
-        title={`Ola, ${user?.name.split(' ')[0] ?? 'tudo bem'}`}
+        title={saudacao}
         description={`Resumo do conteudo do site de ${tenant?.tenantName ?? 'sua empresa'}.`}
       />
 
