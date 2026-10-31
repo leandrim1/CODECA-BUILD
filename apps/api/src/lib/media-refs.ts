@@ -1,4 +1,4 @@
-import { and, eq, inArray, schema, type Database } from '@codeca/database';
+import { and, asc, eq, inArray, schema, type Database } from '@codeca/database';
 import { AppError } from '@codeca/shared';
 
 /**
@@ -27,9 +27,41 @@ export async function assertMediaBelongsToTenant(
   }
 }
 
-type GalleryTarget = 'property' | 'project' | 'projectUpdate';
+/**
+ * Onde cada tipo de conteudo guarda a lista ordenada de imagens.
+ *
+ * Tabela em vez de uma cadeia de `if`: eram tres alvos com o mesmo corpo
+ * repetido, e produtos e galerias levariam a cinco. Acrescentar um alvo passa
+ * a ser uma entrada aqui.
+ */
+const GALLERY_TARGETS = {
+  property: { table: schema.propertyImages, owner: schema.propertyImages.propertyId },
+  project: { table: schema.projectImages, owner: schema.projectImages.projectId },
+  projectUpdate: {
+    table: schema.projectUpdateImages,
+    owner: schema.projectUpdateImages.projectUpdateId,
+  },
+  product: { table: schema.productImages, owner: schema.productImages.productId },
+  gallery: { table: schema.galleryImages, owner: schema.galleryImages.galleryId },
+} as const;
 
-/** Substitui a galeria de um conteudo mantendo a ordem informada. */
+export type GalleryTarget = keyof typeof GALLERY_TARGETS;
+
+/** Nome da coluna que aponta para o dono, para montar o `INSERT`. */
+const OWNER_COLUMN: Record<GalleryTarget, string> = {
+  property: 'propertyId',
+  project: 'projectId',
+  projectUpdate: 'projectUpdateId',
+  product: 'productId',
+  gallery: 'galleryId',
+};
+
+/**
+ * Substitui a galeria de um conteudo mantendo a ordem informada.
+ *
+ * Apaga e reinsere em vez de aplicar diferencas: a ordem e o proprio dado, e
+ * calcular movimentacoes daria o mesmo resultado por um caminho mais longo.
+ */
 export async function syncGallery(
   db: Database,
   target: GalleryTarget,
@@ -37,68 +69,39 @@ export async function syncGallery(
 ): Promise<void> {
   await assertMediaBelongsToTenant(db, input.tenantId, input.mediaIds);
 
-  if (target === 'property') {
-    await db
-      .delete(schema.propertyImages)
-      .where(
-        and(
-          eq(schema.propertyImages.propertyId, input.entityId),
-          eq(schema.propertyImages.tenantId, input.tenantId),
-        ),
-      );
-    if (input.mediaIds.length > 0) {
-      await db.insert(schema.propertyImages).values(
-        input.mediaIds.map((mediaAssetId, index) => ({
-          tenantId: input.tenantId,
-          propertyId: input.entityId,
-          mediaAssetId,
-          sortOrder: index,
-        })),
-      );
-    }
-    return;
-  }
-
-  if (target === 'project') {
-    await db
-      .delete(schema.projectImages)
-      .where(
-        and(
-          eq(schema.projectImages.projectId, input.entityId),
-          eq(schema.projectImages.tenantId, input.tenantId),
-        ),
-      );
-    if (input.mediaIds.length > 0) {
-      await db.insert(schema.projectImages).values(
-        input.mediaIds.map((mediaAssetId, index) => ({
-          tenantId: input.tenantId,
-          projectId: input.entityId,
-          mediaAssetId,
-          sortOrder: index,
-        })),
-      );
-    }
-    return;
-  }
+  const alvo = GALLERY_TARGETS[target];
+  const coluna = OWNER_COLUMN[target];
 
   await db
-    .delete(schema.projectUpdateImages)
-    .where(
-      and(
-        eq(schema.projectUpdateImages.projectUpdateId, input.entityId),
-        eq(schema.projectUpdateImages.tenantId, input.tenantId),
-      ),
-    );
-  if (input.mediaIds.length > 0) {
-    await db.insert(schema.projectUpdateImages).values(
-      input.mediaIds.map((mediaAssetId, index) => ({
-        tenantId: input.tenantId,
-        projectUpdateId: input.entityId,
-        mediaAssetId,
-        sortOrder: index,
-      })),
-    );
-  }
+    .delete(alvo.table)
+    .where(and(eq(alvo.owner, input.entityId), eq(alvo.table.tenantId, input.tenantId)));
+
+  if (input.mediaIds.length === 0) return;
+
+  await db.insert(alvo.table).values(
+    input.mediaIds.map((mediaAssetId, index) => ({
+      tenantId: input.tenantId,
+      [coluna]: input.entityId,
+      mediaAssetId,
+      sortOrder: index,
+    })),
+  );
+}
+
+/** Ids das imagens de um conteudo, na ordem definida pelo cliente. */
+export async function loadGalleryIds(
+  db: Database,
+  target: GalleryTarget,
+  tenantId: string,
+  entityId: string,
+): Promise<string[]> {
+  const alvo = GALLERY_TARGETS[target];
+  const rows = await db
+    .select({ mediaAssetId: alvo.table.mediaAssetId })
+    .from(alvo.table)
+    .where(and(eq(alvo.table.tenantId, tenantId), eq(alvo.owner, entityId)))
+    .orderBy(asc(alvo.table.sortOrder));
+  return rows.map((row) => row.mediaAssetId);
 }
 
 export interface MediaRef {
@@ -109,7 +112,13 @@ export interface MediaRef {
   height: number | null;
 }
 
-/** Carrega as imagens de uma galeria na ordem definida pelo usuario. */
+/**
+ * Carrega as imagens de varias galerias de uma vez, na ordem do cliente.
+ *
+ * Uma consulta para todos os donos, nao uma por registro: a listagem do painel
+ * mostra dezenas de itens, e uma consulta por item e o caminho mais curto para
+ * uma tela lenta.
+ */
 export async function loadGallery(
   db: Database,
   target: GalleryTarget,
@@ -118,61 +127,22 @@ export async function loadGallery(
   const result = new Map<string, MediaRef[]>();
   if (input.entityIds.length === 0) return result;
 
-  const selectFields = {
-    id: schema.mediaAssets.id,
-    url: schema.mediaAssets.blobUrl,
-    alt: schema.mediaAssets.alt,
-    width: schema.mediaAssets.width,
-    height: schema.mediaAssets.height,
-  };
-
-  if (target === 'property') {
-    const rows = await db
-      .select({ ...selectFields, entityId: schema.propertyImages.propertyId, sortOrder: schema.propertyImages.sortOrder })
-      .from(schema.propertyImages)
-      .innerJoin(schema.mediaAssets, eq(schema.mediaAssets.id, schema.propertyImages.mediaAssetId))
-      .where(
-        and(
-          eq(schema.propertyImages.tenantId, input.tenantId),
-          inArray(schema.propertyImages.propertyId, input.entityIds),
-        ),
-      )
-      .orderBy(schema.propertyImages.sortOrder);
-    group(rows, result);
-    return result;
-  }
-
-  if (target === 'project') {
-    const rows = await db
-      .select({ ...selectFields, entityId: schema.projectImages.projectId, sortOrder: schema.projectImages.sortOrder })
-      .from(schema.projectImages)
-      .innerJoin(schema.mediaAssets, eq(schema.mediaAssets.id, schema.projectImages.mediaAssetId))
-      .where(
-        and(
-          eq(schema.projectImages.tenantId, input.tenantId),
-          inArray(schema.projectImages.projectId, input.entityIds),
-        ),
-      )
-      .orderBy(schema.projectImages.sortOrder);
-    group(rows, result);
-    return result;
-  }
-
+  const alvo = GALLERY_TARGETS[target];
   const rows = await db
     .select({
-      ...selectFields,
-      entityId: schema.projectUpdateImages.projectUpdateId,
-      sortOrder: schema.projectUpdateImages.sortOrder,
+      id: schema.mediaAssets.id,
+      url: schema.mediaAssets.blobUrl,
+      alt: schema.mediaAssets.alt,
+      width: schema.mediaAssets.width,
+      height: schema.mediaAssets.height,
+      entityId: alvo.owner,
+      sortOrder: alvo.table.sortOrder,
     })
-    .from(schema.projectUpdateImages)
-    .innerJoin(schema.mediaAssets, eq(schema.mediaAssets.id, schema.projectUpdateImages.mediaAssetId))
-    .where(
-      and(
-        eq(schema.projectUpdateImages.tenantId, input.tenantId),
-        inArray(schema.projectUpdateImages.projectUpdateId, input.entityIds),
-      ),
-    )
-    .orderBy(schema.projectUpdateImages.sortOrder);
+    .from(alvo.table)
+    .innerJoin(schema.mediaAssets, eq(schema.mediaAssets.id, alvo.table.mediaAssetId))
+    .where(and(eq(alvo.table.tenantId, input.tenantId), inArray(alvo.owner, input.entityIds)))
+    .orderBy(asc(alvo.table.sortOrder));
+
   group(rows, result);
   return result;
 }

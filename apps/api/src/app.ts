@@ -9,6 +9,7 @@ import { authRoutes } from './routes/auth.js';
 import { bannerRoutes } from './routes/banners.js';
 import { billingRoutes } from './routes/billing.js';
 import { billingJobRoutes } from './routes/billing-jobs.js';
+import { catalogRoutes } from './routes/catalog.js';
 import { contentRoutes } from './routes/content.js';
 import { domainRoutes } from './routes/domains.js';
 import { leadRoutes } from './routes/leads.js';
@@ -141,6 +142,7 @@ export function createApp(options: CreateAppOptions = {}) {
   tenantScoped.route('/', propertyRoutes());
   tenantScoped.route('/', projectRoutes());
   tenantScoped.route('/', contentRoutes());
+  tenantScoped.route('/', catalogRoutes());
   tenantScoped.route('/', moduleRoutes());
   tenantScoped.route('/', bannerRoutes());
   tenantScoped.route('/', mediaRoutes());

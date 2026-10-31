@@ -4,11 +4,16 @@ import type {
   InstitutionalContent,
   LeadInput,
   ListQuery,
+  ProductQuery,
   ProjectQuery,
   PropertyQuery,
   PublicBanner,
+  PublicCategory,
   PublicFaq,
+  PublicGallery,
+  PublicGallerySummary,
   PublicPage,
+  PublicProduct,
   PublicProject,
   PublicProperty,
   PublicService,
@@ -78,6 +83,40 @@ export function createResources(request: Transport) {
     services: {
       list: (query: ListQuery = {}) =>
         request<PublicPage<PublicService>>(`/api/v1/services${buildQuery({ ...query })}`),
+    },
+
+    products: {
+      list: (query: ProductQuery = {}) =>
+        request<PublicPage<PublicProduct>>(`/api/v1/products${buildQuery({ ...query })}`),
+      /** Um produto pelo endereco na URL, com a galeria completa. */
+      get: async (slug: string, query: ListQuery = {}) => {
+        const resposta = await request<{ product: PublicProduct }>(
+          `/api/v1/products/${encodeURIComponent(slug)}${buildQuery({ ...query })}`,
+        );
+        return resposta.product;
+      },
+    },
+
+    categories: {
+      /** Categorias de produto, para montar o menu do catalogo. */
+      list: async (query: ListQuery = {}) => {
+        const resposta = await request<{ items: PublicCategory[] }>(
+          `/api/v1/categories${buildQuery({ ...query })}`,
+        );
+        return resposta.items;
+      },
+    },
+
+    galleries: {
+      /** Galerias com capa e contagem; use `get` para as imagens. */
+      list: (query: ListQuery = {}) =>
+        request<PublicPage<PublicGallerySummary>>(`/api/v1/galleries${buildQuery({ ...query })}`),
+      get: async (slug: string, query: ListQuery = {}) => {
+        const resposta = await request<{ gallery: PublicGallery }>(
+          `/api/v1/galleries/${encodeURIComponent(slug)}${buildQuery({ ...query })}`,
+        );
+        return resposta.gallery;
+      },
     },
 
     testimonials: {

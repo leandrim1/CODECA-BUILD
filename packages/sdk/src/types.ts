@@ -129,6 +129,58 @@ export interface PublicPage<T> {
   totalPages: number;
 }
 
+export interface PublicCategory {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  sortOrder: number;
+}
+
+/**
+ * Produto do catalogo.
+ *
+ * `price` e `null` quando nao ha preco publicado ou quando `priceOnRequest`
+ * esta ligado -- o texto ("sob consulta", "a combinar") e escolha do projeto.
+ * `isAvailable` falso e produto no ar porem esgotado: riscar, esmaecer ou
+ * esconder tambem e decisao do projeto.
+ *
+ * `gallery` vem vazia na listagem e preenchida em `products.get(slug)`.
+ */
+export interface PublicProduct {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  description: string;
+  code: string;
+  price: number | null;
+  priceOnRequest: boolean;
+  currency: string;
+  unit: string;
+  isAvailable: boolean;
+  category: PublicCategory | null;
+  cover: PublicImage | null;
+  gallery: PublicImage[];
+  sortOrder: number;
+  seo: PublicSeo;
+}
+
+/** Galeria na listagem: capa e contagem, sem as imagens. */
+export interface PublicGallerySummary {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  cover: PublicImage | null;
+  imageCount: number;
+  sortOrder: number;
+}
+
+export interface PublicGallery extends PublicGallerySummary {
+  images: PublicImage[];
+}
+
 /**
  * Depoimento, ja autorizado pelo autor.
  *
@@ -248,6 +300,17 @@ export interface ProjectQuery {
   category?: string;
   city?: string;
   featured?: boolean;
+  search?: string;
+  preview?: boolean;
+}
+
+export interface ProductQuery {
+  page?: number;
+  pageSize?: number;
+  /** Slug da categoria, como vem de `categories.list()`. */
+  category?: string;
+  /** `true` esconde o que esta esgotado. Por padrao vem junto. */
+  availableOnly?: boolean;
   search?: string;
   preview?: boolean;
 }

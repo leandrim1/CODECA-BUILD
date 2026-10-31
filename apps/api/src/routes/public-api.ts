@@ -6,6 +6,7 @@ import {
   isModuleKey,
   publicLeadSchema,
   publicListQuerySchema,
+  publicProductQuerySchema,
   publicProjectQuerySchema,
   publicPropertyQuerySchema,
   type DocumentModuleKey,
@@ -18,16 +19,20 @@ import { clientIp, created, ok, parseJsonBody, parseParams, parseQuery, userAgen
 import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ratelimit.js';
 import { assertScope } from '../lib/integration/keys.js';
 import {
-  loadGallery,
   loadMedia,
   toPublicBanner,
+  toPublicCategory,
   toPublicFaq,
+  toPublicGallery,
+  toPublicGallerySummary,
+  toPublicProduct,
   toPublicProject,
   toPublicProperty,
   toPublicService,
   toPublicTeamMember,
   toPublicTestimonial,
 } from '../lib/integration/public-view.js';
+import { loadGallery, loadGalleryIds } from '../lib/media-refs.js';
 import { enabledModuleKeys, loadSiteModules } from '../lib/modules.js';
 import { apiKeyMiddleware } from '../middleware/api-key.js';
 import { enforcePublicSuspension } from '../middleware/suspension.js';
@@ -295,7 +300,7 @@ export function publicApiRoutes() {
       );
     if (!row) throw AppError.notFound('Imovel nao encontrado.');
 
-    const galeria = await loadGallery(ctx.db, 'property', credencial.tenantId, row.id);
+    const galeria = await loadGalleryIds(ctx.db, 'property', credencial.tenantId, row.id);
     const media = await loadMedia(ctx.db, credencial.tenantId, [row.coverImageId, ...galeria]);
     return ok(c, { property: toPublicProperty(row, media, galeria) });
   });
@@ -369,7 +374,7 @@ export function publicApiRoutes() {
       );
     if (!row) throw AppError.notFound('Obra nao encontrada.');
 
-    const galeria = await loadGallery(ctx.db, 'project', credencial.tenantId, row.id);
+    const galeria = await loadGalleryIds(ctx.db, 'project', credencial.tenantId, row.id);
     const media = await loadMedia(ctx.db, credencial.tenantId, [row.coverImageId, ...galeria]);
     return ok(c, { project: toPublicProject(row, media, galeria) });
   });
@@ -411,6 +416,208 @@ export function publicApiRoutes() {
         query.pageSize,
       ),
     );
+  });
+
+  // ------------------------------------------------------------- produtos
+
+  app.get('/products', async (c) => {
+    const ctx = c.get('ctx');
+    const credencial = c.get('apiKey');
+    await assertModulo(ctx.db, credencial.siteId, 'produtos');
+
+    const query = parseQuery(c, publicProductQuerySchema);
+    const preview = assertPreview(credencial.scopes, query.preview);
+
+    const condicoes = [
+      eq(schema.products.siteId, credencial.siteId),
+      publicacao(schema.products.publicationStatus, preview),
+    ];
+    if (query.category) condicoes.push(eq(schema.categories.slug, query.category));
+    if (query.search) condicoes.push(ilike(schema.products.title, `%${query.search}%`));
+    // Por padrao o esgotado vem junto: o site decide se risca, esmaece ou
+    // esconde. `availableOnly` existe para quem prefere nao mostrar.
+    if (query.availableOnly) condicoes.push(eq(schema.products.isAvailable, true));
+
+    const where = and(...condicoes);
+    const linhas = await ctx.db
+      .select({ product: schema.products, category: schema.categories })
+      .from(schema.products)
+      .leftJoin(schema.categories, eq(schema.categories.id, schema.products.categoryId))
+      .where(where)
+      .orderBy(asc(schema.products.sortOrder), asc(schema.products.title))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+
+    const [totais] = await ctx.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(schema.products)
+      .leftJoin(schema.categories, eq(schema.categories.id, schema.products.categoryId))
+      .where(where);
+
+    const media = await loadMedia(
+      ctx.db,
+      credencial.tenantId,
+      linhas.map((l) => l.product.coverImageId),
+    );
+
+    return ok(
+      c,
+      paginado(
+        linhas.map((l) =>
+          toPublicProduct(l.product, media, { category: l.category, gallery: [] }),
+        ),
+        totais?.total ?? 0,
+        query.page,
+        query.pageSize,
+      ),
+    );
+  });
+
+  /** Um produto pelo endereco na URL, com a galeria completa. */
+  app.get('/products/:slug', async (c) => {
+    const ctx = c.get('ctx');
+    const credencial = c.get('apiKey');
+    await assertModulo(ctx.db, credencial.siteId, 'produtos');
+
+    const { slug } = parseParams(c, z.object({ slug: z.string().trim().min(1).max(120) }));
+    const query = parseQuery(c, publicListQuerySchema);
+    const preview = assertPreview(credencial.scopes, query.preview);
+
+    const [linha] = await ctx.db
+      .select({ product: schema.products, category: schema.categories })
+      .from(schema.products)
+      .leftJoin(schema.categories, eq(schema.categories.id, schema.products.categoryId))
+      .where(
+        and(
+          eq(schema.products.siteId, credencial.siteId),
+          eq(schema.products.slug, slug),
+          publicacao(schema.products.publicationStatus, preview),
+        ),
+      );
+    if (!linha) throw AppError.notFound('Produto nao encontrado.');
+
+    const galeriaIds = await loadGalleryIds(
+      ctx.db,
+      'product',
+      credencial.tenantId,
+      linha.product.id,
+    );
+    const media = await loadMedia(ctx.db, credencial.tenantId, [
+      linha.product.coverImageId,
+      ...galeriaIds,
+    ]);
+
+    return ok(c, {
+      product: toPublicProduct(linha.product, media, {
+        category: linha.category,
+        gallery: galeriaIds.map((id) => media.get(id)).filter((ref): ref is NonNullable<typeof ref> => Boolean(ref)),
+      }),
+    });
+  });
+
+  // ----------------------------------------------------------- categorias
+
+  /**
+   * Categorias de produto, para o site montar o menu do catalogo.
+   *
+   * Sem paginacao: uma lista de agrupamentos tem dezenas de itens, nao
+   * milhares, e paginar um menu daria trabalho a quem integra sem motivo.
+   */
+  app.get('/categories', async (c) => {
+    const ctx = c.get('ctx');
+    const credencial = c.get('apiKey');
+    await assertModulo(ctx.db, credencial.siteId, 'categorias');
+
+    const query = parseQuery(c, publicListQuerySchema);
+    const preview = assertPreview(credencial.scopes, query.preview);
+
+    const rows = await ctx.db
+      .select()
+      .from(schema.categories)
+      .where(
+        and(
+          eq(schema.categories.siteId, credencial.siteId),
+          eq(schema.categories.moduleKey, 'produtos'),
+          publicacao(schema.categories.publicationStatus, preview),
+        ),
+      )
+      .orderBy(asc(schema.categories.sortOrder), asc(schema.categories.name));
+
+    return ok(c, { items: rows.map(toPublicCategory) });
+  });
+
+  // ------------------------------------------------------------- galerias
+
+  app.get('/galleries', async (c) => {
+    const ctx = c.get('ctx');
+    const credencial = c.get('apiKey');
+    await assertModulo(ctx.db, credencial.siteId, 'galerias');
+
+    const query = parseQuery(c, publicListQuerySchema);
+    const preview = assertPreview(credencial.scopes, query.preview);
+
+    const where = and(
+      eq(schema.galleries.siteId, credencial.siteId),
+      publicacao(schema.galleries.publicationStatus, preview),
+    );
+    const rows = await ctx.db
+      .select()
+      .from(schema.galleries)
+      .where(where)
+      .orderBy(asc(schema.galleries.sortOrder), asc(schema.galleries.title))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+
+    const [totais] = await ctx.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(schema.galleries)
+      .where(where);
+
+    // A listagem traz capa e contagem, nao as imagens: uma galeria pode ter
+    // duzentas, e todas de todas numa resposta seria pesado dos dois lados.
+    const imagens = await loadGallery(ctx.db, 'gallery', {
+      tenantId: credencial.tenantId,
+      entityIds: rows.map((r) => r.id),
+    });
+
+    return ok(
+      c,
+      paginado(
+        rows.map((row) => toPublicGallerySummary(row, imagens.get(row.id) ?? [])),
+        totais?.total ?? 0,
+        query.page,
+        query.pageSize,
+      ),
+    );
+  });
+
+  app.get('/galleries/:slug', async (c) => {
+    const ctx = c.get('ctx');
+    const credencial = c.get('apiKey');
+    await assertModulo(ctx.db, credencial.siteId, 'galerias');
+
+    const { slug } = parseParams(c, z.object({ slug: z.string().trim().min(1).max(120) }));
+    const query = parseQuery(c, publicListQuerySchema);
+    const preview = assertPreview(credencial.scopes, query.preview);
+
+    const [row] = await ctx.db
+      .select()
+      .from(schema.galleries)
+      .where(
+        and(
+          eq(schema.galleries.siteId, credencial.siteId),
+          eq(schema.galleries.slug, slug),
+          publicacao(schema.galleries.publicationStatus, preview),
+        ),
+      );
+    if (!row) throw AppError.notFound('Galeria nao encontrada.');
+
+    const imagens = await loadGallery(ctx.db, 'gallery', {
+      tenantId: credencial.tenantId,
+      entityIds: [row.id],
+    });
+
+    return ok(c, { gallery: toPublicGallery(row, imagens.get(row.id) ?? []) });
   });
 
   // ---------------------------------------------------------- depoimentos

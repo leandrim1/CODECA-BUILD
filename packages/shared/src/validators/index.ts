@@ -10,4 +10,5 @@ export * from './platform.js';
 export * from './segment.js';
 export * from './domain.js';
 export * from './banner.js';
+export * from './catalog.js';
 export * from './billing.js';

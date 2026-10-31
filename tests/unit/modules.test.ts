@@ -4,13 +4,16 @@ import {
   MODULE_KEYS,
   MODULE_REGISTRY,
   bannerInputSchema,
+  categoryInputSchema,
   faqInputSchema,
+  galleryInputSchema,
   blockedFields,
   changedKeys,
   effectiveFields,
   isFieldEditable,
   isModuleKey,
   policyKey,
+  productInputSchema,
   projectInputSchema,
   propertyInputSchema,
   serviceInputSchema,
@@ -49,6 +52,9 @@ const COLECOES: Array<[ModuleKey, { shape: Record<string, unknown> }]> = [
   ['depoimentos', testimonialInputSchema],
   ['equipe', teamMemberInputSchema],
   ['faq', faqInputSchema],
+  ['produtos', productInputSchema],
+  ['categorias', categoryInputSchema],
+  ['galerias', galleryInputSchema],
 ];
 
 describe('registro e validacao andam juntos', () => {

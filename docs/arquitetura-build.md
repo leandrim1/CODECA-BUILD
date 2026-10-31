@@ -112,10 +112,42 @@ cliente nao exige migracao.
 ### Modulos existentes
 
 `institucional` e `contato` sao documentos de instancia unica, em JSONB
-validado. `banners`, `imoveis`, `obras`, `servicos`, `depoimentos`, `equipe` e
-`faq` sao colecoes, em tabela tipada com indice.
+validado. `banners`, `imoveis`, `obras`, `servicos`, `depoimentos`, `equipe`,
+`faq`, `produtos`, `categorias` e `galerias` sao colecoes, em tabela tipada com
+indice.
 
-`depoimentos`, `equipe` e `faq` chegaram depois (etapa B). Tinham tabela e tela
+`produtos`, `categorias` e `galerias` chegaram na etapa C, e abrem varejo,
+restaurante e clinica. Quatro decisoes de modelagem valem registro, porque o
+schema nao as explica sozinho:
+
+- **Sem variacao de produto.** Tamanho e cor pediriam `product_variants` com
+  preco e disponibilidade por combinacao. Um cardapio e um catalogo de
+  servicos nao precisam, e a variante entra depois como tabela filha sem mexer
+  em `products`.
+- **Categoria em tabela compartilhada**, com `module_key`. Duas tabelas
+  especificas dariam relacionamento mais firme, mas cada modulo novo que
+  quisesse agrupar conteudo pediria migracao. O slug e unico dentro do modulo,
+  nao do site.
+- **Sem aninhamento de categoria.** `parent_id` traria ciclo, profundidade e
+  arvore no painel; o cardapio que motivou o modulo e plano.
+- **`price` em `NUMERIC(14,2)`**, como em `properties`. Nao sao centavos
+  inteiros como `plans.price_cents` porque este preco e de **exibicao**, nao
+  valor cobrado: centavos inteiros existem la para conversar com a ValidaPay.
+  Duas representacoes de dinheiro no mesmo codigo e como comecam erros de
+  arredondamento, entao cada uma tem seu motivo escrito. A validacao recusa
+  mais de duas casas: `19.999` seria gravado como `20.00` em silencio.
+
+Duas decisoes de **entrega** que o site precisa conhecer: preco sob consulta
+nao devolve o valor guardado (a empresa pode ter informado e depois decidido
+nao divulgar), e produto esgotado continua na resposta, marcado -- despublicar
+faria o cliente recadastrar amanha, e riscar ou esconder e decisao do projeto.
+
+Galeria nao tem coluna de capa: a primeira imagem da ordem e a capa, e uma
+coluna separada seria mais um estado a manter coerente com a lista. A listagem
+publica traz capa e contagem sem as imagens, porque uma galeria pode ter
+duzentas.
+
+`depoimentos`, `equipe` e `faq` chegaram na etapa B. Tinham tabela e tela
 no painel desde o inicio, mas **nao eram modulos**: nao estavam no registro,
 nem em `/api/v1`, nem no SDK. O cliente editava conteudo que nenhum site
 conseguia ler -- o pior dos dois mundos, porque a tela existia e dava a
@@ -190,10 +222,11 @@ Remover um segmento so e possivel enquanto nenhum site o usa; com sites, a
 resposta e desativar. A chave estrangeira e `on delete set null`, entao
 remover desligaria em silencio o segmento de projetos no ar.
 
-**Os modulos, porem, sao nove** (`institucional`, `contato`, `banners`,
-`imoveis`, `obras`, `servicos`, `depoimentos`, `equipe`, `faq`). Um segmento de
-restaurante pode ser cadastrado hoje, mas so agrupa o que existe -- cardapio,
-horarios e galeria sao modulos a escrever, nao segmentos a cadastrar.
+**Os modulos sao doze**: `institucional`, `contato`, `banners`, `imoveis`,
+`obras`, `servicos`, `depoimentos`, `equipe`, `faq`, `produtos`, `categorias` e
+`galerias`. Com produtos e categorias, um segmento de restaurante cadastrado no
+painel entrega um cardapio de verdade -- o que faltava na etapa B. Horarios de
+funcionamento ainda sao um campo do documento de contato, nao um modulo.
 
 ---
 

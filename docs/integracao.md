@@ -93,10 +93,43 @@ parametro de site para forjar.
 | `GET /api/v1/projects` | Obras publicadas |
 | `GET /api/v1/projects/:slug` | Uma obra, com galeria |
 | `GET /api/v1/services` | Servicos publicados |
+| `GET /api/v1/products` | Produtos publicados, com filtros e paginacao |
+| `GET /api/v1/products/:slug` | Um produto, com galeria |
+| `GET /api/v1/categories` | Categorias de produto, para montar o menu |
+| `GET /api/v1/galleries` | Galerias com capa e contagem |
+| `GET /api/v1/galleries/:slug` | Uma galeria, com as imagens |
 | `GET /api/v1/testimonials` | Depoimentos **autorizados pelo autor** |
 | `GET /api/v1/team` | Equipe exibida no site |
 | `GET /api/v1/faqs` | Perguntas frequentes publicadas |
 | `POST /api/v1/leads` | Recebe o formulario de contato |
+
+#### Produtos: preco, esgotado e galeria
+
+Tres pontos que mudam o que o site deve desenhar:
+
+- **`price` e `null` quando `priceOnRequest` e `true`.** O valor guardado nao
+  viaja: a empresa pode ter informado um preco e depois decidido nao divulgar.
+  O texto ("sob consulta", "a combinar") e escolha do projeto.
+- **`isAvailable: false` e produto no ar, porem esgotado.** Ele continua na
+  resposta de proposito -- despublicar faria o cliente recadastrar amanha.
+  Riscar, esmaecer ou esconder e decisao de design; `?availableOnly=true`
+  existe para quem prefere nao receber.
+- **`gallery` vem vazia na listagem** e preenchida em
+  `GET /api/v1/products/:slug`. Carregar as imagens de todos os produtos de
+  uma pagina seria uma consulta por linha.
+
+`category` vem embutida, com nome e slug, e nao como `categoryId`: o site quase
+sempre exibe o grupo junto do item.
+
+Filtro por categoria usa o **slug**, nao o id: `?category=pratos-principais`.
+
+#### Galerias: a listagem e enxuta
+
+`GET /api/v1/galleries` traz capa e `imageCount`, sem as imagens -- uma galeria
+pode ter duzentas, e todas de todas numa resposta seria pesado dos dois lados.
+`GET /api/v1/galleries/:slug` traz o conjunto completo, na ordem definida pelo
+cliente. **A capa e a primeira imagem da ordem**; nao existe campo de capa
+separado.
 
 #### Depoimentos: a autorizacao e condicao de entrega
 

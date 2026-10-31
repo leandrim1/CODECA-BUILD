@@ -3,8 +3,12 @@ import {
   publicAddress,
   type AddressInput,
   type PublicBanner,
+  type PublicCategory,
   type PublicFaq,
+  type PublicGallery,
+  type PublicGallerySummary,
   type PublicImage,
+  type PublicProduct,
   type PublicProject,
   type PublicProperty,
   type PublicService,
@@ -136,6 +140,70 @@ export function toPublicBanner(
   };
 }
 
+export function toPublicCategory(
+  row: typeof schema.categories.$inferSelect,
+): PublicCategory {
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    sortOrder: row.sortOrder,
+  };
+}
+
+export function toPublicProduct(
+  row: typeof schema.products.$inferSelect,
+  media: Map<string, MediaRef>,
+  input: { category: typeof schema.categories.$inferSelect | null; gallery: MediaRef[] },
+): PublicProduct {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    summary: row.summary,
+    description: row.description,
+    code: row.code,
+    // `priceOnRequest` manda: um preco gravado antes de marcar "sob consulta"
+    // nao deve voltar a aparecer por esquecimento.
+    price: row.priceOnRequest ? null : row.price,
+    priceOnRequest: row.priceOnRequest,
+    currency: row.currency,
+    unit: row.unit,
+    isAvailable: row.isAvailable,
+    category: input.category ? toPublicCategory(input.category) : null,
+    cover: toImage(row.coverImageId ? media.get(row.coverImageId) : null),
+    gallery: input.gallery.map((ref) => toImage(ref)).filter((img): img is PublicImage => img !== null),
+    sortOrder: row.sortOrder,
+    seo: { title: row.seoTitle, description: row.seoDescription },
+  };
+}
+
+export function toPublicGallerySummary(
+  row: typeof schema.galleries.$inferSelect,
+  imagens: MediaRef[],
+): PublicGallerySummary {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    description: row.description,
+    cover: toImage(imagens[0] ?? null),
+    imageCount: imagens.length,
+    sortOrder: row.sortOrder,
+  };
+}
+
+export function toPublicGallery(
+  row: typeof schema.galleries.$inferSelect,
+  imagens: MediaRef[],
+): PublicGallery {
+  return {
+    ...toPublicGallerySummary(row, imagens),
+    images: imagens.map((ref) => toImage(ref)).filter((img): img is PublicImage => img !== null),
+  };
+}
+
 /**
  * Depoimento.
  *
@@ -184,37 +252,6 @@ export function toPublicFaq(row: typeof schema.faqs.$inferSelect): PublicFaq {
     category: row.category,
     sortOrder: row.sortOrder,
   };
-}
-
-/** Ids das imagens de galeria, na ordem definida pelo cliente. */
-export async function loadGallery(
-  db: Database,
-  table: 'property' | 'project',
-  tenantId: string,
-  ownerId: string,
-): Promise<string[]> {
-  if (table === 'property') {
-    const rows = await db
-      .select({ mediaAssetId: schema.propertyImages.mediaAssetId })
-      .from(schema.propertyImages)
-      .where(
-        and(
-          eq(schema.propertyImages.tenantId, tenantId),
-          eq(schema.propertyImages.propertyId, ownerId),
-        ),
-      )
-      .orderBy(asc(schema.propertyImages.sortOrder));
-    return rows.map((r) => r.mediaAssetId);
-  }
-
-  const rows = await db
-    .select({ mediaAssetId: schema.projectImages.mediaAssetId })
-    .from(schema.projectImages)
-    .where(
-      and(eq(schema.projectImages.tenantId, tenantId), eq(schema.projectImages.projectId, ownerId)),
-    )
-    .orderBy(asc(schema.projectImages.sortOrder));
-  return rows.map((r) => r.mediaAssetId);
 }
 
 /** Carrega as imagens citadas, de uma vez, para evitar consulta por registro. */

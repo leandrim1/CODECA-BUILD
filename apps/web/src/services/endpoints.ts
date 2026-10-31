@@ -21,7 +21,10 @@ import type {
   MemberRecord,
   OverviewResponse,
   Paginated,
+  CategoryRecord,
+  GalleryRecord,
   PlanRecord,
+  ProductRecord,
   SegmentRecord,
   PlatformTenantRow,
   ProjectRecord,
@@ -277,6 +280,38 @@ export const domainApi = {
   setPrimary: (tenantId: string, domainId: string) =>
     api.post<unknown>(`${tenantBase(tenantId)}/domains/${domainId}/primary`),
   remove: (tenantId: string, domainId: string) => api.delete<void>(`${tenantBase(tenantId)}/domains/${domainId}`),
+};
+
+/** Produtos, categorias e galerias. */
+export const catalogApi = {
+  products: (tenantId: string, params: Record<string, string | number | undefined> = {}) =>
+    api.get<Paginated<ProductRecord>>(`${tenantBase(tenantId)}/products${query(params)}`),
+  product: (tenantId: string, id: string) =>
+    api.get<{ product: ProductRecord }>(`${tenantBase(tenantId)}/products/${id}`),
+  createProduct: (tenantId: string, body: unknown) =>
+    api.post<{ product: ProductRecord }>(`${tenantBase(tenantId)}/products`, body),
+  updateProduct: (tenantId: string, id: string, body: unknown) =>
+    api.patch<{ product: ProductRecord }>(`${tenantBase(tenantId)}/products/${id}`, body),
+  removeProduct: (tenantId: string, id: string) =>
+    api.delete<void>(`${tenantBase(tenantId)}/products/${id}`),
+
+  categories: (tenantId: string) =>
+    api.get<{ items: CategoryRecord[] }>(`${tenantBase(tenantId)}/categories`),
+  createCategory: (tenantId: string, body: unknown) =>
+    api.post<{ category: CategoryRecord }>(`${tenantBase(tenantId)}/categories`, body),
+  updateCategory: (tenantId: string, id: string, body: unknown) =>
+    api.patch<{ category: CategoryRecord }>(`${tenantBase(tenantId)}/categories/${id}`, body),
+  removeCategory: (tenantId: string, id: string) =>
+    api.delete<void>(`${tenantBase(tenantId)}/categories/${id}`),
+
+  galleries: (tenantId: string) =>
+    api.get<{ items: GalleryRecord[] }>(`${tenantBase(tenantId)}/galleries`),
+  createGallery: (tenantId: string, body: unknown) =>
+    api.post<{ gallery: GalleryRecord }>(`${tenantBase(tenantId)}/galleries`, body),
+  updateGallery: (tenantId: string, id: string, body: unknown) =>
+    api.patch<{ gallery: GalleryRecord }>(`${tenantBase(tenantId)}/galleries/${id}`, body),
+  removeGallery: (tenantId: string, id: string) =>
+    api.delete<void>(`${tenantBase(tenantId)}/galleries/${id}`),
 };
 
 export const platformApi = {

@@ -157,6 +157,69 @@ export interface PublicBanner {
   sortOrder: number;
 }
 
+export interface PublicCategory {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  sortOrder: number;
+}
+
+/**
+ * Produto, como o site do cliente o recebe.
+ *
+ * `category` vem embutida, e nao como `categoryId`: o site quase sempre exibe
+ * o nome do grupo junto do item, e uma busca extra por produto seria uma
+ * consulta por linha na tela.
+ *
+ * `price` e `null` quando nao ha preco publicado ou quando `priceOnRequest`
+ * esta ligado -- o site decide o texto ("sob consulta", "a combinar").
+ * `isAvailable` falso e produto no ar porem esgotado: a decisao de riscar,
+ * esmaecer ou esconder e do projeto, nao da plataforma.
+ */
+export interface PublicProduct {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  description: string;
+  /** SKU ou referencia interna. Vazio quando nao usado. */
+  code: string;
+  price: number | null;
+  priceOnRequest: boolean;
+  currency: string;
+  /** Unidade exibida ao lado do preco: `un`, `kg`, `porcao`. */
+  unit: string;
+  isAvailable: boolean;
+  category: PublicCategory | null;
+  cover: PublicImage | null;
+  gallery: PublicImage[];
+  sortOrder: number;
+  seo: PublicSeo;
+}
+
+/**
+ * Galeria na listagem: sem as imagens.
+ *
+ * Uma galeria pode ter duzentas imagens, e devolver todas de todas as galerias
+ * numa unica resposta seria pesado para o site e para o banco. A listagem traz
+ * a capa e a contagem; `GET /api/v1/galleries/:slug` traz o conjunto.
+ */
+export interface PublicGallerySummary {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  /** Primeira imagem da ordem. Nao ha coluna de capa. */
+  cover: PublicImage | null;
+  imageCount: number;
+  sortOrder: number;
+}
+
+export interface PublicGallery extends PublicGallerySummary {
+  images: PublicImage[];
+}
+
 /**
  * Depoimento, como o site do cliente o recebe.
  *

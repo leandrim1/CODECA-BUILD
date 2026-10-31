@@ -18,6 +18,9 @@ export const MODULE_KEYS = [
   'depoimentos',
   'equipe',
   'faq',
+  'produtos',
+  'categorias',
+  'galerias',
 ] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 
@@ -161,6 +164,85 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
       campo('featured', 'Destaque', 'boolean'),
       campo('seoTitle', 'Titulo para busca', 'text'),
       campo('seoDescription', 'Descricao para busca', 'longText'),
+      campo('sortOrder', 'Ordem', 'number'),
+      campo('slug', 'Endereco na URL', 'text', false, {
+        help: 'Alterar quebra links ja divulgados e a indexacao no Google.',
+      }),
+    ],
+  },
+  produtos: {
+    key: 'produtos',
+    name: 'Produtos',
+    description: 'O catalogo, o cardapio ou a lista de itens da empresa.',
+    kind: 'collection',
+    table: 'products',
+    fields: [
+      campo('title', 'Nome', 'text', true, { required: true }),
+      campo('summary', 'Resumo', 'longText'),
+      campo('description', 'Descricao', 'longText'),
+      campo('code', 'Codigo interno', 'text', true, {
+        help: 'SKU ou referencia. Aparece no site so se o projeto exibir.',
+      }),
+      campo('categoryId', 'Categoria', 'select'),
+      campo('price', 'Preco', 'money'),
+      campo('priceOnRequest', 'Preco sob consulta', 'boolean'),
+      campo('unit', 'Unidade', 'text', true, {
+        help: 'Ex.: un, kg, porcao. Aparece ao lado do preco.',
+      }),
+      campo('isAvailable', 'Disponivel', 'boolean', true, {
+        help: 'Desmarque para indicar que acabou, sem tirar o produto do site.',
+      }),
+      campo('coverImageId', 'Imagem principal', 'image'),
+      campo('galleryImageIds', 'Mais imagens', 'imageList'),
+      campo('publicationStatus', 'Publicacao', 'select'),
+      campo('sortOrder', 'Ordem', 'number'),
+      campo('seoTitle', 'Titulo para busca', 'text'),
+      campo('seoDescription', 'Descricao para busca', 'longText'),
+      /**
+       * Travados por padrao, pelos mesmos motivos de imoveis e servicos: o
+       * slug esta em links divulgados e na indexacao do Google, e a moeda
+       * define como o site formata todo preco.
+       */
+      campo('slug', 'Endereco na URL', 'text', false, {
+        help: 'Alterar quebra links ja divulgados e a indexacao no Google.',
+      }),
+      campo('currency', 'Moeda', 'select', false, {
+        help: 'Definida com a CODECA IA: o site formata os precos a partir dela.',
+      }),
+    ],
+  },
+  categorias: {
+    key: 'categorias',
+    name: 'Categorias',
+    description: 'Como os produtos ficam agrupados no site.',
+    kind: 'collection',
+    table: 'categories',
+    fields: [
+      campo('name', 'Nome', 'text', true, { required: true }),
+      campo('description', 'Descricao', 'longText'),
+      campo('publicationStatus', 'Publicacao', 'select'),
+      campo('sortOrder', 'Ordem', 'number'),
+      campo('moduleKey', 'Modulo', 'select', false, {
+        help: 'A que modulo a categoria pertence. Hoje somente produtos usa categorias.',
+      }),
+      campo('slug', 'Endereco na URL', 'text', false, {
+        help: 'Alterar quebra links ja divulgados e a indexacao no Google.',
+      }),
+    ],
+  },
+  galerias: {
+    key: 'galerias',
+    name: 'Galerias',
+    description: 'Conjuntos de imagens com nome: estrutura, antes e depois, eventos.',
+    kind: 'collection',
+    table: 'galleries',
+    fields: [
+      campo('title', 'Nome da galeria', 'text', true, { required: true }),
+      campo('description', 'Descricao', 'longText'),
+      campo('imageIds', 'Imagens', 'imageList', true, {
+        help: 'A primeira da ordem e a capa.',
+      }),
+      campo('publicationStatus', 'Publicacao', 'select'),
       campo('sortOrder', 'Ordem', 'number'),
       campo('slug', 'Endereco na URL', 'text', false, {
         help: 'Alterar quebra links ja divulgados e a indexacao no Google.',

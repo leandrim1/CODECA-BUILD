@@ -40,3 +40,17 @@ export type PublicProjectQuery = z.infer<typeof publicProjectQuerySchema>;
 
 export const publicListQuerySchema = publicPaginationSchema;
 export type PublicListQuery = z.infer<typeof publicListQuerySchema>;
+
+export const publicProductQuerySchema = publicPaginationSchema.extend({
+  /** Slug da categoria, nao o id: o site monta a URL a partir do menu. */
+  category: z.string().trim().max(120).optional(),
+  /**
+   * `true` esconde o que esta esgotado.
+   *
+   * Por padrao o esgotado vem junto, com `isAvailable: false`: riscar,
+   * esmaecer ou esconder e decisao de design do projeto, nao da plataforma.
+   */
+  availableOnly: z.coerce.boolean().optional(),
+  search: z.string().trim().max(120).optional(),
+});
+export type PublicProductQuery = z.infer<typeof publicProductQuerySchema>;

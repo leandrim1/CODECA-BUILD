@@ -12,7 +12,11 @@
 import type {
   PublicAddress as ApiAddress,
   PublicBanner as ApiBanner,
+  PublicCategory as ApiCategory,
   PublicFaq as ApiFaq,
+  PublicGallery as ApiGallery,
+  PublicGallerySummary as ApiGallerySummary,
+  PublicProduct as ApiProduct,
   PublicImage as ApiImage,
   PublicPage as ApiPage,
   PublicProject as ApiProject,
@@ -29,7 +33,11 @@ import type {
   InstitutionalContent,
   PublicAddress as SdkAddress,
   PublicBanner as SdkBanner,
+  PublicCategory as SdkCategory,
   PublicFaq as SdkFaq,
+  PublicGallery as SdkGallery,
+  PublicGallerySummary as SdkGallerySummary,
+  PublicProduct as SdkProduct,
   PublicImage as SdkImage,
   PublicPage as SdkPage,
   PublicProject as SdkProject,
@@ -58,6 +66,10 @@ type _Banner = Confirma<Igual<SdkBanner, ApiBanner>>;
 type _Testimonial = Confirma<Igual<SdkTestimonial, ApiTestimonial>>;
 type _TeamMember = Confirma<Igual<SdkTeamMember, ApiTeamMember>>;
 type _Faq = Confirma<Igual<SdkFaq, ApiFaq>>;
+type _Category = Confirma<Igual<SdkCategory, ApiCategory>>;
+type _Product = Confirma<Igual<SdkProduct, ApiProduct>>;
+type _GallerySummary = Confirma<Igual<SdkGallerySummary, ApiGallerySummary>>;
+type _Gallery = Confirma<Igual<SdkGallery, ApiGallery>>;
 type _Page = Confirma<Igual<SdkPage<SdkProperty>, ApiPage<ApiProperty>>>;
 
 /**
@@ -80,6 +92,10 @@ export type ContratoVerificado =
   | _Testimonial
   | _TeamMember
   | _Faq
+  | _Category
+  | _Product
+  | _GallerySummary
+  | _Gallery
   | _Service
   | _Banner
   | _Page

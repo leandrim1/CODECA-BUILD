@@ -1328,6 +1328,192 @@ export const faqs = pgTable(
   ],
 );
 
+/**
+ * Categorias de conteudo.
+ *
+ * Tabela **compartilhada**, com `module_key` dizendo a que modulo a categoria
+ * pertence. Categoria de produto e categoria de imovel sao coisas diferentes,
+ * e duas tabelas especificas dariam relacionamento mais firme -- mas cada
+ * modulo novo que quisesse agrupar conteudo pediria migracao, e a plataforma
+ * foi desenhada para crescer por cadastro.
+ *
+ * Sem aninhamento, de proposito: `parent_id` traria verificacao de ciclo,
+ * limite de profundidade e arvore no painel. O caso que motivou isto -- o
+ * cardapio -- e plano (Entradas, Pratos, Sobremesas, Bebidas).
+ */
+export const categories = pgTable(
+  'categories',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    /** Modulo a que a categoria pertence. Hoje so `produtos` a consome. */
+    moduleKey: text('module_key').notNull(),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+    description: text('description').notNull().default(''),
+    publicationStatus: publicationStatusEnum('publication_status').notNull().default('published'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    /** O slug e unico dentro do modulo, nao do site: `bebidas` pode existir
+     * em produtos e em outro modulo sem conflito. */
+    uniqueIndex('categories_site_module_slug_key').on(table.siteId, table.moduleKey, table.slug),
+    index('categories_site_module_idx').on(table.siteId, table.moduleKey, table.sortOrder),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'categories_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
+/**
+ * Produtos: o que a empresa vende.
+ *
+ * Uma tabela, nao duas: **sem variacao**. Tamanho e cor pediriam
+ * `product_variants` com preco e disponibilidade por combinacao, e nenhum
+ * cliente pediu isso ainda -- um cardapio e um catalogo de servicos nao
+ * precisam. Quando precisar, a variante entra como tabela filha sem mexer
+ * aqui.
+ *
+ * `price` usa o mesmo `money()` de imovel -- `NUMERIC(14,2)`, nunca ponto
+ * flutuante. Nao sao centavos inteiros como em `plans` porque este preco e de
+ * **exibicao**, nao valor cobrado: `plans.price_cents` existe para conversar
+ * com a ValidaPay. Duas representacoes de dinheiro no mesmo codigo e como
+ * comecam erros de arredondamento, entao cada uma tem seu motivo escrito.
+ */
+export const products = pgTable(
+  'products',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    /** `set null`: remover a categoria nao apaga o produto. */
+    categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+    title: text('title').notNull(),
+    slug: text('slug').notNull(),
+    summary: text('summary').notNull().default(''),
+    description: text('description').notNull().default(''),
+    /** Codigo interno, SKU ou numero de referencia. Opcional. */
+    code: text('code').notNull().default(''),
+    price: money('price'),
+    priceOnRequest: boolean('price_on_request').notNull().default(false),
+    currency: currencyEnum('currency').notNull().default('BRL'),
+    /** Unidade exibida ao lado do preco: `un`, `kg`, `porcao`. */
+    unit: text('unit').notNull().default(''),
+    /** Fora de estoque ou fora do dia, sem despublicar o produto. */
+    isAvailable: boolean('is_available').notNull().default(true),
+    coverImageId: uuid('cover_image_id').references(() => mediaAssets.id, { onDelete: 'set null' }),
+    publicationStatus: publicationStatusEnum('publication_status').notNull().default('draft'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    seoTitle: text('seo_title').notNull().default(''),
+    seoDescription: text('seo_description').notNull().default(''),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('products_tenant_slug_key').on(table.tenantId, table.slug),
+    index('products_site_status_idx').on(table.siteId, table.publicationStatus),
+    index('products_site_category_idx').on(table.siteId, table.categoryId, table.sortOrder),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'products_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
+export const productImages = pgTable(
+  'product_images',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    mediaAssetId: uuid('media_asset_id')
+      .notNull()
+      .references(() => mediaAssets.id, { onDelete: 'cascade' }),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex('product_images_unique').on(table.productId, table.mediaAssetId),
+    index('product_images_product_idx').on(table.productId, table.sortOrder),
+    index('product_images_media_idx').on(table.mediaAssetId),
+  ],
+);
+
+/**
+ * Galerias: conjuntos de imagens com nome.
+ *
+ * "Nossa estrutura", "Antes e depois", "Evento de lancamento". Sem coluna de
+ * capa: a primeira imagem da ordem e a capa, e uma coluna separada seria mais
+ * um estado a manter coerente com a lista.
+ *
+ * As imagens nao tem legenda propria aqui. `alt` e `title` vivem em
+ * `media_assets`, onde o cliente os escreve **uma vez** para todos os usos --
+ * legenda por galeria significaria reescrever o mesmo texto a cada reuso.
+ */
+export const galleries = pgTable(
+  'galleries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    title: text('title').notNull(),
+    slug: text('slug').notNull(),
+    description: text('description').notNull().default(''),
+    publicationStatus: publicationStatusEnum('publication_status').notNull().default('published'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('galleries_tenant_slug_key').on(table.tenantId, table.slug),
+    index('galleries_site_status_idx').on(table.siteId, table.publicationStatus),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'galleries_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
+export const galleryImages = pgTable(
+  'gallery_images',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    galleryId: uuid('gallery_id')
+      .notNull()
+      .references(() => galleries.id, { onDelete: 'cascade' }),
+    mediaAssetId: uuid('media_asset_id')
+      .notNull()
+      .references(() => mediaAssets.id, { onDelete: 'cascade' }),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex('gallery_images_unique').on(table.galleryId, table.mediaAssetId),
+    index('gallery_images_gallery_idx').on(table.galleryId, table.sortOrder),
+    index('gallery_images_media_idx').on(table.mediaAssetId),
+  ],
+);
+
 export const leads = pgTable(
   'leads',
   {

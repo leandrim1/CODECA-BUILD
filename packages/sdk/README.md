@@ -54,6 +54,14 @@ await codeca.projects.list({ status: 'em_andamento' });
 await codeca.projects.get('edificio-horizonte');
 
 await codeca.services.list();
+
+await codeca.products.list({ category: 'pratos-principais', availableOnly: true });
+await codeca.products.get('lasanha-da-casa');
+await codeca.categories.list();
+
+await codeca.galleries.list();
+await codeca.galleries.get('nossa-estrutura');
+
 await codeca.testimonials.list();
 await codeca.team.list();
 await codeca.faqs.list();

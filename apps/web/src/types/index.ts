@@ -588,6 +588,57 @@ export interface IssuedKey {
   token: string;
 }
 
+/** Categoria de produto, com quantos produtos a usam. */
+export interface CategoryRecord {
+  id: string;
+  moduleKey: string;
+  name: string;
+  slug: string;
+  description: string;
+  publicationStatus: PublicationStatus;
+  sortOrder: number;
+  createdAt: string;
+  /** A tela avisa antes de remover: produto sem categoria fica sem grupo. */
+  productCount: number;
+}
+
+export interface ProductRecord {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  description: string;
+  code: string;
+  categoryId: string | null;
+  price: number | null;
+  priceOnRequest: boolean;
+  currency: string;
+  unit: string;
+  isAvailable: boolean;
+  coverImageId: string | null;
+  cover: MediaRef | null;
+  gallery: MediaRef[];
+  galleryImageIds?: string[];
+  publicationStatus: PublicationStatus;
+  sortOrder: number;
+  seoTitle: string;
+  seoDescription: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GalleryRecord {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  publicationStatus: PublicationStatus;
+  sortOrder: number;
+  images: MediaRef[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Banner da abertura do site. */
 export interface BannerRecord {
   id: string;

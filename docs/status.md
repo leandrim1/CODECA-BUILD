@@ -18,7 +18,7 @@ Legenda:
 | Item | Status | Observacao |
 | --- | --- | --- |
 | Monorepo pnpm (`apps/*`, `packages/*`) | Pronto | TypeScript estrito em todos os pacotes |
-| Schema no Neon com 37 tabelas | Pronto | UUIDs, timestamps, enums, FKs, indices; isolamento `(site_id, tenant_id)` conferido pelo banco |
+| Schema no Neon com 42 tabelas | Pronto | UUIDs, timestamps, enums, FKs, indices; isolamento `(site_id, tenant_id)` conferido pelo banco |
 | Migracoes versionadas | Pronto | `packages/database/migrations`, aplicadas tambem nos testes |
 | Migracoes aplicadas no deploy | Pronto | o build de producao na Vercel aplica as pendentes e falha se alguma quebrar |
 | Planos padrao em instalacao nova | Pronto | criados apenas com a tabela vazia; nunca sobrescrevem ajustes do painel |
@@ -53,6 +53,9 @@ Legenda:
 | Imoveis (CRUD, filtros, paginacao, galeria) | Pronto | status de publicacao separado do status comercial |
 | Obras e projetos (CRUD, etapas, atualizacoes com fotos) | Pronto | percentual aparece somente quando informado |
 | Servicos | Pronto | ordenacao e publicacao por item |
+| Produtos | Pronto | preco, unidade, codigo interno, categoria, capa e galeria; esgotado sem despublicar |
+| Categorias de produto | Pronto | planas; remover nao apaga produto, so o deixa sem agrupamento |
+| Galerias | Pronto | conjuntos de imagens; a primeira da ordem e a capa |
 | Depoimentos | Pronto | modulo proprio; publicar exige a autorizacao do autor, conferida tambem na leitura publica |
 | Equipe do site | Pronto | modulo proprio, separado de "Usuarios e permissoes", que e quem acessa o painel |
 | Perguntas frequentes | Pronto | modulo proprio, com agrupamento livre |

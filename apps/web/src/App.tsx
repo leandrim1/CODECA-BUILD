@@ -36,6 +36,9 @@ const MediaPage = lazy(() => import('./dashboard/MediaPage.js').then((m) => ({ d
 const PropertiesPage = lazy(() => import('./dashboard/PropertiesPage.js').then((m) => ({ default: m.PropertiesPage })));
 const ProjectsPage = lazy(() => import('./dashboard/ProjectsPage.js').then((m) => ({ default: m.ProjectsPage })));
 const ServicesPage = lazy(() => import('./dashboard/ServicesPage.js').then((m) => ({ default: m.ServicesPage })));
+const ProductsPage = lazy(() => import('./dashboard/ProductsPage.js').then((m) => ({ default: m.ProductsPage })));
+const CategoriesPage = lazy(() => import('./dashboard/CategoriesPage.js').then((m) => ({ default: m.CategoriesPage })));
+const GalleriesPage = lazy(() => import('./dashboard/GalleriesPage.js').then((m) => ({ default: m.GalleriesPage })));
 const TestimonialsPage = lazy(() => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.TestimonialsPage })));
 const SiteTeamPage = lazy(() => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.SiteTeamPage })));
 const FaqPage = lazy(() => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.FaqPage })));
@@ -134,6 +137,30 @@ export function App() {
               element={
                 <RequireModule moduleKey="servicos">
                   <ServicesPage />
+                </RequireModule>
+              }
+            />
+            <Route
+              path="produtos"
+              element={
+                <RequireModule moduleKey="produtos">
+                  <ProductsPage />
+                </RequireModule>
+              }
+            />
+            <Route
+              path="categorias"
+              element={
+                <RequireModule moduleKey="categorias">
+                  <CategoriesPage />
+                </RequireModule>
+              }
+            />
+            <Route
+              path="galerias"
+              element={
+                <RequireModule moduleKey="galerias">
+                  <GalleriesPage />
                 </RequireModule>
               }
             />

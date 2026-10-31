@@ -66,7 +66,7 @@ Nao defina `SEED_DEMO=true` em producao.
 
 ## 4. O que esta no banco
 
-37 tabelas, todas com `id` UUID, `created_at` e `updated_at`:
+42 tabelas, todas com `id` UUID, `created_at` e `updated_at`:
 
 - **Contas e empresas**: `users`, `tenants`, `memberships`, `sessions`,
   `user_tokens`, `plans`, `subscriptions`
@@ -77,6 +77,8 @@ Nao defina `SEED_DEMO=true` em producao.
 - **Conteudo**: `content_documents`, `banners`, `properties`,
   `property_images`, `projects`, `project_images`, `project_updates`,
   `project_update_images`, `services`, `testimonials`, `team_members`, `faqs`
+- **Catalogo**: `categories`, `products`, `product_images`, `galleries`,
+  `gallery_images`
 - **Midia e captacao**: `media_assets`, `leads`, `lead_notes`
 - **Cobranca**: `charges`, `webhook_events`, `billing_audit_logs`
 - **Operacao**: `audit_logs`, `support_access_grants`, `rate_limits`
@@ -104,9 +106,12 @@ Decisoes que valem conhecer:
   reivindicar o mesmo dominio).
 - **Slugs unicos por site**, nao globais: duas construtoras podem ter
   `/contato`.
-- **Valores monetarios em centavos inteiros** (`integer`), nunca ponto
-  flutuante. A conversao para reais acontece so na fronteira com a API de
-  pagamento.
+- **Dinheiro nunca em ponto flutuante**, e duas representacoes com motivo:
+  `plans.price_cents` em centavos inteiros, porque conversa com a ValidaPay e a
+  conversao para reais acontece so na fronteira; `properties.price` e
+  `products.price` em `NUMERIC(14,2)`, porque sao precos de **exibicao**, nao
+  valores cobrados. A validacao de produto recusa mais de duas casas, senao
+  `19.999` seria gravado como `20.00` em silencio.
 - **Identificadores externos unicos**: `charges.external_charge_id` e
   `webhook_events.external_event_id`. Sao eles que tornam o processamento de
   webhooks idempotente -- a mesma cobranca ou o mesmo evento, chegando duas
