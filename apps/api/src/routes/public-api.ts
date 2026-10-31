@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gte, ilike, inArray, lte, or, schema, sql } from '@
 import {
   AppError,
   DOCUMENT_SCHEMAS,
+  buildOpenApiDocument,
   MODULE_REGISTRY,
   isModuleKey,
   publicLeadSchema,
@@ -119,6 +120,25 @@ export function publicApiRoutes() {
     c.header('access-control-allow-headers', 'authorization, content-type');
     c.header('access-control-max-age', '600');
     return c.body(null, 204);
+  });
+
+  /**
+   * Documento OpenAPI, **antes** da conferencia de chave.
+   *
+   * Sem autenticacao de proposito. Ele descreve as rotas publicas e nao
+   * contem dado de cliente nenhum -- a mesma informacao viaja no
+   * `@codeca/sdk`, que vai para o npm. Exigir chave aqui atrapalharia
+   * exatamente quem o documento serve: quem esta comecando a integrar e
+   * aponta um gerador de cliente para a URL.
+   *
+   * Gerado a cada requisicao, nao gravado em arquivo: documento em disco
+   * envelhece quando alguem esquece de regerar, e este nasce dos schemas que
+   * a API usa agora.
+   */
+  app.get('/openapi.json', (c) => {
+    const ctx = c.get('ctx');
+    c.header('cache-control', 'public, max-age=300');
+    return c.json(buildOpenApiDocument({ baseUrl: ctx.env.APP_URL }));
   });
 
   app.use('/*', apiKeyMiddleware());

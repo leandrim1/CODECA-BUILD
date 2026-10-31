@@ -374,11 +374,53 @@ conjunto de modulos dele.
 
 ### API
 
-`GET /api/v1/sites/:siteId/...`, autenticada pela chave no cabecalho
-`Authorization`. A resposta traz apenas o conteudo publicado daquele site, com
-os modulos habilitados. Versionada em `/v1` desde o primeiro dia: o site do
-cliente e codigo que nao controlamos de perto, e quebrar contrato quebra o
-site dele.
+`GET /api/v1/properties`, `GET /api/v1/products/:slug`, e assim por diante,
+autenticadas pela chave no cabecalho `Authorization`.
+
+**O site vem da chave, nunca do caminho.** O plano original previa
+`/api/v1/sites/:siteId/...`, e isso estava errado: um identificador no caminho
+e dado enviado pelo cliente, e aceita-lo significaria conferir a cada
+requisicao se aquela chave pode ler aquele site. A chave ja **e** o site --
+`site_api_keys.site_id` --, entao nao ha o que conferir e nao ha como errar a
+conferencia.
+
+A resposta traz apenas o conteudo publicado daquele site, com os modulos
+habilitados. Versionada em `/v1` desde o primeiro dia: o site do cliente e
+codigo que nao controlamos de perto, e quebrar contrato quebra o site dele.
+
+### OpenAPI gerado, nao escrito
+
+`GET /api/v1/openapi.json` devolve o documento OpenAPI 3.1, montado a cada
+requisicao a partir dos **mesmos schemas Zod que a API usa para validar**.
+
+A alternativa era escrever YAML a mao. Seria mais rapido hoje e estaria
+mentindo em tres meses -- e documentacao errada e pior que documentacao
+faltando, porque quem integra confia nela. Duas garantias fecham isso:
+
+| Risco | O que impede |
+| --- | --- |
+| Filtro documentado que a rota nao aceita | Os parametros saem do schema que valida a requisicao |
+| Forma documentada diferente da entregue | `tests/types/openapi-contract.types.ts` compara `z.infer` de cada schema com a interface que os mapeadores devolvem; divergencia e erro de compilacao |
+| Rota nova sem descricao | `tests/integration/openapi.test.ts` compara o documento com a tabela de rotas do proprio Hono, nos dois sentidos |
+
+Zod 4.6 tem `z.toJSONSchema` nativo com registro de componentes, entao nao foi
+preciso trocar o roteador por `@hono/zod-openapi` -- o que teria exigido
+redeclarar setenta rotas e escrever schema de resposta para todas.
+
+Os schemas de resposta sao, sim, uma segunda declaracao ao lado das interfaces
+de `public-content.ts`. JSON Schema precisa de um **valor** em tempo de
+execucao, e `interface` nao deixa nada no bundle. E o mesmo arranjo do SDK, que
+tambem carrega uma copia por precisar ser instalavel sozinho: a duplicacao e
+aceitavel porque o compilador a fecha.
+
+Fica fora o que o painel usa (`/api/tenants/...`). O painel e cliente do mesmo
+repositorio, tipado pelo TypeScript; documentar setenta rotas internas em
+OpenAPI daria manutencao sem leitor.
+
+**O que nao foi feito:** nao rodamos um validador formal de OpenAPI, que seria
+uma dependencia nova. Os testes cobrem a classe de erro que de fato acontece
+num documento montado assim -- `$ref` para componente inexistente, componente
+orfao, rota sem resposta de recusa declarada.
 
 ### SDK — `@codeca/sdk`
 

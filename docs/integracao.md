@@ -80,6 +80,35 @@ const { data } = await resposta.json();
 O site **nao** informa qual site ele e: isso vem da credencial. Nao ha
 parametro de site para forjar.
 
+### Documento OpenAPI
+
+```
+GET https://app.codecabuild.com.br/api/v1/openapi.json
+```
+
+OpenAPI 3.1, **sem chave**: ele descreve as rotas publicas e nao contem dado de
+cliente nenhum, e exigir credencial atrapalharia exatamente quem esta comecando
+a integrar. Aponte o seu gerador de cliente para essa URL.
+
+Duas propriedades que valem conhecer antes de confiar nele:
+
+- **E gerado dos mesmos schemas Zod que a API usa para validar.** O filtro
+  descrito e o filtro aceito; a forma documentada e a que
+  `tests/types/openapi-contract.types.ts` prova, no compilador, ser a
+  entregue. Nao existe YAML escrito a mao para envelhecer.
+- **A cobertura e verificada.** `tests/integration/openapi.test.ts` compara o
+  documento com a tabela de rotas do proprio servidor e falha se uma rota
+  existir sem descricao -- ou se uma descricao sobrar sem rota.
+
+Fica fora o que o painel usa (`/api/tenants/...`). Nao e esquecimento: o painel
+e cliente do mesmo repositorio, tipado pelo TypeScript. O leitor deste
+documento e quem integra um site.
+
+Nao rodamos um validador formal de OpenAPI (seria uma dependencia nova); o que
+os testes conferem e a classe de erro que de fato acontece num documento
+montado assim -- `$ref` apontando para componente inexistente, componente
+orfao, rota sem resposta de recusa declarada.
+
 ### Rotas
 
 | Rota | O que devolve |
