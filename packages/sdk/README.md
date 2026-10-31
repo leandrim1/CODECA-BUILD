@@ -199,3 +199,48 @@ O pacote carrega a propria copia deles para nao depender de nada. Uma
 verificacao de contrato no monorepo compara essa copia com o que a API entrega
 **em tempo de compilacao**: se um campo mudar de um lado so, o build da
 plataforma quebra antes de qualquer site receber a versao errada.
+
+## Compatibilidade
+
+O site do cliente e codigo que a CODECA IA desenvolve mas nao revisa todo dia.
+Publicar este pacote transforma `/api/v1` numa promessa, entao a promessa fica
+escrita.
+
+### O que pode mudar num `minor` (`0.1.0` -> `0.2.0`)
+
+- **Campo novo** numa resposta. Seu codigo ignora o que nao le.
+- **Rota nova**, metodo novo, modulo novo.
+- **Parametro de filtro novo**, sempre opcional.
+- Mensagem de erro, texto de aviso, ordem de campo no JSON.
+
+### O que exige um `major`
+
+- Remover ou renomear campo de resposta.
+- Mudar o tipo de um campo -- inclusive deixar de aceitar `null`.
+- Remover rota ou metodo.
+- Tornar obrigatorio um parametro que era opcional.
+- Mudar o significado de um valor existente.
+
+### Duas coisas que **nao** sao mudanca de contrato
+
+- **`site.segment` e texto livre.** A plataforma atende qualquer ramo, e
+  segmentos sao cadastrados no painel. Trate valor desconhecido como caso
+  padrao; um segmento novo nao e versao nova do SDK.
+- **`modules` cresce.** Um modulo que seu site nao conhece aparece na lista e
+  deve ser ignorado.
+
+Codigo que depende de `segment` ser um de tres valores, ou de `modules` ter
+exatamente os modulos de hoje, vai quebrar sem que isto seja uma quebra de
+contrato -- e por isso esta dito aqui.
+
+### Versao da API e versao do pacote
+
+Sao independentes. `/api/v1` so vira `/api/v2` numa mudanca que nenhum `major`
+do SDK resolveria, e as duas versoes responderiam em paralelo durante a
+transicao. Enquanto `/v1` existir, qualquer versao deste pacote fala com ela.
+
+## Licenca
+
+`UNLICENSED`: nenhum direito de uso e concedido por padrao. O pacote e pensado
+para os projetos que a CODECA IA desenvolve, e o campo deve ser trocado pela
+licenca escolhida se ele passar a ser instalado por terceiros.

@@ -1,0 +1,72 @@
+name: Publicar @codeca/sdk
+
+# Dispara por tag `sdk-v<versao>`, nao por push no branch.
+#
+# Publicar nao se desfaz: uma versao errada no registro so pode ser
+# depreciada, nunca removida depois de 72 horas. A tag e um ato deliberado, e
+# o job confere que ela concorda com o `package.json` antes de qualquer coisa.
+on:
+  push:
+    tags:
+      - 'sdk-v*'
+  # Permite publicar a mao a partir de um commit especifico.
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Somente simular (nao publica)'
+        type: boolean
+        default: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Procedencia no npm: o registro grava de qual commit o pacote saiu.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: pnpm install --frozen-lockfile
+
+      # A suite inteira, nao so o pacote. O SDK carrega uma copia dos tipos
+      # publicos, e a verificacao de contrato que impede a deriva mora em
+      # `tsconfig.contracts.json` -- publicar sem ela seria publicar sem saber
+      # se os tipos ainda descrevem a API.
+      - name: Conferir o repositorio inteiro
+        run: pnpm run check
+
+      - name: Conferir que a tag concorda com a versao do pacote
+        if: startsWith(github.ref, 'refs/tags/sdk-v')
+        run: |
+          TAG="${GITHUB_REF#refs/tags/sdk-v}"
+          PKG=$(node -p "require('./packages/sdk/package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "Tag sdk-v$TAG nao corresponde a versao $PKG do package.json." >&2
+            exit 1
+          fi
+          echo "Publicando $PKG."
+
+      - name: Simular a publicacao
+        working-directory: packages/sdk
+        run: pnpm publish --dry-run --no-git-checks
+
+      - name: Publicar
+        if: startsWith(github.ref, 'refs/tags/sdk-v') && inputs.dry-run != true
+        working-directory: packages/sdk
+        run: pnpm publish --no-git-checks --provenance
+        env:
+          # Segredo do repositorio. Sem ele o passo falha, e e assim que deve
+          # ser: nenhuma credencial de publicacao vive no codigo.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

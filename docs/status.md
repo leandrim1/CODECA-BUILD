@@ -93,7 +93,8 @@ Legenda:
 | Limite de requisicoes por chave | Pronto | — |
 | Dados de interessados fora da chave publicavel | Pronto | nome, telefone e e-mail ficam atras do painel autenticado |
 | `@codeca/sdk` com tipos e verificacao de webhook | Pronto | Web Crypto, para rodar tambem na borda |
-| Publicacao do SDK no npm | Nao implementado | o pacote esta pronto em forma; falta processo de versao |
+| Pacote do SDK pronto para publicar | Pronto | metadado, changelog, regra de compatibilidade escrita, conferencia de publicacao e workflow por tag |
+| Publicacao do SDK efetivada | **Depende de voce** | exige `NPM_TOKEN` no repositorio e a decisao entre npm publico e registro privado; `pnpm sdk:pack` simula |
 | Documentacao OpenAPI | Pronto | `GET /api/v1/openapi.json`, gerado dos schemas Zod; cobertura comparada com a tabela de rotas do servidor |
 
 **Nota de historico:** este arquivo descrevia, ate a etapa A, um renderizador

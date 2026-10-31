@@ -422,6 +422,35 @@ uma dependencia nova. Os testes cobrem a classe de erro que de fato acontece
 num documento montado assim -- `$ref` para componente inexistente, componente
 orfao, rota sem resposta de recusa declarada.
 
+### Publicar o SDK muda o que uma mudanca custa
+
+Enquanto o pacote vive so no monorepo, mudar um tipo custa um `pnpm check`.
+Publicado, ele passa a estar instalado em projetos que a CODECA IA desenvolve
+mas nao revisa todo dia -- e a mesma mudanca passa a custar um `npm update` em
+cada um, ou um site quebrado.
+
+Por isso a regra de compatibilidade esta **escrita** em
+`packages/sdk/README.md`, e nao combinada: o que pode mudar num `minor`, o que
+exige `major`, e duas coisas que parecem contrato e nao sao
+(`site.segment` e texto livre; `modules` cresce).
+
+Tres conferencias cercam o publish:
+
+| Risco | O que impede |
+| --- | --- |
+| Pacote nao instalavel fora do monorepo | `scripts/prepublish.mjs` recusa dependencia de workspace e import de `@codeca/*` no fonte. Dentro do monorepo isso sempre resolve, entao nenhum outro teste pegaria |
+| Tipos derivados da API | `pnpm run check` roda no workflow antes do publish, e inclui `tsconfig.contracts.json` |
+| Publicacao no registro errado | `publishConfig.access: "restricted"` e explicito, e um teste confere. Publish publico nao se desfaz -- so se deprecia |
+
+A versao do pacote e a da API sao independentes. `/v1` so vira `/v2` numa
+mudanca que nenhum `major` do SDK resolveria, e as duas responderiam em
+paralelo na transicao.
+
+**O que depende de quem opera:** o `npm publish` em si. Exige `NPM_TOKEN` como
+segredo do repositorio e a escolha entre npm publico e registro privado --
+nenhuma credencial de publicacao vive no codigo. `pnpm sdk:pack` simula o
+pacote inteiro sem publicar nada.
+
 ### SDK — `@codeca/sdk`
 
 Pacote instalavel nos sites desenvolvidos pela CODECA IA. Sem dependencia de

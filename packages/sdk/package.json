@@ -2,6 +2,23 @@
   "name": "@codeca/sdk",
   "version": "0.1.0",
   "description": "Cliente do CODECA Build para os sites desenvolvidos pela CODECA IA.",
+  "keywords": [
+    "codeca",
+    "cms",
+    "headless",
+    "sdk"
+  ],
+  "homepage": "https://github.com/leandrim1/CODECA-BUILD/tree/main/packages/sdk#readme",
+  "bugs": {
+    "url": "https://github.com/leandrim1/CODECA-BUILD/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leandrim1/CODECA-BUILD.git",
+    "directory": "packages/sdk"
+  },
+  "author": "CODECA IA",
+  "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,12 +34,21 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "src",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "sideEffects": false,
+  "engines": {
+    "node": ">=20.9"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "node ./scripts/prepublish.mjs --require-build"
   },
   "devDependencies": {
     "typescript": "~5.9.3"
