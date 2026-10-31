@@ -6,6 +6,7 @@ import {
 } from '@codeca/shared';
 import { hashPassword } from '@codeca/shared/server';
 import { eq, lt } from 'drizzle-orm';
+import { ensureBaselineSegments } from './baseline.js';
 import { createPrimarySite } from './sites.js';
 import type { Database } from './client.js';
 import {
@@ -53,6 +54,12 @@ export interface SeedResult {
 
 export async function seedDatabase(db: Database, options: SeedOptions = {}): Promise<SeedResult> {
   const log = options.log ?? (() => undefined);
+
+  // Segmentos vem antes dos planos porque o cadastro de uma empresa resolve o
+  // segmento padrao: sem nenhum, o site nasceria com todos os modulos.
+  // Reaproveita a regra do baseline -- so preenche com a tabela vazia, para
+  // nao desfazer o que foi ajustado no painel.
+  await ensureBaselineSegments(db);
 
   for (const plan of DEFAULT_PLANS) {
     await db

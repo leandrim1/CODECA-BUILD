@@ -100,15 +100,19 @@ Legenda:
 
 | Item | Status | Observacao |
 | --- | --- | --- |
-| Visao geral (empresas por estado, usuarios, dominios, armazenamento, interessados em 30 dias, paginas publicadas, empresas por plano) | Pronto | todos os numeros vem de consultas ao banco |
+| Visao geral (empresas por estado, usuarios, dominios, armazenamento, interessados em 30 dias, empresas por plano) | Pronto | todos os numeros vem de consultas ao banco |
 | Erros operacionais | Pronto, parcial | erros de dominio aparecem na tela de dominios (`lastError`); nao ha uma tela unica agregando falhas de integracao |
-| Lista e cadastro de construtoras | Pronto | — |
+| Lista e cadastro de empresas | Pronto | — |
 | Ativar, suspender e cancelar empresa | Pronto | reflete no site publico na hora |
 | Planos: criar, editar limites e recursos | Pronto | limites verificados no backend |
+| Segmentos: criar, editar, desativar e remover | Pronto | qualquer ramo, sem migracao; codigo e texto desde a etapa 7 |
+| Segmento padrao de empresas novas | Pronto | exatamente um, garantido por indice unico parcial |
+| Aplicar o segmento a um site existente | Pronto | ato separado e auditado; habilita o que falta e nao desliga nada |
+| Editar um segmento nao reconfigura sites | Pronto | coberto por teste; a auditoria grava `appliedToExistingSites: false` |
 | Limites de armazenamento por plano | Pronto | conferidos antes de cada upload |
 | Dominios de todas as empresas | Pronto | estado, ultima verificacao, ultimo erro |
-| Uso por empresa | Pronto | usuarios, imoveis, obras, paginas, dominios, armazenamento |
-| Log de auditoria | Pronto | filtros por empresa, acao e periodo |
+| Uso por empresa | Pronto | usuarios, imoveis, obras, dominios, armazenamento |
+| Log de auditoria | Pronto | filtros por empresa, acao e periodo; chave emitida, rotacionada e revogada sao acoes distintas |
 | Permissao global separada | Pronto | concedida explicitamente, registrada em auditoria |
 | Acesso de suporte a dados de empresa | Pronto | exige concessao com motivo e validade, somente leitura |
 

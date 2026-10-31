@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Copy, KeyRound, Plus, RotateCw, Save, Trash2 } from 'lucide-react';
-import { DELIVERY_STATE_LABELS, formatDateTime } from '@codeca/shared';
+import { DELIVERY_STATE_LABELS, MODULE_REGISTRY, formatDateTime } from '@codeca/shared';
 import {
   Alert,
   Badge,
@@ -21,7 +21,7 @@ import {
   type Column,
 } from '@codeca/ui';
 import { useResource, useMutation } from '../../hooks/useResource.js';
-import { platformSiteApi } from '../../services/endpoints.js';
+import { platformApi, platformSiteApi } from '../../services/endpoints.js';
 import { ResourcePanel } from '../../components/ResourcePanel.js';
 import type {
   IssuedKey,
@@ -166,16 +166,30 @@ function AbaIdentidade({
   onSaved,
 }: {
   siteId: string;
-  site: { name: string; status: SiteStatus; internalNotes: string; slug: string };
+  site: {
+    name: string;
+    status: SiteStatus;
+    internalNotes: string;
+    slug: string;
+    segmentId: string | null;
+  };
   onSaved: () => void;
 }) {
   const toast = useToast();
   const [name, setName] = useState(site.name);
   const [status, setStatus] = useState<SiteStatus>(site.status);
   const [internalNotes, setInternalNotes] = useState(site.internalNotes);
+  const [segmentId, setSegmentId] = useState<string>(site.segmentId ?? '');
+  const segmentos = useResource(() => platformApi.segments(), []);
 
   const salvar = useMutation(
-    () => platformSiteApi.update(siteId, { name, status, internalNotes }),
+    () =>
+      platformSiteApi.update(siteId, {
+        name,
+        status,
+        internalNotes,
+        segmentId: segmentId === '' ? null : segmentId,
+      }),
     {
       onSuccess: () => {
         toast.success('Site atualizado');
@@ -184,6 +198,29 @@ function AbaIdentidade({
       onError: (error) => toast.error('Nao foi possivel salvar', error.message),
     },
   );
+
+  /**
+   * Aplicar o segmento e um pedido separado da gravacao.
+   *
+   * Trocar o segmento corrige a classificacao do projeto; aplicar o conjunto
+   * reconfigura um site em producao. Juntar as duas coisas faria a segunda
+   * acontecer sem ninguem ter pedido.
+   */
+  const aplicar = useMutation(() => platformSiteApi.applySegment(siteId), {
+    onSuccess: (resultado) => {
+      const ligados = resultado.enabled;
+      toast.success(
+        ligados.length === 0
+          ? 'Nada a mudar: o site ja tem os modulos do segmento'
+          : `${ligados.length} modulo(s) habilitado(s)`,
+      );
+      onSaved();
+    },
+    onError: (error) => toast.error('Nao foi possivel aplicar', error.message),
+  });
+
+  const atual = segmentos.data?.items.find((item) => item.id === segmentId) ?? null;
+  const salvo = segmentId === (site.segmentId ?? '');
 
   return (
     <div className="grid gap-4 md:max-w-2xl">
@@ -195,6 +232,25 @@ function AbaIdentidade({
         options={Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))}
         hint="Em desenvolvimento ate a integracao do site ficar pronta."
       />
+
+      <Select
+        label="Segmento"
+        value={segmentId}
+        onChange={(e) => setSegmentId(e.target.value)}
+        options={[
+          { value: '', label: 'Sem segmento' },
+          ...(segmentos.data?.items ?? [])
+            // Um inativo que o site ja usa continua na lista: senao a tela
+            // mostraria "Sem segmento" para um site que tem um.
+            .filter((item) => item.isActive || item.id === site.segmentId)
+            .map((item) => ({
+              value: item.id,
+              label: item.isActive ? item.name : `${item.name} (inativo)`,
+            })),
+        ]}
+        hint="Classifica o projeto. Trocar aqui nao mexe nos modulos do site."
+      />
+
       <TextArea
         label="Anotacoes internas"
         value={internalNotes}
@@ -208,6 +264,46 @@ function AbaIdentidade({
           Salvar
         </Button>
       </div>
+
+      {atual ? (
+        <div className="grid gap-2 rounded-lg border border-slate-200 p-4">
+          <p className="text-sm font-medium text-slate-800">
+            Aplicar os modulos de {atual.name} a este site
+          </p>
+          <p className="text-sm text-slate-600">
+            Habilita o que o segmento traz e <strong>nao desliga nada</strong>. Desligar um modulo
+            em uso e decisao da aba Modulos, onde da para ver o que esta ligado.
+          </p>
+          {atual.defaultModules.length > 0 ? (
+            <ul className="flex flex-wrap gap-1.5">
+              {atual.defaultModules.map((key) => (
+                <li key={key} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                  {MODULE_REGISTRY[key].name}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-amber-700">
+              Este segmento nao tem modulo padrao definido.
+            </p>
+          )}
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!salvo || aplicar.loading || atual.defaultModules.length === 0}
+              onClick={() => void aplicar.run(undefined)}
+            >
+              Aplicar segmento
+            </Button>
+            {salvo ? null : (
+              <p className="mt-1.5 text-xs text-slate-500">
+                Salve a troca de segmento antes de aplicar.
+              </p>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

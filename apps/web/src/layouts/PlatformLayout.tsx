@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   Package,
+  Shapes,
 } from 'lucide-react';
 import { Spinner, cx } from '@codeca/ui';
 
@@ -18,6 +19,7 @@ const ITEMS = [
   { to: '/plataforma', label: 'Visao geral', icon: LayoutDashboard, end: true },
   { to: '/plataforma/empresas', label: 'Empresas', icon: Building2 },
   { to: '/plataforma/sites', label: 'Sites', icon: AppWindow },
+  { to: '/plataforma/segmentos', label: 'Segmentos', icon: Shapes },
   { to: '/plataforma/planos', label: 'Planos', icon: Package },
   { to: '/plataforma/cobranca', label: 'Cobranca', icon: CreditCard },
   { to: '/plataforma/dominios', label: 'Dominios', icon: Globe },

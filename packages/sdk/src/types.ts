@@ -135,6 +135,14 @@ export interface SiteInfo {
     name: string;
     slug: string;
     status: string;
+    /**
+     * Ramo do projeto, definido pela CODECA IA no painel.
+     *
+     * Texto livre, nao uma lista fechada: a plataforma atende qualquer
+     * segmento. Compare pelo valor combinado para o seu projeto, e trate
+     * qualquer outro como caso padrao -- o conjunto cresce sem nova versao
+     * do SDK.
+     */
     segment: string | null;
   };
   modules: Array<{ key: string; name: string; kind: 'document' | 'collection' }>;

@@ -44,6 +44,14 @@ const DATA_TABLES = [
   'tenants',
   'users',
   'plans',
+  /**
+   * Dado de referencia, limpo como os planos.
+   *
+   * Desde a etapa 7 o painel mestre edita e remove segmentos, entao um teste
+   * que marque outro padrao ou tire um modulo do conjunto vazaria o estado
+   * para o teste seguinte. `seedDatabase` repoe os tres no `reset`.
+   */
+  'segments',
 ] as const;
 
 export interface TestDatabase extends DatabaseHandle {

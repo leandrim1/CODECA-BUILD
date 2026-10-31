@@ -4,7 +4,6 @@ import {
   MODULE_KEYS,
   isModuleKey,
   type DocumentModuleKey,
-  type SegmentCode,
 } from '@codeca/shared';
 import type { Database } from './client.js';
 import { contentDocuments, segments, siteModules, sites, tenants } from './schema.js';
@@ -20,8 +19,8 @@ import { contentDocuments, segments, siteModules, sites, tenants } from './schem
 export interface CreatePrimarySiteInput {
   tenantId: string;
   name: string;
-  /** Segmento inicial. O painel mestre ajusta depois. */
-  segmentCode?: SegmentCode;
+  /** Segmento inicial. Sem isto, usa o marcado como padrao no painel. */
+  segmentCode?: string;
   slug?: string;
 }
 
@@ -37,11 +36,7 @@ export async function createPrimarySite(
   db: Database,
   input: CreatePrimarySiteInput,
 ): Promise<{ id: string }> {
-  const code = input.segmentCode ?? 'construtora';
-  const [segment] = await db
-    .select({ id: segments.id, defaultModules: segments.defaultModules })
-    .from(segments)
-    .where(eq(segments.code, code));
+  const segment = await resolveSegment(db, input.segmentCode);
 
   const [created] = await db
     .insert(sites)
@@ -67,7 +62,36 @@ export async function createPrimarySite(
   return created;
 }
 
-/** Modulos do segmento, filtrados pelo registro: o banco pode estar adiante. */
+/**
+ * Segmento de um site novo: o pedido, senao o marcado como padrao.
+ *
+ * Qual e o padrao e decisao da CODECA IA no painel, nao constante no codigo.
+ * Antes aqui estava `'construtora'` fixo, e uma clinica recem-cadastrada
+ * nascia com os modulos de uma construtora.
+ */
+async function resolveSegment(
+  db: Database,
+  code: string | undefined,
+): Promise<{ id: string; defaultModules: string[] } | undefined> {
+  const colunas = { id: segments.id, defaultModules: segments.defaultModules };
+
+  if (code) {
+    const [pedido] = await db.select(colunas).from(segments).where(eq(segments.code, code));
+    if (pedido) return pedido;
+  }
+
+  const [padrao] = await db.select(colunas).from(segments).where(eq(segments.isDefault, true));
+  return padrao;
+}
+
+/**
+ * Modulos do segmento, filtrados pelo registro.
+ *
+ * O filtro cobre o caso de um modulo sair do registro depois de ter sido
+ * declarado num segmento. Sem segmento -- instalacao que ainda nao cadastrou
+ * nenhum -- habilita tudo: e a CODECA IA que desliga o que aquele projeto nao
+ * tem, e um site que nasce sem modulo nenhum parece quebrado.
+ */
 function segmentModules(defaults: string[] | null | undefined): string[] {
   const lista = defaults && defaults.length > 0 ? defaults : [...MODULE_KEYS];
   return lista.filter(isModuleKey);

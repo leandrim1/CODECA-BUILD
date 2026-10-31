@@ -1,4 +1,4 @@
-import { and, desc, eq, schema } from '@codeca/database';
+import { and, desc, eq, inArray, provisionSiteModules, schema, type Database } from '@codeca/database';
 import {
   API_KEY_KINDS,
   API_KEY_SCOPES,
@@ -38,6 +38,14 @@ const updateSiteSchema = z.object({
   name: z.string().trim().min(1).max(160),
   status: z.enum(SITE_STATUSES),
   internalNotes: z.string().trim().max(4_000).default(''),
+  /**
+   * Segmento do projeto. `null` desvincula.
+   *
+   * Trocar aqui **nao** mexe nos modulos do site: o segmento e o ponto de
+   * partida de um projeto novo, e um site ja configurado pode ter sido
+   * ajustado a mao. Aplicar o conjunto do segmento e um pedido separado.
+   */
+  segmentId: uuidSchema.nullable().default(null),
 });
 
 const keyParamSchema = z.object({ siteId: uuidSchema, keyId: uuidSchema });
@@ -115,6 +123,15 @@ const configureModulesSchema = z.object({
     .default([]),
 });
 
+/** Recusa um segmento inexistente antes de apontar o site para ele. */
+async function assertSegmentoExiste(db: Database, segmentId: string): Promise<void> {
+  const [row] = await db
+    .select({ id: schema.segments.id })
+    .from(schema.segments)
+    .where(eq(schema.segments.id, segmentId));
+  if (!row) throw AppError.notFound('Segmento nao encontrado.');
+}
+
 /** Carrega o site garantindo que ele existe antes de qualquer escrita. */
 async function loadSite(db: Parameters<typeof loadSiteModules>[0], siteId: string) {
   const [site] = await db
@@ -174,6 +191,8 @@ export function platformSiteRoutes() {
     const site = await loadSite(ctx.db, siteId);
     const input = await parseJsonBody(c, updateSiteSchema);
 
+    if (input.segmentId !== null) await assertSegmentoExiste(ctx.db, input.segmentId);
+
     const [row] = await ctx.db
       .update(schema.sites)
       .set({ ...input, updatedAt: ctx.now() })
@@ -181,14 +200,95 @@ export function platformSiteRoutes() {
       .returning();
 
     await auditFromContext(c, {
-      action: AUDIT_ACTIONS.tenantUpdated,
+      action: AUDIT_ACTIONS.siteUpdated,
       entityType: 'site',
       entityId: siteId,
       tenantId: site.tenantId,
-      metadata: { status: input.status },
+      metadata: {
+        status: input.status,
+        segmentId: input.segmentId,
+        // A trilha diz explicitamente que trocar o segmento nao reconfigurou
+        // o site: sem isto, quem le a auditoria depois teria de adivinhar.
+        modulesChanged: false,
+      },
     });
 
     return ok(c, { site: row ?? null });
+  });
+
+  /**
+   * Aplica ao site o conjunto de modulos do segmento dele.
+   *
+   * Existe separado da troca de segmento de proposito. Reconfigurar um site
+   * em producao pode esconder do cliente uma tela que ele usa hoje, e isso
+   * nao pode acontecer como efeito colateral de corrigir a classificacao do
+   * projeto. Aqui e um ato deliberado, com auditoria propria.
+   *
+   * **Nao desliga nada.** Habilita o que o segmento traz e deixa de fora o
+   * resto: desligar modulos em uso e uma decisao site a site, na tela de
+   * modulos, onde quem decide ve o que esta ligado.
+   */
+  app.post('/sites/:siteId/apply-segment', requirePlatform('platform:tenants:write'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId } = parseParams(c, siteParamSchema);
+    const site = await loadSite(ctx.db, siteId);
+
+    if (!site.segmentId) {
+      throw AppError.badRequest('Este site nao tem segmento. Escolha um antes de aplicar.');
+    }
+
+    const [segmento] = await ctx.db
+      .select({
+        code: schema.segments.code,
+        name: schema.segments.name,
+        defaultModules: schema.segments.defaultModules,
+      })
+      .from(schema.segments)
+      .where(eq(schema.segments.id, site.segmentId));
+    if (!segmento) throw AppError.notFound('Segmento nao encontrado.');
+
+    const doSegmento = (segmento.defaultModules ?? []).filter(isModuleKey);
+    if (doSegmento.length === 0) {
+      throw AppError.badRequest(
+        `O segmento ${segmento.name} nao tem nenhum modulo padrao definido.`,
+      );
+    }
+
+    const antes = await loadSiteModules(ctx.db, siteId);
+    const jaLigados = new Set(antes.modules.filter((m) => m.enabled).map((m) => m.key));
+    const ligados = doSegmento.filter((key) => !jaLigados.has(key));
+
+    if (ligados.length > 0) {
+      // Reaproveita o provisionamento do cadastro: ele tambem cria os
+      // documentos de instancia unica ja preenchidos, que e o que falta para
+      // o modulo recem-ligado nao abrir vazio.
+      await provisionSiteModules(ctx.db, {
+        tenantId: site.tenantId,
+        siteId,
+        moduleKeys: ligados,
+        companyName: site.name,
+      });
+      await ctx.db
+        .update(schema.siteModules)
+        .set({ enabled: true, updatedAt: ctx.now() })
+        .where(
+          and(
+            eq(schema.siteModules.siteId, siteId),
+            inArray(schema.siteModules.moduleKey, ligados),
+          ),
+        );
+    }
+
+    await auditFromContext(c, {
+      action: AUDIT_ACTIONS.siteSegmentApplied,
+      entityType: 'site',
+      entityId: siteId,
+      tenantId: site.tenantId,
+      metadata: { segment: segmento.code, enabled: ligados, alreadyEnabled: [...jaLigados] },
+    });
+
+    const depois = await loadSiteModules(ctx.db, siteId);
+    return ok(c, { segment: segmento.code, enabled: ligados, modules: depois.modules });
   });
 
   /**
@@ -259,7 +359,7 @@ export function platformSiteRoutes() {
     });
 
     await auditFromContext(c, {
-      action: AUDIT_ACTIONS.tenantUpdated,
+      action: AUDIT_ACTIONS.siteModulesConfigured,
       entityType: 'site_modules',
       entityId: siteId,
       tenantId: site.tenantId,
@@ -320,7 +420,7 @@ export function platformSiteRoutes() {
     });
 
     await auditFromContext(c, {
-      action: AUDIT_ACTIONS.tenantUpdated,
+      action: AUDIT_ACTIONS.siteKeyIssued,
       entityType: 'site_api_key',
       entityId: emitida.id,
       tenantId: site.tenantId,
@@ -355,7 +455,7 @@ export function platformSiteRoutes() {
     const nova = await rotateApiKey(ctx.db, keyId, input.graceMinutes, ctx.now());
 
     await auditFromContext(c, {
-      action: AUDIT_ACTIONS.tenantUpdated,
+      action: AUDIT_ACTIONS.siteKeyRotated,
       entityType: 'site_api_key',
       entityId: nova.id,
       tenantId: site.tenantId,
@@ -378,7 +478,7 @@ export function platformSiteRoutes() {
     if (!revogada) throw AppError.notFound('Chave nao encontrada.');
 
     await auditFromContext(c, {
-      action: AUDIT_ACTIONS.tenantUpdated,
+      action: AUDIT_ACTIONS.siteKeyRevoked,
       entityType: 'site_api_key',
       entityId: keyId,
       tenantId: site.tenantId,
@@ -438,7 +538,7 @@ export function platformSiteRoutes() {
     });
 
     await auditFromContext(c, {
-      action: AUDIT_ACTIONS.tenantUpdated,
+      action: AUDIT_ACTIONS.siteOriginsUpdated,
       entityType: 'site_origins',
       entityId: siteId,
       tenantId: site.tenantId,
@@ -506,7 +606,7 @@ export function platformSiteRoutes() {
     if (!row) throw AppError.conflict('Este endereco ja esta cadastrado para o site.');
 
     await auditFromContext(c, {
-      action: AUDIT_ACTIONS.tenantUpdated,
+      action: AUDIT_ACTIONS.siteWebhookCreated,
       entityType: 'site_webhook',
       entityId: row.id,
       tenantId: site.tenantId,
@@ -545,7 +645,7 @@ export function platformSiteRoutes() {
     if (!row) throw AppError.notFound('Endereco nao encontrado.');
 
     await auditFromContext(c, {
-      action: AUDIT_ACTIONS.tenantUpdated,
+      action: AUDIT_ACTIONS.siteWebhookUpdated,
       entityType: 'site_webhook',
       entityId: webhookId,
       tenantId: site.tenantId,
@@ -573,7 +673,7 @@ export function platformSiteRoutes() {
       if (!row) throw AppError.notFound('Endereco nao encontrado.');
 
       await auditFromContext(c, {
-        action: AUDIT_ACTIONS.tenantUpdated,
+        action: AUDIT_ACTIONS.siteWebhookSecretRotated,
         entityType: 'site_webhook',
         entityId: webhookId,
         tenantId: site.tenantId,
@@ -600,7 +700,7 @@ export function platformSiteRoutes() {
     if (removido.length === 0) throw AppError.notFound('Endereco nao encontrado.');
 
     await auditFromContext(c, {
-      action: AUDIT_ACTIONS.tenantUpdated,
+      action: AUDIT_ACTIONS.siteWebhookDeleted,
       entityType: 'site_webhook',
       entityId: webhookId,
       tenantId: site.tenantId,

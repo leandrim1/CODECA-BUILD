@@ -205,13 +205,18 @@ export type SafeIcon = (typeof SAFE_ICONS)[number];
 /**
  * Segmentos atendidos.
  *
- * Um segmento e um **conjunto padrao** de modulos e campos aplicado ao
- * cadastrar um site, nao uma trava: um site de corretor pode habilitar o
- * modulo de obras se o projeto dele tiver. Adicionar um segmento e declarar um
- * conjunto novo, sem alterar o schema.
+ * Um segmento e um **conjunto padrao de modulos** aplicado ao cadastrar um
+ * site, nao uma trava: um site de corretor pode habilitar o modulo de obras
+ * se o projeto dele tiver, e mudar o segmento depois nao mexe em site nenhum.
+ *
+ * Nao ha lista fechada aqui de proposito. A plataforma atende qualquer ramo,
+ * e os segmentos sao **dados**, cadastrados no painel mestre -- criar
+ * "Restaurante" ou "Clinica odontologica" e uma linha na tabela `segments`,
+ * nao uma alteracao de schema seguida de implantacao. A instalacao comeca com
+ * construtora, imobiliaria e corretor porque foi dai que a plataforma
+ * nasceu; nada no codigo depende desses tres.
  */
-export const SEGMENT_CODES = ['construtora', 'imobiliaria', 'corretor'] as const;
-export type SegmentCode = (typeof SEGMENT_CODES)[number];
+export const SEGMENT_CODE_MAX_LENGTH = 48;
 
 /**
  * Estado de um site na plataforma.

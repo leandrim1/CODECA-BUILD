@@ -7,6 +7,7 @@ export * from './content.js';
 export * from './media.js';
 export * from './lead.js';
 export * from './platform.js';
+export * from './segment.js';
 export * from './domain.js';
 export * from './banner.js';
 export * from './billing.js';

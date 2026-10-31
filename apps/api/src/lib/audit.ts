@@ -23,19 +23,10 @@ export const AUDIT_ACTIONS = {
   tenantUpdated: 'tenant.updated',
   tenantStatusChanged: 'tenant.status_changed',
   tenantPlanChanged: 'tenant.plan_changed',
-  themeUpdated: 'site.theme_updated',
-  seoUpdated: 'site.seo_updated',
-  sectionsUpdated: 'site.sections_updated',
   memberInvited: 'member.invited',
   memberRoleChanged: 'member.role_changed',
   memberRemoved: 'member.removed',
   inviteAccepted: 'member.invite_accepted',
-  pageCreated: 'page.created',
-  pageUpdated: 'page.updated',
-  pageDeleted: 'page.deleted',
-  pageDraftSaved: 'page.draft_saved',
-  pagePublished: 'page.published',
-  pageVersionRestored: 'page.version_restored',
   propertyCreated: 'property.created',
   propertyUpdated: 'property.updated',
   propertyDeleted: 'property.deleted',
@@ -58,6 +49,28 @@ export const AUDIT_ACTIONS = {
   leadNoteAdded: 'lead.note_added',
   planCreated: 'platform.plan_created',
   planUpdated: 'platform.plan_updated',
+  /**
+   * Configuracao de site e de integracao.
+   *
+   * Antes tudo isto era gravado como `tenant.updated`: emitir uma chave,
+   * revoga-la e trocar o nome da empresa apareciam iguais na trilha. Uma
+   * auditoria que nao distingue rotacao de credencial de edicao de cadastro
+   * nao responde a pergunta que se faz a ela depois de um incidente.
+   */
+  siteUpdated: 'site.updated',
+  siteModulesConfigured: 'site.modules_configured',
+  siteSegmentApplied: 'site.segment_applied',
+  siteKeyIssued: 'site.key_issued',
+  siteKeyRotated: 'site.key_rotated',
+  siteKeyRevoked: 'site.key_revoked',
+  siteOriginsUpdated: 'site.origins_updated',
+  siteWebhookCreated: 'site.webhook_created',
+  siteWebhookUpdated: 'site.webhook_updated',
+  siteWebhookDeleted: 'site.webhook_deleted',
+  siteWebhookSecretRotated: 'site.webhook_secret_rotated',
+  segmentCreated: 'platform.segment_created',
+  segmentUpdated: 'platform.segment_updated',
+  segmentDeleted: 'platform.segment_deleted',
   platformRoleChanged: 'platform.role_changed',
   supportAccessGranted: 'platform.support_access_granted',
   supportAccessRevoked: 'platform.support_access_revoked',

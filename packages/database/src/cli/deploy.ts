@@ -1,5 +1,5 @@
 import { createNeonDatabase } from '../client.js';
-import { ensureBaselinePlans } from '../baseline.js';
+import { ensureBaselinePlans, ensureBaselineSegments } from '../baseline.js';
 import { formatDatabaseFailure } from '../diagnose.js';
 import { runMigrations } from '../migrator.js';
 
@@ -53,6 +53,11 @@ async function main(): Promise<void> {
         ? `[deploy] migracoes aplicadas: ${applied.join(', ')}`
         : `[deploy] banco ja atualizado (${skipped.length} migracao(oes) ja aplicadas).`,
     );
+
+    const segmentos = await ensureBaselineSegments(handle.db);
+    if (!segmentos.skipped) {
+      console.log(`[deploy] segmentos padrao criados: ${segmentos.segmentsCreated}.`);
+    }
 
     const baseline = await ensureBaselinePlans(handle.db);
     console.log(

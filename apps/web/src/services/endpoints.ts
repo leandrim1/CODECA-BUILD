@@ -22,6 +22,7 @@ import type {
   OverviewResponse,
   Paginated,
   PlanRecord,
+  SegmentRecord,
   PlatformTenantRow,
   ProjectRecord,
   ProjectUpdateRecord,
@@ -303,6 +304,14 @@ export const platformApi = {
   createTenant: (body: unknown) => api.post<{ tenantId: string; slug: string }>('/api/platform/tenants', body),
   updateTenant: (tenantId: string, body: unknown) => api.patch<unknown>(`/api/platform/tenants/${tenantId}`, body),
   plans: () => api.get<{ plans: PlanRecord[] }>('/api/platform/plans'),
+
+  segments: () => api.get<{ items: SegmentRecord[] }>('/api/platform/segments'),
+  createSegment: (body: unknown) =>
+    api.post<{ segment: SegmentRecord }>('/api/platform/segments', body),
+  updateSegment: (segmentId: string, body: unknown) =>
+    api.patch<{ segment: SegmentRecord }>(`/api/platform/segments/${segmentId}`, body),
+  deleteSegment: (segmentId: string) =>
+    api.delete<void>(`/api/platform/segments/${segmentId}`),
   createPlan: (body: unknown) => api.post<{ plan: PlanRecord }>('/api/platform/plans', body),
   updatePlan: (planId: string, body: unknown) => api.patch<{ plan: PlanRecord }>(`/api/platform/plans/${planId}`, body),
   domains: () =>
@@ -495,8 +504,27 @@ export const platformSiteApi = {
   detail: (siteId: string) =>
     api.get<{ site: PlatformSite; modules: SiteModuleView[] }>(`/api/platform/sites/${siteId}`),
 
-  update: (siteId: string, body: { name: string; status: SiteStatus; internalNotes: string }) =>
-    api.patch<{ site: PlatformSite }>(`/api/platform/sites/${siteId}`, body),
+  update: (
+    siteId: string,
+    body: {
+      name: string;
+      status: SiteStatus;
+      internalNotes: string;
+      segmentId: string | null;
+    },
+  ) => api.patch<{ site: PlatformSite }>(`/api/platform/sites/${siteId}`, body),
+
+  /**
+   * Aplica ao site os modulos do segmento dele.
+   *
+   * Separado da gravacao do site de proposito: reconfigurar um projeto em
+   * producao e um ato deliberado, nao efeito colateral de corrigir a
+   * classificacao do ramo.
+   */
+  applySegment: (siteId: string) =>
+    api.post<{ segment: string; enabled: string[]; modules: SiteModuleView[] }>(
+      `/api/platform/sites/${siteId}/apply-segment`,
+    ),
 
   saveModules: (
     siteId: string,

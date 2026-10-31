@@ -17,6 +17,7 @@ import { moduleRoutes } from './routes/modules.js';
 import { memberRoutes } from './routes/members.js';
 import { platformRoutes } from './routes/platform.js';
 import { platformBillingRoutes } from './routes/platform-billing.js';
+import { platformSegmentRoutes } from './routes/platform-segments.js';
 import { platformSiteRoutes } from './routes/platform-sites.js';
 import { projectRoutes } from './routes/projects.js';
 import { publicApiRoutes } from './routes/public-api.js';
@@ -139,6 +140,7 @@ export function createApp(options: CreateAppOptions = {}) {
   platformScoped.use('*', sessionMiddleware());
   platformScoped.route('/', platformRoutes());
   platformScoped.route('/', platformSiteRoutes());
+  platformScoped.route('/', platformSegmentRoutes());
   platformScoped.route('/', platformBillingRoutes());
   app.route('/platform', platformScoped);
 

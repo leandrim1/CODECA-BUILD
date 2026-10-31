@@ -8,6 +8,7 @@ import type {
   PlanLimits,
   EffectivePlan,
   OverviewDomain,
+  SegmentView,
   TenantOverview,
   ProjectCategory,
   ProjectStage,
@@ -118,6 +119,9 @@ export interface TenantResponse {
 export type OverviewResponse = TenantOverview;
 
 export type DomainSummary = OverviewDomain;
+
+/** Segmento como o painel mestre o edita. */
+export type SegmentRecord = SegmentView;
 
 export interface DomainRecord extends DomainSummary {
   statusLabel: string;

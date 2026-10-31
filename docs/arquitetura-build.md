@@ -140,11 +140,41 @@ tornaria a tela impossivel de usar.
 
 ### Segmentos
 
-`construtora`, `imobiliaria`, `corretor`. Um segmento e um **conjunto padrao
-de modulos e campos**, aplicado no cadastro do site e ajustavel depois. Nao e
-uma trava: um site de corretor pode habilitar o modulo de obras se o projeto
-dele tiver. Adicionar um segmento e declarar um conjunto, nao alterar o
-schema.
+Um segmento e um **conjunto padrao de modulos**, aplicado no cadastro do site.
+Nao e uma trava: um site de corretor pode habilitar o modulo de obras se o
+projeto dele tiver.
+
+Os segmentos sao **dados**, nao codigo. A instalacao comeca com `construtora`,
+`imobiliaria` e `corretor` porque foi dai que a plataforma nasceu, e nada
+depende desses tres: cadastrar "Clinica odontologica" ou "Restaurante" e uma
+linha na tabela, pelo painel mestre. Ate a etapa 7 `segments.code` era um enum
+do Postgres, e atender um ramo novo pedia `ALTER TYPE` e implantacao --
+exatamente o contrario do que este documento afirmava.
+
+Tres regras organizam o resto:
+
+1. **Editar um segmento nunca mexe em site nenhum.** Um projeto configurado ha
+   meses pode ter sido ajustado a mao, e tirar um modulo do conjunto nao pode
+   esconder do cliente uma tela que ele usa. A trilha de auditoria grava
+   `appliedToExistingSites: false` para deixar isso explicito.
+2. **Aplicar o conjunto a um site existente e um ato separado**
+   (`POST /api/platform/sites/:siteId/apply-segment`), com auditoria propria.
+   Ele **habilita** o que falta e nao desliga nada: desligar um modulo em uso
+   e decisao site a site, na tela de modulos, onde quem decide ve o que esta
+   ligado.
+3. **Exatamente um segmento e o padrao** de empresas recem-cadastradas, com
+   indice unico parcial no banco. Antes isso era `'construtora'` fixo no
+   codigo, e um escritorio de advocacia nascia com os modulos de uma
+   construtora.
+
+Remover um segmento so e possivel enquanto nenhum site o usa; com sites, a
+resposta e desativar. A chave estrangeira e `on delete set null`, entao
+remover desligaria em silencio o segmento de projetos no ar.
+
+**Os modulos, porem, ainda sao seis** (`institucional`, `contato`, `banners`,
+`imoveis`, `obras`, `servicos`). Um segmento de restaurante pode ser cadastrado
+hoje, mas so agrupa o que existe -- cardapio, horarios e galeria sao modulos a
+escrever, nao segmentos a cadastrar.
 
 ---
 
@@ -283,8 +313,8 @@ A situacao do site e um rotulo operacional: mudar para `suspended` nao apaga
 documento, imovel, obra nem imagem nenhuma -- `tests/integration/platform-sites.test.ts`
 cobre justamente isso.
 
-O que ainda nao esta aqui: o segmento do site (etapa 7) e a assinatura por
-site (etapa 9) continuam fora da tela.
+O segmento do site e escolhido na aba Identidade, junto do botao que aplica o
+conjunto de modulos dele.
 
 ---
 
@@ -630,7 +660,7 @@ plataforma utilizavel ao final.
 | 4 | Chaves de integracao, origens, limites e auditoria | 1 | **feita** |
 | 5 | API publica `/api/v1` com escopo por chave | 2, 4 | **feita** |
 | 6 | `@codeca/sdk` com tipos, documentacao e exemplo integravel | 5 | **feita** |
-| 7 | Configuracao por segmento no painel mestre | 2 | pendente |
+| 7 | Configuracao por segmento no painel mestre | 2 | **feita** |
 | 8 | Webhook `content.published` para o site do cliente | 5 | **feita** |
 | 9 | Assinatura por site e politica de suspensao | 1 | **feita** |
 | 10 | Cadastro de site no painel mestre, fim a fim | 2, 4 | **feita** |

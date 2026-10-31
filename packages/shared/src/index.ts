@@ -6,6 +6,7 @@ export * from './domain.js';
 export * from './whatsapp.js';
 export * from './plans.js';
 export * from './overview.js';
+export * from './segments.js';
 export * from './modules/index.js';
 export * from './integration/index.js';
 export * from './billing/index.js';

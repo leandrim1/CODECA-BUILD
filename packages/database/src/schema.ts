@@ -31,7 +31,6 @@ import {
   LEAD_STATUSES,
   PLATFORM_ROLES,
   API_KEY_KINDS,
-  SEGMENT_CODES,
   SITE_STATUSES,
   PROJECT_CATEGORIES,
   PROJECT_STAGES,
@@ -89,7 +88,6 @@ export const leadStatusEnum = pgEnum('lead_status', enumValues(LEAD_STATUSES));
 export const domainStatusEnum = pgEnum('domain_status', enumValues(DOMAIN_STATUSES));
 export const sslStatusEnum = pgEnum('ssl_status', ['pending', 'active', 'error']);
 export const apiKeyKindEnum = pgEnum('api_key_kind', enumValues(API_KEY_KINDS));
-export const segmentCodeEnum = pgEnum('segment_code', enumValues(SEGMENT_CODES));
 export const siteStatusEnum = pgEnum('site_status', enumValues(SITE_STATUSES));
 export const mediaKindEnum = pgEnum('media_kind', enumValues(MEDIA_KINDS));
 export const userTokenTypeEnum = pgEnum('user_token_type', [
@@ -234,16 +232,28 @@ export const segments = pgTable(
   'segments',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    code: segmentCodeEnum('code').notNull(),
+    /**
+     * Identificador curto do segmento, escolhido pela CODECA IA.
+     *
+     * Texto, e nao enum, pelo mesmo motivo de `site_modules.module_key`:
+     * atender um ramo novo e cadastrar uma linha, nao alterar o schema e
+     * implantar. O indice unico abaixo impede duplicata.
+     */
+    code: text('code').notNull(),
     name: text('name').notNull(),
     description: text('description').notNull().default(''),
     /** Modulos habilitados por padrao para sites deste segmento. */
     defaultModules: jsonb('default_modules').$type<string[]>().notNull().default([]),
     isActive: boolean('is_active').notNull().default(true),
+    /** Segmento aplicado a uma empresa recem-cadastrada. No maximo um. */
+    isDefault: boolean('is_default').notNull().default(false),
     createdAt,
     updatedAt,
   },
-  (table) => [uniqueIndex('segments_code_key').on(table.code)],
+  (table) => [
+    uniqueIndex('segments_code_key').on(table.code),
+    uniqueIndex('segments_default_key').on(table.isDefault).where(sql`${table.isDefault}`),
+  ],
 );
 
 /**
