@@ -21,9 +21,12 @@ import {
   loadGallery,
   loadMedia,
   toPublicBanner,
+  toPublicFaq,
   toPublicProject,
   toPublicProperty,
   toPublicService,
+  toPublicTeamMember,
+  toPublicTestimonial,
 } from '../lib/integration/public-view.js';
 import { enabledModuleKeys, loadSiteModules } from '../lib/modules.js';
 import { apiKeyMiddleware } from '../middleware/api-key.js';
@@ -407,6 +410,132 @@ export function publicApiRoutes() {
         query.page,
         query.pageSize,
       ),
+    );
+  });
+
+  // ---------------------------------------------------------- depoimentos
+
+  /**
+   * Depoimentos autorizados pelo autor.
+   *
+   * A autorizacao e **condicao de entrega**, nao campo entregue:
+   * `authorization_confirmed` entra no `WHERE` e vale **inclusive em previa**.
+   *
+   * O schema de escrita ja recusa publicar sem a autorizacao, entao em teoria
+   * um depoimento publicado sempre a tem. Esta conferencia existe porque o
+   * dado e de terceiro: um rascunho lido em previa, uma linha gravada antes da
+   * regra existir ou um `UPDATE` feito a mao no banco passariam pela validacao
+   * de escrita e chegariam ao site. O custo da garantia e uma condicao a mais
+   * na consulta; o custo de errar e publicar o nome, a foto e as palavras de
+   * alguem que nao autorizou.
+   */
+  app.get('/testimonials', async (c) => {
+    const ctx = c.get('ctx');
+    const credencial = c.get('apiKey');
+    await assertModulo(ctx.db, credencial.siteId, 'depoimentos');
+
+    const query = parseQuery(c, publicListQuerySchema);
+    const preview = assertPreview(credencial.scopes, query.preview);
+
+    const where = and(
+      eq(schema.testimonials.siteId, credencial.siteId),
+      eq(schema.testimonials.authorizationConfirmed, true),
+      publicacao(schema.testimonials.publicationStatus, preview),
+    );
+    const rows = await ctx.db
+      .select()
+      .from(schema.testimonials)
+      .where(where)
+      .orderBy(asc(schema.testimonials.sortOrder), desc(schema.testimonials.createdAt))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+
+    const [totais] = await ctx.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(schema.testimonials)
+      .where(where);
+
+    const media = await loadMedia(ctx.db, credencial.tenantId, rows.map((r) => r.photoId));
+    return ok(
+      c,
+      paginado(
+        rows.map((row) => toPublicTestimonial(row, media)),
+        totais?.total ?? 0,
+        query.page,
+        query.pageSize,
+      ),
+    );
+  });
+
+  // --------------------------------------------------------------- equipe
+
+  app.get('/team', async (c) => {
+    const ctx = c.get('ctx');
+    const credencial = c.get('apiKey');
+    await assertModulo(ctx.db, credencial.siteId, 'equipe');
+
+    const query = parseQuery(c, publicListQuerySchema);
+    const preview = assertPreview(credencial.scopes, query.preview);
+
+    const where = and(
+      eq(schema.teamMembers.siteId, credencial.siteId),
+      publicacao(schema.teamMembers.publicationStatus, preview),
+    );
+    const rows = await ctx.db
+      .select()
+      .from(schema.teamMembers)
+      .where(where)
+      .orderBy(asc(schema.teamMembers.sortOrder), asc(schema.teamMembers.name))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+
+    const [totais] = await ctx.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(schema.teamMembers)
+      .where(where);
+
+    const media = await loadMedia(ctx.db, credencial.tenantId, rows.map((r) => r.photoId));
+    return ok(
+      c,
+      paginado(
+        rows.map((row) => toPublicTeamMember(row, media)),
+        totais?.total ?? 0,
+        query.page,
+        query.pageSize,
+      ),
+    );
+  });
+
+  // ------------------------------------------------- perguntas frequentes
+
+  app.get('/faqs', async (c) => {
+    const ctx = c.get('ctx');
+    const credencial = c.get('apiKey');
+    await assertModulo(ctx.db, credencial.siteId, 'faq');
+
+    const query = parseQuery(c, publicListQuerySchema);
+    const preview = assertPreview(credencial.scopes, query.preview);
+
+    const where = and(
+      eq(schema.faqs.siteId, credencial.siteId),
+      publicacao(schema.faqs.publicationStatus, preview),
+    );
+    const rows = await ctx.db
+      .select()
+      .from(schema.faqs)
+      .where(where)
+      .orderBy(asc(schema.faqs.sortOrder), asc(schema.faqs.question))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+
+    const [totais] = await ctx.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(schema.faqs)
+      .where(where);
+
+    return ok(
+      c,
+      paginado(rows.map(toPublicFaq), totais?.total ?? 0, query.page, query.pageSize),
     );
   });
 

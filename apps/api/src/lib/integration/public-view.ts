@@ -3,10 +3,13 @@ import {
   publicAddress,
   type AddressInput,
   type PublicBanner,
+  type PublicFaq,
   type PublicImage,
   type PublicProject,
   type PublicProperty,
   type PublicService,
+  type PublicTeamMember,
+  type PublicTestimonial,
 } from '@codeca/shared';
 
 /**
@@ -129,6 +132,56 @@ export function toPublicBanner(
     image: toImage(row.imageId ? media.get(row.imageId) : null),
     buttonLabel: row.buttonLabel,
     buttonUrl: row.buttonUrl,
+    sortOrder: row.sortOrder,
+  };
+}
+
+/**
+ * Depoimento.
+ *
+ * A autorizacao do autor nao e copiada: ela e condicao para o registro chegar
+ * aqui, conferida na consulta. Entregar o sinalizador faria o site parecer
+ * responsavel por verificar algo que a plataforma ja garantiu -- e um site
+ * que esquecesse de olhar publicaria o que nao podia.
+ */
+export function toPublicTestimonial(
+  row: typeof schema.testimonials.$inferSelect,
+  media: Map<string, MediaRef>,
+): PublicTestimonial {
+  return {
+    id: row.id,
+    authorName: row.authorName,
+    authorRole: row.authorRole,
+    content: row.content,
+    rating: row.rating,
+    photo: toImage(row.photoId ? media.get(row.photoId) : null),
+    relatedProjectId: row.relatedProjectId,
+    sortOrder: row.sortOrder,
+  };
+}
+
+export function toPublicTeamMember(
+  row: typeof schema.teamMembers.$inferSelect,
+  media: Map<string, MediaRef>,
+): PublicTeamMember {
+  return {
+    id: row.id,
+    name: row.name,
+    role: row.role,
+    bio: row.bio,
+    email: row.email,
+    photo: toImage(row.photoId ? media.get(row.photoId) : null),
+    social: { ...(row.social ?? {}) } as Record<string, string>,
+    sortOrder: row.sortOrder,
+  };
+}
+
+export function toPublicFaq(row: typeof schema.faqs.$inferSelect): PublicFaq {
+  return {
+    id: row.id,
+    question: row.question,
+    answer: row.answer,
+    category: row.category,
     sortOrder: row.sortOrder,
   };
 }

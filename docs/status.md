@@ -53,7 +53,9 @@ Legenda:
 | Imoveis (CRUD, filtros, paginacao, galeria) | Pronto | status de publicacao separado do status comercial |
 | Obras e projetos (CRUD, etapas, atualizacoes com fotos) | Pronto | percentual aparece somente quando informado |
 | Servicos | Pronto | ordenacao e publicacao por item |
-| Depoimentos, equipe e FAQ | Editaveis, **sem leitura publica** | tem tabela e tela, mas nao sao modulos do registro nem estao em `/api/v1`: nenhum site consegue le-los. Decisao pendente |
+| Depoimentos | Pronto | modulo proprio; publicar exige a autorizacao do autor, conferida tambem na leitura publica |
+| Equipe do site | Pronto | modulo proprio, separado de "Usuarios e permissoes", que e quem acessa o painel |
+| Perguntas frequentes | Pronto | modulo proprio, com agrupamento livre |
 | Biblioteca de imagens | Pronto, depende de credencial | sem `BLOB_READ_WRITE_TOKEN` o envio e recusado com aviso |
 | Interessados (filtros, status, observacoes internas) | Pronto | — |
 | Exportacao de interessados em CSV | Pronto | recurso de plano (`lead_export`) |

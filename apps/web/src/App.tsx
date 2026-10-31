@@ -36,10 +36,12 @@ const MediaPage = lazy(() => import('./dashboard/MediaPage.js').then((m) => ({ d
 const PropertiesPage = lazy(() => import('./dashboard/PropertiesPage.js').then((m) => ({ default: m.PropertiesPage })));
 const ProjectsPage = lazy(() => import('./dashboard/ProjectsPage.js').then((m) => ({ default: m.ProjectsPage })));
 const ServicesPage = lazy(() => import('./dashboard/ServicesPage.js').then((m) => ({ default: m.ServicesPage })));
-const GalleryPage = lazy(() => import('./dashboard/GalleryPage.js').then((m) => ({ default: m.GalleryPage })));
+const TestimonialsPage = lazy(() => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.TestimonialsPage })));
+const SiteTeamPage = lazy(() => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.SiteTeamPage })));
+const FaqPage = lazy(() => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.FaqPage })));
 const LeadsPage = lazy(() => import('./dashboard/LeadsPage.js').then((m) => ({ default: m.LeadsPage })));
 const DomainsPage = lazy(() => import('./dashboard/DomainsPage.js').then((m) => ({ default: m.DomainsPage })));
-const TeamPage = lazy(() => import('./dashboard/TeamPage.js').then((m) => ({ default: m.TeamPage })));
+const UsersPage = lazy(() => import('./dashboard/UsersPage.js').then((m) => ({ default: m.UsersPage })));
 const BillingPage = lazy(() => import('./dashboard/BillingPage.js').then((m) => ({ default: m.BillingPage })));
 const CompanyPage = lazy(() => import('./dashboard/CompanyPage.js').then((m) => ({ default: m.CompanyPage })));
 const PlatformOverviewPage = lazy(() => import('./dashboard/platform/PlatformOverviewPage.js').then((m) => ({ default: m.PlatformOverviewPage })));
@@ -135,10 +137,34 @@ export function App() {
                 </RequireModule>
               }
             />
-            <Route path="galeria" element={<GalleryPage />} />
+            <Route
+              path="depoimentos"
+              element={
+                <RequireModule moduleKey="depoimentos">
+                  <TestimonialsPage />
+                </RequireModule>
+              }
+            />
+            <Route
+              path="equipe"
+              element={
+                <RequireModule moduleKey="equipe">
+                  <SiteTeamPage />
+                </RequireModule>
+              }
+            />
+            <Route
+              path="perguntas"
+              element={
+                <RequireModule moduleKey="faq">
+                  <FaqPage />
+                </RequireModule>
+              }
+            />
             <Route path="interessados" element={<LeadsPage />} />
             <Route path="dominio" element={<DomainsPage />} />
-            <Route path="equipe" element={<TeamPage />} />
+            {/* Gestao de acessos ao painel, nao a equipe exibida no site. */}
+            <Route path="usuarios" element={<UsersPage />} />
             <Route path="plano" element={<BillingPage />} />
             <Route path="empresa" element={<CompanyPage />} />
           </Route>

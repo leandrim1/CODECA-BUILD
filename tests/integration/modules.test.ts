@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { and, eq, schema } from '@codeca/database';
+import { DEFAULT_SEGMENTS } from '@codeca/shared';
 import {
   createTestApi,
   registerAccount,
@@ -65,8 +66,11 @@ describe('provisionamento do site', () => {
       .map((m) => m.key)
       .sort();
 
-    // Construtora e o segmento padrao: recebe o conjunto completo.
-    expect(habilitados).toEqual(['banners', 'contato', 'imoveis', 'institucional', 'obras', 'servicos']);
+    // Construtora e o segmento padrao: recebe exatamente o conjunto dele,
+    // derivado do seed em vez de fixado -- acrescentar um modulo ao segmento
+    // e decisao de produto, nao motivo para editar um teste de provisionamento.
+    const doSegmento = DEFAULT_SEGMENTS.find((s) => s.code === 'construtora')!;
+    expect(habilitados).toEqual([...doSegmento.defaultModules].sort());
   });
 
   it('o institucional nasce preenchido com o que a empresa ja informou', async () => {

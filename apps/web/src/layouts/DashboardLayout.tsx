@@ -13,6 +13,7 @@ import {
   type LucideIcon,
   Mail,
   Menu,
+  MessageCircleQuestion,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -124,9 +125,27 @@ const NAV_GROUPS: NavGroup[] = [
         capability: 'content:read',
         module: 'servicos',
       },
-      // Depoimentos, equipe e perguntas frequentes ainda nao sao modulos do
-      // registro, entao valem para todo site.
-      { to: '/painel/galeria', label: 'Galeria e depoimentos', icon: Sparkles, capability: 'content:read' },
+      {
+        to: '/painel/depoimentos',
+        label: 'Depoimentos',
+        icon: Sparkles,
+        capability: 'content:read',
+        module: 'depoimentos',
+      },
+      {
+        to: '/painel/equipe',
+        label: 'Equipe do site',
+        icon: Users,
+        capability: 'content:read',
+        module: 'equipe',
+      },
+      {
+        to: '/painel/perguntas',
+        label: 'Perguntas frequentes',
+        icon: MessageCircleQuestion,
+        capability: 'content:read',
+        module: 'faq',
+      },
       { to: '/painel/midia', label: 'Biblioteca de imagens', icon: Image, capability: 'media:read' },
     ],
   },
@@ -138,7 +157,9 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Configuracoes',
     items: [
       { to: '/painel/dominio', label: 'Dominio proprio', icon: Globe, capability: 'domains:read' },
-      { to: '/painel/equipe', label: 'Equipe e usuarios', icon: ShieldCheck, capability: 'members:read' },
+      // "Usuarios", e nao "Equipe": isto e quem acessa o painel. A equipe
+      // exibida no site e o modulo `equipe`, em Conteudo do site.
+      { to: '/painel/usuarios', label: 'Usuarios e permissoes', icon: ShieldCheck, capability: 'members:read' },
       { to: '/painel/plano', label: 'Plano e assinatura', icon: CreditCard, capability: 'billing:read', semPainel: true },
       { to: '/painel/empresa', label: 'Configuracoes da empresa', icon: Settings, capability: 'tenant:read', semPainel: true },
     ],

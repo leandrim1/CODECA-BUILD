@@ -93,7 +93,22 @@ parametro de site para forjar.
 | `GET /api/v1/projects` | Obras publicadas |
 | `GET /api/v1/projects/:slug` | Uma obra, com galeria |
 | `GET /api/v1/services` | Servicos publicados |
+| `GET /api/v1/testimonials` | Depoimentos **autorizados pelo autor** |
+| `GET /api/v1/team` | Equipe exibida no site |
+| `GET /api/v1/faqs` | Perguntas frequentes publicadas |
 | `POST /api/v1/leads` | Recebe o formulario de contato |
+
+#### Depoimentos: a autorizacao e condicao de entrega
+
+`GET /api/v1/testimonials` **nunca** devolve depoimento sem a confirmacao de
+que o autor autorizou a publicacao -- nem com `preview=true`. Um depoimento e o
+nome, a foto e as palavras de outra pessoa, e publicar sem autorizacao dela e
+tratar dado pessoal de terceiro sem base legal.
+
+A consequencia pratica para quem integra: **nao ha nada a conferir no site.**
+A resposta nao traz `authorizationConfirmed` nem a nota de como a autorizacao
+foi obtida -- essa nota pode conter telefone e data, e fica so no painel. O
+que chega pode ser exibido.
 
 Um modulo que o site nao tem responde **404**, nao 403: para quem le o site,
 ele simplesmente nao existe. Dizer "proibido" revelaria que a rota existe em

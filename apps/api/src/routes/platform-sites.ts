@@ -294,12 +294,15 @@ export function platformSiteRoutes() {
   /**
    * Define os modulos e a politica de campos do site.
    *
-   * Substitui o conjunto inteiro em vez de aplicar diferencas: a tela do
-   * painel mestre envia o estado completo, e aplicar diferencas faria duas
-   * edicoes simultaneas se mesclarem em um estado que ninguem escolheu.
+   * As duas partes se comportam de forma diferente, e vale ser exato:
    *
-   * Apenas as excecoes a politica padrao sao gravadas -- ver
-   * `site_field_policies`.
+   * - **Modulos**: grava os que vierem no corpo e nao toca nos demais. A tela
+   *   do painel mestre envia todos, mas a rota nao desliga por omissao -- um
+   *   corpo incompleto desligaria modulos em uso em silencio, e um modulo
+   *   acrescentado ao registro depois nao deve sumir de quem ja o tem.
+   * - **Politica de campos**: substitui o conjunto inteiro. Aplicar diferencas
+   *   faria duas edicoes simultaneas se mesclarem num estado que ninguem
+   *   escolheu. Apenas as excecoes ao padrao do registro sao gravadas.
    */
   app.put('/sites/:siteId/modules', requirePlatform('platform:tenants:write'), async (c) => {
     const ctx = c.get('ctx');

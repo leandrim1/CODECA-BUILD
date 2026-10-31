@@ -50,10 +50,19 @@ import type { AppBindings } from '../types.js';
 
 export function contentRoutes() {
   const app = new Hono<AppBindings>();
-  // Depoimentos, equipe e perguntas frequentes nao sao modulos do registro e
-  // seguem valendo para todo site; so os servicos dependem de habilitacao.
+
+  // Os quatro sao modulos do registro: o site do cliente so recebe o que foi
+  // habilitado para aquele projeto. Depoimentos, equipe e perguntas eram a
+  // excecao -- valiam para todo site, sem rota publica nem tipo no SDK, e o
+  // cliente editava conteudo que nenhum site conseguia ler.
   app.use('/:tenantId/services', requireModule('servicos'));
   app.use('/:tenantId/services/*', requireModule('servicos'));
+  app.use('/:tenantId/testimonials', requireModule('depoimentos'));
+  app.use('/:tenantId/testimonials/*', requireModule('depoimentos'));
+  app.use('/:tenantId/team', requireModule('equipe'));
+  app.use('/:tenantId/team/*', requireModule('equipe'));
+  app.use('/:tenantId/faqs', requireModule('faq'));
+  app.use('/:tenantId/faqs/*', requireModule('faq'));
 
   // ----------------------------------------------------------- servicos
   app.get('/:tenantId/services', requireCapability('content:read'), async (c) => {

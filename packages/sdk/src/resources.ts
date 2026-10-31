@@ -7,10 +7,13 @@ import type {
   ProjectQuery,
   PropertyQuery,
   PublicBanner,
+  PublicFaq,
   PublicPage,
   PublicProject,
   PublicProperty,
   PublicService,
+  PublicTeamMember,
+  PublicTestimonial,
   SiteInfo,
 } from './types.js';
 
@@ -75,6 +78,27 @@ export function createResources(request: Transport) {
     services: {
       list: (query: ListQuery = {}) =>
         request<PublicPage<PublicService>>(`/api/v1/services${buildQuery({ ...query })}`),
+    },
+
+    testimonials: {
+      /**
+       * Depoimentos autorizados pelo autor.
+       *
+       * A plataforma nao devolve depoimento sem autorizacao, entao nao ha o
+       * que filtrar aqui -- o que vem pode ir para a tela.
+       */
+      list: (query: ListQuery = {}) =>
+        request<PublicPage<PublicTestimonial>>(`/api/v1/testimonials${buildQuery({ ...query })}`),
+    },
+
+    team: {
+      list: (query: ListQuery = {}) =>
+        request<PublicPage<PublicTeamMember>>(`/api/v1/team${buildQuery({ ...query })}`),
+    },
+
+    faqs: {
+      list: (query: ListQuery = {}) =>
+        request<PublicPage<PublicFaq>>(`/api/v1/faqs${buildQuery({ ...query })}`),
     },
 
     leads: {

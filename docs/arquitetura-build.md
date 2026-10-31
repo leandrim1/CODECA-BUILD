@@ -109,11 +109,30 @@ site. Flexibilidade onde ela e necessaria, tipo onde ele paga.
 por modulo; a busca de imoveis usa indice; e um campo novo exclusivo de um
 cliente nao exige migracao.
 
-### Modulos da primeira versao
+### Modulos existentes
 
 `institucional` e `contato` sao documentos de instancia unica, em JSONB
-validado. `banners`, `imoveis`, `obras` e `servicos` sao colecoes, em tabela
-tipada com indice.
+validado. `banners`, `imoveis`, `obras`, `servicos`, `depoimentos`, `equipe` e
+`faq` sao colecoes, em tabela tipada com indice.
+
+`depoimentos`, `equipe` e `faq` chegaram depois (etapa B). Tinham tabela e tela
+no painel desde o inicio, mas **nao eram modulos**: nao estavam no registro,
+nem em `/api/v1`, nem no SDK. O cliente editava conteudo que nenhum site
+conseguia ler -- o pior dos dois mundos, porque a tela existia e dava a
+entender que funcionava.
+
+**Depoimento tem uma regra propria, e ela e sobre dado de terceiro.** Um
+depoimento e o nome, a foto e as palavras de outra pessoa. O schema de escrita
+ja recusava publicar sem a declaracao de que o autor autorizou; a leitura
+publica passou a conferir a mesma coisa, **inclusive em previa**, e nao entrega
+`authorizationConfirmed` nem a nota de como a autorizacao foi obtida -- essa
+nota pode conter telefone e data, e fica so no painel.
+
+A conferencia na leitura nao e redundante com a da escrita: um rascunho sem
+autorizacao e gravavel, a previa le rascunho, e um `UPDATE` feito a mao no
+banco nao passa por validacao nenhuma. Qualquer um desses caminhos levaria ao
+site o nome de quem nao autorizou. `tests/integration/public-content.test.ts`
+cobre os tres.
 
 Dois cuidados que valem registro:
 
@@ -171,10 +190,10 @@ Remover um segmento so e possivel enquanto nenhum site o usa; com sites, a
 resposta e desativar. A chave estrangeira e `on delete set null`, entao
 remover desligaria em silencio o segmento de projetos no ar.
 
-**Os modulos, porem, ainda sao seis** (`institucional`, `contato`, `banners`,
-`imoveis`, `obras`, `servicos`). Um segmento de restaurante pode ser cadastrado
-hoje, mas so agrupa o que existe -- cardapio, horarios e galeria sao modulos a
-escrever, nao segmentos a cadastrar.
+**Os modulos, porem, sao nove** (`institucional`, `contato`, `banners`,
+`imoveis`, `obras`, `servicos`, `depoimentos`, `equipe`, `faq`). Um segmento de
+restaurante pode ser cadastrado hoje, mas so agrupa o que existe -- cardapio,
+horarios e galeria sao modulos a escrever, nao segmentos a cadastrar.
 
 ---
 

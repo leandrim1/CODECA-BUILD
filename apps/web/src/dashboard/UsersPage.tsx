@@ -37,7 +37,7 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
   viewer: 'Apenas consulta, sem alterar nada.',
 };
 
-export function TeamPage() {
+export function UsersPage() {
   const tenantId = useTenantId();
   const toast = useToast();
   const { can, tenant, user } = useAuth();

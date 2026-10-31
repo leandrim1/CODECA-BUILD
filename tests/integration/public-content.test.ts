@@ -224,6 +224,134 @@ describe('banners e a janela de exibicao', () => {
   });
 });
 
+describe('depoimentos e a autorizacao de quem falou', () => {
+  async function criarDepoimento(extra: Record<string, unknown> = {}) {
+    const response = await empresa.client.post(`/api/tenants/${empresa.tenantId}/testimonials`, {
+      authorName: 'Marina Prado',
+      content: 'Acompanharam a obra do inicio ao fim e entregaram no prazo combinado.',
+      authorizationConfirmed: true,
+      authorizationNote: 'Autorizado por WhatsApp em 12/03.',
+      publicationStatus: 'published',
+      ...extra,
+    });
+    return response;
+  }
+
+  it('entrega o depoimento autorizado', async () => {
+    expect((await criarDepoimento()).status).toBe(201);
+
+    const response = await comoSite('/api/v1/testimonials');
+    expect(response.status, response.errorMessage ?? '').toBe(200);
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0].authorName).toBe('Marina Prado');
+  });
+
+  it('nao entrega a nota de como a autorizacao foi obtida', async () => {
+    await criarDepoimento();
+    const response = await comoSite('/api/v1/testimonials');
+
+    // A nota e registro interno -- pode conter telefone, data, nome de quem
+    // pediu. Nada disso tem o que fazer no site.
+    expect(JSON.stringify(response.body)).not.toContain('WhatsApp em 12/03');
+    expect(response.body.items[0].authorizationNote).toBeUndefined();
+    expect(response.body.items[0].authorizationConfirmed).toBeUndefined();
+  });
+
+  it('o servidor recusa publicar sem a autorizacao', async () => {
+    const response = await criarDepoimento({
+      authorizationConfirmed: false,
+      publicationStatus: 'published',
+    });
+    expect(response.status).toBe(422);
+  });
+
+  it('rascunho sem autorizacao nao sai nem na previa', async () => {
+    // O caminho que a validacao de escrita **nao** cobre: um rascunho sem
+    // autorizacao e gravavel, e a previa le rascunho. Sem a condicao na
+    // consulta, o nome e as palavras de quem nao autorizou chegariam ao
+    // servidor do site -- e dali a uma pagina.
+    const criado = await criarDepoimento({
+      authorizationConfirmed: false,
+      publicationStatus: 'draft',
+    });
+    expect(criado.status, criado.errorMessage ?? '').toBe(201);
+
+    const previa = await comoServidor('/api/v1/testimonials?preview=true');
+    expect(previa.status, previa.errorMessage ?? '').toBe(200);
+    expect(previa.body.items).toHaveLength(0);
+  });
+
+  it('rascunho autorizado aparece na previa, como os outros modulos', async () => {
+    await criarDepoimento({ publicationStatus: 'draft' });
+
+    expect((await comoSite('/api/v1/testimonials')).body.items).toHaveLength(0);
+    expect((await comoServidor('/api/v1/testimonials?preview=true')).body.items).toHaveLength(1);
+  });
+
+  it('uma autorizacao retirada tira o depoimento do site', async () => {
+    const criado = await criarDepoimento();
+    const id = criado.body.testimonial.id as string;
+
+    // Retirada a mao no banco: o schema de escrita nao deixaria desmarcar
+    // mantendo publicado, e o caso real e o pedido de quem falou.
+    await api.db
+      .update(schema.testimonials)
+      .set({ authorizationConfirmed: false })
+      .where(eq(schema.testimonials.id, id));
+
+    expect((await comoSite('/api/v1/testimonials')).body.items).toHaveLength(0);
+  });
+});
+
+describe('equipe e perguntas frequentes', () => {
+  it('entrega a equipe publicada, sem campo interno', async () => {
+    const criado = await empresa.client.post(`/api/tenants/${empresa.tenantId}/team`, {
+      name: 'Ana Souza',
+      role: 'Engenheira responsavel',
+      email: 'ana@horizonte.com.br',
+      publicationStatus: 'published',
+    });
+    expect(criado.status, criado.errorMessage ?? '').toBe(201);
+
+    const response = await comoSite('/api/v1/team');
+    expect(response.status, response.errorMessage ?? '').toBe(200);
+    expect(response.body.items[0].name).toBe('Ana Souza');
+    // O e-mail vem porque e campo que o cliente preenche para ser exibido.
+    expect(response.body.items[0].email).toBe('ana@horizonte.com.br');
+    expect(response.body.items[0].tenantId).toBeUndefined();
+    expect(response.body.items[0].siteId).toBeUndefined();
+  });
+
+  it('entrega as perguntas publicadas', async () => {
+    const criado = await empresa.client.post(`/api/tenants/${empresa.tenantId}/faqs`, {
+      question: 'Vocês entregam fora de Campinas?',
+      answer: 'Sim, atendemos toda a regiao metropolitana.',
+      publicationStatus: 'published',
+    });
+    expect(criado.status, criado.errorMessage ?? '').toBe(201);
+
+    const response = await comoSite('/api/v1/faqs');
+    expect(response.status, response.errorMessage ?? '').toBe(200);
+    expect(response.body.items[0].question).toContain('fora de Campinas');
+  });
+
+  it('modulo desabilitado responde 404 nas tres rotas', async () => {
+    await admin.client.put(`/api/platform/sites/${empresa.siteId}/modules`, {
+      modules: [
+        { key: 'depoimentos', enabled: false, settings: {} },
+        { key: 'equipe', enabled: false, settings: {} },
+        { key: 'faq', enabled: false, settings: {} },
+      ],
+      fieldPolicies: [],
+    });
+
+    for (const rota of ['/api/v1/testimonials', '/api/v1/team', '/api/v1/faqs']) {
+      const response = await comoSite(rota);
+      expect(response.status, rota).toBe(404);
+    }
+  });
+});
+
 describe('filtros', () => {
   beforeEach(async () => {
     await criarImovel({ title: 'Casa no Cambui', purpose: 'venda', price: 500000 });

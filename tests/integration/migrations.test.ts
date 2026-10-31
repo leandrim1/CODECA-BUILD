@@ -3,7 +3,14 @@ import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
 import { sql } from 'drizzle-orm';
 import { fileURLToPath } from 'node:url';
-import { formatDatabaseFailure, readMigrations, schema, type Database } from '@codeca/database';
+import {
+  eq,
+  formatDatabaseFailure,
+  readMigrations,
+  schema,
+  seedDatabase,
+  type Database,
+} from '@codeca/database';
 import { resultRows } from '../helpers/database.js';
 
 /**
@@ -21,33 +28,45 @@ import { resultRows } from '../helpers/database.js';
 
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../packages/database/migrations/', import.meta.url));
 const DESTRUTIVA = '0007_remove_tabelas_do_renderizador.sql';
+const MODULOS_NOVOS = '0010_depoimentos_equipe_faq.sql';
 const REMOVIDAS = ['pages', 'page_versions', 'navigation_menus', 'redirects', 'site_settings'];
 
-/** Banco com todas as migracoes **menos** a destrutiva. */
-async function bancoAntesDaRemocao() {
+/**
+ * Banco com todas as migracoes **menos** uma, que fica para o teste aplicar.
+ *
+ * E o unico jeito de exercitar o efeito de uma migracao sobre dado que ja
+ * existia: aplicar tudo e so entao criar o dado mostraria o estado final, nao
+ * a transicao.
+ */
+async function bancoAntesDe(alvo: string) {
   const client = new PGlite();
   const db = drizzle(client, { schema, casing: 'snake_case' }) as unknown as Database;
   const todas = await readMigrations(MIGRATIONS_DIR);
 
-  const anteriores = todas.filter((m) => m.name !== DESTRUTIVA);
-  for (const migracao of anteriores) {
+  for (const migracao of todas.filter((m) => m.name !== alvo)) {
     for (const instrucao of migracao.statements) {
       await db.execute(sql.raw(instrucao));
     }
   }
 
-  const destrutiva = todas.find((m) => m.name === DESTRUTIVA);
-  expect(destrutiva, `migracao ${DESTRUTIVA} nao encontrada`).toBeDefined();
+  const pendente = todas.find((m) => m.name === alvo);
+  expect(pendente, `migracao ${alvo} nao encontrada`).toBeDefined();
 
   return {
     db,
     close: () => client.close(),
-    aplicarDestrutiva: async () => {
-      for (const instrucao of destrutiva!.statements) {
+    aplicar: async () => {
+      for (const instrucao of pendente!.statements) {
         await db.execute(sql.raw(instrucao));
       }
     },
   };
+}
+
+/** Banco com todas as migracoes **menos** a destrutiva. */
+async function bancoAntesDaRemocao() {
+  const banco = await bancoAntesDe(DESTRUTIVA);
+  return { ...banco, aplicarDestrutiva: banco.aplicar };
 }
 
 async function tabelas(db: Database): Promise<string[]> {
@@ -129,3 +148,89 @@ describe('remocao das tabelas do renderizador', () => {
     }
   });
 });
+
+describe('depoimentos, equipe e FAQ viram modulos', () => {
+  it('habilita os tres nos sites que ja existiam', async () => {
+    // As tres telas valiam para todo site antes de serem modulos. O painel
+    // esconde o que nao esta habilitado, entao sem este passo a migracao
+    // tiraria tres telas de todo cliente no ar.
+    const banco = await bancoAntesDe(MODULOS_NOVOS);
+    try {
+      await seedDatabase(banco.db, {
+        demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' },
+      });
+
+      const [site] = await banco.db.select({ id: schema.sites.id }).from(schema.sites);
+      expect(site, 'o seed deveria ter criado um site').toBeDefined();
+
+      const antes = await modulosHabilitados(banco.db, site!.id);
+      expect(antes).not.toContain('depoimentos');
+
+      await banco.aplicar();
+
+      const depois = await modulosHabilitados(banco.db, site!.id);
+      expect(depois).toEqual(expect.arrayContaining(['depoimentos', 'equipe', 'faq']));
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('nao desfaz a escolha de quem ja tinha configurado o modulo', async () => {
+    const banco = await bancoAntesDe(MODULOS_NOVOS);
+    try {
+      await seedDatabase(banco.db, {
+        demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' },
+      });
+      const [site] = await banco.db
+        .select({ id: schema.sites.id, tenantId: schema.sites.tenantId })
+        .from(schema.sites);
+
+      // Alguem desligou depoimentos para este site antes da migracao.
+      await banco.db.insert(schema.siteModules).values({
+        tenantId: site!.tenantId,
+        siteId: site!.id,
+        moduleKey: 'depoimentos',
+        enabled: false,
+      });
+
+      await banco.aplicar();
+
+      // `ON CONFLICT DO NOTHING`: a migracao preenche o que falta e nao
+      // reverte decisao de configuracao.
+      expect(await modulosHabilitados(banco.db, site!.id)).not.toContain('depoimentos');
+      expect(await modulosHabilitados(banco.db, site!.id)).toContain('equipe');
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('e segura de reaplicar', async () => {
+    const banco = await bancoAntesDe(MODULOS_NOVOS);
+    try {
+      await seedDatabase(banco.db, {
+        demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' },
+      });
+      await banco.aplicar();
+      await expect(banco.aplicar()).resolves.toBeUndefined();
+
+      const [site] = await banco.db.select({ id: schema.sites.id }).from(schema.sites);
+      const linhas = await banco.db
+        .select()
+        .from(schema.siteModules)
+        .where(eq(schema.siteModules.siteId, site!.id));
+      const chaves = linhas.map((l) => l.moduleKey);
+      expect(new Set(chaves).size).toBe(chaves.length);
+    } finally {
+      await banco.close();
+    }
+  });
+});
+
+/** Modulos habilitados de um site. */
+async function modulosHabilitados(db: Database, siteId: string): Promise<string[]> {
+  const linhas = await db
+    .select({ moduleKey: schema.siteModules.moduleKey, enabled: schema.siteModules.enabled })
+    .from(schema.siteModules)
+    .where(eq(schema.siteModules.siteId, siteId));
+  return linhas.filter((l) => l.enabled).map((l) => l.moduleKey);
+}

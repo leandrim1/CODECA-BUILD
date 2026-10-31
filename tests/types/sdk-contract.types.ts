@@ -12,12 +12,15 @@
 import type {
   PublicAddress as ApiAddress,
   PublicBanner as ApiBanner,
+  PublicFaq as ApiFaq,
   PublicImage as ApiImage,
   PublicPage as ApiPage,
   PublicProject as ApiProject,
   PublicProperty as ApiProperty,
   PublicSeo as ApiSeo,
   PublicService as ApiService,
+  PublicTeamMember as ApiTeamMember,
+  PublicTestimonial as ApiTestimonial,
   institucionalDocumentSchema,
   contatoDocumentSchema,
 } from '@codeca/shared';
@@ -26,12 +29,15 @@ import type {
   InstitutionalContent,
   PublicAddress as SdkAddress,
   PublicBanner as SdkBanner,
+  PublicFaq as SdkFaq,
   PublicImage as SdkImage,
   PublicPage as SdkPage,
   PublicProject as SdkProject,
   PublicProperty as SdkProperty,
   PublicSeo as SdkSeo,
   PublicService as SdkService,
+  PublicTeamMember as SdkTeamMember,
+  PublicTestimonial as SdkTestimonial,
 } from '@codeca/sdk';
 import type { z } from 'zod';
 
@@ -49,6 +55,9 @@ type _Property = Confirma<Igual<SdkProperty, ApiProperty>>;
 type _Project = Confirma<Igual<SdkProject, ApiProject>>;
 type _Service = Confirma<Igual<SdkService, ApiService>>;
 type _Banner = Confirma<Igual<SdkBanner, ApiBanner>>;
+type _Testimonial = Confirma<Igual<SdkTestimonial, ApiTestimonial>>;
+type _TeamMember = Confirma<Igual<SdkTeamMember, ApiTeamMember>>;
+type _Faq = Confirma<Igual<SdkFaq, ApiFaq>>;
 type _Page = Confirma<Igual<SdkPage<SdkProperty>, ApiPage<ApiProperty>>>;
 
 /**
@@ -68,6 +77,9 @@ export type ContratoVerificado =
   | _Seo
   | _Property
   | _Project
+  | _Testimonial
+  | _TeamMember
+  | _Faq
   | _Service
   | _Banner
   | _Page

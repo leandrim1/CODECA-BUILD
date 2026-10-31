@@ -15,6 +15,9 @@ export const MODULE_KEYS = [
   'imoveis',
   'obras',
   'servicos',
+  'depoimentos',
+  'equipe',
+  'faq',
 ] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 
@@ -162,6 +165,68 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
       campo('slug', 'Endereco na URL', 'text', false, {
         help: 'Alterar quebra links ja divulgados e a indexacao no Google.',
       }),
+    ],
+  },
+  depoimentos: {
+    key: 'depoimentos',
+    name: 'Depoimentos',
+    description: 'O que os clientes dizem, com autorizacao de quem disse.',
+    kind: 'collection',
+    table: 'testimonials',
+    fields: [
+      campo('authorName', 'Nome de quem deu o depoimento', 'text', true, { required: true }),
+      campo('authorRole', 'Quem e a pessoa', 'text'),
+      campo('content', 'Depoimento', 'longText', true, { required: true }),
+      campo('rating', 'Nota', 'number'),
+      campo('photoId', 'Foto', 'image'),
+      campo('relatedProjectId', 'Obra relacionada', 'select'),
+      /**
+       * Nao e burocracia: um depoimento e o nome, a foto e as palavras de
+       * **outra pessoa**. Publicar sem autorizacao dela e tratar dado pessoal
+       * de terceiro sem base legal. O servidor recusa publicar sem isto, e a
+       * API publica nao entrega o depoimento sem isto -- nem em previa.
+       */
+      campo('authorizationConfirmed', 'O autor autorizou a publicacao', 'boolean', true, {
+        help: 'Sem esta confirmacao o depoimento fica guardado, mas nao aparece no site.',
+      }),
+      campo('authorizationNote', 'Como a autorizacao foi obtida', 'text', true, {
+        help: 'Ex.: autorizado por WhatsApp em 12/03. Fica so no painel, nunca no site.',
+      }),
+      campo('publicationStatus', 'Publicacao', 'select'),
+      campo('sortOrder', 'Ordem', 'number'),
+    ],
+  },
+  equipe: {
+    key: 'equipe',
+    name: 'Equipe',
+    description: 'As pessoas da empresa que aparecem no site.',
+    kind: 'collection',
+    table: 'team_members',
+    fields: [
+      campo('name', 'Nome', 'text', true, { required: true }),
+      campo('role', 'Cargo', 'text'),
+      campo('bio', 'Apresentacao', 'longText'),
+      campo('photoId', 'Foto', 'image'),
+      campo('email', 'E-mail', 'email', true, {
+        help: 'Fica visivel no site. Deixe vazio para nao exibir.',
+      }),
+      campo('social', 'Redes sociais', 'tags'),
+      campo('publicationStatus', 'Publicacao', 'select'),
+      campo('sortOrder', 'Ordem', 'number'),
+    ],
+  },
+  faq: {
+    key: 'faq',
+    name: 'Perguntas frequentes',
+    description: 'As duvidas que o site responde sem ninguem precisar ligar.',
+    kind: 'collection',
+    table: 'faqs',
+    fields: [
+      campo('question', 'Pergunta', 'text', true, { required: true }),
+      campo('answer', 'Resposta', 'longText', true, { required: true }),
+      campo('category', 'Agrupamento', 'text'),
+      campo('publicationStatus', 'Publicacao', 'select'),
+      campo('sortOrder', 'Ordem', 'number'),
     ],
   },
   servicos: {

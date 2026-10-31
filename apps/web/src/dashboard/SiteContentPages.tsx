@@ -19,7 +19,6 @@ import {
   Modal,
   PageHeader,
   Select,
-  Tabs,
   TextArea,
   TextInput,
   useToast,
@@ -34,35 +33,49 @@ import { useForm } from '../utils/forms.js';
 import type { FaqRecord, MediaRef, TeamMemberRecord, TestimonialRecord } from '../types/index.js';
 
 /**
- * Depoimentos, equipe e perguntas frequentes.
+ * Depoimentos, equipe do site e perguntas frequentes.
+ *
+ * Tres modulos, tres telas -- como imoveis, obras e servicos. Eram abas de uma
+ * pagina so, de quando as tres valiam para todo site; agora que cada uma pode
+ * estar habilitada sozinha, uma pagina com uma aba unica e titulo falando das
+ * outras duas confundiria mais do que ajuda.
  *
  * Depoimento so pode ser publicado com a declaracao de que o autor autorizou.
- * A regra e verificada no servidor tambem: sem a autorizacao, a publicacao e
- * recusada.
+ * A regra e verificada no servidor tambem -- e a API publica nao entrega
+ * depoimento sem ela, nem em previa.
  */
-export function GalleryPage() {
-  const [tab, setTab] = useState('depoimentos');
-
+export function TestimonialsPage() {
   return (
     <div className="panel-shell grid gap-6">
       <PageHeader
-        title="Galeria e prova social"
-        description="Depoimentos autorizados, equipe tecnica e perguntas frequentes exibidas no site."
+        title="Depoimentos"
+        description="O que seus clientes dizem. Publicar exige a autorizacao de quem falou."
       />
+      <TestimonialsSection />
+    </div>
+  );
+}
 
-      <Tabs
-        items={[
-          { id: 'depoimentos', label: 'Depoimentos' },
-          { id: 'equipe', label: 'Equipe' },
-          { id: 'perguntas', label: 'Perguntas frequentes' },
-        ]}
-        active={tab}
-        onChange={setTab}
+export function SiteTeamPage() {
+  return (
+    <div className="panel-shell grid gap-6">
+      <PageHeader
+        title="Equipe"
+        description="As pessoas da empresa que aparecem no site."
       />
+      <TeamSection />
+    </div>
+  );
+}
 
-      {tab === 'depoimentos' ? <TestimonialsSection /> : null}
-      {tab === 'equipe' ? <TeamSection /> : null}
-      {tab === 'perguntas' ? <FaqSection /> : null}
+export function FaqPage() {
+  return (
+    <div className="panel-shell grid gap-6">
+      <PageHeader
+        title="Perguntas frequentes"
+        description="As duvidas que o site responde sem ninguem precisar ligar."
+      />
+      <FaqSection />
     </div>
   );
 }

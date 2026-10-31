@@ -157,6 +157,53 @@ export interface PublicBanner {
   sortOrder: number;
 }
 
+/**
+ * Depoimento, como o site do cliente o recebe.
+ *
+ * Nao traz `authorizationConfirmed` nem `authorizationNote`: a autorizacao e
+ * **condicao de entrega**, nao dado a exibir. Um depoimento sem ela nao chega
+ * aqui -- nem em previa --, entao o site nao precisa conferir nada, e a nota
+ * de como a autorizacao foi obtida fica so no painel.
+ */
+export interface PublicTestimonial {
+  id: string;
+  authorName: string;
+  authorRole: string;
+  content: string;
+  rating: number | null;
+  photo: PublicImage | null;
+  /** Obra relacionada, quando o depoimento fala de uma. */
+  relatedProjectId: string | null;
+  sortOrder: number;
+}
+
+/**
+ * Pessoa da equipe exibida no site.
+ *
+ * `email` vem porque e um campo que o cliente preenche para ser exibido --
+ * deixando vazio, nao aparece. As redes sociais vem como mapa, do mesmo
+ * formato usado no contato da empresa.
+ */
+export interface PublicTeamMember {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  email: string;
+  photo: PublicImage | null;
+  social: Record<string, string>;
+  sortOrder: number;
+}
+
+export interface PublicFaq {
+  id: string;
+  question: string;
+  answer: string;
+  /** Agrupamento livre, definido pelo cliente. Vazio quando nao usado. */
+  category: string;
+  sortOrder: number;
+}
+
 export interface PublicPage<T> {
   items: T[];
   page: number;

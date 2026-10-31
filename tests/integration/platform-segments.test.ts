@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { and, eq, schema } from '@codeca/database';
+import { MODULE_KEYS } from '@codeca/shared';
 import {
   createTestApi,
   registerAccount,
@@ -54,6 +55,25 @@ function listar() {
 async function segmentoPorCodigo(code: string) {
   const response = await listar();
   return (response.body.items as Array<Record<string, unknown>>).find((s) => s.code === code);
+}
+
+/**
+ * Deixa o site **somente** com os modulos pedidos.
+ *
+ * Derivado de `MODULE_KEYS` em vez de listado a mao: a rota nao desliga modulo
+ * por omissao, entao um corpo com a lista fixa deixaria habilitado todo modulo
+ * acrescentado ao registro depois -- e o teste passaria a medir outra coisa.
+ */
+async function deixarSoCom(ligados: readonly string[]) {
+  const response = await admin.client.put(`/api/platform/sites/${empresa.siteId}/modules`, {
+    modules: MODULE_KEYS.map((key) => ({
+      key,
+      enabled: ligados.includes(key),
+      settings: {},
+    })),
+    fieldPolicies: [],
+  });
+  expect(response.status, response.errorMessage ?? '').toBe(200);
 }
 
 /** Modulos habilitados de um site, como o painel do cliente os veria. */
@@ -307,18 +327,8 @@ describe('editar um segmento nao alcanca os sites', () => {
 
 describe('aplicar o segmento a um site existente', () => {
   it('liga o que falta e nao desliga o que esta em uso', async () => {
-    // Site enxuto: so institucional. O segmento traz mais.
-    await admin.client.put(`/api/platform/sites/${empresa.siteId}/modules`, {
-      modules: [
-        { key: 'institucional', enabled: true, settings: {} },
-        { key: 'contato', enabled: false, settings: {} },
-        { key: 'banners', enabled: false, settings: {} },
-        { key: 'imoveis', enabled: false, settings: {} },
-        { key: 'obras', enabled: false, settings: {} },
-        { key: 'servicos', enabled: true, settings: {} },
-      ],
-      fieldPolicies: [],
-    });
+    // Site enxuto: so institucional e servicos. O segmento traz mais.
+    await deixarSoCom(['institucional', 'servicos']);
     expect(await modulosDoSite(empresa.siteId)).toEqual(['institucional', 'servicos']);
 
     const corretor = await segmentoPorCodigo('corretor');
@@ -333,23 +343,23 @@ describe('aplicar o segmento a um site existente', () => {
       `/api/platform/sites/${empresa.siteId}/apply-segment`,
     );
     expect(response.status, response.errorMessage ?? '').toBe(200);
-    expect((response.body.enabled as string[]).sort()).toEqual(['banners', 'contato', 'imoveis']);
+
+    // O esperado vem do proprio segmento: ligou o que ele traz e o site ainda
+    // nao tinha. Acrescentar um modulo ao segmento nao deve custar a edicao
+    // deste teste, que mede outra coisa.
+    const doSegmento = [...corretor!.defaultModules].sort();
+    const faltavam = doSegmento.filter((key) => key !== 'institucional');
+    expect((response.body.enabled as string[]).sort()).toEqual(faltavam);
 
     // `servicos` nao esta no segmento corretor e continua ligado: desligar um
     // modulo em uso e decisao site a site, na tela de modulos.
-    expect(await modulosDoSite(empresa.siteId)).toEqual([
-      'banners', 'contato', 'imoveis', 'institucional', 'servicos',
-    ]);
+    expect(await modulosDoSite(empresa.siteId)).toEqual(
+      [...new Set([...doSegmento, 'institucional', 'servicos'])].sort(),
+    );
   });
 
   it('o modulo recem-ligado nao abre vazio', async () => {
-    await admin.client.put(`/api/platform/sites/${empresa.siteId}/modules`, {
-      modules: [
-        { key: 'institucional', enabled: true, settings: {} },
-        { key: 'contato', enabled: false, settings: {} },
-      ],
-      fieldPolicies: [],
-    });
+    await deixarSoCom(['institucional']);
     await api.db
       .delete(schema.contentDocuments)
       .where(

@@ -129,6 +129,45 @@ export interface PublicPage<T> {
   totalPages: number;
 }
 
+/**
+ * Depoimento, ja autorizado pelo autor.
+ *
+ * A plataforma nao entrega depoimento sem a autorizacao de quem o deu -- nem
+ * em previa. Por isso nao ha sinalizador a conferir aqui: o que chega pode ser
+ * exibido.
+ */
+export interface PublicTestimonial {
+  id: string;
+  authorName: string;
+  authorRole: string;
+  content: string;
+  rating: number | null;
+  photo: PublicImage | null;
+  relatedProjectId: string | null;
+  sortOrder: number;
+}
+
+export interface PublicTeamMember {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  /** Vazio quando o cliente escolheu nao exibir. */
+  email: string;
+  photo: PublicImage | null;
+  social: Record<string, string>;
+  sortOrder: number;
+}
+
+export interface PublicFaq {
+  id: string;
+  question: string;
+  answer: string;
+  /** Agrupamento livre definido pelo cliente; vazio quando nao usado. */
+  category: string;
+  sortOrder: number;
+}
+
 export interface SiteInfo {
   site: {
     id: string;

@@ -54,6 +54,9 @@ await codeca.projects.list({ status: 'em_andamento' });
 await codeca.projects.get('edificio-horizonte');
 
 await codeca.services.list();
+await codeca.testimonials.list();
+await codeca.team.list();
+await codeca.faqs.list();
 
 await codeca.leads.create({
   name: 'Marina Souza',
@@ -83,6 +86,10 @@ const codeca = createServerClient({
 });
 
 const rascunhos = await codeca.properties.list({ preview: true });
+
+// Depoimentos sao a excecao: a plataforma nunca devolve um sem a autorizacao
+// do autor, nem em previa. Nao ha sinalizador a conferir -- o que chega pode
+// ir para a tela.
 ```
 
 A chave secreta (`cb_sec_...`) le tambem rascunho. Ela **nunca** vai para o

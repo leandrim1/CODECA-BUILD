@@ -4,6 +4,7 @@ import {
   MODULE_KEYS,
   MODULE_REGISTRY,
   bannerInputSchema,
+  faqInputSchema,
   blockedFields,
   changedKeys,
   effectiveFields,
@@ -13,6 +14,8 @@ import {
   projectInputSchema,
   propertyInputSchema,
   serviceInputSchema,
+  teamMemberInputSchema,
+  testimonialInputSchema,
   type DocumentModuleKey,
   type ModuleKey,
 } from '@codeca/shared';
@@ -43,6 +46,9 @@ const COLECOES: Array<[ModuleKey, { shape: Record<string, unknown> }]> = [
   ['obras', projectInputSchema],
   ['servicos', serviceInputSchema],
   ['banners', bannerInputSchema],
+  ['depoimentos', testimonialInputSchema],
+  ['equipe', teamMemberInputSchema],
+  ['faq', faqInputSchema],
 ];
 
 describe('registro e validacao andam juntos', () => {
