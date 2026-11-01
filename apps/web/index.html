@@ -12,7 +12,50 @@
     <title>Codeca Build | Sites para construtoras</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      Conteudo de partida dentro do #root.
+
+      O React o substitui ao montar. Ele existe para o caso que o
+      `ErrorBoundary` nao alcanca: quando o proprio bundle nao executa -- 404
+      no arquivo, tipo MIME errado, erro de sintaxe. Ai nao ha React para
+      capturar nada, e sem isto a pagina fica branca e muda, indistinguivel de
+      um erro de renderizacao.
+
+      Com isto, as duas falhas ficam diferentes a olho nu: texto de
+      carregamento parado = o bundle nao rodou; tela de erro = o codigo
+      quebrou.
+    -->
+    <div id="root">
+      <div id="boot" style="min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#475569">
+        <div style="max-width:32rem;display:grid;gap:12px;text-align:center">
+          <p id="boot-msg" style="margin:0">Carregando o painel...</p>
+          <div id="boot-falha" hidden style="display:grid;gap:12px">
+            <h1 style="font-size:1.25rem;font-weight:600;margin:0;color:#0f172a">
+              Nao foi possivel carregar o painel
+            </h1>
+            <p style="margin:0;line-height:1.5">
+              Os arquivos da aplicacao nao chegaram ao navegador. Quase sempre e cache de uma
+              versao anterior: recarregue sem cache (Ctrl+F5) ou abra em uma janela anonima.
+              Se continuar, avise a CODECA IA -- pode ser uma publicacao incompleta.
+            </p>
+            <noscript>
+              Este painel precisa de JavaScript habilitado.
+            </noscript>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Se em 12s o React nao substituiu o conteudo, o bundle nao rodou.
+      // Trocar a mensagem e melhor do que deixar "Carregando..." para sempre.
+      setTimeout(function () {
+        var falha = document.getElementById('boot-falha');
+        var msg = document.getElementById('boot-msg');
+        if (!falha || !document.getElementById('boot')) return;
+        falha.hidden = false;
+        if (msg) msg.remove();
+      }, 12000);
+    </script>
   </body>
 </html>

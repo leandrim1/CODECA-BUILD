@@ -72,12 +72,30 @@ export async function runMigrations(db: Database, directory?: string): Promise<M
       skipped.push(migration.name);
       continue;
     }
-    for (const statement of migration.statements) {
-      await db.execute(sql.raw(statement));
-    }
-    await db.execute(
-      sql`insert into ${sql.identifier(MIGRATIONS_TABLE)} (name) values (${migration.name})`,
-    );
+    /**
+     * Cada migracao e uma transacao, junto com o proprio registro dela.
+     *
+     * Sem isso, uma falha no meio do arquivo deixava o banco em estado
+     * impossivel de consertar sozinho: os comandos anteriores ficavam
+     * aplicados, o nome **nao** era registrado, e o deploy seguinte reexecutava
+     * o arquivo desde o inicio. `CREATE TABLE IF NOT EXISTS` sobrevive a isso;
+     * `ALTER TABLE ... ADD CONSTRAINT` nao -- e existem mais de cem deles.
+     * O segundo deploy falhava com "constraint ja existe" e todos os
+     * seguintes tambem, ate alguem abrir o banco e corrigir a mao.
+     *
+     * O Postgres faz DDL transacional, entao a garantia e real: ou a migracao
+     * inteira entra e fica registrada, ou nada dela entrou. Nenhuma migracao
+     * usa `CREATE INDEX CONCURRENTLY`, que e o comando que nao aceitaria
+     * transacao -- se algum dia uma usar, este laco precisa saber disso.
+     */
+    await db.transaction(async (tx) => {
+      for (const statement of migration.statements) {
+        await tx.execute(sql.raw(statement));
+      }
+      await tx.execute(
+        sql`insert into ${sql.identifier(MIGRATIONS_TABLE)} (name) values (${migration.name})`,
+      );
+    });
     applied.push(migration.name);
   }
   return { applied, skipped };

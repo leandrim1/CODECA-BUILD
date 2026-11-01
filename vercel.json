@@ -32,6 +32,15 @@
       ]
     },
     {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "cache-control",
+          "value": "no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {

@@ -3,10 +3,15 @@ import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
 import { sql } from 'drizzle-orm';
 import { fileURLToPath } from 'node:url';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import {
+  MIGRATIONS_TABLE,
   eq,
   formatDatabaseFailure,
   readMigrations,
+  runMigrations,
   schema,
   seedDatabase,
   type Database,
@@ -21,12 +26,28 @@ import { resultRows } from '../helpers/database.js';
  * dispara de proposito.
  *
  * O que importa provar e a ordem: a conferencia e a **primeira** instrucao, e
- * o executor roda uma instrucao por vez sem transacao envolvendo o arquivo.
- * Se a guarda ficasse depois de qualquer `DROP`, ela avisaria sobre um dado
- * que ja teria sido apagado.
+ * so depois dela vem qualquer `DROP`. Hoje o executor envolve cada arquivo
+ * numa transacao, entao um erro tardio desfaria os `DROP` de qualquer forma --
+ * mas a ordem continua sendo o que se testa aqui, porque e ela que faz a
+ * migracao **avisar** em vez de so desfazer: a mensagem da guarda e o que diz
+ * a quem opera que ainda existe conteudo do renderizador antigo.
  */
 
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../packages/database/migrations/', import.meta.url));
+
+/**
+ * Roda o executor de verdade sobre arquivos de ensaio.
+ *
+ * `runMigrations` le o diretorio; aqui o conteudo e injetado para o teste
+ * poder provocar uma falha no meio sem inventar uma migracao no repositorio.
+ */
+async function aplicar(db: Database, arquivos: Array<{ name: string; statements: string[] }>) {
+  const dir = await mkdtemp(path.join(tmpdir(), 'codeca-mig-'));
+  for (const arquivo of arquivos) {
+    await writeFile(path.join(dir, arquivo.name), arquivo.statements.join('\n--> statement-breakpoint\n'));
+  }
+  return runMigrations(db, dir);
+}
 const DESTRUTIVA = '0007_remove_tabelas_do_renderizador.sql';
 const MODULOS_NOVOS = '0010_depoimentos_equipe_faq.sql';
 const REMOVIDAS = ['pages', 'page_versions', 'navigation_menus', 'redirects', 'site_settings'];
@@ -55,6 +76,14 @@ async function bancoAntesDe(alvo: string) {
   return {
     db,
     close: () => client.close(),
+    /**
+     * Aplica instrucao a instrucao, **sem** a transacao que `runMigrations`
+     * usa. E proposital: assim o teste observa o estado no ponto em que a
+     * guarda interrompe, que e o que ele existe para verificar. Com a
+     * transacao, o `rollback` desfaria tudo antes de qualquer assercao e o
+     * teste nao conseguiria distinguir "a guarda parou na hora certa" de "a
+     * transacao desfez depois".
+     */
     aplicar: async () => {
       for (const instrucao of pendente!.statements) {
         await db.execute(sql.raw(instrucao));
@@ -222,6 +251,97 @@ describe('depoimentos, equipe e FAQ viram modulos', () => {
       expect(new Set(chaves).size).toBe(chaves.length);
     } finally {
       await banco.close();
+    }
+  });
+});
+
+/**
+ * A migracao inteira entra, ou nada dela entra.
+ *
+ * O caso real: uma migracao falha no meio durante o deploy. Antes, os
+ * comandos ja executados ficavam aplicados e o nome **nao** era registrado --
+ * entao o deploy seguinte reexecutava o arquivo desde o inicio.
+ * `CREATE TABLE IF NOT EXISTS` sobrevive a isso; `ALTER TABLE ... ADD
+ * CONSTRAINT` nao, e existem mais de cem deles nas migracoes. O segundo
+ * deploy falhava com "constraint ja existe", e todos os seguintes tambem,
+ * ate alguem abrir o banco de producao e corrigir a mao.
+ */
+describe('atomicidade das migracoes', () => {
+  it('uma migracao que falha no meio nao deixa metade aplicada', async () => {
+    const client = new PGlite();
+    const db = drizzle(client, { schema, casing: 'snake_case' }) as unknown as Database;
+
+    try {
+      // Arquivo com duas instrucoes validas e uma invalida no fim.
+      const comErro = [
+        {
+          name: '9999_falha_proposital.sql',
+          statements: [
+            'CREATE TABLE "ensaio_a" ("id" integer PRIMARY KEY)',
+            'CREATE TABLE "ensaio_b" ("id" integer PRIMARY KEY)',
+            'ALTER TABLE "ensaio_inexistente" ADD CONSTRAINT "x" PRIMARY KEY ("id")',
+          ],
+        },
+      ];
+
+      await expect(aplicar(db, comErro)).rejects.toThrow();
+
+      // Nenhuma das duas tabelas validas sobreviveu.
+      const depois = await tabelas(db);
+      expect(depois).not.toContain('ensaio_a');
+      expect(depois).not.toContain('ensaio_b');
+
+      // E o arquivo nao ficou registrado como aplicado, entao pode ser
+      // reexecutado depois de corrigido.
+      const registros = await db.execute(
+        sql.raw(`SELECT name FROM ${MIGRATIONS_TABLE}`),
+      );
+      expect(resultRows<{ name: string }>(registros).map((r) => r.name)).not.toContain(
+        '9999_falha_proposital.sql',
+      );
+    } finally {
+      await client.close();
+    }
+  });
+
+  /**
+   * A consequencia pratica: corrigir o arquivo e reexecutar funciona.
+   *
+   * Sem a transacao, este segundo `runMigrations` falharia -- `ensaio_a` ja
+   * existiria e o `ADD CONSTRAINT` repetido seria recusado.
+   */
+  it('depois da falha, a migracao corrigida aplica limpa', async () => {
+    const client = new PGlite();
+    const db = drizzle(client, { schema, casing: 'snake_case' }) as unknown as Database;
+
+    try {
+      await expect(
+        aplicar(db, [
+          {
+            name: '9999_ensaio.sql',
+            statements: [
+              'CREATE TABLE "ensaio_a" ("id" integer PRIMARY KEY)',
+              'ALTER TABLE "ensaio_a" ADD CONSTRAINT "ensaio_a_uk" UNIQUE ("id")',
+              'SELECT * FROM "nao_existe"',
+            ],
+          },
+        ]),
+      ).rejects.toThrow();
+
+      // Mesmo nome, agora sem a instrucao quebrada.
+      await aplicar(db, [
+        {
+          name: '9999_ensaio.sql',
+          statements: [
+            'CREATE TABLE "ensaio_a" ("id" integer PRIMARY KEY)',
+            'ALTER TABLE "ensaio_a" ADD CONSTRAINT "ensaio_a_uk" UNIQUE ("id")',
+          ],
+        },
+      ]);
+
+      expect(await tabelas(db)).toContain('ensaio_a');
+    } finally {
+      await client.close();
     }
   });
 });

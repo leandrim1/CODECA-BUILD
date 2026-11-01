@@ -284,6 +284,22 @@ O cache fica no site do cliente, onde o projeto dele decide a estrategia:
 Em nenhum dos dois casos o cliente precisa de um novo deploy para publicar
 conteudo, que e o requisito do produto.
 
+### O `index.html` do painel nunca e cacheado
+
+Os arquivos de `/assets` tem hash no nome e saem com
+`cache-control: public, max-age=31536000, immutable` -- eles podem ser
+guardados para sempre justamente porque o nome muda a cada build.
+
+Isso torna o `index.html` o unico ponto de invalidacao, e por isso ele sai com
+`no-cache, must-revalidate`. Sem esse cabecalho a falha e desagradavel: um
+`index.html` antigo guardado pelo navegador ou por um intermediario aponta
+para hashes que **nao existem mais**, todo arquivo responde 404, e o painel
+abre em branco -- sem erro na tela, sem log no servidor, ate o cache expirar
+sozinho. O sintoma nao se parece com cache, e e.
+
+Se mesmo assim alguem abrir o painel em branco logo depois de um deploy, um
+`Ctrl+F5` confirma em um segundo: se resolver, era isso.
+
 ## 8. Limites a observar
 
 | Limite | Valor configurado | Comentario |
@@ -425,6 +441,8 @@ houver precos ajustados no painel mestre que voce queira preservar.
 | `/api/health` responde 503 `misconfigured` | `DATABASE_URL` ausente ou `AUTH_SECRET` com menos de 32 caracteres |
 | "Nenhum plano inicial configurado" | `pnpm db:seed` nunca rodou no banco de producao |
 | `relation "users" does not exist` nos logs | `pnpm db:migrate` nunca rodou no banco de producao |
+| Painel abre em branco, com "Carregando o painel..." parado | O bundle nao chegou ao navegador. Quase sempre `index.html` antigo em cache: `Ctrl+F5` confirma. Veja tambem se o ultimo build terminou |
+| Painel abre com "O painel encontrou um erro" | Erro de renderizacao. A mensagem na tela e a do erro; o rastro completo esta no console do navegador |
 | Painel responde 404 | O dominio do painel nao esta na reescrita por host |
 | Site do cliente mostra o painel | O host do cliente casa com a regex da plataforma (ou falta `\.` escapado) |
 | `Configuracao de ambiente invalida` nos logs | Variavel obrigatoria ausente; a mensagem nomeia quais |
