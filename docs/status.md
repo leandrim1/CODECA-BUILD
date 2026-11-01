@@ -208,7 +208,7 @@ deploy sem abrir o painel.
 
 ## Testes
 
-718 testes no Vitest, em 46 arquivos; os de integracao rodam contra Postgres real em processo
+720 testes no Vitest, em 46 arquivos; os de integracao rodam contra Postgres real em processo
 (PGlite) com as mesmas migracoes enviadas ao Neon. Nenhuma cobranca real
 acontece nos testes: a ValidaPay e substituida por um provedor em memoria que
 reproduz o fluxo documentado (incluindo o fato de a assinatura nascer apenas do
