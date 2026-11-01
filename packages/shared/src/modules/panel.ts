@@ -1,4 +1,5 @@
 import type { SuspensionEffect } from '../billing/suspension.js';
+import type { CustomModuleView } from './custom-modules.js';
 import type { EffectiveField } from './policy.js';
 import type { ModuleKey } from './registry.js';
 import type { ModuleKind } from './types.js';
@@ -43,6 +44,15 @@ export interface PanelAvailability {
 export interface SiteModulesPayload {
   siteId: string;
   modules: SiteModuleView[];
+  /**
+   * Modulos criados para este site, numa lista propria.
+   *
+   * Separados de `modules`, e nao marcados dentro dela: `modules[].key` e
+   * `ModuleKey`, e alargar isso para `string` tiraria a conferencia de
+   * `MODULE_REGISTRY[chave]` de todo consumidor tipado. O motivo completo esta
+   * em `custom-modules.ts`.
+   */
+  customModules: CustomModuleView[];
   /** Restricao em vigor por causa da assinatura. Independente de `panel`. */
   suspension: SuspensionEffect;
   panel: PanelAvailability;

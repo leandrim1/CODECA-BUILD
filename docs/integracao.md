@@ -197,6 +197,39 @@ Tres coisas que valem saber antes de usar:
   que um segmento novo nao e: e configuracao de um projeto, nao contrato da
   API.
 
+#### Modulos que existem somente neste projeto
+
+Alem dos modulos da plataforma, um site pode ter modulos criados so para ele --
+um cardapio, uma lista de turmas, um catalogo de processos. `GET /api/v1/site`
+diz quais existem, em `customModules`, e o conteudo vem de:
+
+```ts
+const { items } = await codeca.custom('cardapio').list();
+const prato = await codeca.custom('cardapio').get('lasanha-da-casa');
+
+const preco = items[0]?.data.preco; // unknown
+if (typeof preco === 'number') { /* ... */ }
+```
+
+Quatro coisas que valem saber:
+
+- **`data` e um objeto livre.** Os campos sao definidos no painel mestre, por
+  site, e nenhum tipo estatico os descreve. Confira o tipo do valor antes de
+  usar e trate chave ausente como nao informada.
+- **Nao e contrato da API.** Um campo pode ser criado, renomeado ou removido, e
+  o modulo pode ser desligado, sem versao nova do SDK. Pela mesma razao que um
+  segmento novo nao e.
+- **`title` e `slug` ficam fora de `data`**: sao as unicas colunas que a
+  plataforma conhece em todo modulo, e e por elas que a listagem ordena e o
+  endereco de um registro existe.
+- **Num modulo `document`** ha um registro so, com `slug` vazio. Use `list()`:
+  ele nao tem endereco proprio, entao `get()` nao o alcanca.
+
+O `/custom/` no caminho e proposital e vale conhecer: um modulo deste tipo
+**nunca** ocupa a raiz de `/api/v1`. Assim, o dia em que a plataforma
+acrescentar um modulo com a mesma chave ao catalogo, a rota do seu site
+continua lendo o mesmo conteudo.
+
 Um modulo que o site nao tem responde **404**, nao 403: para quem le o site,
 ele simplesmente nao existe. Dizer "proibido" revelaria que a rota existe em
 outros sites.

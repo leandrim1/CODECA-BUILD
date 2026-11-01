@@ -21,6 +21,11 @@ import {
   loadSiteModules,
 } from '../lib/modules.js';
 import { mergeCustomFields, parseCustomFields } from '../lib/custom-fields.js';
+import {
+  enabledCustomModules,
+  loadCustomModules,
+  toCustomModuleView,
+} from '../lib/custom-modules.js';
 import { resolveSiteBilling } from '../lib/billing/suspension.js';
 import { loadEffectivePlan } from '../lib/plan-limits.js';
 import { queueContentPublished } from '../lib/integration/outbound.js';
@@ -76,14 +81,27 @@ export function moduleRoutes() {
     const situacao = await resolveSiteBilling(ctx.db, tenant.siteId, ctx.now());
 
     // Sem painel no plano, nao se consulta modulo: a lista vazia e a resposta
-    // certa, e evita duas consultas que nao vao para a tela.
+    // certa, e evita consultas que nao vao para a tela.
     const state = incluido
       ? await loadSiteModules(ctx.db, tenant.siteId)
+      : { modules: [], overrides: {} };
+    const proprios = incluido
+      ? await loadCustomModules(ctx.db, tenant.siteId)
       : { modules: [], overrides: {} };
 
     const resposta: SiteModulesPayload = {
       siteId: tenant.siteId,
       modules: state.modules,
+      /**
+       * Os modulos criados para este site, em lista propria.
+       *
+       * Somente os habilitados: aqui quem le e o painel do cliente, e um
+       * modulo desligado nao e dele. O painel mestre ve os dois pela rota
+       * `/api/platform/sites/:siteId/custom-modules`.
+       */
+      customModules: enabledCustomModules(proprios).map((modulo) =>
+        toCustomModuleView(modulo, proprios.overrides),
+      ),
       /**
        * Restricao em vigor agora.
        *

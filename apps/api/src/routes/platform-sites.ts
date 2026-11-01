@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, provisionSiteModules, schema, type Database } from '@codeca/database';
+import { and, asc, desc, eq, inArray, provisionSiteModules, schema, sql, type Database } from '@codeca/database';
 import {
   API_KEY_KINDS,
   API_KEY_SCOPES,
@@ -12,6 +12,10 @@ import {
   maskApiKey,
   normalizeOrigin,
   uuidSchema,
+  MAX_CUSTOM_MODULES_PER_SITE,
+  customModuleInputSchema,
+  customModuleUpdateSchema,
+  isReservedModuleKey,
   type ModuleKey,
 } from '@codeca/shared';
 import { Hono } from 'hono';
@@ -22,6 +26,7 @@ import { created, noContent, ok, parseJsonBody, parseParams } from '../lib/http.
 import { issueApiKey, revokeApiKeyById, rotateApiKey } from '../lib/integration/keys.js';
 import { generateWebhookSecret } from '@codeca/shared/server';
 import { customFieldsOf, loadSiteModules } from '../lib/modules.js';
+import { loadCustomModules, toCustomModuleView } from '../lib/custom-modules.js';
 import { listDeliveries } from '../lib/integration/outbound.js';
 import { requireAuth, requirePlatform, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
@@ -397,6 +402,237 @@ export function platformSiteRoutes() {
     return ok(c, { modules: depois.modules });
   });
 
+  // --------------------------------------------- modulos personalizados
+
+  /**
+   * Modulos criados para este site.
+   *
+   * Lista inclusive os desabilitados: o painel mestre e quem liga e desliga,
+   * e esconder o desligado deixaria a CODECA IA sem como religar.
+   */
+  app.get('/sites/:siteId/custom-modules', requirePlatform('platform:tenants:read'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId } = parseParams(c, siteParamSchema);
+    await loadSite(ctx.db, siteId);
+
+    const state = await loadCustomModules(ctx.db, siteId);
+    return ok(c, {
+      items: state.modules.map((modulo) => toCustomModuleView(modulo, state.overrides)),
+    });
+  });
+
+  app.post('/sites/:siteId/custom-modules', requirePlatform('platform:tenants:write'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId } = parseParams(c, siteParamSchema);
+    const site = await loadSite(ctx.db, siteId);
+    const input = await parseJsonBody(c, customModuleInputSchema);
+
+    /**
+     * Chave que o registro ja usa e recusada.
+     *
+     * Nao e por causa da rota -- a publica dos personalizados e
+     * `/api/v1/custom/...`, que nunca colide. E por causa do menu do painel:
+     * duas entradas com a mesma chave, uma lendo tabela tipada e a outra
+     * `custom_records`, nao teriam como ser distinguidas pelo cliente.
+     */
+    if (isReservedModuleKey(input.key)) {
+      throw AppError.conflict(
+        `\`${input.key}\` e um modulo da plataforma. Escolha outra chave para o modulo deste site.`,
+      );
+    }
+
+    const existentes = await ctx.db
+      .select({ key: schema.siteCustomModules.key })
+      .from(schema.siteCustomModules)
+      .where(eq(schema.siteCustomModules.siteId, siteId));
+
+    if (existentes.some((linha) => linha.key === input.key)) {
+      throw AppError.conflict(`Este site ja tem um modulo \`${input.key}\`.`);
+    }
+    if (existentes.length >= MAX_CUSTOM_MODULES_PER_SITE) {
+      throw AppError.badRequest(
+        `Um site pode ter no maximo ${MAX_CUSTOM_MODULES_PER_SITE} modulos proprios.`,
+      );
+    }
+
+    const [row] = await ctx.db
+      .insert(schema.siteCustomModules)
+      .values({ tenantId: site.tenantId, siteId, ...input })
+      .returning();
+    if (!row) throw AppError.internal('Nao foi possivel criar o modulo.');
+
+    await auditFromContext(c, {
+      action: AUDIT_ACTIONS.siteCustomModuleCreated,
+      entityType: 'site_custom_module',
+      entityId: row.id,
+      tenantId: site.tenantId,
+      metadata: { key: row.key, name: row.name, kind: row.kind },
+    });
+
+    const state = await loadCustomModules(ctx.db, siteId);
+    const modulo = state.modules.find((m) => m.key === row.key)!;
+    return created(c, { module: toCustomModuleView(modulo, state.overrides) });
+  });
+
+  /**
+   * Altera nome, descricao, icone, ordem e habilitacao.
+   *
+   * A **chave e o tipo nao mudam**. A chave porque o site do cliente a usa em
+   * codigo, e renomea-la quebraria o site em producao sem aviso. O tipo porque
+   * trocar `collection` por `document` deixaria registros que a tela nova nao
+   * sabe mostrar -- e o caminho honesto e criar outro modulo e migrar o
+   * conteudo, nao reinterpretar o que ja esta gravado.
+   */
+  app.patch(
+    '/sites/:siteId/custom-modules/:moduleKey',
+    requirePlatform('platform:tenants:write'),
+    async (c) => {
+      const ctx = c.get('ctx');
+      const { siteId, moduleKey } = parseParams(
+        c,
+        z.object({ siteId: uuidSchema, moduleKey: z.string().trim().min(1) }),
+      );
+      const site = await loadSite(ctx.db, siteId);
+      const input = await parseJsonBody(c, customModuleUpdateSchema);
+
+      const [atual] = await ctx.db
+        .select()
+        .from(schema.siteCustomModules)
+        .where(
+          and(
+            eq(schema.siteCustomModules.siteId, siteId),
+            eq(schema.siteCustomModules.key, moduleKey),
+          ),
+        );
+      if (!atual) throw AppError.notFound('Modulo nao encontrado.');
+
+      if (input.kind !== undefined && input.kind !== atual.kind) {
+        throw AppError.badRequest(
+          'O tipo do modulo nao pode mudar depois de criado. Crie outro modulo e mova o conteudo.',
+        );
+      }
+
+      const [row] = await ctx.db
+        .update(schema.siteCustomModules)
+        .set({
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.description !== undefined ? { description: input.description } : {}),
+          ...(input.icon !== undefined ? { icon: input.icon } : {}),
+          ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
+          ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+          updatedAt: ctx.now(),
+        })
+        .where(
+          and(
+            eq(schema.siteCustomModules.siteId, siteId),
+            eq(schema.siteCustomModules.key, moduleKey),
+          ),
+        )
+        .returning();
+      if (!row) throw AppError.notFound('Modulo nao encontrado.');
+
+      await auditFromContext(c, {
+        action: AUDIT_ACTIONS.siteCustomModuleUpdated,
+        entityType: 'site_custom_module',
+        entityId: row.id,
+        tenantId: site.tenantId,
+        metadata: {
+          key: row.key,
+          // O que a trilha precisa responder depois: quem tirou do ar.
+          enabled: row.enabled,
+          wasEnabled: atual.enabled,
+        },
+      });
+
+      const state = await loadCustomModules(ctx.db, siteId);
+      const modulo = state.modules.find((m) => m.key === row.key)!;
+      return ok(c, { module: toCustomModuleView(modulo, state.overrides) });
+    },
+  );
+
+  /**
+   * Apaga a definicao -- e **recusa enquanto houver registro**.
+   *
+   * A etapa F deixa o valor de um campo removido guardado no JSONB, porque ele
+   * e um pedaco de um registro que continua existindo. Aqui o modulo *e* o
+   * conteudo: apagar a definicao deixaria toda a lista invisivel e orfa, sem
+   * tela nenhuma por onde recuperar. Entao a recusa diz quantos registros
+   * existem e aponta o caminho reversivel, que e desabilitar.
+   */
+  app.delete(
+    '/sites/:siteId/custom-modules/:moduleKey',
+    requirePlatform('platform:tenants:write'),
+    async (c) => {
+      const ctx = c.get('ctx');
+      const { siteId, moduleKey } = parseParams(
+        c,
+        z.object({ siteId: uuidSchema, moduleKey: z.string().trim().min(1) }),
+      );
+      const site = await loadSite(ctx.db, siteId);
+
+      const [atual] = await ctx.db
+        .select()
+        .from(schema.siteCustomModules)
+        .where(
+          and(
+            eq(schema.siteCustomModules.siteId, siteId),
+            eq(schema.siteCustomModules.key, moduleKey),
+          ),
+        );
+      if (!atual) throw AppError.notFound('Modulo nao encontrado.');
+
+      const [contagem] = await ctx.db
+        .select({ total: sql<number>`cast(count(*) as int)` })
+        .from(schema.customRecords)
+        .where(
+          and(
+            eq(schema.customRecords.siteId, siteId),
+            eq(schema.customRecords.moduleKey, moduleKey),
+          ),
+        );
+      const total = contagem?.total ?? 0;
+      if (total > 0) {
+        throw AppError.conflict(
+          `O modulo ${atual.name} tem ${total} registro(s) do cliente. `
+            + 'Desabilite o modulo para tira-lo do ar sem apagar conteudo.',
+        );
+      }
+
+      await ctx.db.transaction(async (tx) => {
+        // As definicoes de campo vao com o modulo: sem o modulo elas nao
+        // pertencem a nada, e um modulo recriado com a mesma chave herdaria
+        // campos que ninguem configurou para ele.
+        await tx
+          .delete(schema.siteCustomFields)
+          .where(
+            and(
+              eq(schema.siteCustomFields.siteId, siteId),
+              eq(schema.siteCustomFields.moduleKey, moduleKey),
+            ),
+          );
+        await tx
+          .delete(schema.siteCustomModules)
+          .where(
+            and(
+              eq(schema.siteCustomModules.siteId, siteId),
+              eq(schema.siteCustomModules.key, moduleKey),
+            ),
+          );
+      });
+
+      await auditFromContext(c, {
+        action: AUDIT_ACTIONS.siteCustomModuleDeleted,
+        entityType: 'site_custom_module',
+        entityId: atual.id,
+        tenantId: site.tenantId,
+        // A trilha diz explicitamente que nao havia conteudo a perder.
+        metadata: { key: moduleKey, name: atual.name, recordsDeleted: 0 },
+      });
+
+      return noContent(c);
+    },
+  );
+
   // ------------------------------------------------- credenciais do site
 
   // ------------------------------------------------- campos personalizados
@@ -445,22 +681,41 @@ export function platformSiteRoutes() {
       );
       const site = await loadSite(ctx.db, siteId);
 
-      if (!isModuleKey(moduleKey)) throw AppError.notFound('Modulo nao encontrado.');
-      const definicaoModulo = MODULE_REGISTRY[moduleKey];
+      /**
+       * A chave pode ser de um modulo do registro ou de um deste site.
+       *
+       * Os campos de um modulo personalizado sao os mesmos campos da etapa F:
+       * `site_custom_fields` guarda os dois, com `module_key` apontando para
+       * um ou para o outro. Reaproveitar e o que faz o editor de campos, o
+       * schema montado em tempo de execucao e a politica valerem para os dois
+       * sem uma segunda implementacao.
+       */
+      const doSite = await loadCustomModules(ctx.db, siteId);
+      const personalizado = doSite.modules.find((m) => m.key === moduleKey);
+
+      if (!personalizado && !isModuleKey(moduleKey)) {
+        throw AppError.notFound('Modulo nao encontrado.');
+      }
 
       /**
-       * Modulo que nao aceita campo personalizado e recusado aqui, no servidor.
+       * Modulo do registro que nao aceita campo personalizado e recusado.
        *
-       * A tela do painel mestre so oferece os modulos que declaram
-       * `customFields`, mas esconder nao e proteger: sem esta conferencia,
-       * uma chamada direta definiria campo em `faq` ou `galerias` -- e o campo
-       * ficaria gravado sem nenhum formulario que o mostrasse, porque esses
-       * modulos nao passam os valores pelo caminho dos personalizados.
+       * A tela do painel mestre so oferece os que declaram `customFields`, mas
+       * esconder nao e proteger: sem esta conferencia, uma chamada direta
+       * definiria campo em `faq` ou `galerias` -- e o campo ficaria gravado
+       * sem nenhum formulario que o mostrasse, porque esses modulos nao passam
+       * os valores pelo caminho dos personalizados.
+       *
+       * Um modulo personalizado nao passa por aqui: os campos dele sao a
+       * unica coisa que ele tem.
        */
-      if (definicaoModulo.customFields !== true) {
-        throw AppError.badRequest(
-          `O modulo ${definicaoModulo.name} nao aceita campos personalizados.`,
-        );
+      const nomeDoModulo = personalizado?.name ?? MODULE_REGISTRY[moduleKey as ModuleKey].name;
+      const camposDoRegistro = personalizado
+        ? []
+        : MODULE_REGISTRY[moduleKey as ModuleKey].fields;
+
+      if (!personalizado && MODULE_REGISTRY[moduleKey as ModuleKey].customFields !== true) {
+        throw AppError.badRequest(`O modulo ${nomeDoModulo} nao aceita campos personalizados.`);
       }
 
       const input = await parseJsonBody(
@@ -477,11 +732,11 @@ export function platformSiteRoutes() {
        * gravando na coluna e outro no JSONB -- e o cliente nao teria como
        * saber qual dos dois o site le.
        */
-      const doRegistro = new Set(definicaoModulo.fields.map((campo) => campo.key));
+      const doRegistro = new Set(camposDoRegistro.map((campo) => campo.key));
       for (const campo of input.fields) {
         if (doRegistro.has(campo.fieldKey)) {
           throw AppError.conflict(
-            `O modulo ${definicaoModulo.name} ja tem um campo \`${campo.fieldKey}\`. `
+            `O modulo ${nomeDoModulo} ja tem um campo \`${campo.fieldKey}\`. `
               + 'Escolha outra chave para o campo personalizado.',
           );
         }

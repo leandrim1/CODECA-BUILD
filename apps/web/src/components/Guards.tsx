@@ -96,6 +96,57 @@ export function RequireModule({
   moduleKey: ModuleKey;
   children: ReactNode;
 }) {
+  return <RequireModuleBase moduleKey={moduleKey}>{children}</RequireModuleBase>;
+}
+
+/**
+ * O mesmo, para um modulo criado para este site.
+ *
+ * Componente separado porque a chave de um e `ModuleKey` e a do outro e dado:
+ * um parametro que aceitasse os dois alargaria a chave para `string` e tiraria
+ * a conferencia de tipo de todas as chamadas tipadas. A mensagem tambem e
+ * outra -- um modulo deste tipo nao "nao faz parte da plataforma", ele
+ * simplesmente nao existe neste projeto.
+ */
+export function RequireCustomModule({
+  moduleKey,
+  children,
+}: {
+  moduleKey: string;
+  children: ReactNode;
+}) {
+  const { customModule, loading } = useSiteModules();
+
+  if (loading) {
+    return (
+      <div className="panel-shell">
+        <Spinner label="Carregando o site" />
+      </div>
+    );
+  }
+
+  if (!customModule(moduleKey)) {
+    return (
+      <div className="panel-shell">
+        <EmptyState
+          icon={<PackageOpen aria-hidden="true" className="size-10" />}
+          title="Este conteudo nao faz parte do seu site"
+          description="O endereco pode ter mudado, ou o modulo foi retirado do ar pela equipe que desenvolveu o seu site. Nada do que foi cadastrado se perde quando isso acontece."
+        />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+function RequireModuleBase({
+  moduleKey,
+  children,
+}: {
+  moduleKey: ModuleKey;
+  children: ReactNode;
+}) {
   const { enabled, loading, module } = useSiteModules();
 
   if (loading) {

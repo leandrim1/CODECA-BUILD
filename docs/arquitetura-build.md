@@ -399,6 +399,89 @@ aceitam campo personalizado. `banners`, `faqs`, `categories` e `galleries`
 ficam de fora: coluna que nenhum caminho escreve so levaria alguem a achar que
 o recurso existe ali.
 
+#### Modulo personalizado: a existencia do modulo tambem e dado
+
+A etapa F deu campos novos a um modulo que ja existia. A G da um **tipo de
+conteudo inteiro**: "Cardapio" num restaurante, "Turmas" numa escola,
+"Processos" num escritorio -- coisas que nenhum modulo do registro cobre e que
+nao justificam entrar no registro, porque valem para um cliente so.
+
+Continua nao sendo um construtor de sites. Quem cria o modulo e a CODECA IA, no
+painel mestre, ao desenvolver aquele projeto; o cliente so edita o conteudo.
+
+**A decisao que organiza o resto: duas listas, nao uma alargada.**
+`SiteModulesPayload.modules` continua tipada por `ModuleKey`, e os
+personalizados vao em `customModules`.
+
+A alternativa era alargar `key` para `string` e marcar `custom: true` na mesma
+lista. Parece mais simples e cobra caro: `ModuleKey | string` colapsa em
+`string`, e a partir dai `MODULE_REGISTRY[chave]` deixa de ser conferido, um
+literal com erro de digitacao passa a compilar, e todo consumidor tipado
+precisa lembrar de checar a marca. A tipagem dos doze modulos do registro e a
+razao declarada de o registro viver em codigo (secao 3): troca-la pela
+conveniencia de uma lista a menos seria desfazer a escolha da etapa 2.
+
+O preco dessa escolha e real e esta pago em dois lugares: o menu do painel e a
+rota do painel juntam as duas listas. E explicito, e e o que se quer.
+
+| Peca | Onde |
+| --- | --- |
+| Definicoes | `site_custom_modules`, por `(site_id, key)` |
+| Campos | `site_custom_fields`, os mesmos da etapa F |
+| Registros | `custom_records`, com `data` em JSONB |
+| Rota publica | `GET /api/v1/custom/:moduleKey[/:slug]` |
+| Tela do cliente | `/painel/p/:moduleKey`, lista ou documento conforme o tipo |
+| Limite | `MAX_CUSTOM_MODULES_PER_SITE` (10) |
+
+**Sem tabela por modulo.** Seria o espelho do que os modulos tipados fazem, e
+seria `CREATE TABLE` em tempo de execucao: o schema passaria a diferir entre
+instalacoes, nenhuma migracao futura poderia mais ser raciocinada sobre o banco
+inteiro, backup e restauracao virariam caso a caso, e um erro na chave do
+modulo deixaria de ser uma linha errada para virar DDL errado -- com `DROP` ao
+alcance de um bug. A tabela generica troca indice por campo (que estes modulos
+nao usam: nao ha busca por preco num cardapio) por um schema que continua sendo
+um so.
+
+**O namespace `/custom/` nao e enfeite.** Se um modulo personalizado morasse na
+raiz de `/api/v1`, o dia em que a plataforma acrescentasse `cardapio` ao
+registro faria a rota de um site existente passar a ler outra tabela, sem aviso
+e sem erro. Com o namespace isso e impossivel por construcao. O mesmo vale para
+`/painel/p/` no painel. A chave em si tambem e recusada quando colide com o
+registro, mas por outro motivo: duas entradas com a mesma chave no menu, uma
+lendo tabela tipada e a outra `custom_records`, nao teriam como ser
+distinguidas pelo cliente.
+
+**Um `document` e uma colecao de um registro.** O registro tem `slug` vazio, e
+o mesmo indice unico que mantem os slugs distintos mantem o documento unico. Um
+segundo mecanismo seria mais codigo para a mesma garantia.
+
+**O que nao muda depois de criado**: a chave, porque o site do cliente a usa em
+codigo; e o tipo, porque trocar `collection` por `document` deixaria registros
+que a tela nova nao sabe mostrar. O caminho honesto para os dois casos e criar
+outro modulo e mover o conteudo.
+
+**Apagar e recusado enquanto houver registro.** A etapa F deixa o valor de um
+campo removido guardado no JSONB, porque ele e pedaco de um registro que
+continua existindo. Aqui o modulo *e* o conteudo: apagar a definicao deixaria a
+lista inteira invisivel e orfa, sem tela por onde recuperar. Entao a recusa diz
+quantos registros existem e aponta o caminho reversivel, que e desabilitar --
+que esconde do painel e da API publica sem apagar nada.
+
+A rota generica nao abre mao de nenhuma garantia do conteudo tipado, e
+`tests/integration/custom-modules.test.ts` esta organizado por elas: isolamento
+pela chave estrangeira composta `(site_id, tenant_id)`; chave desconhecida em
+`data` recusada pelo nome; politica de campo valendo igual, porque `policyKey`
+nao distingue a origem do modulo; plano e suspensao herdados por a rota entrar
+em `tenantScoped`.
+
+**Duas coisas ficaram de fora, de proposito.** A **busca** da listagem cobre o
+titulo e nao entra em `data`: varrer JSONB sem indice por campo seria lento
+exatamente quando passasse a importar, e prometer uma busca assim e pior do que
+nao ter. E os **cartoes da visao geral** nao contam registro de modulo proprio:
+eles saem de `OverviewResponse`, que tem um campo por contagem, e contar por
+modulo variavel e trabalho que ainda nao tem pedido -- o acesso as telas e pelo
+menu, que ja os lista.
+
 ### A tela de configuracao, em `/plataforma/sites`
 
 E por onde a CODECA IA liga um projeto novo a plataforma, sem `curl` e sem

@@ -30,6 +30,7 @@ import type { ModuleKey } from '@codeca/shared';
 import { Badge, Button, Spinner, cx } from '@codeca/ui';
 import { useAuth } from '../hooks/useAuth.js';
 import { useSiteModules } from '../hooks/useSiteModules.js';
+import { SafeIcon } from '../components/SafeIcon.js';
 import { labels, tenantTone } from '../utils/labels.js';
 
 /**
@@ -43,7 +44,8 @@ import { labels, tenantTone } from '../utils/labels.js';
 interface NavItem {
   to: string;
   label: string;
-  icon: LucideIcon;
+  /** Ausente nos modulos criados para o site, que trazem `iconName`. */
+  icon?: LucideIcon;
   capability?: Parameters<ReturnType<typeof useAuth>['can']>[0];
   /**
    * Modulo que precisa estar habilitado para este site.
@@ -61,6 +63,14 @@ interface NavItem {
    */
   semPainel?: boolean;
   end?: boolean;
+  /**
+   * Icone de um modulo criado para o site, pelo nome.
+   *
+   * Os itens fixos trazem o componente em `icon`; os deste site vem do banco,
+   * onde so cabe o nome. `SafeIcon` desenha, e nao desenha nada quando o nome
+   * nao e de um icone que o painel conhece.
+   */
+  iconName?: string;
 }
 
 interface NavGroup {
@@ -192,16 +202,38 @@ const NAV_GROUPS: NavGroup[] = [
 
 export function DashboardLayout() {
   const { tenant, memberships, user, selectTenant, logout, isPlatformAdmin, can } = useAuth();
-  const { enabled, readOnly, blocked, panelIncluded, planName } = useSiteModules();
+  const { enabled, readOnly, blocked, panelIncluded, planName, customModules } = useSiteModules();
   const [menuOpen, setMenuOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const location = useLocation();
 
   if (!tenant) return null;
 
+  /**
+   * Os modulos criados para este site, ao fim do grupo de conteudo.
+   *
+   * O menu junta as duas listas aqui -- e um dos dois lugares onde a separacao
+   * entre `modules` e `customModules` cobra o seu preco, e esta e a conta que
+   * se escolheu pagar para nao alargar `ModuleKey` para `string`.
+   *
+   * Ordem e icone vem da configuracao; `enabled` nao e conferido porque a API
+   * so manda os habilitados nesta lista.
+   */
+  const itensProprios: NavItem[] = panelIncluded
+    ? customModules.map((modulo) => ({
+        to: `/painel/p/${modulo.key}`,
+        label: modulo.name,
+        iconName: modulo.icon,
+        capability: 'content:read' as const,
+      }))
+    : [];
+
   const visibleGroups = NAV_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => {
+    items: [
+      ...group.items,
+      ...(group.title === 'Conteudo do site' ? itensProprios : []),
+    ].filter((item) => {
       if (item.capability && !can(item.capability)) return false;
       // O plano sem painel esconde conteudo inteiro; o que e conta permanece.
       if (!panelIncluded) return item.semPainel === true;
@@ -299,7 +331,11 @@ export function DashboardLayout() {
                         )
                       }
                     >
-                      <item.icon aria-hidden="true" className="size-4 flex-none" />
+                      {item.icon ? (
+                        <item.icon aria-hidden="true" className="size-4 flex-none" />
+                      ) : (
+                        <SafeIcon name={item.iconName ?? ''} size={16} className="flex-none" />
+                      )}
                       {item.label}
                     </NavLink>
                   </li>

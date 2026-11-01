@@ -243,6 +243,28 @@ export function publicPageSchema<T extends z.ZodType>(item: T) {
   });
 }
 
+/**
+ * Registro de um modulo criado para o site.
+ *
+ * `data` e objeto livre -- `additionalProperties: true` no documento gerado --
+ * porque os campos sao definidos por site. Descrever uma forma aqui seria
+ * documentar o projeto de um cliente como se fosse a API.
+ */
+export const publicCustomRecordSchema = z.object({
+  id: z.string(),
+  title: descrever(z.string(), 'Titulo do registro, usado na listagem.'),
+  slug: descrever(z.string(), 'Endereco do registro. Vazio num modulo `document`.'),
+  data: descrever(
+    z.record(z.string(), z.unknown()),
+    'Valores dos campos definidos para este modulo. As chaves sao as que a '
+      + 'CODECA IA configurou no projeto; confira o tipo do valor antes de usar '
+      + 'e trate chave ausente como nao informada.',
+  ),
+  featured: z.boolean(),
+  sortOrder: z.number().int(),
+  publishedAt: z.string().nullable(),
+});
+
 export const siteInfoSchema = z.object({
   site: z.object({
     id: z.string(),
@@ -255,12 +277,28 @@ export const siteInfoSchema = z.object({
         + 'fechada: trate qualquer valor desconhecido como caso padrao.',
     ),
   }),
-  modules: z.array(
-    z.object({
-      key: z.string(),
-      name: z.string(),
-      kind: z.enum(['document', 'collection']),
-    }),
+  modules: descrever(
+    z.array(
+      z.object({
+        key: z.string(),
+        name: z.string(),
+        kind: z.enum(['document', 'collection']),
+      }),
+    ),
+    'Modulos da plataforma habilitados neste site. A lista cresce com o tempo: '
+      + 'ignore o que o seu site nao conhece.',
+  ),
+  customModules: descrever(
+    z.array(
+      z.object({
+        key: z.string(),
+        name: z.string(),
+        kind: z.enum(['document', 'collection']),
+      }),
+    ),
+    'Modulos criados para este projeto, atendidos em `/api/v1/custom/{moduleKey}`. '
+      + 'Sao configuracao deste site e nao contrato da API: podem ser criados, '
+      + 'renomeados ou desligados sem versao nova.',
   ),
   scopes: z.array(z.string()),
   notice: descrever(

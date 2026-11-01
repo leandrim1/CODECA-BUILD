@@ -239,6 +239,30 @@ export interface PublicFaq {
   sortOrder: number;
 }
 
+/**
+ * Registro de um modulo criado para este projeto.
+ *
+ * `data` e `Record<string, unknown>` porque os campos sao definidos por site,
+ * no painel mestre -- nao existe tipo estatico possivel para eles. Pela mesma
+ * razao, campo novo, renomeado ou removido aqui **nao** e quebra de contrato:
+ * e configuracao do projeto. Confira o tipo do valor antes de usar e trate
+ * chave ausente como nao informada.
+ *
+ * Se o seu site precisa de garantia de forma, declare a sua propria interface
+ * e valide o que chega -- a plataforma nao pode prometer uma forma que quem
+ * configura o projeto pode mudar.
+ */
+export interface PublicCustomRecord {
+  id: string;
+  title: string;
+  /** Vazio no registro de um modulo `document`. */
+  slug: string;
+  data: Record<string, unknown>;
+  featured: boolean;
+  sortOrder: number;
+  publishedAt: string | null;
+}
+
 export interface SiteInfo {
   site: {
     id: string;
@@ -256,6 +280,14 @@ export interface SiteInfo {
     segment: string | null;
   };
   modules: Array<{ key: string; name: string; kind: 'document' | 'collection' }>;
+  /**
+   * Modulos criados para este projeto, lidos por `custom(chave)`.
+   *
+   * Lista separada de `modules` porque sao coisas diferentes: `modules` sao os
+   * modulos da plataforma, e estes existem somente neste site. A lista muda
+   * quando a CODECA IA configura o projeto, sem versao nova do SDK.
+   */
+  customModules: Array<{ key: string; name: string; kind: 'document' | 'collection' }>;
   scopes: string[];
   /**
    * Aviso para exibir ao visitante, ou `null`.

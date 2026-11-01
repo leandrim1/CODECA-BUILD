@@ -1581,6 +1581,98 @@ export const siteCustomFields = pgTable(
   ],
 );
 
+/**
+ * Modulos criados para um site.
+ *
+ * A existencia do modulo passa a ser dado: "Cardapio", "Turmas", "Processos".
+ * Os campos dele reaproveitam `site_custom_fields` -- `module_key` aponta para
+ * a chave daqui em vez de para uma do registro -- e os registros vao em
+ * `custom_records`.
+ *
+ * Nao existe tabela por modulo. `CREATE TABLE` em tempo de execucao faria o
+ * schema diferir entre instalacoes e poria `DROP` ao alcance de um erro de
+ * chave; o motivo completo esta na migracao 0013.
+ */
+export const siteCustomModules = pgTable(
+  'site_custom_modules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    /** Chave do modulo, usada na rota publica e no codigo do site. */
+    key: text('key').notNull(),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    kind: text('kind').notNull(),
+    icon: text('icon').notNull().default(''),
+    sortOrder: integer('sort_order').notNull().default(0),
+    /** `false` esconde sem apagar: e o caminho para tirar do ar. */
+    enabled: boolean('enabled').notNull().default(true),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('site_custom_modules_key').on(table.siteId, table.key),
+    index('site_custom_modules_ordem_idx').on(table.siteId, table.sortOrder),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'site_custom_modules_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
+/**
+ * Registros de todos os modulos personalizados.
+ *
+ * As colunas fora de `data` sao as que a plataforma precisa conhecer para
+ * listar, ordenar, publicar e entregar. O resto e o conteudo dos campos
+ * definidos para aquele modulo, validado em tempo de execucao pelo schema que
+ * `buildCustomFieldsSchema` monta a partir das definicoes.
+ */
+export const customRecords = pgTable(
+  'custom_records',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    moduleKey: text('module_key').notNull(),
+    title: text('title').notNull(),
+    /**
+     * Vazio no registro de um `document`.
+     *
+     * O indice unico de slug e o que mantem o documento unico -- um documento
+     * e uma colecao de um registro, nao um segundo mecanismo.
+     */
+    slug: text('slug').notNull().default(''),
+    data: jsonb('data').$type<Record<string, unknown>>().notNull().default({}),
+    publicationStatus: text('publication_status').notNull().default('draft'),
+    featured: boolean('featured').notNull().default(false),
+    sortOrder: integer('sort_order').notNull().default(0),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('custom_records_slug').on(table.siteId, table.moduleKey, table.slug),
+    index('custom_records_listagem_idx').on(
+      table.siteId,
+      table.moduleKey,
+      table.publicationStatus,
+      table.sortOrder,
+    ),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'custom_records_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
 export const leads = pgTable(
   'leads',
   {

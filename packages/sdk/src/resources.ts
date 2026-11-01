@@ -9,6 +9,7 @@ import type {
   PropertyQuery,
   PublicBanner,
   PublicCategory,
+  PublicCustomRecord,
   PublicFaq,
   PublicGallery,
   PublicGallerySummary,
@@ -139,6 +140,38 @@ export function createResources(request: Transport) {
       list: (query: ListQuery = {}) =>
         request<PublicPage<PublicFaq>>(`/api/v1/faqs${buildQuery({ ...query })}`),
     },
+
+    /**
+     * Conteudo de um modulo criado para este projeto.
+     *
+     * Funcao, e nao objeto com um metodo por modulo: a existencia do modulo e
+     * dado, entao nao ha como o pacote trazer um metodo pronto para cada um.
+     * `getSite()` diz quais existem, em `customModules`.
+     *
+     * ```ts
+     * const { items } = await codeca.custom('cardapio').list();
+     * const preco = items[0]?.data.preco; // unknown
+     * if (typeof preco === 'number') { ... }
+     * ```
+     */
+    custom: (moduleKey: string) => ({
+      list: (query: ListQuery = {}) =>
+        request<PublicPage<PublicCustomRecord> & { module: { key: string; name: string; kind: string } }>(
+          `/api/v1/custom/${encodeURIComponent(moduleKey)}${buildQuery({ ...query })}`,
+        ),
+      /**
+       * Um registro pelo endereco.
+       *
+       * Num modulo `document` use `list()`: o registro unico vem nela, e nao
+       * tem endereco proprio.
+       */
+      get: async (slug: string, query: ListQuery = {}) => {
+        const resposta = await request<{ record: PublicCustomRecord }>(
+          `/api/v1/custom/${encodeURIComponent(moduleKey)}/${encodeURIComponent(slug)}${buildQuery({ ...query })}`,
+        );
+        return resposta.record;
+      },
+    }),
 
     leads: {
       /**

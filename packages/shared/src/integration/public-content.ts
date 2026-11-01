@@ -286,6 +286,28 @@ export interface PublicFaq {
   sortOrder: number;
 }
 
+/**
+ * Registro de um modulo criado para este site.
+ *
+ * `data` e um objeto livre, e nao um tipo: os campos sao definidos por site, no
+ * painel mestre, e nenhum tipo estatico pode descreve-los. Pela mesma razao de
+ * `customFields`, um campo novo aqui nao e quebra de contrato -- e configuracao
+ * de um projeto, nao promessa da API.
+ *
+ * `title` e `slug` ficam fora de `data` porque a plataforma precisa deles para
+ * listar e enderecar: sao as unicas colunas que ela conhece em todo modulo.
+ */
+export interface PublicCustomRecord {
+  id: string;
+  title: string;
+  /** Vazio no registro de um modulo `document`. */
+  slug: string;
+  data: Record<string, unknown>;
+  featured: boolean;
+  sortOrder: number;
+  publishedAt: string | null;
+}
+
 export interface PublicPage<T> {
   items: T[];
   page: number;

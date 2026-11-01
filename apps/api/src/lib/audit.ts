@@ -60,6 +60,16 @@ export const AUDIT_ACTIONS = {
   siteUpdated: 'site.updated',
   siteModulesConfigured: 'site.modules_configured',
   siteCustomFieldsConfigured: 'site.custom_fields_configured',
+  /**
+   * Criar, alterar e remover um modulo sao acoes distintas.
+   *
+   * Pelo mesmo motivo de emitir e revogar chave serem distintas: depois de um
+   * incidente a pergunta e "quem tirou este modulo do ar", e uma trilha que
+   * registrasse as tres como "modulo configurado" nao responde.
+   */
+  siteCustomModuleCreated: 'site.custom_module_created',
+  siteCustomModuleUpdated: 'site.custom_module_updated',
+  siteCustomModuleDeleted: 'site.custom_module_deleted',
   siteSegmentApplied: 'site.segment_applied',
   siteKeyIssued: 'site.key_issued',
   siteKeyRotated: 'site.key_rotated',

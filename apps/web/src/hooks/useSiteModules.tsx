@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useResource } from './useResource.js';
 import { useAuth } from './useAuth.js';
 import { moduleApi } from '../services/endpoints.js';
-import type { ModuleKey } from '@codeca/shared';
+import type { CustomModuleView, ModuleKey } from '@codeca/shared';
 import type { SiteModuleFieldView, SiteModuleView } from '../types/index.js';
 
 /**
@@ -35,6 +35,15 @@ interface SiteModulesValue {
   /** Campos do modulo com a politica do site aplicada. */
   fields: (moduleKey: ModuleKey) => SiteModuleFieldView[];
   /**
+   * Modulos criados para este site, em lista propria.
+   *
+   * Separados de `modules` porque `modules[].key` e `ModuleKey` -- juntar os
+   * dois alargaria essa chave para `string` e tiraria a conferencia de tipo de
+   * todas as telas. O motivo completo esta em `@codeca/shared`.
+   */
+  customModules: CustomModuleView[];
+  customModule: (moduleKey: string) => CustomModuleView | null;
+  /**
    * `false` quando o plano contratado nao inclui o painel de conteudo.
    *
    * Diferente de `blocked`, e a diferenca precisa chegar a tela: `blocked` e
@@ -62,6 +71,8 @@ export function SiteModulesProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SiteModulesValue>(() => {
     const modules = recurso.data?.modules ?? [];
     const porChave = new Map(modules.map((item) => [item.key, item]));
+    const customModules = recurso.data?.customModules ?? [];
+    const proprios = new Map(customModules.map((item) => [item.key, item]));
     const suspensao = recurso.data?.suspension ?? null;
     // Com a politica `blocked` esta propria rota e recusada, entao o 403 e o
     // sinal: nao ha resposta para ler, so o erro.
@@ -83,6 +94,8 @@ export function SiteModulesProvider({ children }: { children: ReactNode }) {
       enabled: (moduleKey) => porChave.get(moduleKey)?.enabled ?? false,
       module: (moduleKey) => porChave.get(moduleKey) ?? null,
       fields: (moduleKey) => porChave.get(moduleKey)?.fields ?? [],
+      customModules,
+      customModule: (moduleKey) => proprios.get(moduleKey) ?? null,
       reload: recurso.reload,
     };
   }, [recurso.data, recurso.error, recurso.loading, recurso.reload]);

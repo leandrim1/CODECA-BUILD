@@ -136,6 +136,41 @@ export interface CustomFieldRow {
   sortOrder: number;
 }
 
+/**
+ * Modulo criado para o site, na forma enxuta que o menu e as listas usam.
+ *
+ * A forma completa, com os campos e a politica, e `CustomModuleView` de
+ * `@codeca/shared` -- esta e o resumo que as rotas de conteudo devolvem.
+ */
+export interface CustomModuleSummary {
+  key: string;
+  name: string;
+  description?: string;
+  kind: 'collection' | 'document';
+  icon?: string;
+}
+
+/**
+ * Registro de um modulo personalizado.
+ *
+ * `data` e `Record<string, unknown>`: os campos sao definidos por site, entao
+ * nao ha tipo estatico possivel. A tela monta o formulario a partir das
+ * definicoes que a API devolve junto, em `fields`.
+ */
+export interface CustomRecordRow {
+  id: string;
+  moduleKey: string;
+  title: string;
+  slug: string;
+  data: Record<string, unknown>;
+  publicationStatus: 'draft' | 'published';
+  featured: boolean;
+  sortOrder: number;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Segmento como o painel mestre o edita. */
 export type SegmentRecord = SegmentView;
 
@@ -590,6 +625,8 @@ export interface PlatformSite {
  */
 export type SiteModuleFieldView = EffectiveField;
 export type SiteModuleView = SharedSiteModuleView;
+/** Modulo criado para o site, com campos e politica -- como o painel mestre o edita. */
+export type { CustomModuleView } from '@codeca/shared';
 
 export interface SiteApiKeyRow {
   id: string;

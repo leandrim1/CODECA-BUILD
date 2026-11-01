@@ -23,6 +23,7 @@ import {
   loadMedia,
   toPublicBanner,
   toPublicCategory,
+  toPublicCustomRecord,
   toPublicFaq,
   toPublicGallery,
   toPublicGallerySummary,
@@ -35,6 +36,7 @@ import {
 } from '../lib/integration/public-view.js';
 import { loadGallery, loadGalleryIds } from '../lib/media-refs.js';
 import { enabledModuleKeys, loadSiteModules } from '../lib/modules.js';
+import { enabledCustomModules, loadCustomModulePublico, loadCustomModules } from '../lib/custom-modules.js';
 import { apiKeyMiddleware } from '../middleware/api-key.js';
 import { enforcePublicSuspension } from '../middleware/suspension.js';
 import type { AppBindings } from '../types.js';
@@ -162,7 +164,10 @@ export function publicApiRoutes() {
       .leftJoin(schema.segments, eq(schema.segments.id, schema.sites.segmentId))
       .where(eq(schema.sites.id, credencial.siteId));
 
-    const state = await loadSiteModules(ctx.db, credencial.siteId);
+    const [state, proprios] = await Promise.all([
+      loadSiteModules(ctx.db, credencial.siteId),
+      loadCustomModules(ctx.db, credencial.siteId),
+    ]);
 
     return ok(c, {
       site,
@@ -172,6 +177,19 @@ export function publicApiRoutes() {
         key,
         name: MODULE_REGISTRY[key].name,
         kind: MODULE_REGISTRY[key].kind,
+      })),
+      /**
+       * Modulos criados para este site, em lista propria.
+       *
+       * Sem as definicoes de campo. Quem integra o site e quem o desenvolve
+       * junto com a CODECA IA, entao ja conhece as chaves -- e publicar a
+       * lista de campos criaria um contrato que depois nao poderia mudar
+       * livremente. Acrescentar isso depois e um `minor`; tirar seria `major`.
+       */
+      customModules: enabledCustomModules(proprios).map((modulo) => ({
+        key: modulo.key,
+        name: modulo.name,
+        kind: modulo.kind,
       })),
       scopes: credencial.scopes,
       /**
@@ -764,6 +782,92 @@ export function publicApiRoutes() {
       c,
       paginado(rows.map(toPublicFaq), totais?.total ?? 0, query.page, query.pageSize),
     );
+  });
+
+  // --------------------------------------------- modulos deste projeto
+
+  /**
+   * Conteudo de um modulo criado para este site.
+   *
+   * Namespace proprio -- `/custom/...` -- e nao `/{moduleKey}` na raiz. A
+   * razao e durabilidade: se um modulo personalizado morasse na raiz, o dia em
+   * que a plataforma acrescentasse `cardapio` ao registro faria a rota de um
+   * site existente passar a ler outra tabela, sem aviso e sem erro. Com o
+   * namespace isso e impossivel por construcao.
+   *
+   * `data` e um objeto livre: os campos sao definidos por site, e nenhum tipo
+   * estatico os descreve. O documento OpenAPI diz isso explicitamente em vez
+   * de descrever uma forma que valeria para um cliente so.
+   */
+  app.get('/custom/:moduleKey', async (c) => {
+    const ctx = c.get('ctx');
+    const credencial = c.get('apiKey');
+    const { moduleKey } = parseParams(c, moduleParamSchema);
+
+    // 404, nao 403: para quem le o site, um modulo que ele nao tem
+    // simplesmente nao existe. Dizer "proibido" revelaria que a rota existe
+    // em outros sites.
+    const modulo = await loadCustomModulePublico(ctx.db, credencial.siteId, moduleKey);
+
+    const query = parseQuery(c, publicListQuerySchema);
+    const preview = assertPreview(credencial.scopes, query.preview);
+
+    const where = and(
+      eq(schema.customRecords.siteId, credencial.siteId),
+      eq(schema.customRecords.moduleKey, moduleKey),
+      publicacao(schema.customRecords.publicationStatus, preview),
+    );
+
+    const rows = await ctx.db
+      .select()
+      .from(schema.customRecords)
+      .where(where)
+      .orderBy(
+        desc(schema.customRecords.featured),
+        asc(schema.customRecords.sortOrder),
+        desc(schema.customRecords.createdAt),
+      )
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+
+    const [totais] = await ctx.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(schema.customRecords)
+      .where(where);
+
+    return ok(c, {
+      ...paginado(rows.map(toPublicCustomRecord), totais?.total ?? 0, query.page, query.pageSize),
+      module: { key: modulo.key, name: modulo.name, kind: modulo.kind },
+    });
+  });
+
+  /** Um registro pelo endereco. No `document`, use a listagem: ela traz o unico. */
+  app.get('/custom/:moduleKey/:slug', async (c) => {
+    const ctx = c.get('ctx');
+    const credencial = c.get('apiKey');
+    const { moduleKey, slug } = parseParams(
+      c,
+      moduleParamSchema.extend({ slug: z.string().trim().min(1).max(140) }),
+    );
+    await loadCustomModulePublico(ctx.db, credencial.siteId, moduleKey);
+
+    const query = parseQuery(c, publicListQuerySchema);
+    const preview = assertPreview(credencial.scopes, query.preview);
+
+    const [row] = await ctx.db
+      .select()
+      .from(schema.customRecords)
+      .where(
+        and(
+          eq(schema.customRecords.siteId, credencial.siteId),
+          eq(schema.customRecords.moduleKey, moduleKey),
+          eq(schema.customRecords.slug, slug),
+          publicacao(schema.customRecords.publicationStatus, preview),
+        ),
+      );
+    if (!row) throw AppError.notFound('Registro nao encontrado.');
+
+    return ok(c, { record: toPublicCustomRecord(row) });
   });
 
   // --------------------------------------------------------- interessados

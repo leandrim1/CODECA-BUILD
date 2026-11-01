@@ -4,6 +4,7 @@ import {
   type AddressInput,
   type PublicBanner,
   type PublicCategory,
+  type PublicCustomRecord,
   type PublicFaq,
   type PublicGallery,
   type PublicGallerySummary,
@@ -247,6 +248,28 @@ export function toPublicTeamMember(
     social: { ...(row.social ?? {}) } as Record<string, string>,
     sortOrder: row.sortOrder,
     customFields: row.customFields ?? {},
+  };
+}
+
+/**
+ * Registro de um modulo personalizado.
+ *
+ * Nao recebe `media`: os tipos de campo personalizado nao incluem imagem --
+ * conferir, a cada valor, que o arquivo e da biblioteca daquela empresa e
+ * acoplamento que o modulo `galerias` resolve melhor. O motivo esta em
+ * `custom-fields.ts`.
+ */
+export function toPublicCustomRecord(
+  row: typeof schema.customRecords.$inferSelect,
+): PublicCustomRecord {
+  return {
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    data: row.data ?? {},
+    featured: row.featured,
+    sortOrder: row.sortOrder,
+    publishedAt: toIsoDate(row.publishedAt),
   };
 }
 

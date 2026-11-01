@@ -3,6 +3,7 @@ import { Copy, KeyRound, Plus, RotateCw, Save, Trash2 } from 'lucide-react';
 import {
   CUSTOM_FIELD_TYPES,
   CUSTOM_FIELD_TYPE_LABELS,
+  SAFE_ICONS,
   DELIVERY_STATE_LABELS,
   MODULE_REGISTRY,
   formatDateTime,
@@ -30,8 +31,10 @@ import {
 import { useResource, useMutation } from '../../hooks/useResource.js';
 import { platformApi, platformSiteApi } from '../../services/endpoints.js';
 import { ResourcePanel } from '../../components/ResourcePanel.js';
+import { SafeIcon } from '../../components/SafeIcon.js';
 import type {
   CustomFieldRow,
+  CustomModuleView,
   IssuedKey,
   SiteApiKeyRow,
   SiteModuleView,
@@ -56,6 +59,7 @@ const STATUS_LABELS: Record<SiteStatus, string> = {
 
 const ABAS = [
   { id: 'identidade', label: 'Identidade' },
+  { id: 'proprios', label: 'Modulos do projeto' },
   { id: 'campos', label: 'Campos do projeto' },
   { id: 'modulos', label: 'Modulos e campos' },
   { id: 'origens', label: 'Origens' },
@@ -152,6 +156,9 @@ function ConfiguracaoDoSite({ siteId, onClose }: { siteId: string; onClose: () =
             <>
               {aba === 'identidade' ? (
                 <AbaIdentidade siteId={siteId} site={data.site} onSaved={() => void detalhe.reload()} />
+              ) : null}
+              {aba === 'proprios' ? (
+                <AbaModulosProprios siteId={siteId} onSaved={() => void detalhe.reload()} />
               ) : null}
               {aba === 'campos' ? (
                 <AbaCampos siteId={siteId} modules={data.modules} onSaved={() => void detalhe.reload()} />
@@ -986,9 +993,26 @@ function AbaCampos({
 }) {
   const toast = useToast();
   const lista = useResource(() => platformSiteApi.customFields(siteId), [siteId]);
+  const proprios = useResource(() => platformSiteApi.customModules(siteId), [siteId]);
 
-  const aceitam = modules.filter((modulo) => MODULE_REGISTRY[modulo.key].customFields === true);
-  const [moduloAtivo, setModuloAtivo] = useState<ModuleKey>(aceitam[0]?.key ?? 'imoveis');
+  /**
+   * As duas origens de modulo que aceitam campo, numa lista para o seletor.
+   *
+   * Os do registro so quando declaram `customFields`; os criados para o site
+   * sempre, porque os campos sao a unica coisa que eles tem -- um modulo
+   * proprio sem campo nenhum nao mostra nada ao cliente.
+   */
+  const aceitam: Array<{ key: string; name: string; proprio: boolean }> = [
+    ...modules
+      .filter((modulo) => MODULE_REGISTRY[modulo.key].customFields === true)
+      .map((modulo) => ({ key: modulo.key as string, name: modulo.name, proprio: false })),
+    ...(proprios.data?.items ?? []).map((modulo) => ({
+      key: modulo.key,
+      name: `${modulo.name} (deste site)`,
+      proprio: true,
+    })),
+  ];
+  const [moduloAtivo, setModuloAtivo] = useState<string>(aceitam[0]?.key ?? 'imoveis');
   const [campos, setCampos] = useState<CustomFieldRow[] | null>(null);
 
   const doModulo = useMemo(
@@ -1025,7 +1049,7 @@ function AbaCampos({
     },
   );
 
-  function trocarModulo(key: ModuleKey) {
+  function trocarModulo(key: string) {
     setCampos(null);
     setModuloAtivo(key);
   }
@@ -1038,7 +1062,7 @@ function AbaCampos({
     return (
       <Alert tone="info" title="Nenhum modulo deste site aceita campo personalizado">
         O recurso vale para institucional, contato, imoveis, obras, servicos, produtos, equipe e
-        depoimentos.
+        depoimentos -- e para qualquer modulo criado na aba "Modulos do projeto".
       </Alert>
     );
   }
@@ -1054,9 +1078,9 @@ function AbaCampos({
       <Select
         label="Modulo"
         value={moduloAtivo}
-        onChange={(event) => trocarModulo(event.target.value as ModuleKey)}
+        onChange={(event) => trocarModulo(event.target.value)}
         options={aceitam.map((modulo) => ({ value: modulo.key, label: modulo.name }))}
-        hint="Somente modulos cujo formulario do cliente mostra os campos."
+        hint="Modulos da plataforma que aceitam campo extra, e os criados para este site."
       />
 
       <ResourcePanel resource={lista}>
@@ -1205,6 +1229,235 @@ function AbaCampos({
           </div>
         )}
       </ResourcePanel>
+    </div>
+  );
+}
+
+/**
+ * Modulos criados para este site.
+ *
+ * E por aqui que a CODECA IA da ao projeto um tipo de conteudo que nenhum
+ * modulo da plataforma cobre. Os campos de cada um sao definidos na aba
+ * "Campos do projeto", que trata os dois tipos de modulo igual.
+ *
+ * Tres cuidados que a tela carrega de proposito, todos sobre o que **nao** se
+ * pode desfazer:
+ *
+ * 1. A chave nao muda depois de criada -- o site do cliente a usa em codigo.
+ * 2. O tipo tambem nao -- trocar lista por documento deixaria registros que a
+ *    tela nova nao sabe mostrar.
+ * 3. Apagar e recusado enquanto houver registro, e a tela diz isso antes de o
+ *    servidor recusar. Desabilitar e o caminho reversivel.
+ */
+function AbaModulosProprios({
+  siteId,
+  onSaved,
+}: {
+  siteId: string;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const lista = useResource(() => platformSiteApi.customModules(siteId), [siteId]);
+  const [criando, setCriando] = useState(false);
+  const [removendo, setRemovendo] = useState<CustomModuleView | null>(null);
+  const [novo, setNovo] = useState({
+    key: '',
+    name: '',
+    description: '',
+    kind: 'collection' as 'collection' | 'document',
+    icon: '' as string,
+  });
+
+  const criar = useMutation(() => platformSiteApi.createCustomModule(siteId, novo), {
+    onSuccess: () => {
+      toast.success('Modulo criado');
+      setCriando(false);
+      setNovo({ key: '', name: '', description: '', kind: 'collection', icon: '' });
+      lista.reload();
+      onSaved();
+    },
+    onError: (error) => toast.error('Nao foi possivel criar', error.message),
+  });
+
+  const alternar = useMutation(
+    (entrada: { key: string; enabled: boolean }) =>
+      platformSiteApi.updateCustomModule(siteId, entrada.key, { enabled: entrada.enabled }),
+    {
+      onSuccess: () => {
+        lista.reload();
+        onSaved();
+      },
+      onError: (error) => toast.error('Nao foi possivel salvar', error.message),
+    },
+  );
+
+  const remover = useMutation(
+    (key: string) => platformSiteApi.removeCustomModule(siteId, key),
+    {
+      onSuccess: () => {
+        toast.success('Modulo removido');
+        setRemovendo(null);
+        lista.reload();
+        onSaved();
+      },
+      onError: (error) => toast.error('Nao foi possivel remover', error.message),
+    },
+  );
+
+  return (
+    <div className="grid gap-4">
+      <Alert tone="info" title="Modulos que existem somente neste site">
+        Um cardapio, uma lista de turmas, um catalogo de processos. O cliente edita o conteudo no
+        painel dele e o site le em <code>/api/v1/custom/&lt;chave&gt;</code>. A chave e o tipo nao
+        mudam depois de criados, porque o site do cliente depende dos dois.
+      </Alert>
+
+      <ResourcePanel resource={lista}>
+        {(data) => (
+          <div className="grid gap-3">
+            {data.items.length === 0 ? (
+              <p className="text-sm text-slate-600">
+                Nenhum modulo proprio. Acrescente abaixo quando o projeto pedir um tipo de conteudo
+                que a plataforma nao tem.
+              </p>
+            ) : (
+              data.items.map((modulo) => (
+                <div
+                  key={modulo.key}
+                  className="grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-[1fr_auto] sm:items-center"
+                >
+                  <div className="grid gap-1">
+                    <div className="flex items-center gap-2">
+                      <SafeIcon name={modulo.icon} size={16} />
+                      <span className="font-medium text-slate-900">{modulo.name}</span>
+                      <Badge tone="neutral">
+                        {modulo.kind === 'document' ? 'Documento' : 'Lista'}
+                      </Badge>
+                      <code className="text-xs text-slate-500">{modulo.key}</code>
+                    </div>
+                    {modulo.description ? (
+                      <p className="text-sm text-slate-600">{modulo.description}</p>
+                    ) : null}
+                    <p className="text-xs text-slate-500">
+                      {modulo.fields.length === 0
+                        ? 'Sem campos ainda -- defina-os na aba "Campos do projeto".'
+                        : `${modulo.fields.length} campo(s) definido(s).`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      label="No ar"
+                      checked={modulo.enabled}
+                      onChange={(marcado) =>
+                        void alternar.run({ key: modulo.key, enabled: marcado })
+                      }
+                    />
+                    <Button variant="ghost" size="sm" onClick={() => setRemovendo(modulo)}>
+                      <Trash2 aria-hidden="true" className="size-4" />
+                      <span className="sr-only">Remover {modulo.name}</span>
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+
+            {criando ? (
+              <div className="grid gap-3 rounded-lg border border-brand-200 bg-brand-50/40 p-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <TextInput
+                    label="Chave"
+                    value={novo.key}
+                    hint="Como o site le: /api/v1/custom/cardapio. Nao muda depois."
+                    onChange={(event) =>
+                      setNovo((atual) => ({
+                        ...atual,
+                        key: event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''),
+                      }))
+                    }
+                  />
+                  <TextInput
+                    label="Nome"
+                    value={novo.name}
+                    hint="Como aparece no menu do cliente."
+                    onChange={(event) => setNovo((atual) => ({ ...atual, name: event.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Select
+                    label="Tipo"
+                    value={novo.kind}
+                    hint="Nao muda depois de criado."
+                    options={[
+                      { value: 'collection', label: 'Lista de registros' },
+                      { value: 'document', label: 'Documento unico' },
+                    ]}
+                    onChange={(event) =>
+                      setNovo((atual) => ({
+                        ...atual,
+                        kind: event.target.value as 'collection' | 'document',
+                      }))
+                    }
+                  />
+                  <Select
+                    label="Icone"
+                    value={novo.icon}
+                    options={[
+                      { value: '', label: 'Sem icone' },
+                      ...SAFE_ICONS.map((nome) => ({ value: nome, label: nome })),
+                    ]}
+                    onChange={(event) => setNovo((atual) => ({ ...atual, icon: event.target.value }))}
+                  />
+                </div>
+                <TextArea
+                  label="Descricao"
+                  rows={2}
+                  value={novo.description}
+                  hint="Texto curto no topo da tela do cliente."
+                  onChange={(event) =>
+                    setNovo((atual) => ({ ...atual, description: event.target.value }))
+                  }
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => void criar.run(undefined)} disabled={criar.loading}>
+                    <Save aria-hidden="true" className="size-4" />
+                    Criar modulo
+                  </Button>
+                  <Button variant="outline" onClick={() => setCriando(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <Button
+                  variant="outline"
+                  icon={<Plus aria-hidden="true" className="size-4" />}
+                  onClick={() => setCriando(true)}
+                >
+                  Acrescentar modulo
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </ResourcePanel>
+
+      <ConfirmDialog
+        open={removendo !== null}
+        title="Remover modulo"
+        message={
+          `O modulo ${removendo?.name ?? ''} e as definicoes de campo dele serao apagados. `
+          + 'Se o cliente ja cadastrou registros, a remocao e recusada -- nesse caso use o '
+          + '"No ar" para tirar do ar sem apagar conteudo.'
+        }
+        confirmLabel="Remover"
+        tone="danger"
+        loading={remover.loading}
+        onCancel={() => setRemovendo(null)}
+        onConfirm={() => {
+          if (removendo) void remover.run(removendo.key);
+        }}
+      />
     </div>
   );
 }

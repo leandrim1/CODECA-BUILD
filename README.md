@@ -207,6 +207,7 @@ Cobertura por arquivo:
 | `tests/integration/public-content.test.ts` | `/api/v1` com escopo por chave, origem e previa |
 | `tests/integration/catalog.test.ts` | Produtos, categorias e galerias |
 | `tests/integration/custom-fields.test.ts` | Campos personalizados: definicao, gravacao, entrega e isolamento |
+| `tests/integration/custom-modules.test.ts` | Modulos criados por projeto: definicao, conteudo, entrega e isolamento |
 | `tests/integration/openapi.test.ts` | O documento OpenAPI cobre `/api/v1` nos dois sentidos |
 | `tests/integration/plan-panel.test.ts` | Plano sem painel, e a diferenca dele com a suspensao |
 | `tests/unit/*` | Cobranca, chaves, modulos, suspensao, contrato do SDK e utilitarios |

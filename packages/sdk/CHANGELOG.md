@@ -27,6 +27,10 @@ Recursos:
   equipe — os campos que a CODECA IA definiu para aquele projeto. Objeto vazio
   quando nao ha nenhum; `Record<string, unknown>`, porque o conjunto de campos
   e configuracao e nao contrato (ver Compatibilidade no README).
+- `custom(chave)` — `list()` e `get(slug)` dos modulos criados para aquele
+  projeto. `data` e `Record<string, unknown>`, e os modulos disponiveis vem em
+  `getSite().customModules`. Sao configuracao do projeto, nao contrato da API
+  (ver Compatibilidade no README).
 - `leads.create()` — unica escrita, aceita com chave publicavel.
 - `verifyWebhook()` em `@codeca/sdk/server` — confere a assinatura do aviso
   `content.published` usando Web Crypto, para rodar tambem na borda.

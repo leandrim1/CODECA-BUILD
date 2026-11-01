@@ -200,6 +200,12 @@ verificacao de contrato no monorepo compara essa copia com o que a API entrega
 **em tempo de compilacao**: se um campo mudar de um lado so, o build da
 plataforma quebra antes de qualquer site receber a versao errada.
 
+A mesma excecao vale para `PublicCustomRecord.data`, dos modulos criados para
+um projeto: os campos sao cadastrados no painel mestre, e nao ha tipo estatico
+possivel. Se o seu site precisa de garantia de forma, declare a sua propria
+interface e valide o que chega -- a plataforma nao pode prometer uma forma que
+quem configura o projeto pode mudar.
+
 A excecao e `customFields`, que e `Record<string, unknown>`: os campos
 personalizados de um projeto sao dados cadastrados no painel mestre, e nao ha
 tipo estatico possivel para eles. Confira o tipo do valor antes de usar, e
@@ -226,22 +232,25 @@ escrita.
 - Tornar obrigatorio um parametro que era opcional.
 - Mudar o significado de um valor existente.
 
-### Tres coisas que **nao** sao mudanca de contrato
+### Quatro coisas que **nao** sao mudanca de contrato
 
 - **`site.segment` e texto livre.** A plataforma atende qualquer ramo, e
   segmentos sao cadastrados no painel. Trate valor desconhecido como caso
   padrao; um segmento novo nao e versao nova do SDK.
 - **`modules` cresce.** Um modulo que seu site nao conhece aparece na lista e
   deve ser ignorado.
+- **Os modulos de `custom(chave)` mudam sem avisar.** Um modulo criado para o
+  projeto pode ganhar campo, ser renomeado ou ser desligado no painel mestre.
+  `getSite().customModules` diz quais existem agora.
 - **`customFields` muda sem avisar.** Sao os campos que a CODECA IA definiu
   para aquele projeto, e sao configuracao, nao contrato: um campo pode ser
   criado, renomeado no rotulo ou removido no painel mestre. O tipo e
   `Record<string, unknown>` porque o conjunto e dado, nao codigo.
 
 Codigo que depende de `segment` ser um de tres valores, de `modules` ter
-exatamente os modulos de hoje, ou de uma chave de `customFields` estar sempre
-presente, vai quebrar sem que isto seja uma quebra de contrato -- e por isso
-esta dito aqui.
+exatamente os modulos de hoje, de uma chave de `customFields` estar sempre
+presente ou de um modulo de `custom(chave)` continuar existindo, vai quebrar sem
+que isto seja uma quebra de contrato -- e por isso esta dito aqui.
 
 ### Versao da API e versao do pacote
 

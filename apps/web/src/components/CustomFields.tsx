@@ -54,7 +54,15 @@ export function CamposPersonalizados({
   );
 }
 
-function CampoPersonalizado({
+/**
+ * Um campo personalizado.
+ *
+ * Exportado porque as telas dos modulos personalizados (etapa G) desenham a
+ * mesma coisa: ali o formulario inteiro e feito destes campos. Um segundo
+ * renderizador para os mesmos dez tipos sairia de acordo com este no primeiro
+ * tipo novo.
+ */
+export function CampoPersonalizado({
   campo,
   valor,
   erro,

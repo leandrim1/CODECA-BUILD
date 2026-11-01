@@ -11,6 +11,7 @@ import {
   leadReceivedSchema,
   publicBannerSchema,
   publicCategorySchema,
+  publicCustomRecordSchema,
   publicFaqSchema,
   publicGallerySchema,
   publicGallerySummarySchema,
@@ -63,6 +64,7 @@ const COMPONENTES = {
   PublicTestimonial: publicTestimonialSchema,
   PublicTeamMember: publicTeamMemberSchema,
   PublicFaq: publicFaqSchema,
+  PublicCustomRecord: publicCustomRecordSchema,
   SiteInfo: siteInfoSchema,
   InstitutionalContent: DOCUMENT_SCHEMAS.institucional,
   ContactContent: DOCUMENT_SCHEMAS.contato,
@@ -289,6 +291,42 @@ const ROTAS: readonly RotaDescrita[] = [
     response: pagina('PublicFaq'),
     scope: 'content:read',
     module: 'faq',
+  },
+  {
+    method: 'get',
+    path: '/custom/{moduleKey}',
+    summary: 'Conteudo de um modulo criado para este projeto',
+    description:
+      'Modulos que existem somente neste site, criados pela CODECA IA no painel '
+      + 'mestre -- um cardapio, uma lista de turmas, um catalogo de processos. '
+      + '`GET /site` diz quais existem, em `customModules`.\n\n'
+      + 'O namespace `/custom/` nao e enfeite: um modulo deste tipo nunca ocupa a '
+      + 'raiz de `/api/v1`, entao o dia em que a plataforma acrescentar um modulo '
+      + 'com a mesma chave ao catalogo, a rota do seu site continua lendo o mesmo '
+      + 'conteudo.\n\n'
+      + 'A forma de `data` e definida por site e **nao** e contrato desta API: '
+      + 'campos podem ser criados, renomeados ou removidos no painel mestre sem '
+      + 'versao nova. Confira o tipo do valor antes de usar e trate chave ausente '
+      + 'como nao informada.',
+    params: [{ name: 'moduleKey', description: 'Chave do modulo, como vem em `customModules`.' }],
+    query: publicListQuerySchema,
+    response: pagina('PublicCustomRecord'),
+    scope: 'content:read',
+  },
+  {
+    method: 'get',
+    path: '/custom/{moduleKey}/{slug}',
+    summary: 'Um registro de um modulo deste projeto',
+    description:
+      'Num modulo `document` o registro unico vem pela listagem, e nao por aqui: '
+      + 'ele nao tem endereco proprio.',
+    params: [
+      { name: 'moduleKey', description: 'Chave do modulo, como vem em `customModules`.' },
+      { name: 'slug', description: 'Endereco do registro.' },
+    ],
+    query: publicListQuerySchema,
+    response: envelope('record', 'PublicCustomRecord'),
+    scope: 'content:read',
   },
   {
     method: 'post',

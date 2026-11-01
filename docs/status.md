@@ -65,6 +65,7 @@ Legenda:
 | Dominio proprio | Pronto, **mas em revisao** | o codigo registra o dominio no projeto Vercel **da plataforma** (`lib/vercel-domains.ts`), que era o que servia o renderizador removido na etapa 0. Hoje o site do cliente e um projeto Vercel dele, e o dominio deveria ser apontado la. Ver a nota no fim desta secao |
 | Campo travado pela CODECA IA aparece como leitura | Pronto | com explicacao de por que esta travado |
 | Campos personalizados do projeto no formulario | Pronto | definidos pela CODECA IA por site e modulo; entram na mesma lista dos campos tipados |
+| Modulos criados so para um projeto | Pronto | tela de lista ou de documento montada a partir dos campos definidos, em `/painel/p/<chave>` |
 | Equipe e usuarios | Pronto | convite, troca de papel, remocao, hierarquia respeitada |
 | Plano e assinatura (uso vs. limites) | Pronto | — |
 | Configuracoes da empresa | Pronto | dados, contato, WhatsApp, redes sociais |
@@ -98,6 +99,7 @@ Legenda:
 | Publicacao do SDK efetivada | **Depende de voce** | exige `NPM_TOKEN` no repositorio e a decisao entre npm publico e registro privado; `pnpm sdk:pack` simula |
 | Documentacao OpenAPI | Pronto | `GET /api/v1/openapi.json`, gerado dos schemas Zod; cobertura comparada com a tabela de rotas do servidor |
 | `customFields` nas respostas de conteudo | Pronto | objeto vazio quando o site nao tem campo definido; `Record<string, unknown>` no SDK, porque o conjunto e dado |
+| Modulos do projeto em `/api/v1/custom/<chave>` | Pronto | namespace proprio, para uma chave futura do catalogo nunca mudar o significado de um endereco que ja existe; `codeca.custom(chave)` no SDK |
 
 **Decisao em aberto -- dominios.** A etapa 0 removeu o renderizador, mas o
 cadastro de dominio continua chamando a API da Vercel para apontar o hostname
@@ -143,6 +145,7 @@ substituem as que descreviam o modelo antigo.
 | Permissao global separada | Pronto | concedida explicitamente, registrada em auditoria |
 | Acesso de suporte a dados de empresa | Pronto | exige concessao com motivo e validade, somente leitura |
 | Campos personalizados por site e modulo | Pronto | aba "Campos do projeto"; remover a definicao nao apaga valor, e a auditoria grava `valuesDeleted: false` |
+| Modulos proprios do projeto | Pronto | aba "Modulos do projeto"; chave e tipo nao mudam depois de criados, e apagar e recusado enquanto houver registro do cliente |
 
 ## Planos, cobranca e assinaturas (ValidaPay)
 
@@ -233,6 +236,7 @@ pagamento).
 | Divergencia recuperada por reconciliacao | `integration/billing-reconcile.test.ts` |
 | Valores, estados, decisao de publicacao e HMAC do webhook | `unit/billing.test.ts` |
 | Campos personalizados por site | `integration/custom-fields.test.ts` |
+| Modulos criados por projeto, da definicao a entrega | `integration/custom-modules.test.ts` |
 
 Limites conhecidos da suite, para nao haver ilusao de cobertura:
 

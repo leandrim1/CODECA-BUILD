@@ -1,15 +1,16 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { ToastProvider } from '@codeca/ui';
 import { AuthProvider } from './hooks/useAuth.js';
 import {
   LoadingScreen,
   RequireAuth,
+  RequireCustomModule,
   RequireModule,
   RequirePlatformAdmin,
   RequireTenant,
 } from './components/Guards.js';
-import { SiteModulesProvider } from './hooks/useSiteModules.js';
+import { SiteModulesProvider, useSiteModules } from './hooks/useSiteModules.js';
 import { AuthLayout } from './layouts/AuthLayout.js';
 import { DashboardLayout } from './layouts/DashboardLayout.js';
 import { PlatformLayout } from './layouts/PlatformLayout.js';
@@ -31,6 +32,8 @@ import { OverviewPage } from './dashboard/OverviewPage.js';
  * painel mestre nao pesem no primeiro acesso ao painel.
  */
 const DocumentModulePage = lazy(() => import('./dashboard/DocumentModulePage.js').then((m) => ({ default: m.DocumentModulePage })));
+const CustomModulePage = lazy(() => import('./dashboard/CustomModulePage.js').then((m) => ({ default: m.CustomModulePage })));
+const CustomDocumentPage = lazy(() => import('./dashboard/CustomModulePage.js').then((m) => ({ default: m.CustomDocumentPage })));
 const BannersPage = lazy(() => import('./dashboard/BannersPage.js').then((m) => ({ default: m.BannersPage })));
 const MediaPage = lazy(() => import('./dashboard/MediaPage.js').then((m) => ({ default: m.MediaPage })));
 const PropertiesPage = lazy(() => import('./dashboard/PropertiesPage.js').then((m) => ({ default: m.PropertiesPage })));
@@ -92,6 +95,14 @@ export function App() {
           >
             <Route index element={<OverviewPage />} />
             <Route path="midia" element={<MediaPage />} />
+            {/*
+              Uma rota para todos os modulos criados para o site.
+              `/painel/p/:moduleKey` -- o prefixo `p/` separa o que e deste
+              projeto do que e da plataforma, pela mesma razao do `/custom/`
+              na API publica: uma chave que entre no registro amanha nao pode
+              mudar o significado de um endereco que ja existe.
+            */}
+            <Route path="p/:moduleKey" element={<RotaDeModuloProprio />} />
             <Route
               path="institucional"
               element={
@@ -223,5 +234,31 @@ export function App() {
         </Routes>
       </AuthProvider>
     </ToastProvider>
+  );
+}
+
+/**
+ * Despacha a rota de um modulo criado para o site.
+ *
+ * O tipo do modulo -- lista ou documento -- e dado, entao a escolha da tela
+ * acontece aqui, em tempo de execucao, e nao na tabela de rotas. Duas rotas
+ * declaradas (`/p/lista/:key` e `/p/documento/:key`) poriam o tipo no endereco:
+ * o dia em que ele mudasse, todo link salvo pelo cliente apontaria para a tela
+ * errada.
+ */
+function RotaDeModuloProprio() {
+  const { moduleKey } = useParams<{ moduleKey: string }>();
+  const { customModule } = useSiteModules();
+  const chave = moduleKey ?? '';
+  const modulo = customModule(chave);
+
+  return (
+    <RequireCustomModule moduleKey={chave}>
+      {modulo?.kind === 'document' ? (
+        <CustomDocumentPage moduleKey={chave} />
+      ) : (
+        <CustomModulePage moduleKey={chave} />
+      )}
+    </RequireCustomModule>
   );
 }

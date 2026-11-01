@@ -23,6 +23,10 @@ import type {
   Paginated,
   CategoryRecord,
   CustomFieldRow,
+  CustomModuleSummary,
+  CustomModuleView,
+  CustomRecordRow,
+  SiteModuleFieldView,
   GalleryRecord,
   PlanRecord,
   ProductRecord,
@@ -198,6 +202,59 @@ export const contentApi = {
  * O painel pergunta aqui o que desenhar. Nenhuma tela do cliente decide
  * sozinha o que mostrar: a resposta vem do site configurado pela CODECA IA.
  */
+/**
+ * Conteudo dos modulos criados para o site.
+ *
+ * Uma API generica em vez de uma por modulo, pelo mesmo motivo da rota: a
+ * existencia do modulo e dado, e nao ha o que escrever antes de o modulo
+ * existir.
+ */
+export const customModuleApi = {
+  list: (tenantId: string) =>
+    api.get<{ items: CustomModuleSummary[] }>(`${tenantBase(tenantId)}/custom-modules`),
+
+  records: (
+    tenantId: string,
+    moduleKey: string,
+    params: Record<string, string | number | boolean | null | undefined> = {},
+  ) =>
+    api.get<Paginated<CustomRecordRow> & { module: CustomModuleSummary }>(
+      `${tenantBase(tenantId)}/custom/${moduleKey}${query(params)}`,
+    ),
+
+  record: (tenantId: string, moduleKey: string, recordId: string) =>
+    api.get<{
+      record: CustomRecordRow;
+      module: CustomModuleSummary;
+      fields: SiteModuleFieldView[];
+    }>(`${tenantBase(tenantId)}/custom/${moduleKey}/${recordId}`),
+
+  create: (tenantId: string, moduleKey: string, body: Record<string, unknown>) =>
+    api.post<{ record: CustomRecordRow }>(`${tenantBase(tenantId)}/custom/${moduleKey}`, body),
+
+  update: (tenantId: string, moduleKey: string, recordId: string, body: Record<string, unknown>) =>
+    api.patch<{ record: CustomRecordRow }>(
+      `${tenantBase(tenantId)}/custom/${moduleKey}/${recordId}`,
+      body,
+    ),
+
+  remove: (tenantId: string, moduleKey: string, recordId: string) =>
+    api.delete<void>(`${tenantBase(tenantId)}/custom/${moduleKey}/${recordId}`),
+
+  document: (tenantId: string, moduleKey: string) =>
+    api.get<{
+      module: CustomModuleSummary;
+      record: CustomRecordRow | null;
+      fields: SiteModuleFieldView[];
+    }>(`${tenantBase(tenantId)}/custom/${moduleKey}/document`),
+
+  saveDocument: (tenantId: string, moduleKey: string, body: Record<string, unknown>) =>
+    api.put<{ record: CustomRecordRow }>(
+      `${tenantBase(tenantId)}/custom/${moduleKey}/document`,
+      body,
+    ),
+};
+
 export const moduleApi = {
   list: (tenantId: string) =>
     api.get<SiteModulesResponse>(`${tenantBase(tenantId)}/modules`),
@@ -564,6 +621,22 @@ export const platformSiteApi = {
       `/api/platform/sites/${siteId}/custom-fields/${moduleKey}`,
       { fields },
     ),
+
+  /** Modulos criados para o site. Lista inclusive os desabilitados. */
+  customModules: (siteId: string) =>
+    api.get<{ items: CustomModuleView[] }>(`/api/platform/sites/${siteId}/custom-modules`),
+
+  createCustomModule: (siteId: string, body: Record<string, unknown>) =>
+    api.post<{ module: CustomModuleView }>(`/api/platform/sites/${siteId}/custom-modules`, body),
+
+  updateCustomModule: (siteId: string, moduleKey: string, body: Record<string, unknown>) =>
+    api.patch<{ module: CustomModuleView }>(
+      `/api/platform/sites/${siteId}/custom-modules/${moduleKey}`,
+      body,
+    ),
+
+  removeCustomModule: (siteId: string, moduleKey: string) =>
+    api.delete<void>(`/api/platform/sites/${siteId}/custom-modules/${moduleKey}`),
 
   applySegment: (siteId: string) =>
     api.post<{ segment: string; enabled: string[]; modules: SiteModuleView[] }>(

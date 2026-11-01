@@ -47,7 +47,25 @@ const ICONS: Record<SafeIconName, LucideIcon> = {
   sparkles: Sparkles,
 };
 
-export function SafeIcon({ name, size = 20 }: { name: SafeIconName; size?: number }) {
-  const Icon = ICONS[name];
-  return <Icon aria-hidden="true" width={size} height={size} />;
+/**
+ * Desenha o icone pelo nome.
+ *
+ * `name` e `string`, e nao `SafeIconName`, porque o valor vem do banco: o
+ * icone de um servico e de um modulo criado para o site sao dados. Um nome que
+ * saiu da lista -- renomeado, ou gravado por uma versao anterior -- chegaria
+ * aqui como `undefined` no mapa, e `<Icon>` com `undefined` derruba a arvore
+ * inteira do React, nao so o icone. Entao o desconhecido nao desenha nada.
+ */
+export function SafeIcon({
+  name,
+  size = 20,
+  className,
+}: {
+  name: string;
+  size?: number;
+  className?: string;
+}) {
+  const Icon = ICONS[name as SafeIconName];
+  if (!Icon) return null;
+  return <Icon aria-hidden="true" width={size} height={size} className={className} />;
 }

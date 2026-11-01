@@ -13,7 +13,15 @@ import type { ModuleField } from './types.js';
 /** Excecao gravada no banco: `moduleKey.fieldKey` -> pode editar. */
 export type FieldPolicyOverrides = Readonly<Record<string, boolean>>;
 
-export function policyKey(moduleKey: ModuleKey, fieldKey: string): string {
+/**
+ * Chave da excecao no banco.
+ *
+ * Aceita `string`, e nao `ModuleKey`, porque a politica vale tambem para os
+ * modulos personalizados -- cuja chave e dado. As funcoes que de fato
+ * dependem do registro (`effectiveFields`, `isFieldEditable`) seguem exigindo
+ * `ModuleKey`: e nelas que a tipagem tem o que garantir, nao na concatenacao.
+ */
+export function policyKey(moduleKey: string, fieldKey: string): string {
   return `${moduleKey}.${fieldKey}`;
 }
 

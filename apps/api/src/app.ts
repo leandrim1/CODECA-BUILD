@@ -15,6 +15,7 @@ import { domainRoutes } from './routes/domains.js';
 import { leadRoutes } from './routes/leads.js';
 import { mediaRoutes } from './routes/media.js';
 import { moduleRoutes } from './routes/modules.js';
+import { customModuleRoutes } from './routes/custom-modules.js';
 import { memberRoutes } from './routes/members.js';
 import { platformRoutes } from './routes/platform.js';
 import { platformBillingRoutes } from './routes/platform-billing.js';
@@ -144,6 +145,7 @@ export function createApp(options: CreateAppOptions = {}) {
   tenantScoped.route('/', contentRoutes());
   tenantScoped.route('/', catalogRoutes());
   tenantScoped.route('/', moduleRoutes());
+  tenantScoped.route('/', customModuleRoutes());
   tenantScoped.route('/', bannerRoutes());
   tenantScoped.route('/', mediaRoutes());
   tenantScoped.route('/', leadRoutes());
