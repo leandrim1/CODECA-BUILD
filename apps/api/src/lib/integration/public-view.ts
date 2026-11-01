@@ -73,6 +73,7 @@ export function toPublicProperty(
     videoUrl: row.videoUrl,
     seo: { title: row.seoTitle, description: row.seoDescription },
     publishedAt: toIsoDate(row.publishedAt),
+    customFields: row.customFields ?? {},
   };
 }
 
@@ -104,6 +105,7 @@ export function toPublicProject(
     featured: row.featured,
     seo: { title: row.seoTitle, description: row.seoDescription },
     publishedAt: toIsoDate(row.publishedAt),
+    customFields: row.customFields ?? {},
   };
 }
 
@@ -122,6 +124,7 @@ export function toPublicService(
     highlights: row.highlights ?? [],
     sortOrder: row.sortOrder,
     seo: { title: row.seoTitle, description: row.seoDescription },
+    customFields: row.customFields ?? {},
   };
 }
 
@@ -176,6 +179,7 @@ export function toPublicProduct(
     gallery: input.gallery.map((ref) => toImage(ref)).filter((img): img is PublicImage => img !== null),
     sortOrder: row.sortOrder,
     seo: { title: row.seoTitle, description: row.seoDescription },
+    customFields: row.customFields ?? {},
   };
 }
 
@@ -225,6 +229,7 @@ export function toPublicTestimonial(
     photo: toImage(row.photoId ? media.get(row.photoId) : null),
     relatedProjectId: row.relatedProjectId,
     sortOrder: row.sortOrder,
+    customFields: row.customFields ?? {},
   };
 }
 
@@ -241,6 +246,7 @@ export function toPublicTeamMember(
     photo: toImage(row.photoId ? media.get(row.photoId) : null),
     social: { ...(row.social ?? {}) } as Record<string, string>,
     sortOrder: row.sortOrder,
+    customFields: row.customFields ?? {},
   };
 }
 

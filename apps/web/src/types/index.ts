@@ -123,6 +123,19 @@ export type OverviewResponse = TenantOverview;
 
 export type DomainSummary = OverviewDomain;
 
+/** Campo personalizado como o painel mestre o edita. */
+export interface CustomFieldRow {
+  moduleKey: string;
+  fieldKey: string;
+  label: string;
+  type: string;
+  required: boolean;
+  help: string;
+  options: string[];
+  editable: boolean;
+  sortOrder: number;
+}
+
 /** Segmento como o painel mestre o edita. */
 export type SegmentRecord = SegmentView;
 
@@ -195,6 +208,8 @@ export interface PropertyRecord {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Valores dos campos que a CODECA IA definiu para este site. */
+  customFields: Record<string, unknown>;
 }
 
 export interface ProjectRecord {
@@ -224,6 +239,8 @@ export interface ProjectRecord {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+  /** Valores dos campos que a CODECA IA definiu para este site. */
+  customFields: Record<string, unknown>;
 }
 
 export interface ProjectUpdateRecord {
@@ -251,6 +268,8 @@ export interface ServiceRecord {
   sortOrder: number;
   seoTitle: string;
   seoDescription: string;
+  /** Valores dos campos que a CODECA IA definiu para este site. */
+  customFields: Record<string, unknown>;
 }
 
 export interface TestimonialRecord {
@@ -266,6 +285,8 @@ export interface TestimonialRecord {
   authorizationNote: string;
   publicationStatus: PublicationStatus;
   sortOrder: number;
+  /** Valores dos campos que a CODECA IA definiu para este site. */
+  customFields: Record<string, unknown>;
 }
 
 export interface TeamMemberRecord {
@@ -279,6 +300,8 @@ export interface TeamMemberRecord {
   social: Partial<Record<SocialNetwork, string>>;
   publicationStatus: PublicationStatus;
   sortOrder: number;
+  /** Valores dos campos que a CODECA IA definiu para este site. */
+  customFields: Record<string, unknown>;
 }
 
 export interface FaqRecord {
@@ -625,6 +648,8 @@ export interface ProductRecord {
   seoDescription: string;
   createdAt: string;
   updatedAt: string;
+  /** Valores dos campos que a CODECA IA definiu para este site. */
+  customFields: Record<string, unknown>;
 }
 
 export interface GalleryRecord {
@@ -669,6 +694,8 @@ export type SiteModulesResponse = SiteModulesPayload;
 export interface ModuleDocumentResponse {
   moduleKey: string;
   data: Record<string, unknown>;
+  /** Valores dos campos personalizados, fora de `data`. */
+  customFields: Record<string, unknown>;
   fields: SiteModuleFieldView[];
   updatedAt: string | null;
 }

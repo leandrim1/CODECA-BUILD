@@ -65,6 +65,19 @@ export function publicAddress(address: AddressInput): PublicAddress {
   };
 }
 
+/**
+ * Valores dos campos que a CODECA IA definiu para este site.
+ *
+ * `Record<string, unknown>` e o preco declarado da flexibilidade: as
+ * definicoes sao dados, entao o TypeScript nao tem como tipar o conteudo. O
+ * site do cliente conhece as chaves porque quem desenvolveu os dois foi a
+ * CODECA IA -- e por isso a API publica entrega **valores**, nao rotulos: o
+ * rotulo e assunto do painel.
+ *
+ * Vazio quando o site nao tem campo personalizado naquele modulo.
+ */
+export type PublicCustomFields = Record<string, unknown>;
+
 export interface PublicSeo {
   title: string;
   description: string;
@@ -108,6 +121,7 @@ export interface PublicProperty {
   videoUrl: string;
   seo: PublicSeo;
   publishedAt: string | null;
+  customFields: PublicCustomFields;
 }
 
 export interface PublicProject {
@@ -132,6 +146,7 @@ export interface PublicProject {
   featured: boolean;
   seo: PublicSeo;
   publishedAt: string | null;
+  customFields: PublicCustomFields;
 }
 
 export interface PublicService {
@@ -145,6 +160,7 @@ export interface PublicService {
   highlights: string[];
   sortOrder: number;
   seo: PublicSeo;
+  customFields: PublicCustomFields;
 }
 
 export interface PublicBanner {
@@ -196,6 +212,7 @@ export interface PublicProduct {
   gallery: PublicImage[];
   sortOrder: number;
   seo: PublicSeo;
+  customFields: PublicCustomFields;
 }
 
 /**
@@ -238,6 +255,7 @@ export interface PublicTestimonial {
   /** Obra relacionada, quando o depoimento fala de uma. */
   relatedProjectId: string | null;
   sortOrder: number;
+  customFields: PublicCustomFields;
 }
 
 /**
@@ -256,6 +274,7 @@ export interface PublicTeamMember {
   photo: PublicImage | null;
   social: Record<string, string>;
   sortOrder: number;
+  customFields: PublicCustomFields;
 }
 
 export interface PublicFaq {

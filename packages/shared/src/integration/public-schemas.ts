@@ -37,6 +37,18 @@ export const publicAddressSchema = z.object({
   postalCode: z.string(),
 });
 
+/**
+ * Campos definidos para o site, como chave e valor.
+ *
+ * Sem forma declarada de proposito: as definicoes sao dados, e cada site tem
+ * as suas. Quem integra sabe as chaves porque quem desenvolveu o site e a
+ * plataforma foi a mesma equipe.
+ */
+export const publicCustomFieldsSchema = descrever(
+  z.record(z.string(), z.unknown()),
+  'Valores dos campos personalizados deste site, por chave. Vazio quando nao ha.',
+);
+
 export const publicSeoSchema = z.object({
   title: z.string(),
   description: z.string(),
@@ -80,6 +92,7 @@ export const publicPropertySchema = z.object({
   videoUrl: z.string(),
   seo: publicSeoSchema,
   publishedAt: z.string().nullable(),
+  customFields: publicCustomFieldsSchema,
 });
 
 export const publicProjectSchema = z.object({
@@ -103,6 +116,7 @@ export const publicProjectSchema = z.object({
   featured: z.boolean(),
   seo: publicSeoSchema,
   publishedAt: z.string().nullable(),
+  customFields: publicCustomFieldsSchema,
 });
 
 export const publicServiceSchema = z.object({
@@ -116,6 +130,7 @@ export const publicServiceSchema = z.object({
   highlights: z.array(z.string()),
   sortOrder: z.number(),
   seo: publicSeoSchema,
+  customFields: publicCustomFieldsSchema,
 });
 
 export const publicBannerSchema = z.object({
@@ -165,6 +180,7 @@ export const publicProductSchema = z.object({
   ),
   sortOrder: z.number(),
   seo: publicSeoSchema,
+  customFields: publicCustomFieldsSchema,
 });
 
 export const publicGallerySummarySchema = z.object({
@@ -193,6 +209,7 @@ export const publicTestimonialSchema = z.object({
   photo: publicImageSchema.nullable(),
   relatedProjectId: z.string().nullable(),
   sortOrder: z.number(),
+  customFields: publicCustomFieldsSchema,
 });
 
 export const publicTeamMemberSchema = z.object({
@@ -204,6 +221,7 @@ export const publicTeamMemberSchema = z.object({
   photo: publicImageSchema.nullable(),
   social: z.record(z.string(), z.string()),
   sortOrder: z.number(),
+  customFields: publicCustomFieldsSchema,
 });
 
 export const publicFaqSchema = z.object({

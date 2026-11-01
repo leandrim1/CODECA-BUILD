@@ -385,6 +385,8 @@ export const contentDocuments = pgTable(
     moduleKey: text('module_key').notNull(),
     data: jsonb('data').$type<Record<string, unknown>>().notNull().default({}),
     updatedByUserId: uuid('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Valores dos campos definidos para este site. Ver `siteCustomFields`. */
+    customFields: jsonb('custom_fields').$type<Record<string, unknown>>().notNull().default({}),
     createdAt,
     updatedAt,
   },
@@ -1003,6 +1005,8 @@ export const properties = pgTable(
     sortOrder: integer('sort_order').notNull().default(0),
     publishedAt: timestamp('published_at', { withTimezone: true }),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
+    /** Valores dos campos definidos para este site. Ver `siteCustomFields`. */
+    customFields: jsonb('custom_fields').$type<Record<string, unknown>>().notNull().default({}),
     createdAt,
     updatedAt,
   },
@@ -1077,6 +1081,8 @@ export const projects = pgTable(
     sortOrder: integer('sort_order').notNull().default(0),
     publishedAt: timestamp('published_at', { withTimezone: true }),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
+    /** Valores dos campos definidos para este site. Ver `siteCustomFields`. */
+    customFields: jsonb('custom_fields').$type<Record<string, unknown>>().notNull().default({}),
     createdAt,
     updatedAt,
   },
@@ -1186,6 +1192,7 @@ export const banners = pgTable(
     isActive: boolean('is_active').notNull().default(true),
     startsAt: timestamp('starts_at', { withTimezone: true }),
     endsAt: timestamp('ends_at', { withTimezone: true }),
+    /** Valores dos campos definidos para este site. Ver `siteCustomFields`. */
     createdAt,
     updatedAt,
   },
@@ -1219,6 +1226,8 @@ export const services = pgTable(
     sortOrder: integer('sort_order').notNull().default(0),
     seoTitle: text('seo_title').notNull().default(''),
     seoDescription: text('seo_description').notNull().default(''),
+    /** Valores dos campos definidos para este site. Ver `siteCustomFields`. */
+    customFields: jsonb('custom_fields').$type<Record<string, unknown>>().notNull().default({}),
     createdAt,
     updatedAt,
   },
@@ -1254,6 +1263,8 @@ export const testimonials = pgTable(
     authorizationNote: text('authorization_note').notNull().default(''),
     publicationStatus: publicationStatusEnum('publication_status').notNull().default('draft'),
     sortOrder: integer('sort_order').notNull().default(0),
+    /** Valores dos campos definidos para este site. Ver `siteCustomFields`. */
+    customFields: jsonb('custom_fields').$type<Record<string, unknown>>().notNull().default({}),
     createdAt,
     updatedAt,
   },
@@ -1285,6 +1296,8 @@ export const teamMembers = pgTable(
     social: jsonb('social').$type<Partial<Record<SocialNetwork, string>>>().notNull().default({}),
     publicationStatus: publicationStatusEnum('publication_status').notNull().default('published'),
     sortOrder: integer('sort_order').notNull().default(0),
+    /** Valores dos campos definidos para este site. Ver `siteCustomFields`. */
+    customFields: jsonb('custom_fields').$type<Record<string, unknown>>().notNull().default({}),
     createdAt,
     updatedAt,
   },
@@ -1313,6 +1326,7 @@ export const faqs = pgTable(
     category: text('category').notNull().default(''),
     publicationStatus: publicationStatusEnum('publication_status').notNull().default('published'),
     sortOrder: integer('sort_order').notNull().default(0),
+    /** Valores dos campos definidos para este site. Ver `siteCustomFields`. */
     createdAt,
     updatedAt,
   },
@@ -1356,6 +1370,7 @@ export const categories = pgTable(
     description: text('description').notNull().default(''),
     publicationStatus: publicationStatusEnum('publication_status').notNull().default('published'),
     sortOrder: integer('sort_order').notNull().default(0),
+    /** Valores dos campos definidos para este site. Ver `siteCustomFields`. */
     createdAt,
     updatedAt,
   },
@@ -1415,6 +1430,8 @@ export const products = pgTable(
     sortOrder: integer('sort_order').notNull().default(0),
     seoTitle: text('seo_title').notNull().default(''),
     seoDescription: text('seo_description').notNull().default(''),
+    /** Valores dos campos definidos para este site. Ver `siteCustomFields`. */
+    customFields: jsonb('custom_fields').$type<Record<string, unknown>>().notNull().default({}),
     createdAt,
     updatedAt,
   },
@@ -1477,6 +1494,7 @@ export const galleries = pgTable(
     description: text('description').notNull().default(''),
     publicationStatus: publicationStatusEnum('publication_status').notNull().default('published'),
     sortOrder: integer('sort_order').notNull().default(0),
+    /** Valores dos campos definidos para este site. Ver `siteCustomFields`. */
     createdAt,
     updatedAt,
   },
@@ -1511,6 +1529,55 @@ export const galleryImages = pgTable(
     uniqueIndex('gallery_images_unique').on(table.galleryId, table.mediaAssetId),
     index('gallery_images_gallery_idx').on(table.galleryId, table.sortOrder),
     index('gallery_images_media_idx').on(table.mediaAssetId),
+  ],
+);
+
+/**
+ * Campos personalizados definidos pela CODECA IA para um site.
+ *
+ * As definicoes ficam aqui; os valores, numa coluna `custom_fields` em JSONB
+ * na propria tabela do conteudo. Uma tabela de valores
+ * (`entity_id`, `field_key`, `value`) faria cada leitura de imovel ganhar uma
+ * juncao e a listagem do painel fazer uma consulta por linha.
+ *
+ * O campo entra na **mesma lista** que o painel ja usa para desenhar o
+ * formulario, marcado como `custom`. Por isso a politica de campos, o
+ * formulario de documento e a conferencia de escrita valem para ele sem
+ * codigo novo.
+ */
+export const siteCustomFields = pgTable(
+  'site_custom_fields',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    moduleKey: text('module_key').notNull(),
+    /** Chave no JSONB dos valores. Formato de identificador. */
+    fieldKey: text('field_key').notNull(),
+    label: text('label').notNull(),
+    type: text('type').notNull(),
+    required: boolean('required').notNull().default(false),
+    help: text('help').notNull().default(''),
+    /** Opcoes de um campo de escolha. Vazio nos outros tipos. */
+    options: jsonb('options').$type<string[]>().notNull().default([]),
+    /** `false` quando a CODECA IA preenche e o cliente so consulta. */
+    editable: boolean('editable').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    /** Uma definicao por chave: dois campos com o mesmo nome no mesmo
+     * formulario sao impossiveis. */
+    uniqueIndex('site_custom_fields_key').on(table.siteId, table.moduleKey, table.fieldKey),
+    index('site_custom_fields_module_idx').on(table.siteId, table.moduleKey, table.sortOrder),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'site_custom_fields_site_tenant_fk',
+    }).onDelete('cascade'),
   ],
 );
 

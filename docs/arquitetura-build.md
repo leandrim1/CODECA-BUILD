@@ -185,6 +185,13 @@ Dois cuidados que valem registro:
   repetiria o padrao e envelheceria sozinha: um campo acrescentado hoje
   ficaria invisivel para todo site configurado ontem.
 
+  Para um campo do registro o padrao e `editableByDefault`; para um campo
+  personalizado e o `editable` da definicao. A rota precisa conhecer os dois:
+  a tela reenvia a politica de **todos** os campos da lista, e a lista inclui
+  os personalizados -- conferir a chave so contra o registro fazia a tela que
+  liga e desliga modulos parar de salvar em qualquer site que tivesse um campo
+  personalizado.
+
 A verificacao de escrita compara **valor a valor**, nao a lista de chaves
 enviadas. Um formulario reenvia tudo, e recusar por reenviar o mesmo valor
 tornaria a tela impossivel de usar.
@@ -328,25 +335,81 @@ formulario a partir dos campos que a API devolve. Uma tela por modulo
 significaria que habilitar um modulo novo exige deploy do painel -- o oposto
 do que a secao 6 promete.
 
-#### O que ainda nao e modulo
+#### Campo personalizado entra na mesma lista
 
-Depoimentos, equipe e perguntas frequentes continuam no painel, fora do
-registro, e por isso aparecem para todo site. Vale registrar o incomodo: como
-nao estao no registro, tambem **nao estao em `/api/v1` nem no SDK** -- o
-cliente edita um conteudo que nenhum site consegue ler. Transforma-los em
-modulo (com rota publica e tipo no SDK) ou retira-los do painel e uma decisao
-em aberto.
+Um cliente tem "CRECI", outro tem "Registro profissional", e nenhum precisa da
+estrutura do outro. A definicao desses campos e feita pela CODECA IA no painel
+mestre, por site e por modulo; os valores sao conteudo do cliente.
+
+A decisao que faz isso caber sem um segundo mecanismo: o campo definido entra
+na **mesma lista** que `GET .../modules` ja devolvia, marcado `custom: true`.
+Com isso a politica de campos, o `DocumentModulePage` (que e montado a partir
+da lista) e a conferencia de escrita passam a valer para ele sem uma linha
+nova. A alternativa era uma segunda lista, uma segunda politica e uma segunda
+conferencia: tres lugares para manter em acordo em vez de um.
+
+O preco esta declarado: o tipo do campo e dado, nao codigo, entao o TypeScript
+nao tipa o conteudo personalizado. `/api/v1` e o SDK o entregam como
+`Record<string, unknown>` em `customFields`.
+
+| Peca | Onde |
+| --- | --- |
+| Definicoes | `site_custom_fields`, por `(site_id, module_key, field_key)` |
+| Valores | coluna `custom_fields` em JSONB, na propria tabela do conteudo |
+| Tipos aceitos | `CUSTOM_FIELD_TYPES` em `@codeca/shared` (10; sem imagem e sem dinheiro) |
+| Quais modulos | os que declaram `customFields: true` no registro (8 dos 12) |
+
+Quatro cuidados que o codigo carrega de proposito:
+
+1. **Chave que ninguem definiu e recusada pelo nome.** Aceitar em silencio
+   guardaria dado que nenhum formulario mostra e nenhum site le, e deixaria o
+   JSONB crescer com o que o navegador mandasse.
+2. **Remover a definicao nao apaga valor.** O campo sai do painel e de
+   `/api/v1`, mas o que o cliente escreveu continua no JSONB -- e volta se o
+   campo for redefinido com a mesma chave. A trilha de auditoria registra
+   `valuesDeleted: false` explicitamente.
+3. **A gravacao mescla, nao substitui.** Uma edicao que nao mostrou um campo
+   nao deve apaga-lo; e o que permite editar um registro cadastrado antes de o
+   campo existir sem travar em campo obrigatorio.
+4. **`imagem` e `dinheiro` ficam fora.** Imagem exigiria conferir, a cada
+   valor, que o arquivo e da biblioteca daquela empresa -- acoplamento que o
+   modulo `galerias` resolve melhor. Dinheiro precisa de moeda e da regra de
+   duas casas, que pertencem ao campo tipado.
+5. **Obrigatorio e travado nao coexistem.** O cliente nao poderia preencher
+   (403) nem omitir (exigido na criacao), e nenhuma rota permite a CODECA IA
+   escrever valor de conteudo: o formulario de cadastro nunca salvaria. A
+   definicao recusa a combinacao, e na tela do painel mestre o "obrigatorio"
+   fica indisponivel enquanto o campo esta travado -- um controle que garante
+   erro nao deve existir.
+
+Toda escrita desses modulos passa por `lerCriacao` ou `lerAlteracao`
+(`apps/api/src/lib/modules.ts`), que fazem os dois passos juntos: a conferencia
+da politica de campo tipado e a leitura dos personalizados. Juntos de proposito
+-- usam a mesma carga do estado do site, e sao faceis de separar por descuido.
+Uma rota que conferisse a politica e esquecesse o segundo passo gravaria
+conteudo personalizado sem validar nada, e nada na tela acusaria.
+
+Consolidar isso fechou uma lacuna anterior: `depoimentos` e `equipe`, rotas de
+antes do registro, nao conferiam politica de campo tipado nenhuma. O painel
+mestre podia travar um campo de depoimento e o cliente continuava gravando
+nele.
+
+A coluna `custom_fields` existe somente nas sete tabelas dos modulos que
+aceitam campo personalizado. `banners`, `faqs`, `categories` e `galleries`
+ficam de fora: coluna que nenhum caminho escreve so levaria alguem a achar que
+o recurso existe ali.
 
 ### A tela de configuracao, em `/plataforma/sites`
 
 E por onde a CODECA IA liga um projeto novo a plataforma, sem `curl` e sem
 abrir o banco. A tela lista todos os sites com a empresa dona de cada um e
-abre a configuracao em quatro abas:
+abre a configuracao em cinco abas:
 
 | Aba | O que decide | Rotas |
 | --- | --- | --- |
 | Identidade | nome, situacao (`draft`, `active`, `suspended`, `archived`) e nota interna | `GET`/`PATCH /api/platform/sites/:siteId` |
 | Modulos e campos | o que o cliente enxerga e o que ele pode editar | `PUT /api/platform/sites/:siteId/modules` |
+| Campos do projeto | os campos personalizados daquele site, por modulo | `GET /api/platform/sites/:siteId/custom-fields`, `PUT .../custom-fields/:moduleKey` |
 | Origens | de quais enderecos a chave publicavel e aceita | `GET`/`PUT /api/platform/sites/:siteId/origins` |
 | Chaves | emitir, rotacionar e revogar credenciais | `/api/platform/sites/:siteId/keys` |
 

@@ -204,10 +204,12 @@ Cobertura por arquivo:
 | `tests/integration/rbac.test.ts` | Papeis, hierarquia de convites e painel mestre |
 | `tests/integration/content.test.ts` | CRUD de imoveis, obras, servicos, rascunho/publicacao/restauracao |
 | `tests/integration/media-domains.test.ts` | Upload, limites de plano, estados de dominio |
-| `tests/integration/public-site.test.ts` | Resolucao por dominio, dados publicos, formularios |
-| `tests/integration/ssr.test.ts` | HTML do site, SEO, sitemap, robots, cache e 404 |
-| `tests/unit/*` | Catalogo de blocos, tema, slugs e utilitarios |
-| `tests/web/editor-fields.test.ts` | Descritores do editor e CSS responsivo gerado |
+| `tests/integration/public-content.test.ts` | `/api/v1` com escopo por chave, origem e previa |
+| `tests/integration/catalog.test.ts` | Produtos, categorias e galerias |
+| `tests/integration/custom-fields.test.ts` | Campos personalizados: definicao, gravacao, entrega e isolamento |
+| `tests/integration/openapi.test.ts` | O documento OpenAPI cobre `/api/v1` nos dois sentidos |
+| `tests/integration/plan-panel.test.ts` | Plano sem painel, e a diferenca dele com a suspensao |
+| `tests/unit/*` | Cobranca, chaves, modulos, suspensao, contrato do SDK e utilitarios |
 
 ## Implantacao
 

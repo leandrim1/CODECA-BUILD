@@ -13,6 +13,7 @@ import type {
   PublicAddress as ApiAddress,
   PublicBanner as ApiBanner,
   PublicCategory as ApiCategory,
+  PublicCustomFields as ApiCustomFields,
   PublicFaq as ApiFaq,
   PublicGallery as ApiGallery,
   PublicGallerySummary as ApiGallerySummary,
@@ -34,6 +35,7 @@ import type {
   PublicAddress as SdkAddress,
   PublicBanner as SdkBanner,
   PublicCategory as SdkCategory,
+  PublicCustomFields as SdkCustomFields,
   PublicFaq as SdkFaq,
   PublicGallery as SdkGallery,
   PublicGallerySummary as SdkGallerySummary,
@@ -67,6 +69,7 @@ type _Testimonial = Confirma<Igual<SdkTestimonial, ApiTestimonial>>;
 type _TeamMember = Confirma<Igual<SdkTeamMember, ApiTeamMember>>;
 type _Faq = Confirma<Igual<SdkFaq, ApiFaq>>;
 type _Category = Confirma<Igual<SdkCategory, ApiCategory>>;
+type _CustomFields = Confirma<Igual<SdkCustomFields, ApiCustomFields>>;
 type _Product = Confirma<Igual<SdkProduct, ApiProduct>>;
 type _GallerySummary = Confirma<Igual<SdkGallerySummary, ApiGallerySummary>>;
 type _Gallery = Confirma<Igual<SdkGallery, ApiGallery>>;
@@ -93,6 +96,7 @@ export type ContratoVerificado =
   | _TeamMember
   | _Faq
   | _Category
+  | _CustomFields
   | _Product
   | _GallerySummary
   | _Gallery

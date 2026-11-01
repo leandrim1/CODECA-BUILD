@@ -3,6 +3,7 @@ import {
   AppError,
   DOCUMENT_SCHEMAS,
   MODULE_REGISTRY,
+  emptyCustomFields,
   isModuleKey,
   planHasFeature,
   type DocumentModuleKey,
@@ -12,8 +13,14 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
-import { ok, parseJsonBody, parseParams } from '../lib/http.js';
-import { assertEditableChanges, assertModuleEnabled, loadSiteModules } from '../lib/modules.js';
+import { ok, parseJsonBody, parseJsonBodyWithRaw, parseParams } from '../lib/http.js';
+import {
+  assertEditableChanges,
+  assertModuleEnabled,
+  customFieldsOf,
+  loadSiteModules,
+} from '../lib/modules.js';
+import { mergeCustomFields, parseCustomFields } from '../lib/custom-fields.js';
 import { resolveSiteBilling } from '../lib/billing/suspension.js';
 import { loadEffectivePlan } from '../lib/plan-limits.js';
 import { queueContentPublished } from '../lib/integration/outbound.js';
@@ -118,6 +125,22 @@ export function moduleRoutes() {
       data: row?.data ?? DOCUMENT_SCHEMAS[key].parse(key === 'institucional'
         ? { companyName: tenant.displayName }
         : {}),
+      /**
+       * Valores dos campos personalizados, separados do documento.
+       *
+       * Fora de `data` porque o schema tipado recusa chave desconhecida:
+       * juntar os dois faria o campo personalizado depender de afrouxar a
+       * validacao do campo tipado.
+       *
+       * A forma vazia vai **embaixo** do que esta gravado, nao no lugar: o
+       * caso comum e o documento ter sido salvo antes de o campo existir, e
+       * nele o valor gravado nao tem a chave. Sem isto o formulario abriria
+       * sem o campo novo, que e justamente o que acabou de ser definido.
+       */
+      customFields: {
+        ...emptyCustomFields(customFieldsOf(state, key)),
+        ...(row?.customFields ?? {}),
+      },
       fields: definicao?.fields ?? [],
       updatedAt: row?.updatedAt ?? null,
     });
@@ -131,7 +154,8 @@ export function moduleRoutes() {
     const key = parseDocumentModuleKey(moduleKey);
     await assertModuleEnabled(ctx.db, tenant.siteId, key);
 
-    const enviado = (await parseJsonBody(c, DOCUMENT_SCHEMAS[key])) as Record<string, unknown>;
+    const { data: validado, raw } = await parseJsonBodyWithRaw(c, DOCUMENT_SCHEMAS[key]);
+    const enviado = validado as Record<string, unknown>;
 
     const [atual] = await ctx.db
       .select()
@@ -143,8 +167,18 @@ export function moduleRoutes() {
         ),
       );
 
-    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
+    const estadoModulos = await loadSiteModules(ctx.db, tenant.siteId);
+    const { overrides } = estadoModulos;
     const alterados = assertEditableChanges(key, atual?.data ?? {}, enviado, overrides);
+    const personalizados = parseCustomFields({
+      moduleKey: key,
+      definicoes: customFieldsOf(estadoModulos, key),
+      raw,
+      overrides,
+      // Documento nao tem rascunho: o formulario envia tudo o que mostra, e
+      // mostra todos os campos. Vale a validacao completa.
+      partial: false,
+    });
 
     const [row] = await ctx.db
       .insert(schema.contentDocuments)
@@ -153,11 +187,17 @@ export function moduleRoutes() {
         siteId: tenant.siteId,
         moduleKey: key,
         data: enviado,
+        customFields: mergeCustomFields(atual?.customFields, personalizados),
         updatedByUserId: session.user.id,
       })
       .onConflictDoUpdate({
         target: [schema.contentDocuments.siteId, schema.contentDocuments.moduleKey],
-        set: { data: enviado, updatedByUserId: session.user.id, updatedAt: ctx.now() },
+        set: {
+          data: enviado,
+          customFields: mergeCustomFields(atual?.customFields, personalizados),
+          updatedByUserId: session.user.id,
+          updatedAt: ctx.now(),
+        },
       })
       .returning();
 
@@ -178,7 +218,13 @@ export function moduleRoutes() {
       action: 'updated',
     });
 
-    return ok(c, { moduleKey: key, data: row?.data ?? enviado });
+    // Mesma forma da leitura: a tela que acabou de salvar nao precisa de um
+    // segundo `GET` para saber o que ficou gravado.
+    return ok(c, {
+      moduleKey: key,
+      data: row?.data ?? enviado,
+      customFields: row?.customFields ?? mergeCustomFields(atual?.customFields, personalizados),
+    });
   });
 
   return app;

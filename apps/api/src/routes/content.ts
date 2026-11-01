@@ -28,16 +28,12 @@ import {
 import { assertMediaBelongsToTenant, loadMediaByIds } from '../lib/media-refs.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
 import { requireCapability } from '../middleware/auth.js';
-import {
-  assertEditableCreate,
-  assertEditablePatch,
-  assertModuleEnabled,
-  loadSiteModules,
-} from '../lib/modules.js';
+import { assertModuleEnabled, lerAlteracao, lerCriacao } from '../lib/modules.js';
 import {
   queueContentPublished,
   visibilityChanged,
 } from '../lib/integration/outbound.js';
+import { mergeCustomFields } from '../lib/custom-fields.js';
 import { requireModule } from '../middleware/modules.js';
 import type { AppBindings } from '../types.js';
 
@@ -107,8 +103,7 @@ export function contentRoutes() {
     const tenant = c.get('tenant');
     const { data: input, raw } = await parseJsonBodyWithRaw(c, serviceInputSchema);
 
-    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
-    assertEditableCreate('servicos', raw, overrides);
+    const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'servicos', raw);
 
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.imageId]);
 
@@ -120,6 +115,7 @@ export function contentRoutes() {
     const [row] = await ctx.db
       .insert(schema.services)
       .values({
+        customFields: personalizados ?? {},
         tenantId: tenant.tenantId,
         siteId: tenant.siteId,
         slug,
@@ -161,7 +157,7 @@ export function contentRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const { serviceId } = parseParams(c, z.object({ tenantId: uuidSchema, serviceId: uuidSchema }));
-    const input = await parseJsonBody(c, serviceUpdateSchema);
+    const { data: input, raw } = await parseJsonBodyWithRaw(c, serviceUpdateSchema);
 
     const [atual] = await ctx.db
       .select()
@@ -169,12 +165,21 @@ export function contentRoutes() {
       .where(and(eq(schema.services.id, serviceId), eq(schema.services.tenantId, tenant.tenantId)));
     if (!atual) throw AppError.notFound('Servico nao encontrado.');
 
-    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
-    assertEditablePatch('servicos', atual, input as Record<string, unknown>, overrides);
+    const personalizados = await lerAlteracao(
+      ctx.db,
+      tenant.siteId,
+      'servicos',
+      raw,
+      input as Record<string, unknown>,
+      atual,
+    );
 
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.imageId ?? null]);
 
     const updates: Record<string, unknown> = { updatedAt: ctx.now() };
+    if (personalizados !== undefined) {
+      updates.customFields = mergeCustomFields(atual.customFields, personalizados);
+    }
     for (const key of [
       'title','summary','description','icon','imageId','highlights','publicationStatus','sortOrder',
       'seoTitle','seoDescription',
@@ -295,13 +300,19 @@ export function contentRoutes() {
   app.post('/:tenantId/testimonials', requireCapability('content:write'), async (c) => {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
-    const input = await parseJsonBody(c, testimonialInputSchema);
+    const { data: input, raw } = await parseJsonBodyWithRaw(c, testimonialInputSchema);
+    const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'depoimentos', raw);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.photoId]);
     await assertProjectBelongsToTenant(ctx.db, tenant.tenantId, input.relatedProjectId);
 
     const [row] = await ctx.db
       .insert(schema.testimonials)
-      .values({ tenantId: tenant.tenantId, siteId: tenant.siteId, ...input })
+      .values({
+        tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
+        customFields: personalizados ?? {},
+        ...input,
+      })
       .returning();
 
     await auditFromContext(c, {
@@ -318,13 +329,37 @@ export function contentRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const { testimonialId } = parseParams(c, z.object({ tenantId: uuidSchema, testimonialId: uuidSchema }));
-    const input = await parseJsonBody(c, testimonialInputSchema);
+    const { data: input, raw } = await parseJsonBodyWithRaw(c, testimonialInputSchema);
+
+    const [atual] = await ctx.db
+      .select()
+      .from(schema.testimonials)
+      .where(
+        and(eq(schema.testimonials.id, testimonialId), eq(schema.testimonials.tenantId, tenant.tenantId)),
+      );
+    if (!atual) throw AppError.notFound('Depoimento nao encontrado.');
+
+    const personalizados = await lerAlteracao(
+      ctx.db,
+      tenant.siteId,
+      'depoimentos',
+      raw,
+      input as Record<string, unknown>,
+      atual,
+    );
+
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.photoId]);
     await assertProjectBelongsToTenant(ctx.db, tenant.tenantId, input.relatedProjectId);
 
     const [row] = await ctx.db
       .update(schema.testimonials)
-      .set({ ...input, updatedAt: ctx.now() })
+      .set({
+        ...input,
+        ...(personalizados !== undefined
+          ? { customFields: mergeCustomFields(atual.customFields, personalizados) }
+          : {}),
+        updatedAt: ctx.now(),
+      })
       .where(
         and(eq(schema.testimonials.id, testimonialId), eq(schema.testimonials.tenantId, tenant.tenantId)),
       )
@@ -378,12 +413,18 @@ export function contentRoutes() {
   app.post('/:tenantId/team', requireCapability('content:write'), async (c) => {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
-    const input = await parseJsonBody(c, teamMemberInputSchema);
+    const { data: input, raw } = await parseJsonBodyWithRaw(c, teamMemberInputSchema);
+    const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'equipe', raw);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.photoId]);
 
     const [row] = await ctx.db
       .insert(schema.teamMembers)
-      .values({ tenantId: tenant.tenantId, siteId: tenant.siteId, ...input })
+      .values({
+        tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
+        customFields: personalizados ?? {},
+        ...input,
+      })
       .returning();
 
     return created(c, { member: row ?? null });
@@ -393,12 +434,34 @@ export function contentRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const { memberId } = parseParams(c, z.object({ tenantId: uuidSchema, memberId: uuidSchema }));
-    const input = await parseJsonBody(c, teamMemberInputSchema);
+    const { data: input, raw } = await parseJsonBodyWithRaw(c, teamMemberInputSchema);
+
+    const [atual] = await ctx.db
+      .select()
+      .from(schema.teamMembers)
+      .where(and(eq(schema.teamMembers.id, memberId), eq(schema.teamMembers.tenantId, tenant.tenantId)));
+    if (!atual) throw AppError.notFound('Integrante nao encontrado.');
+
+    const personalizados = await lerAlteracao(
+      ctx.db,
+      tenant.siteId,
+      'equipe',
+      raw,
+      input as Record<string, unknown>,
+      atual,
+    );
+
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.photoId]);
 
     const [row] = await ctx.db
       .update(schema.teamMembers)
-      .set({ ...input, updatedAt: ctx.now() })
+      .set({
+        ...input,
+        ...(personalizados !== undefined
+          ? { customFields: mergeCustomFields(atual.customFields, personalizados) }
+          : {}),
+        updatedAt: ctx.now(),
+      })
       .where(and(eq(schema.teamMembers.id, memberId), eq(schema.teamMembers.tenantId, tenant.tenantId)))
       .returning();
     if (!row) throw AppError.notFound('Integrante nao encontrado.');

@@ -9,6 +9,7 @@ import {
   CardHeader,
   Field,
   PageHeader,
+  Select,
   Switch,
   TextArea,
   TextInput,
@@ -62,6 +63,7 @@ export function DocumentModulePage({ moduleKey }: { moduleKey: 'institucional' |
             moduleKey={moduleKey}
             fields={data.fields}
             inicial={data.data}
+            personalizados={data.customFields ?? {}}
             atualizadoEm={data.updatedAt}
             onSaved={() => {
               documento.reload();
@@ -81,27 +83,32 @@ function Formulario({
   moduleKey,
   fields,
   inicial,
+  personalizados,
   atualizadoEm,
   onSaved,
 }: {
   moduleKey: string;
   fields: SiteModuleFieldView[];
   inicial: Record<string, unknown>;
+  /** Valores dos campos personalizados, que vem fora de `data`. */
+  personalizados: Record<string, unknown>;
   atualizadoEm: string | null;
   onSaved: () => void;
 }) {
   const tenantId = useTenantId();
   const toast = useToast();
-  const [valores, setValores] = useState<Record<string, FormValue>>(() => paraFormulario(fields, inicial));
+  const [valores, setValores] = useState<Record<string, FormValue>>(() =>
+    paraFormulario(fields, { ...inicial, ...personalizados }),
+  );
 
   useEffect(() => {
-    setValores(paraFormulario(fields, inicial));
-  }, [fields, inicial]);
+    setValores(paraFormulario(fields, { ...inicial, ...personalizados }));
+  }, [fields, inicial, personalizados]);
 
   const travados = useMemo(() => fields.filter((campo) => !campo.editable), [fields]);
 
   const salvar = useMutation(
-    () => moduleApi.saveDocument(tenantId, moduleKey, paraApi(fields, valores, inicial)),
+    () => moduleApi.saveDocument(tenantId, moduleKey, paraApi(fields, valores, inicial, personalizados)),
     {
       onSuccess: onSaved,
       onError: (error) => toast.error('Nao foi possivel salvar', error.message),
@@ -237,6 +244,23 @@ function Campo({
     );
   }
 
+  if (campo.type === 'select' && campo.options && campo.options.length > 0) {
+    // Campo de escolha personalizado. Sem este ramo ele cairia no `TextInput`
+    // de texto livre, e a gravacao seria recusada pela validacao -- a opcao
+    // foi definida por quem configurou o site, e fora dela nao entra.
+    return (
+      <Select
+        label={rotulo}
+        {...(dica ? { hint: dica } : {})}
+        disabled={travado}
+        required={campo.required ?? false}
+        value={typeof valor === 'string' ? valor : ''}
+        onChange={(event) => onChange(event.target.value)}
+        options={campo.options.map((opcao) => ({ value: opcao, label: opcao }))}
+      />
+    );
+  }
+
   if (campo.type === 'longText') {
     return (
       <TextArea
@@ -364,14 +388,39 @@ function paraFormulario(
  * tela mostra: assim um reenvio nao conta como alteracao e a gravacao nao e
  * recusada por um campo que o cliente nem tocou.
  */
+/**
+ * Monta o corpo da gravacao.
+ *
+ * Os campos personalizados vao num envelope `customFields`, nao soltos no
+ * documento: o schema tipado do documento recusa chave desconhecida, e juntar
+ * os dois faria o campo personalizado depender de afrouxar essa validacao.
+ */
 function paraApi(
   fields: SiteModuleFieldView[],
   valores: Record<string, FormValue>,
   original: Record<string, unknown>,
+  originalPersonalizados: Record<string, unknown> = {},
 ): Record<string, unknown> {
   const corpo: Record<string, unknown> = {};
+  const personalizados: Record<string, unknown> = {};
 
   for (const campo of fields) {
+    if (campo.custom === true) {
+      /**
+       * Campo personalizado travado **sai do corpo**, ao contrario do tipado.
+       *
+       * A diferenca e do servidor, nao um descuido: no campo tipado a
+       * verificacao compara valor a valor, entao reenviar o mesmo valor passa.
+       * No personalizado ela recusa a **chave** -- e a gravacao mescla sobre o
+       * que esta guardado, entao omitir preserva o valor em vez de apaga-lo.
+       * Reenviar aqui levaria 403 em toda gravacao do documento.
+       */
+      if (campo.editable) {
+        personalizados[campo.key] = valorPersonalizado(campo, valores[campo.key]);
+      }
+      continue;
+    }
+
     if (!campo.editable) {
       corpo[campo.key] = original[campo.key] ?? null;
       continue;
@@ -395,5 +444,15 @@ function paraApi(
     }
   }
 
-  return corpo;
+  return Object.keys(personalizados).length > 0
+    ? { ...corpo, customFields: personalizados }
+    : corpo;
+}
+
+/** Converte o valor do formulario na forma que a API espera. */
+function valorPersonalizado(campo: SiteModuleFieldView, valor: FormValue): unknown {
+  if (campo.type === 'boolean') return valor === true;
+  if (campo.type === 'tags') return typeof valor === 'string' ? parseList(valor) : (valor ?? []);
+  if (campo.type === 'number') return typeof valor === 'string' ? numberOrNull(valor) : valor;
+  return typeof valor === 'string' ? valor : (valor ?? '');
 }

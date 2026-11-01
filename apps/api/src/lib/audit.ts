@@ -59,6 +59,7 @@ export const AUDIT_ACTIONS = {
    */
   siteUpdated: 'site.updated',
   siteModulesConfigured: 'site.modules_configured',
+  siteCustomFieldsConfigured: 'site.custom_fields_configured',
   siteSegmentApplied: 'site.segment_applied',
   siteKeyIssued: 'site.key_issued',
   siteKeyRotated: 'site.key_rotated',

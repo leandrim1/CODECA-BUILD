@@ -26,6 +26,10 @@ import {
 import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useMutation, useResource } from '../hooks/useResource.js';
 import { contentApi } from '../services/endpoints.js';
+import {
+  CamposPersonalizados,
+  useCamposPersonalizados,
+} from '../components/CustomFields.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { ImageField } from '../components/MediaPicker.js';
 import { labels, publicationTone, toOptions } from '../utils/labels.js';
@@ -216,10 +220,13 @@ function TestimonialModal({
     photoId: testimonial?.photoId ?? null,
   });
   const [photo, setPhoto] = useState<MediaRef | null>(testimonial?.photo ?? null);
+  const personalizados = useCamposPersonalizados('depoimentos', testimonial?.customFields);
 
   const save = useMutation(
     () => {
+      const extras = personalizados.paraApi();
       const body = {
+        ...(extras ? { customFields: extras } : {}),
         authorName: form.values.authorName,
         authorRole: form.values.authorRole,
         content: form.values.content,
@@ -331,6 +338,12 @@ function TestimonialModal({
           value={values.publicationStatus}
           options={toOptions(labels.publication, PUBLICATION_STATUSES)}
           onChange={(event) => setField('publicationStatus', event.target.value as PublicationStatus)}
+        />
+        <CamposPersonalizados
+          moduleKey="depoimentos"
+          values={personalizados.valores}
+          onChange={personalizados.definir}
+          errors={form.errors}
         />
       </div>
     </Modal>
@@ -465,10 +478,13 @@ function TeamMemberModal({
     social: (member?.social ?? {}) as Record<string, string>,
   });
   const [photo, setPhoto] = useState<MediaRef | null>(member?.photo ?? null);
+  const personalizados = useCamposPersonalizados('equipe', member?.customFields);
 
   const save = useMutation(
     () => {
+      const extras = personalizados.paraApi();
       const body = {
+        ...(extras ? { customFields: extras } : {}),
         name: form.values.name,
         role: form.values.role,
         bio: form.values.bio,
@@ -563,6 +579,12 @@ function TeamMemberModal({
           value={values.publicationStatus}
           options={toOptions(labels.publication, PUBLICATION_STATUSES)}
           onChange={(event) => setField('publicationStatus', event.target.value as PublicationStatus)}
+        />
+        <CamposPersonalizados
+          moduleKey="equipe"
+          values={personalizados.valores}
+          onChange={personalizados.definir}
+          errors={form.errors}
         />
       </div>
     </Modal>

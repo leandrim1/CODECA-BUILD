@@ -33,6 +33,10 @@ import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useMutation, useResource } from '../hooks/useResource.js';
 import { useModulePolicy } from '../hooks/useSiteModules.js';
 import { projectApi } from '../services/endpoints.js';
+import {
+  CamposPersonalizados,
+  useCamposPersonalizados,
+} from '../components/CustomFields.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { GalleryField, ImageField } from '../components/MediaPicker.js';
 import { labels, projectTone, publicationTone, toOptions } from '../utils/labels.js';
@@ -306,6 +310,8 @@ function ProjectFormModal({
     enabled: Boolean(projectId),
   });
 
+  const personalizados = useCamposPersonalizados('obras', detail.data?.project.customFields);
+
   useEffect(() => {
     const project = detail.data?.project;
     if (!project) return;
@@ -342,7 +348,9 @@ function ProjectFormModal({
       const values = form.values;
       // Campo travado sai do corpo: reenvia-lo levaria 403 mesmo sem o
       // cliente ter tocado nele.
+      const extras = personalizados.paraApi();
       const body = politica.semTravados({
+        ...(extras ? { customFields: extras } : {}),
         title: values.title,
         ...(values.slug ? { slug: values.slug } : {}),
         shortDescription: values.shortDescription,
@@ -575,6 +583,13 @@ function ProjectFormModal({
             onChange={(event) => setField('seoDescription', event.target.value)}
           />
         </section>
+
+        <CamposPersonalizados
+          moduleKey="obras"
+          values={personalizados.valores}
+          onChange={personalizados.definir}
+          errors={form.errors}
+        />
       </div>
     </Modal>
   );
@@ -758,6 +773,7 @@ function ProjectUpdatesModal({
             }
           </ResourcePanel>
         </section>
+
       </div>
     </Modal>
   );

@@ -200,6 +200,11 @@ verificacao de contrato no monorepo compara essa copia com o que a API entrega
 **em tempo de compilacao**: se um campo mudar de um lado so, o build da
 plataforma quebra antes de qualquer site receber a versao errada.
 
+A excecao e `customFields`, que e `Record<string, unknown>`: os campos
+personalizados de um projeto sao dados cadastrados no painel mestre, e nao ha
+tipo estatico possivel para eles. Confira o tipo do valor antes de usar, e
+trate chave ausente como nao informada.
+
 ## Compatibilidade
 
 O site do cliente e codigo que a CODECA IA desenvolve mas nao revisa todo dia.
@@ -221,17 +226,22 @@ escrita.
 - Tornar obrigatorio um parametro que era opcional.
 - Mudar o significado de um valor existente.
 
-### Duas coisas que **nao** sao mudanca de contrato
+### Tres coisas que **nao** sao mudanca de contrato
 
 - **`site.segment` e texto livre.** A plataforma atende qualquer ramo, e
   segmentos sao cadastrados no painel. Trate valor desconhecido como caso
   padrao; um segmento novo nao e versao nova do SDK.
 - **`modules` cresce.** Um modulo que seu site nao conhece aparece na lista e
   deve ser ignorado.
+- **`customFields` muda sem avisar.** Sao os campos que a CODECA IA definiu
+  para aquele projeto, e sao configuracao, nao contrato: um campo pode ser
+  criado, renomeado no rotulo ou removido no painel mestre. O tipo e
+  `Record<string, unknown>` porque o conjunto e dado, nao codigo.
 
-Codigo que depende de `segment` ser um de tres valores, ou de `modules` ter
-exatamente os modulos de hoje, vai quebrar sem que isto seja uma quebra de
-contrato -- e por isso esta dito aqui.
+Codigo que depende de `segment` ser um de tres valores, de `modules` ter
+exatamente os modulos de hoje, ou de uma chave de `customFields` estar sempre
+presente, vai quebrar sem que isto seja uma quebra de contrato -- e por isso
+esta dito aqui.
 
 ### Versao da API e versao do pacote
 

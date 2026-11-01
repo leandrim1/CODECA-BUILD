@@ -1,13 +1,18 @@
-import { and, eq, schema, type Database } from '@codeca/database';
+import { and, asc, eq, schema, type Database } from '@codeca/database';
+import { CUSTOM_FIELDS_ENVELOPE, parseCustomFields } from './custom-fields.js';
 import {
   AppError,
   MODULE_KEYS,
   MODULE_REGISTRY,
   blockedFields,
   changedKeys,
+  customFieldToModuleField,
   effectiveFields,
+  isCustomFieldType,
   isModuleKey,
   policyKey,
+  type CustomFieldDefinition,
+  type EffectiveField,
   type FieldPolicyOverrides,
   type ModuleKey,
   type SiteModuleView,
@@ -27,10 +32,12 @@ export interface SiteModuleState {
   modules: SiteModuleView[];
   /** Excecoes de campo, no formato `modulo.campo`. */
   overrides: FieldPolicyOverrides;
+  /** Campos definidos para este site, por modulo. */
+  customFields: Map<ModuleKey, CustomFieldDefinition[]>;
 }
 
 export async function loadSiteModules(db: Database, siteId: string): Promise<SiteModuleState> {
-  const [habilitados, politicas] = await Promise.all([
+  const [habilitados, politicas, personalizados] = await Promise.all([
     db
       .select({
         moduleKey: schema.siteModules.moduleKey,
@@ -47,6 +54,11 @@ export async function loadSiteModules(db: Database, siteId: string): Promise<Sit
       })
       .from(schema.siteFieldPolicies)
       .where(eq(schema.siteFieldPolicies.siteId, siteId)),
+    db
+      .select()
+      .from(schema.siteCustomFields)
+      .where(eq(schema.siteCustomFields.siteId, siteId))
+      .orderBy(asc(schema.siteCustomFields.sortOrder), asc(schema.siteCustomFields.label)),
   ]);
 
   const overrides: Record<string, boolean> = {};
@@ -56,6 +68,30 @@ export async function loadSiteModules(db: Database, siteId: string): Promise<Sit
   }
 
   const porChave = new Map(habilitados.map((linha) => [linha.moduleKey, linha]));
+
+  /**
+   * Definicoes por modulo, filtradas pelo registro.
+   *
+   * O filtro cobre o caso de um modulo sair do registro depois de alguem ter
+   * definido campo nele -- o campo fica no banco, sem aparecer em lugar nenhum.
+   */
+  const definicoesPorModulo = new Map<ModuleKey, CustomFieldDefinition[]>();
+  for (const linha of personalizados) {
+    if (!isModuleKey(linha.moduleKey)) continue;
+    if (!isCustomFieldType(linha.type)) continue;
+    const lista = definicoesPorModulo.get(linha.moduleKey) ?? [];
+    lista.push({
+      fieldKey: linha.fieldKey,
+      label: linha.label,
+      type: linha.type,
+      required: linha.required,
+      help: linha.help,
+      options: linha.options ?? [],
+      editable: linha.editable,
+      sortOrder: linha.sortOrder,
+    });
+    definicoesPorModulo.set(linha.moduleKey, lista);
+  }
 
   const modules = MODULE_KEYS.map((key) => {
     const definicao = MODULE_REGISTRY[key];
@@ -69,11 +105,101 @@ export async function loadSiteModules(db: Database, siteId: string): Promise<Sit
       // configurado para ele, e nao tudo que a plataforma sabe fazer.
       enabled: linha?.enabled ?? false,
       settings: linha?.settings ?? {},
-      fields: effectiveFields(key, overrides),
+      /**
+       * Campos do registro **e** os definidos para este site, na mesma lista.
+       *
+       * Os personalizados vao depois, porque sao acrescimos ao formulario que
+       * ja existia -- e porque a politica por site ja ordenou os primeiros.
+       * A politica de campos vale para os dois: `policyKey` nao distingue.
+       */
+      fields: [
+        ...effectiveFields(key, overrides),
+        ...aplicarPolitica(definicoesPorModulo.get(key) ?? [], key, overrides),
+      ],
     };
   });
 
-  return { modules, overrides };
+  return { modules, overrides, customFields: definicoesPorModulo };
+}
+
+/** Converte definicoes em campos, com a excecao do site aplicada. */
+function aplicarPolitica(
+  definicoes: readonly CustomFieldDefinition[],
+  moduleKey: ModuleKey,
+  overrides: FieldPolicyOverrides,
+): EffectiveField[] {
+  return definicoes.map((definicao) => {
+    const campo = customFieldToModuleField(definicao);
+    const excecao = overrides[policyKey(moduleKey, definicao.fieldKey)];
+    return {
+      ...campo,
+      editable: excecao ?? campo.editableByDefault,
+      overridden: excecao !== undefined,
+    };
+  });
+}
+
+/**
+ * Confere a politica e le os campos personalizados de uma **criacao**.
+ *
+ * Os dois passos vivem juntos de proposito. Eles usam a mesma carga do estado
+ * do site e sao faceis de separar por descuido: uma rota nova que chamasse
+ * `assertEditableCreate` e esquecesse `parseCustomFields` gravaria conteudo
+ * personalizado sem validar nada -- e nada na tela acusaria.
+ *
+ * E por aqui que passa a escrita dos modulos que aceitam campo personalizado.
+ * `categorias` e `galerias` nao aceitam e seguem chamando o `assert` direto:
+ * nao ha definicao para carregar, e passar por aqui sugeriria que ha.
+ */
+export async function lerCriacao(
+  db: Database,
+  siteId: string,
+  moduleKey: ModuleKey,
+  raw: Record<string, unknown>,
+): Promise<Record<string, unknown> | undefined> {
+  const estado = await loadSiteModules(db, siteId);
+  assertEditableCreate(moduleKey, raw, estado.overrides);
+  return parseCustomFields({
+    moduleKey,
+    definicoes: customFieldsOf(estado, moduleKey),
+    raw,
+    overrides: estado.overrides,
+    partial: false,
+  });
+}
+
+/**
+ * O mesmo para uma **alteracao parcial**.
+ *
+ * `partial: true`: um `PATCH` manda so o que a tela editou, e exigir campo
+ * obrigatorio aqui travaria a edicao de todo registro cadastrado antes de o
+ * campo existir.
+ */
+export async function lerAlteracao(
+  db: Database,
+  siteId: string,
+  moduleKey: ModuleKey,
+  raw: Record<string, unknown>,
+  enviado: Record<string, unknown>,
+  atual: Record<string, unknown>,
+): Promise<Record<string, unknown> | undefined> {
+  const estado = await loadSiteModules(db, siteId);
+  assertEditablePatch(moduleKey, atual, enviado, estado.overrides);
+  return parseCustomFields({
+    moduleKey,
+    definicoes: customFieldsOf(estado, moduleKey),
+    raw,
+    overrides: estado.overrides,
+    partial: true,
+  });
+}
+
+/** Definicoes de um modulo, para validar a escrita. */
+export function customFieldsOf(
+  state: SiteModuleState,
+  moduleKey: ModuleKey,
+): CustomFieldDefinition[] {
+  return state.customFields.get(moduleKey) ?? [];
 }
 
 /** Somente os modulos habilitados, na ordem do registro. */
@@ -140,7 +266,12 @@ export function assertEditableCreate(
   bruto: Record<string, unknown>,
   overrides: FieldPolicyOverrides,
 ): string[] {
-  const enviadas = Object.keys(bruto).filter((chave) => bruto[chave] !== undefined);
+  const enviadas = Object.keys(bruto)
+    .filter((chave) => bruto[chave] !== undefined)
+    // O envelope dos campos personalizados nao e um campo tipado, e
+    // `isFieldEditable` nega o que nao esta no registro: sem esta excecao,
+    // toda gravacao que trouxesse campo personalizado levaria 403.
+    .filter((chave) => chave !== CUSTOM_FIELDS_ENVELOPE);
   const travados = blockedFields(moduleKey, enviadas, overrides);
   if (travados.length > 0) {
     const rotulos = travados.map((key) => {
@@ -168,7 +299,9 @@ export function assertEditablePatch(
   enviado: Record<string, unknown>,
   overrides: FieldPolicyOverrides,
 ): string[] {
-  const enviadas = Object.keys(enviado).filter((chave) => enviado[chave] !== undefined);
+  const enviadas = Object.keys(enviado)
+    .filter((chave) => enviado[chave] !== undefined)
+    .filter((chave) => chave !== CUSTOM_FIELDS_ENVELOPE);
   const recorte = Object.fromEntries(enviadas.map((chave) => [chave, normalize(atual[chave])]));
   const submetido = Object.fromEntries(enviadas.map((chave) => [chave, normalize(enviado[chave])]));
   return assertEditableChanges(moduleKey, recorte, submetido, overrides);

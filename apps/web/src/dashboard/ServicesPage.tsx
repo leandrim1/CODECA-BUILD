@@ -22,6 +22,10 @@ import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useMutation, useResource } from '../hooks/useResource.js';
 import { useModulePolicy } from '../hooks/useSiteModules.js';
 import { contentApi } from '../services/endpoints.js';
+import {
+  CamposPersonalizados,
+  useCamposPersonalizados,
+} from '../components/CustomFields.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { ImageField } from '../components/MediaPicker.js';
 import { labels, publicationTone, toOptions } from '../utils/labels.js';
@@ -160,6 +164,7 @@ function ServiceFormModal({
 }) {
   const tenantId = useTenantId();
   const politica = useModulePolicy('servicos');
+  const personalizados = useCamposPersonalizados('servicos', service?.customFields);
   const toast = useToast();
   const form = useForm({
     title: service?.title ?? '',
@@ -197,7 +202,9 @@ function ServiceFormModal({
     () => {
       // Campo travado sai do corpo: reenvia-lo levaria 403 mesmo sem o
       // cliente ter tocado nele.
+      const extras = personalizados.paraApi();
       const body = politica.semTravados({
+        ...(extras ? { customFields: extras } : {}),
         title: form.values.title,
         ...(form.values.slug ? { slug: form.values.slug } : {}),
         summary: form.values.summary,
@@ -323,6 +330,13 @@ function ServiceFormModal({
           value={values.publicationStatus}
           options={toOptions(labels.publication, PUBLICATION_STATUSES)}
           onChange={(event) => setField('publicationStatus', event.target.value as PublicationStatus)}
+        />
+
+        <CamposPersonalizados
+          moduleKey="servicos"
+          values={personalizados.valores}
+          onChange={personalizados.definir}
+          errors={form.errors}
         />
       </div>
     </Modal>

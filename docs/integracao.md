@@ -172,6 +172,31 @@ A resposta nao traz `authorizationConfirmed` nem a nota de como a autorizacao
 foi obtida -- essa nota pode conter telefone e data, e fica so no painel. O
 que chega pode ser exibido.
 
+#### `customFields`: o que e deste projeto e de mais nenhum
+
+Imoveis, obras, servicos, produtos, depoimentos e equipe trazem um objeto
+`customFields`. Nele ficam os campos que a CODECA IA definiu **para este
+site** -- o "CRECI" de uma imobiliaria, o "Registro profissional" de uma
+clinica. Um site sem campo definido recebe `{}`; o campo nunca vem ausente.
+
+```ts
+const { items } = await codeca.listProperties();
+const creci = items[0]?.customFields.creci; // unknown
+if (typeof creci === 'string') { /* ... */ }
+```
+
+Tres coisas que valem saber antes de usar:
+
+- **O tipo e `Record<string, unknown>`.** O conjunto de campos e dado, nao
+  codigo, entao o SDK nao pode tipa-lo. Confira o tipo do valor antes de usar.
+- **A chave e estavel; a presenca nao.** A chave e definida uma vez e nao muda
+  de forma. Mas um campo removido no painel mestre para de aparecer na
+  resposta, e um registro cadastrado antes de o campo existir nao tem a chave.
+  Trate ausente como nao informado, sempre.
+- **Campo novo em `customFields` nao e versao nova do SDK**, pela mesma razao
+  que um segmento novo nao e: e configuracao de um projeto, nao contrato da
+  API.
+
 Um modulo que o site nao tem responde **404**, nao 403: para quem le o site,
 ele simplesmente nao existe. Dizer "proibido" revelaria que a rota existe em
 outros sites.

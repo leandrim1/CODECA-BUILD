@@ -62,8 +62,9 @@ Legenda:
 | Biblioteca de imagens | Pronto, depende de credencial | sem `BLOB_READ_WRITE_TOKEN` o envio e recusado com aviso |
 | Interessados (filtros, status, observacoes internas) | Pronto | — |
 | Exportacao de interessados em CSV | Pronto | recurso de plano (`lead_export`) |
-| Dominio proprio | Pronto, apenas registro | guarda qual dominio pertence a qual site; quem aponta o DNS e o projeto Vercel do cliente |
+| Dominio proprio | Pronto, **mas em revisao** | o codigo registra o dominio no projeto Vercel **da plataforma** (`lib/vercel-domains.ts`), que era o que servia o renderizador removido na etapa 0. Hoje o site do cliente e um projeto Vercel dele, e o dominio deveria ser apontado la. Ver a nota no fim desta secao |
 | Campo travado pela CODECA IA aparece como leitura | Pronto | com explicacao de por que esta travado |
+| Campos personalizados do projeto no formulario | Pronto | definidos pela CODECA IA por site e modulo; entram na mesma lista dos campos tipados |
 | Equipe e usuarios | Pronto | convite, troca de papel, remocao, hierarquia respeitada |
 | Plano e assinatura (uso vs. limites) | Pronto | — |
 | Configuracoes da empresa | Pronto | dados, contato, WhatsApp, redes sociais |
@@ -96,6 +97,25 @@ Legenda:
 | Pacote do SDK pronto para publicar | Pronto | metadado, changelog, regra de compatibilidade escrita, conferencia de publicacao e workflow por tag |
 | Publicacao do SDK efetivada | **Depende de voce** | exige `NPM_TOKEN` no repositorio e a decisao entre npm publico e registro privado; `pnpm sdk:pack` simula |
 | Documentacao OpenAPI | Pronto | `GET /api/v1/openapi.json`, gerado dos schemas Zod; cobertura comparada com a tabela de rotas do servidor |
+| `customFields` nas respostas de conteudo | Pronto | objeto vazio quando o site nao tem campo definido; `Record<string, unknown>` no SDK, porque o conjunto e dado |
+
+**Decisao em aberto -- dominios.** A etapa 0 removeu o renderizador, mas o
+cadastro de dominio continua chamando a API da Vercel para apontar o hostname
+ao projeto **da plataforma**. Com o site do cliente num projeto Vercel proprio,
+isso aponta o dominio para um renderizador que nao existe mais. Sao dois
+caminhos possiveis, e a escolha e comercial, nao tecnica:
+
+1. **A plataforma so registra** qual dominio pertence a qual site, e quem
+   configura DNS e dominio e o projeto Vercel do cliente. `VERCEL_API_TOKEN`,
+   `VERCEL_PROJECT_ID` e `lib/vercel-domains.ts` saem, e [dominios.md](dominios.md)
+   encolhe para o registro e a explicacao do que o cliente faz no painel dele.
+2. **A plataforma hospeda** -- o que o plano Empresas vende como "hospedagem
+   incluida". Entao o projeto Vercel de destino e por site, nao um fixo no
+   ambiente, e a tabela precisa saber em qual projeto cada dominio entrou.
+
+Nada foi mexido ate a decisao, porque as duas saidas apagam trabalho da outra.
+O recurso `included_hosting` segue listado como **nao aplicado** por essa mesma
+razao.
 
 **Nota de historico:** este arquivo descrevia, ate a etapa A, um renderizador
 publico com SSR, paginas por blocos, historico de versoes e `sitemap.xml`. Esse
@@ -122,6 +142,7 @@ substituem as que descreviam o modelo antigo.
 | Log de auditoria | Pronto | filtros por empresa, acao e periodo; chave emitida, rotacionada e revogada sao acoes distintas |
 | Permissao global separada | Pronto | concedida explicitamente, registrada em auditoria |
 | Acesso de suporte a dados de empresa | Pronto | exige concessao com motivo e validade, somente leitura |
+| Campos personalizados por site e modulo | Pronto | aba "Campos do projeto"; remover a definicao nao apaga valor, e a auditoria grava `valuesDeleted: false` |
 
 ## Planos, cobranca e assinaturas (ValidaPay)
 
@@ -198,11 +219,11 @@ pagamento).
 | CRUD de imoveis e de obras | `integration/content.test.ts` |
 | Upload de imagens e limites de armazenamento | `integration/media-domains.test.ts` |
 | Salvamento de rascunho, publicacao e restauracao | `integration/content.test.ts` |
-| Resolucao de dominio | `integration/media-domains.test.ts`, `integration/public-site.test.ts` |
-| Formularios publicos | `integration/public-site.test.ts` |
+| Resolucao de dominio | `integration/media-domains.test.ts` |
+| Formularios publicos (interessados pela API publica) | `integration/public-content.test.ts` |
 | Limites de plano | `integration/media-domains.test.ts`, `integration/content.test.ts` |
 | Acesso ao painel mestre | `integration/rbac.test.ts` |
-| Fluxos principais do editor | `web/editor-fields.test.ts`, `unit/blocks.test.ts` |
+| Conteudo entregue ao site, com escopo por chave | `integration/public-content.test.ts`, `unit/sdk-contract.test.ts` |
 | Fluxo completo, da criacao da empresa ate o site publicado | `integration/flow.test.ts` |
 | Criar assinatura mensal, plano inativo, preco manipulado, erro da API, duplicidade | `integration/billing-subscriptions.test.ts` |
 | Webhook: assinatura invalida, timestamp, reentrega, fora de ordem, falha no banco, reprocesso | `integration/billing-webhooks.test.ts` |
@@ -211,12 +232,16 @@ pagamento).
 | Publicacao: pendente, paga, tolerancia, suspensa, reativada, conteudo preservado | `integration/billing-isolation.test.ts` |
 | Divergencia recuperada por reconciliacao | `integration/billing-reconcile.test.ts` |
 | Valores, estados, decisao de publicacao e HMAC do webhook | `unit/billing.test.ts` |
-| Responsividade | `web/editor-fields.test.ts` (CSS e media queries geradas) |
+| Campos personalizados por site | `integration/custom-fields.test.ts` |
 
 Limites conhecidos da suite, para nao haver ilusao de cobertura:
 
-- **Responsividade** e verificada pelo CSS gerado, nao por renderizacao em
-  navegador real. Nao ha teste visual nem de regressao de imagem.
+- **O painel nao tem teste de navegador.** A suite cobre a API e os contratos
+  de resposta; a renderizacao do painel (`apps/web`) e verificada por
+  `typecheck` e build, nao por teste visual nem de regressao de imagem. Os
+  contratos entre API e painel vivem em `@codeca/shared` justamente porque
+  esse furo existe: um campo que a API deixa de enviar quebra o `typecheck` do
+  painel em vez de quebrar a tela do cliente.
 - **Blob, API de dominios da Vercel, Resend e ValidaPay** sao substituidos por
   duplos nos testes; o caminho real depende de credencial. Para a ValidaPay, os
   corpos enviados foram validados contra o schema oficial de cada rota, e o

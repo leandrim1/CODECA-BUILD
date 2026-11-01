@@ -23,7 +23,8 @@ import {
   parseQuery,
 } from '../lib/http.js';
 import { assertMediaBelongsToTenant, loadGallery, loadMediaByIds, syncGallery } from '../lib/media-refs.js';
-import { assertEditableCreate, assertEditablePatch, loadSiteModules } from '../lib/modules.js';
+import { lerAlteracao, lerCriacao } from '../lib/modules.js';
+import { mergeCustomFields } from '../lib/custom-fields.js';
 import {
   queueContentPublished,
   visibilityChanged,
@@ -180,8 +181,7 @@ export function propertyRoutes() {
     const tenant = c.get('tenant');
     const { data: input, raw } = await parseJsonBodyWithRaw(c, propertyInputSchema);
 
-    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
-    assertEditableCreate('imoveis', raw, overrides);
+    const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'imoveis', raw);
 
     if (input.publicationStatus === 'published') {
       await assertWithinLimit(ctx.db, tenant.tenantId, 'maxPublishedProperties');
@@ -196,6 +196,7 @@ export function propertyRoutes() {
     const [row] = await ctx.db
       .insert(schema.properties)
       .values({
+        customFields: personalizados ?? {},
         tenantId: tenant.tenantId,
         siteId: tenant.siteId,
         slug,
@@ -266,7 +267,7 @@ export function propertyRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const { propertyId } = parseParams(c, propertyParams);
-    const input = await parseJsonBody(c, propertyUpdateSchema);
+    const { data: input, raw } = await parseJsonBodyWithRaw(c, propertyUpdateSchema);
 
     const [current] = await ctx.db
       .select()
@@ -274,8 +275,14 @@ export function propertyRoutes() {
       .where(and(eq(schema.properties.id, propertyId), eq(schema.properties.tenantId, tenant.tenantId)));
     if (!current) throw AppError.notFound('Imovel nao encontrado.');
 
-    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
-    assertEditablePatch('imoveis', current, input as Record<string, unknown>, overrides);
+    const personalizados = await lerAlteracao(
+      ctx.db,
+      tenant.siteId,
+      'imoveis',
+      raw,
+      input as Record<string, unknown>,
+      current,
+    );
 
     // Publicar um imovel que estava em rascunho consome uma vaga do plano.
     if (input.publicationStatus === 'published' && current.publicationStatus !== 'published') {
@@ -288,6 +295,10 @@ export function propertyRoutes() {
     ]);
 
     const updates: Record<string, unknown> = { updatedAt: ctx.now() };
+    // Mescla, nao substitui: edicao que nao mostrou um campo nao o apaga.
+    if (personalizados !== undefined) {
+      updates.customFields = mergeCustomFields(current.customFields, personalizados);
+    }
     for (const key of [
       'title','reference','description','shortDescription','type','purpose','price','priceOnRequest',
       'condoFee','iptu','currency','address','builtAreaM2','landAreaM2','bedrooms','suites','bathrooms',

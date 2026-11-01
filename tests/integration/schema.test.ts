@@ -38,7 +38,8 @@ describe('migracoes e restricoes do schema', () => {
       'project_update_images', 'services', 'testimonials', 'team_members', 'faqs', 'leads',
       'lead_notes', 'sites', 'segments', 'site_modules', 'site_field_policies',
       'content_documents', 'site_api_keys', 'site_origins', 'banners', 'site_webhooks',
-      'webhook_deliveries',
+      'webhook_deliveries', 'categories', 'products', 'product_images', 'galleries',
+      'gallery_images', 'site_custom_fields',
     ]) {
       expect(names, `tabela ${expected}`).toContain(expected);
     }

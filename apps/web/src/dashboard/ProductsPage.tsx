@@ -20,6 +20,10 @@ import { useTenantId } from '../hooks/useAuth.js';
 import { useModulePolicy, useSiteModules } from '../hooks/useSiteModules.js';
 import { useMutation, useResource } from '../hooks/useResource.js';
 import { catalogApi } from '../services/endpoints.js';
+import {
+  CamposPersonalizados,
+  useCamposPersonalizados,
+} from '../components/CustomFields.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { GalleryField, ImageField } from '../components/MediaPicker.js';
 import { Can } from '../components/Guards.js';
@@ -203,6 +207,7 @@ function FormularioProduto({
   const tenantId = useTenantId();
   const toast = useToast();
   const politica = useModulePolicy('produtos');
+  const personalizados = useCamposPersonalizados('produtos', produto?.customFields);
 
   const { values, errors, setField, applyApiError } = useForm({
     title: produto?.title ?? '',
@@ -226,7 +231,9 @@ function FormularioProduto({
 
   const salvar = useMutation(
     () => {
+      const extras = personalizados.paraApi();
       const corpo = {
+        ...(extras ? { customFields: extras } : {}),
         title: values.title,
         summary: values.summary,
         description: values.description,
@@ -398,6 +405,13 @@ function FormularioProduto({
             onChange={(event) => setField('sortOrder', event.target.value)}
           />
         </div>
+
+        <CamposPersonalizados
+          moduleKey="produtos"
+          values={personalizados.valores}
+          onChange={personalizados.definir}
+          errors={errors}
+        />
       </div>
     </Modal>
   );

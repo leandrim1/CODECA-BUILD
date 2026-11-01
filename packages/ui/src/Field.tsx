@@ -105,7 +105,8 @@ export interface SelectOption {
 }
 
 export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id' | 'children'> {
-  label: string;
+  /** `ReactNode` como nos outros campos: o cadeado do campo travado e um icone. */
+  label: ReactNode;
   hint?: string;
   error?: string | undefined;
   options: readonly SelectOption[];

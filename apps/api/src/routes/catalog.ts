@@ -35,7 +35,14 @@ import {
   syncGallery,
 } from '../lib/media-refs.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
-import { assertEditableCreate, assertEditablePatch, loadSiteModules } from '../lib/modules.js';
+import {
+  assertEditableCreate,
+  assertEditablePatch,
+  lerAlteracao,
+  lerCriacao,
+  loadSiteModules,
+} from '../lib/modules.js';
+import { mergeCustomFields } from '../lib/custom-fields.js';
 import { queueContentPublished, visibilityChanged } from '../lib/integration/outbound.js';
 import { requireCapability } from '../middleware/auth.js';
 import { requireModule } from '../middleware/modules.js';
@@ -167,8 +174,7 @@ export function catalogRoutes() {
     const tenant = c.get('tenant');
     const { data: input, raw } = await parseJsonBodyWithRaw(c, productInputSchema);
 
-    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
-    assertEditableCreate('produtos', raw, overrides);
+    const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'produtos', raw);
 
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [
       input.coverImageId,
@@ -184,6 +190,7 @@ export function catalogRoutes() {
     const [row] = await ctx.db
       .insert(schema.products)
       .values({
+        customFields: personalizados ?? {},
         tenantId: tenant.tenantId,
         siteId: tenant.siteId,
         slug,
@@ -237,11 +244,17 @@ export function catalogRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const { productId } = parseParams(c, produtoParams);
-    const input = await parseJsonBody(c, productUpdateSchema);
+    const { data: input, raw } = await parseJsonBodyWithRaw(c, productUpdateSchema);
 
     const atual = await carregarProduto(ctx.db, tenant.siteId, productId);
-    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
-    assertEditablePatch('produtos', atual, input as Record<string, unknown>, overrides);
+    const personalizados = await lerAlteracao(
+      ctx.db,
+      tenant.siteId,
+      'produtos',
+      raw,
+      input as Record<string, unknown>,
+      atual,
+    );
 
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [
       input.coverImageId ?? null,
@@ -252,6 +265,9 @@ export function catalogRoutes() {
     }
 
     const updates: Record<string, unknown> = { updatedAt: ctx.now() };
+    if (personalizados !== undefined) {
+      updates.customFields = mergeCustomFields(atual.customFields, personalizados);
+    }
     for (const key of [
       'title', 'summary', 'description', 'code', 'categoryId', 'price', 'priceOnRequest',
       'unit', 'isAvailable', 'coverImageId', 'publicationStatus', 'sortOrder',

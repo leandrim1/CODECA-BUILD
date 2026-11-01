@@ -34,6 +34,10 @@ import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useDebounced, useMutation, useResource } from '../hooks/useResource.js';
 import { useModulePolicy } from '../hooks/useSiteModules.js';
 import { propertyApi } from '../services/endpoints.js';
+import {
+  CamposPersonalizados,
+  useCamposPersonalizados,
+} from '../components/CustomFields.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { GalleryField, ImageField } from '../components/MediaPicker.js';
 import { commercialTone, labels, publicationTone, toOptions } from '../utils/labels.js';
@@ -426,11 +430,15 @@ function PropertyFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail.data]);
 
+  const personalizados = useCamposPersonalizados('imoveis', detail.data?.property.customFields);
+
   function payload() {
     const values = form.values;
     // Campo travado sai do corpo: reenvia-lo levaria 403 mesmo sem o cliente
     // ter tocado nele, e o servidor sabe o proprio valor.
+    const extras = personalizados.paraApi();
     return politica.semTravados({
+      ...(extras ? { customFields: extras } : {}),
       title: values.title,
       ...(values.slug ? { slug: values.slug } : {}),
       reference: values.reference,
@@ -802,6 +810,13 @@ function PropertyFormModal({
             onChange={(event) => setField('seoDescription', event.target.value)}
           />
         </section>
+
+        <CamposPersonalizados
+          moduleKey="imoveis"
+          values={personalizados.valores}
+          onChange={personalizados.definir}
+          errors={errors}
+        />
       </div>
     </Modal>
   );

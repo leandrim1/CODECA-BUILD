@@ -27,16 +27,13 @@ import { assertMediaBelongsToTenant, loadGallery, loadMediaByIds, syncGallery } 
 import { assertWithinLimit } from '../lib/plan-limits.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
 import { requireCapability, sessionOf } from '../middleware/auth.js';
-import {
-  assertEditableCreate,
-  assertEditablePatch,
-  loadSiteModules,
-} from '../lib/modules.js';
+import { lerAlteracao, lerCriacao } from '../lib/modules.js';
 import {
   queueContentPublished,
   visibilityChanged,
 } from '../lib/integration/outbound.js';
 import { requireModule } from '../middleware/modules.js';
+import { mergeCustomFields } from '../lib/custom-fields.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -157,8 +154,7 @@ export function projectRoutes() {
     const tenant = c.get('tenant');
     const { data: input, raw } = await parseJsonBodyWithRaw(c, projectInputSchema);
 
-    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
-    assertEditableCreate('obras', raw, overrides);
+    const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'obras', raw);
 
     await assertWithinLimit(ctx.db, tenant.tenantId, 'maxProjects');
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.coverImageId, ...input.galleryImageIds]);
@@ -171,6 +167,7 @@ export function projectRoutes() {
     const [row] = await ctx.db
       .insert(schema.projects)
       .values({
+        customFields: personalizados ?? {},
         tenantId: tenant.tenantId,
         siteId: tenant.siteId,
         slug,
@@ -230,7 +227,7 @@ export function projectRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const { projectId } = parseParams(c, projectParams);
-    const input = await parseJsonBody(c, projectUpdateSchema);
+    const { data: input, raw } = await parseJsonBodyWithRaw(c, projectUpdateSchema);
 
     const [current] = await ctx.db
       .select()
@@ -238,8 +235,14 @@ export function projectRoutes() {
       .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, tenant.tenantId)));
     if (!current) throw AppError.notFound('Obra nao encontrada.');
 
-    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
-    assertEditablePatch('obras', current, input as Record<string, unknown>, overrides);
+    const personalizados = await lerAlteracao(
+      ctx.db,
+      tenant.siteId,
+      'obras',
+      raw,
+      input as Record<string, unknown>,
+      current,
+    );
 
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [
       input.coverImageId ?? null,
@@ -247,6 +250,9 @@ export function projectRoutes() {
     ]);
 
     const updates: Record<string, unknown> = { updatedAt: ctx.now() };
+    if (personalizados !== undefined) {
+      updates.customFields = mergeCustomFields(current.customFields, personalizados);
+    }
     for (const key of [
       'title','description','shortDescription','category','status','stage','progressPercent','city','state',
       'neighborhood','showLocation','startDate','expectedCompletionDate','completedDate','coverImageId',

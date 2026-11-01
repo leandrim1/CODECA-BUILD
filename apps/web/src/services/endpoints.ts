@@ -22,6 +22,7 @@ import type {
   OverviewResponse,
   Paginated,
   CategoryRecord,
+  CustomFieldRow,
   GalleryRecord,
   PlanRecord,
   ProductRecord,
@@ -556,6 +557,14 @@ export const platformSiteApi = {
    * producao e um ato deliberado, nao efeito colateral de corrigir a
    * classificacao do ramo.
    */
+  customFields: (siteId: string) =>
+    api.get<{ items: CustomFieldRow[] }>(`/api/platform/sites/${siteId}/custom-fields`),
+  saveCustomFields: (siteId: string, moduleKey: string, fields: unknown[]) =>
+    api.put<{ modules: SiteModuleView[] }>(
+      `/api/platform/sites/${siteId}/custom-fields/${moduleKey}`,
+      { fields },
+    ),
+
   applySegment: (siteId: string) =>
     api.post<{ segment: string; enabled: string[]; modules: SiteModuleView[] }>(
       `/api/platform/sites/${siteId}/apply-segment`,

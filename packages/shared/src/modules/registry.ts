@@ -38,6 +38,7 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
     name: 'Institucional',
     description: 'Quem e a empresa: apresentacao, historia e proposito.',
     kind: 'document',
+    customFields: true,
     fields: [
       campo('companyName', 'Nome da empresa', 'text', true, { required: true }),
       campo('tagline', 'Frase de apresentacao', 'text'),
@@ -57,6 +58,7 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
     name: 'Contato',
     description: 'Como falar com a empresa e onde ela esta.',
     kind: 'document',
+    customFields: true,
     fields: [
       campo('email', 'E-mail', 'email'),
       campo('phone', 'Telefone', 'phone'),
@@ -95,6 +97,7 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
     name: 'Imoveis',
     description: 'Carteira de imoveis a venda ou locacao.',
     kind: 'collection',
+    customFields: true,
     table: 'properties',
     fields: [
       campo('title', 'Titulo', 'text', true, { required: true }),
@@ -142,6 +145,7 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
     name: 'Obras e projetos',
     description: 'Empreendimentos em andamento e concluidos.',
     kind: 'collection',
+    customFields: true,
     table: 'projects',
     fields: [
       campo('title', 'Titulo', 'text', true, { required: true }),
@@ -175,6 +179,7 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
     name: 'Produtos',
     description: 'O catalogo, o cardapio ou a lista de itens da empresa.',
     kind: 'collection',
+    customFields: true,
     table: 'products',
     fields: [
       campo('title', 'Nome', 'text', true, { required: true }),
@@ -254,6 +259,7 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
     name: 'Depoimentos',
     description: 'O que os clientes dizem, com autorizacao de quem disse.',
     kind: 'collection',
+    customFields: true,
     table: 'testimonials',
     fields: [
       campo('authorName', 'Nome de quem deu o depoimento', 'text', true, { required: true }),
@@ -283,6 +289,7 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
     name: 'Equipe',
     description: 'As pessoas da empresa que aparecem no site.',
     kind: 'collection',
+    customFields: true,
     table: 'team_members',
     fields: [
       campo('name', 'Nome', 'text', true, { required: true }),
@@ -316,6 +323,7 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
     name: 'Servicos',
     description: 'O que a empresa oferece.',
     kind: 'collection',
+    customFields: true,
     table: 'services',
     fields: [
       campo('title', 'Titulo', 'text', true, { required: true }),

@@ -37,6 +37,19 @@ export interface PublicAddress {
   postalCode: string;
 }
 
+/**
+ * Campos que a CODECA IA definiu para este site, por chave.
+ *
+ * `unknown` e honesto: as definicoes vivem no painel, nao no SDK, entao nao ha
+ * como tipar isto sem gerar tipo por site. Voce conhece as chaves do seu
+ * projeto -- faca a conversao na borda:
+ *
+ * ```ts
+ * const creci = String(membro.customFields.creci ?? '');
+ * ```
+ */
+export type PublicCustomFields = Record<string, unknown>;
+
 export interface PublicSeo {
   title: string;
   description: string;
@@ -73,6 +86,7 @@ export interface PublicProperty {
   videoUrl: string;
   seo: PublicSeo;
   publishedAt: string | null;
+  customFields: PublicCustomFields;
 }
 
 export interface PublicProject {
@@ -96,6 +110,7 @@ export interface PublicProject {
   featured: boolean;
   seo: PublicSeo;
   publishedAt: string | null;
+  customFields: PublicCustomFields;
 }
 
 export interface PublicService {
@@ -109,6 +124,7 @@ export interface PublicService {
   highlights: string[];
   sortOrder: number;
   seo: PublicSeo;
+  customFields: PublicCustomFields;
 }
 
 export interface PublicBanner {
@@ -164,6 +180,7 @@ export interface PublicProduct {
   gallery: PublicImage[];
   sortOrder: number;
   seo: PublicSeo;
+  customFields: PublicCustomFields;
 }
 
 /** Galeria na listagem: capa e contagem, sem as imagens. */
@@ -197,6 +214,7 @@ export interface PublicTestimonial {
   photo: PublicImage | null;
   relatedProjectId: string | null;
   sortOrder: number;
+  customFields: PublicCustomFields;
 }
 
 export interface PublicTeamMember {
@@ -209,6 +227,7 @@ export interface PublicTeamMember {
   photo: PublicImage | null;
   social: Record<string, string>;
   sortOrder: number;
+  customFields: PublicCustomFields;
 }
 
 export interface PublicFaq {

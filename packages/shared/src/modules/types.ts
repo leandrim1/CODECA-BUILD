@@ -43,6 +43,16 @@ export interface ModuleField {
   editableByDefault: boolean;
   required?: boolean;
   help?: string;
+  /**
+   * `true` quando o campo foi definido para este site, nao pelo registro.
+   *
+   * A escrita usa este sinal para saber que o valor vai para a coluna
+   * `custom_fields`, e nao para uma coluna propria. Fora disso, o resto da
+   * plataforma trata os dois iguais -- que e o ponto.
+   */
+  custom?: boolean;
+  /** Opcoes de um campo de escolha personalizado. */
+  options?: readonly string[];
 }
 
 /**
@@ -60,6 +70,16 @@ export interface ModuleDefinition {
   name: string;
   description: string;
   kind: ModuleKind;
+  /**
+   * Este modulo aceita campos personalizados por site?
+   *
+   * Declarado aqui, e nao numa lista paralela, para a resposta ficar junto do
+   * modulo. A regra que decide: so e `true` onde o formulario do painel
+   * **renderiza** os campos. Permitir definir um campo que nenhuma tela mostra
+   * recriaria o furo da etapa B -- o cliente editaria no vazio, ou pior, a
+   * CODECA IA configuraria algo que nunca aparece.
+   */
+  customFields?: boolean;
   /** Tabela que guarda os registros. Somente para `collection`. */
   table?: string;
   fields: readonly ModuleField[];

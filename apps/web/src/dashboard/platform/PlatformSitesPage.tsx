@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Copy, KeyRound, Plus, RotateCw, Save, Trash2 } from 'lucide-react';
-import { DELIVERY_STATE_LABELS, MODULE_REGISTRY, formatDateTime } from '@codeca/shared';
+import {
+  CUSTOM_FIELD_TYPES,
+  CUSTOM_FIELD_TYPE_LABELS,
+  DELIVERY_STATE_LABELS,
+  MODULE_REGISTRY,
+  formatDateTime,
+  type ModuleKey,
+} from '@codeca/shared';
 import {
   Alert,
   Badge,
@@ -24,6 +31,7 @@ import { useResource, useMutation } from '../../hooks/useResource.js';
 import { platformApi, platformSiteApi } from '../../services/endpoints.js';
 import { ResourcePanel } from '../../components/ResourcePanel.js';
 import type {
+  CustomFieldRow,
   IssuedKey,
   SiteApiKeyRow,
   SiteModuleView,
@@ -48,6 +56,7 @@ const STATUS_LABELS: Record<SiteStatus, string> = {
 
 const ABAS = [
   { id: 'identidade', label: 'Identidade' },
+  { id: 'campos', label: 'Campos do projeto' },
   { id: 'modulos', label: 'Modulos e campos' },
   { id: 'origens', label: 'Origens' },
   { id: 'chaves', label: 'Chaves' },
@@ -143,6 +152,9 @@ function ConfiguracaoDoSite({ siteId, onClose }: { siteId: string; onClose: () =
             <>
               {aba === 'identidade' ? (
                 <AbaIdentidade siteId={siteId} site={data.site} onSaved={() => void detalhe.reload()} />
+              ) : null}
+              {aba === 'campos' ? (
+                <AbaCampos siteId={siteId} modules={data.modules} onSaved={() => void detalhe.reload()} />
               ) : null}
               {aba === 'modulos' ? (
                 <AbaModulos siteId={siteId} modules={data.modules} onSaved={() => void detalhe.reload()} />
@@ -947,5 +959,252 @@ function SegredoEmitido({
         </div>
       ) : null}
     </Modal>
+  );
+}
+
+// ------------------------------------------------------- campos do projeto
+
+/**
+ * Campos personalizados por modulo.
+ *
+ * O caso que motivou isto: um cliente tem "CRECI", outro tem "Registro
+ * profissional", e nenhum dos dois precisa da estrutura do outro.
+ *
+ * So aparecem aqui os modulos que o registro marca como aceitando campo
+ * personalizado -- ou seja, aqueles cujo formulario do painel do cliente
+ * **renderiza** os campos. Permitir definir um campo que nenhuma tela mostra
+ * faria a CODECA IA configurar algo que nunca aparece.
+ */
+function AbaCampos({
+  siteId,
+  modules,
+  onSaved,
+}: {
+  siteId: string;
+  modules: SiteModuleView[];
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const lista = useResource(() => platformSiteApi.customFields(siteId), [siteId]);
+
+  const aceitam = modules.filter((modulo) => MODULE_REGISTRY[modulo.key].customFields === true);
+  const [moduloAtivo, setModuloAtivo] = useState<ModuleKey>(aceitam[0]?.key ?? 'imoveis');
+  const [campos, setCampos] = useState<CustomFieldRow[] | null>(null);
+
+  const doModulo = useMemo(
+    () =>
+      campos ??
+      (lista.data?.items ?? []).filter((campo) => campo.moduleKey === moduloAtivo),
+    [campos, lista.data, moduloAtivo],
+  );
+
+  const salvar = useMutation(
+    () =>
+      platformSiteApi.saveCustomFields(
+        siteId,
+        moduloAtivo,
+        doModulo.map((campo) => ({
+          fieldKey: campo.fieldKey,
+          label: campo.label,
+          type: campo.type,
+          required: campo.required,
+          help: campo.help,
+          options: campo.options,
+          editable: campo.editable,
+          sortOrder: campo.sortOrder,
+        })),
+      ),
+    {
+      onSuccess: () => {
+        toast.success('Campos salvos');
+        setCampos(null);
+        lista.reload();
+        onSaved();
+      },
+      onError: (error) => toast.error('Nao foi possivel salvar', error.message),
+    },
+  );
+
+  function trocarModulo(key: ModuleKey) {
+    setCampos(null);
+    setModuloAtivo(key);
+  }
+
+  function atualizar(indice: number, patch: Partial<CustomFieldRow>) {
+    setCampos(doModulo.map((campo, i) => (i === indice ? { ...campo, ...patch } : campo)));
+  }
+
+  if (aceitam.length === 0) {
+    return (
+      <Alert tone="info" title="Nenhum modulo deste site aceita campo personalizado">
+        O recurso vale para institucional, contato, imoveis, obras, servicos, produtos, equipe e
+        depoimentos.
+      </Alert>
+    );
+  }
+
+  return (
+    <div className="grid gap-4">
+      <Alert tone="info" title="Campos que so existem neste site">
+        O cliente preenche no painel e o site le em <code>customFields</code>. A chave e o que o
+        projeto usa em codigo -- escolha-a com cuidado, porque muda-la depois nao traz os valores
+        ja gravados.
+      </Alert>
+
+      <Select
+        label="Modulo"
+        value={moduloAtivo}
+        onChange={(event) => trocarModulo(event.target.value as ModuleKey)}
+        options={aceitam.map((modulo) => ({ value: modulo.key, label: modulo.name }))}
+        hint="Somente modulos cujo formulario do cliente mostra os campos."
+      />
+
+      <ResourcePanel resource={lista}>
+        {() => (
+          <div className="grid gap-3">
+            {doModulo.length === 0 ? (
+              <p className="text-sm text-slate-600">
+                Nenhum campo neste modulo. Acrescente abaixo.
+              </p>
+            ) : (
+              doModulo.map((campo, indice) => (
+                <div key={indice} className="grid gap-3 rounded-lg border border-slate-200 p-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <TextInput
+                      label="Chave"
+                      value={campo.fieldKey}
+                      hint="Como o site le: customFields.creci"
+                      onChange={(event) =>
+                        atualizar(indice, {
+                          fieldKey: event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''),
+                        })
+                      }
+                    />
+                    <TextInput
+                      label="Rotulo"
+                      value={campo.label}
+                      hint="Como aparece para o cliente."
+                      onChange={(event) => atualizar(indice, { label: event.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Select
+                      label="Tipo"
+                      value={campo.type}
+                      onChange={(event) => atualizar(indice, { type: event.target.value })}
+                      options={CUSTOM_FIELD_TYPES.map((tipo) => ({
+                        value: tipo,
+                        label: CUSTOM_FIELD_TYPE_LABELS[tipo],
+                      }))}
+                    />
+                    <TextInput
+                      label="Ordem"
+                      inputMode="numeric"
+                      value={String(campo.sortOrder)}
+                      onChange={(event) =>
+                        atualizar(indice, { sortOrder: Number(event.target.value) || 0 })
+                      }
+                    />
+                  </div>
+                  {campo.type === 'select' ? (
+                    <TextInput
+                      label="Opcoes"
+                      value={campo.options.join(', ')}
+                      hint="Separe por virgula. Pelo menos duas."
+                      onChange={(event) =>
+                        atualizar(indice, {
+                          options: event.target.value
+                            .split(',')
+                            .map((item) => item.trim())
+                            .filter(Boolean),
+                        })
+                      }
+                    />
+                  ) : null}
+                  <TextInput
+                    label="Ajuda"
+                    value={campo.help}
+                    hint="Texto curto abaixo do campo, no painel do cliente."
+                    onChange={(event) => atualizar(indice, { help: event.target.value })}
+                  />
+                  <div className="flex flex-wrap items-center gap-4">
+                    {/*
+                      Obrigatorio e travado juntos impediriam todo cadastro: o
+                      cliente nao pode preencher (403) nem omitir. A API recusa
+                      a combinacao, e aqui ela nem fica marcavel -- um controle
+                      que garante erro nao deve existir na tela.
+                    */}
+                    <Switch
+                      label="Obrigatorio"
+                      {...(campo.editable
+                        ? {}
+                        : { hint: 'Indisponivel: o cliente nao edita este campo.' })}
+                      checked={campo.required && campo.editable}
+                      disabled={!campo.editable}
+                      onChange={(marcado) => atualizar(indice, { required: marcado })}
+                    />
+                    <Switch
+                      label="O cliente pode editar"
+                      hint="Desmarque para a CODECA IA preencher e o cliente so consultar."
+                      checked={campo.editable}
+                      onChange={(marcado) =>
+                        atualizar(
+                          indice,
+                          // Travar desmarca o obrigatorio, em vez de guardar um
+                          // estado que o salvar recusaria.
+                          marcado ? { editable: true } : { editable: false, required: false },
+                        )
+                      }
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCampos(doModulo.filter((_, i) => i !== indice))}
+                    >
+                      <Trash2 aria-hidden="true" className="size-4" />
+                      <span className="sr-only">Remover campo</span>
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                icon={<Plus aria-hidden="true" className="size-4" />}
+                onClick={() =>
+                  setCampos([
+                    ...doModulo,
+                    {
+                      moduleKey: moduloAtivo,
+                      fieldKey: '',
+                      label: '',
+                      type: 'text',
+                      required: false,
+                      help: '',
+                      options: [],
+                      editable: true,
+                      sortOrder: doModulo.length,
+                    },
+                  ])
+                }
+              >
+                Acrescentar campo
+              </Button>
+              <Button onClick={() => void salvar.run(undefined)} disabled={salvar.loading}>
+                <Save aria-hidden="true" className="size-4" />
+                Salvar campos
+              </Button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Remover um campo aqui tira ele do painel e da API publica, mas <strong>nao apaga</strong> o
+              que o cliente ja escreveu: redefinir com a mesma chave traz os valores de volta.
+            </p>
+          </div>
+        )}
+      </ResourcePanel>
+    </div>
   );
 }

@@ -1,15 +1,18 @@
-import { and, desc, eq, inArray, provisionSiteModules, schema, type Database } from '@codeca/database';
+import { and, asc, desc, eq, inArray, provisionSiteModules, schema, type Database } from '@codeca/database';
 import {
   API_KEY_KINDS,
   API_KEY_SCOPES,
   AppError,
+  MAX_CUSTOM_FIELDS_PER_MODULE,
   MODULE_KEYS,
   MODULE_REGISTRY,
   SITE_STATUSES,
+  customFieldDefinitionSchema,
   isModuleKey,
   maskApiKey,
   normalizeOrigin,
   uuidSchema,
+  type ModuleKey,
 } from '@codeca/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -18,7 +21,7 @@ import { auditFromContext } from '../lib/audit-context.js';
 import { created, noContent, ok, parseJsonBody, parseParams } from '../lib/http.js';
 import { issueApiKey, revokeApiKeyById, rotateApiKey } from '../lib/integration/keys.js';
 import { generateWebhookSecret } from '@codeca/shared/server';
-import { loadSiteModules } from '../lib/modules.js';
+import { customFieldsOf, loadSiteModules } from '../lib/modules.js';
 import { listDeliveries } from '../lib/integration/outbound.js';
 import { requireAuth, requirePlatform, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
@@ -310,11 +313,31 @@ export function platformSiteRoutes() {
     const site = await loadSite(ctx.db, siteId);
     const input = await parseJsonBody(c, configureModulesSchema);
 
+    /**
+     * O padrao de cada campo, para saber o que e excecao.
+     *
+     * Precisa considerar os campos personalizados do site: eles entram na
+     * mesma lista que a tela desenha, entao a tela os reenvia junto com os do
+     * registro. Recusa-los faria esta rota falhar em todo site que tivesse um
+     * campo personalizado -- e ela e a rota que liga e desliga modulos.
+     *
+     * O padrao de um campo personalizado e o `editable` da definicao dele;
+     * uma excecao gravada aqui prevalece, como ja acontece com o registro.
+     */
+    const estadoAtual = await loadSiteModules(ctx.db, siteId);
+    const padraoDoCampo = (moduleKey: ModuleKey, fieldKey: string): boolean | undefined => {
+      const doRegistro = MODULE_REGISTRY[moduleKey].fields.find((f) => f.key === fieldKey);
+      if (doRegistro) return doRegistro.editableByDefault;
+      const personalizado = customFieldsOf(estadoAtual, moduleKey).find(
+        (campo) => campo.fieldKey === fieldKey,
+      );
+      return personalizado?.editable;
+    };
+
     for (const politica of input.fieldPolicies) {
-      const definicao = MODULE_REGISTRY[politica.moduleKey];
-      if (!definicao.fields.some((f) => f.key === politica.fieldKey)) {
+      if (padraoDoCampo(politica.moduleKey, politica.fieldKey) === undefined) {
         throw AppError.badRequest(
-          `O campo ${politica.fieldKey} nao existe no modulo ${definicao.name}.`,
+          `O campo ${politica.fieldKey} nao existe no modulo ${MODULE_REGISTRY[politica.moduleKey].name}.`,
         );
       }
     }
@@ -341,10 +364,8 @@ export function platformSiteRoutes() {
       // So gravamos o que difere do padrao do registro: repetir o padrao
       // congelaria os campos de hoje e esconderia os que vierem depois.
       const excecoes = input.fieldPolicies.filter((politica) => {
-        const campo = MODULE_REGISTRY[politica.moduleKey].fields.find(
-          (f) => f.key === politica.fieldKey,
-        );
-        return campo !== undefined && campo.editableByDefault !== politica.editable;
+        const padrao = padraoDoCampo(politica.moduleKey, politica.fieldKey);
+        return padrao !== undefined && padrao !== politica.editable;
       });
 
       if (excecoes.length > 0) {
@@ -372,11 +393,161 @@ export function platformSiteRoutes() {
       },
     });
 
-    const state = await loadSiteModules(ctx.db, siteId);
-    return ok(c, { modules: state.modules });
+    const depois = await loadSiteModules(ctx.db, siteId);
+    return ok(c, { modules: depois.modules });
   });
 
   // ------------------------------------------------- credenciais do site
+
+  // ------------------------------------------------- campos personalizados
+
+  /**
+   * Campos que a CODECA IA definiu para este site.
+   *
+   * Substitui o conjunto **de um modulo**, nao de todos: a tela do painel
+   * mestre edita um modulo por vez, e um corpo que trouxesse todos os modulos
+   * faria duas edicoes simultaneas apagarem uma a outra.
+   */
+  app.get('/sites/:siteId/custom-fields', requirePlatform('platform:tenants:read'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId } = parseParams(c, siteParamSchema);
+    await loadSite(ctx.db, siteId);
+
+    const linhas = await ctx.db
+      .select()
+      .from(schema.siteCustomFields)
+      .where(eq(schema.siteCustomFields.siteId, siteId))
+      .orderBy(asc(schema.siteCustomFields.moduleKey), asc(schema.siteCustomFields.sortOrder));
+
+    return ok(c, {
+      items: linhas.map((linha) => ({
+        moduleKey: linha.moduleKey,
+        fieldKey: linha.fieldKey,
+        label: linha.label,
+        type: linha.type,
+        required: linha.required,
+        help: linha.help,
+        options: linha.options ?? [],
+        editable: linha.editable,
+        sortOrder: linha.sortOrder,
+      })),
+    });
+  });
+
+  app.put(
+    '/sites/:siteId/custom-fields/:moduleKey',
+    requirePlatform('platform:tenants:write'),
+    async (c) => {
+      const ctx = c.get('ctx');
+      const { siteId, moduleKey } = parseParams(
+        c,
+        z.object({ siteId: uuidSchema, moduleKey: z.string().trim().min(1) }),
+      );
+      const site = await loadSite(ctx.db, siteId);
+
+      if (!isModuleKey(moduleKey)) throw AppError.notFound('Modulo nao encontrado.');
+      const definicaoModulo = MODULE_REGISTRY[moduleKey];
+
+      /**
+       * Modulo que nao aceita campo personalizado e recusado aqui, no servidor.
+       *
+       * A tela do painel mestre so oferece os modulos que declaram
+       * `customFields`, mas esconder nao e proteger: sem esta conferencia,
+       * uma chamada direta definiria campo em `faq` ou `galerias` -- e o campo
+       * ficaria gravado sem nenhum formulario que o mostrasse, porque esses
+       * modulos nao passam os valores pelo caminho dos personalizados.
+       */
+      if (definicaoModulo.customFields !== true) {
+        throw AppError.badRequest(
+          `O modulo ${definicaoModulo.name} nao aceita campos personalizados.`,
+        );
+      }
+
+      const input = await parseJsonBody(
+        c,
+        z.object({
+          fields: z.array(customFieldDefinitionSchema).max(MAX_CUSTOM_FIELDS_PER_MODULE),
+        }),
+      );
+
+      /**
+       * Chave que ja existe no registro e recusada.
+       *
+       * Sem isto o formulario mostraria dois campos chamados "Titulo", um
+       * gravando na coluna e outro no JSONB -- e o cliente nao teria como
+       * saber qual dos dois o site le.
+       */
+      const doRegistro = new Set(definicaoModulo.fields.map((campo) => campo.key));
+      for (const campo of input.fields) {
+        if (doRegistro.has(campo.fieldKey)) {
+          throw AppError.conflict(
+            `O modulo ${definicaoModulo.name} ja tem um campo \`${campo.fieldKey}\`. `
+              + 'Escolha outra chave para o campo personalizado.',
+          );
+        }
+      }
+
+      const repetidas = input.fields
+        .map((campo) => campo.fieldKey)
+        .filter((chave, indice, lista) => lista.indexOf(chave) !== indice);
+      if (repetidas.length > 0) {
+        throw AppError.badRequest(`Chave repetida: ${[...new Set(repetidas)].join(', ')}.`);
+      }
+
+      await ctx.db.transaction(async (tx) => {
+        /**
+         * Apaga e reinsere as **definicoes**, nunca os valores.
+         *
+         * Um campo removido aqui deixa de aparecer no painel e na API publica,
+         * mas o que o cliente ja escreveu continua no JSONB do registro. Nao e
+         * descuido: nenhum caminho desta plataforma apaga conteudo de cliente,
+         * e redefinir o campo com a mesma chave traz os valores de volta.
+         */
+        await tx
+          .delete(schema.siteCustomFields)
+          .where(
+            and(
+              eq(schema.siteCustomFields.siteId, siteId),
+              eq(schema.siteCustomFields.moduleKey, moduleKey),
+            ),
+          );
+
+        if (input.fields.length > 0) {
+          await tx.insert(schema.siteCustomFields).values(
+            input.fields.map((campo, indice) => ({
+              tenantId: site.tenantId,
+              siteId,
+              moduleKey,
+              fieldKey: campo.fieldKey,
+              label: campo.label,
+              type: campo.type,
+              required: campo.required,
+              help: campo.help,
+              options: campo.options,
+              editable: campo.editable,
+              sortOrder: campo.sortOrder || indice,
+            })),
+          );
+        }
+      });
+
+      await auditFromContext(c, {
+        action: AUDIT_ACTIONS.siteCustomFieldsConfigured,
+        entityType: 'site_custom_fields',
+        entityId: siteId,
+        tenantId: site.tenantId,
+        metadata: {
+          moduleKey,
+          fields: input.fields.map((campo) => campo.fieldKey),
+          // A trilha diz explicitamente que valor nenhum foi tocado.
+          valuesDeleted: false,
+        },
+      });
+
+      const estado = await loadSiteModules(ctx.db, siteId);
+      return ok(c, { modules: estado.modules });
+    },
+  );
 
   app.get('/sites/:siteId/keys', requirePlatform('platform:tenants:read'), async (c) => {
     const ctx = c.get('ctx');
