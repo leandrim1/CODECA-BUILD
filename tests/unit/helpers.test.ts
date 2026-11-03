@@ -5,6 +5,8 @@ import {
   canAssignRole,
   checkLimit,
   dnsInstructions,
+  formatCurrency,
+  formatPlanPrice,
   formatPublicAddress,
   formatWhatsAppNumber,
   isApexDomain,
@@ -172,5 +174,35 @@ describe('endereco publico', () => {
     expect(result).not.toContain('Acacias');
     expect(result).toContain('Centro');
     expect(formatPublicAddress({ ...address, showFullAddress: true })).toContain('Acacias');
+  });
+});
+
+/**
+ * Preco de plano sempre com duas casas.
+ *
+ * A tela de planos mostrava "R$ 15,9/mes" -- `toLocaleString` corta o zero a
+ * direita, e em real isso parece outro valor justamente na tela onde o cliente
+ * decide quanto vai pagar.
+ */
+describe('formatPlanPrice', () => {
+  /**
+   * O `Intl` separa "R$" do numero com espaco nao separavel (U+00A0), e nao
+   * com espaco comum -- de proposito, para a moeda nunca sobrar sozinha no fim
+   * da linha. Normalizar aqui mantem a assercao legivel sem esconder o que a
+   * funcao devolve.
+   */
+  const texto = (valor: string) => valor.replace(/\u00a0/g, ' ');
+
+  it('mantem as duas casas mesmo quando a segunda e zero', () => {
+    expect(texto(formatPlanPrice(1590))).toBe('R$ 15,90');
+    expect(texto(formatPlanPrice(5990))).toBe('R$ 59,90');
+    expect(texto(formatPlanPrice(11990))).toBe('R$ 119,90');
+  });
+
+  it('nao arredonda centavo, ao contrario de formatCurrency', () => {
+    // `formatCurrency` arredonda de proposito: ela formata preco de imovel,
+    // onde centavo e ruido. As duas regras sao opostas por desenho.
+    expect(texto(formatPlanPrice(1599))).toBe('R$ 15,99');
+    expect(texto(formatCurrency(15.99))).toBe('R$ 16');
   });
 });

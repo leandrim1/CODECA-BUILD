@@ -9,6 +9,26 @@ export function formatCurrency(value: number | null | undefined, currency = 'BRL
   }
 }
 
+/**
+ * Preco de plano, a partir de centavos inteiros.
+ *
+ * **Sempre duas casas**: "R$ 15,90", nunca "R$ 15,9". Em real, preco com uma
+ * casa decimal nao e so feio -- parece outro valor. E esta e exatamente a tela
+ * em que o cliente decide quanto vai pagar por mes.
+ *
+ * Separado de `formatCurrency` de proposito: aquela arredonda para inteiro,
+ * porque formata preco de imovel (R$ 780.000), onde centavo e ruido. As duas
+ * regras sao opostas e nao cabem na mesma funcao.
+ */
+export function formatPlanPrice(priceCents: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(priceCents / 100);
+}
+
 export function formatNumber(value: number | null | undefined): string {
   if (value === null || value === undefined) return '';
   return new Intl.NumberFormat('pt-BR').format(value);

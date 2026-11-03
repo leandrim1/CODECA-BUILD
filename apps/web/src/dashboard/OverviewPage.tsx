@@ -200,7 +200,16 @@ export function OverviewPage() {
                 </section>
               ) : null}
 
-              <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+              {/*
+                `items-start` impede o cartao da direita de esticar.
+
+                Numa grade, a celula ocupa a altura da linha por padrao, entao
+                "Plano e limites" -- que e curto -- era alongado ate a altura da
+                coluna da esquerda e terminava com um palmo de branco dentro da
+                borda. Alinhar ao topo faz cada cartao ter a altura do proprio
+                conteudo.
+              */}
+              <div className="grid items-start gap-6 lg:grid-cols-[1.5fr_1fr]">
                 <div className="grid gap-6">
                   <Card>
                     <CardHeader title="Situacao do site" description={data.site.name} />

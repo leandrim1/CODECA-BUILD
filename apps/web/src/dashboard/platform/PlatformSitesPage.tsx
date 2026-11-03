@@ -109,7 +109,10 @@ export function PlatformSitesPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    // `panel-shell` da a largura maxima e o respiro lateral que as outras oito
+    // telas da plataforma ja tinham. Sem ele, titulo e tabela encostavam na
+    // borda esquerda da janela.
+    <div className="panel-shell space-y-6">
       <PageHeader
         title="Sites"
         description="Projetos integrados a plataforma. Configure modulos, campos editaveis, origens e credenciais."

@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react';
-import { DEFAULT_PLANS, PLAN_FEATURE_LABELS, formatBytes } from '@codeca/shared';
+import { DEFAULT_PLANS, PLAN_FEATURE_LABELS, formatBytes, formatPlanPrice } from '@codeca/shared';
 import { Badge, Button, Card, CardBody } from '@codeca/ui';
 import { useAuth } from '../hooks/useAuth.js';
 
@@ -163,7 +163,7 @@ export function LandingPage() {
                         'Gratuito'
                       ) : (
                         <>
-                          R$ {(plan.priceCents / 100).toLocaleString('pt-BR')}
+                          {formatPlanPrice(plan.priceCents)}
                           <span className="text-sm font-normal text-slate-500">/mes</span>
                         </>
                       )}

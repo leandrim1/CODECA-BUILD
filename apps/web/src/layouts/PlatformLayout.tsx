@@ -29,7 +29,10 @@ const ITEMS = [
 
 export function PlatformLayout() {
   return (
-    <div className="min-h-dvh bg-slate-900">
+    // `flex-col` + `flex-1` no `main`: sem isso o `main` so cresce ate o
+    // conteudo, e numa tela curta o fundo escuro do cabecalho reaparecia
+    // embaixo, como se a pagina tivesse duas metades.
+    <div className="flex min-h-dvh flex-col bg-slate-900">
       {/*
         O painel mestre usa fundo escuro de proposito, para a CODECA IA nunca
         confundir em qual dos dois paineis esta. O escuro e neutro de apoio --
@@ -74,7 +77,7 @@ export function PlatformLayout() {
         </nav>
       </header>
 
-      <main className="bg-slate-50">
+      <main className="flex-1 bg-slate-50">
         <Suspense
           fallback={
             <div className="panel-shell">

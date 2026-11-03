@@ -9,6 +9,7 @@ import {
   PUBLIC_SITE_ON_SUSPENSION,
   PUBLIC_SITE_ON_SUSPENSION_LABELS,
   formatBytes,
+  formatPlanPrice,
   type PanelOnSuspension,
   type PublicSiteOnSuspension,
 } from '@codeca/shared';
@@ -78,7 +79,7 @@ export function PlatformPlansPage() {
                 />
                 <CardBody className="grid gap-3">
                   <p className="text-2xl font-semibold text-slate-900">
-                    {plan.priceCents === 0 ? 'Gratuito' : `R$ ${(plan.priceCents / 100).toLocaleString('pt-BR')}`}
+                    {plan.priceCents === 0 ? 'Gratuito' : formatPlanPrice(plan.priceCents)}
                     {plan.priceCents > 0 ? <span className="text-sm font-normal text-slate-500">/mes</span> : null}
                   </p>
                   <ul className="grid gap-1 text-sm text-slate-600">
