@@ -156,6 +156,42 @@ Tres limites deliberados:
 Os planos nunca sao sobrescritos: a criacao so acontece com a tabela vazia.
 Preco e limites ajustados no painel mestre sobrevivem a qualquer deploy.
 
+### A terceira regra ja custou caro, e tem um limite
+
+Em novembro de 2026 a plataforma ficou **dias sem publicar nada**. A causa foi
+a migracao 0007, que derruba as tabelas do editor antigo e interrompia quando
+elas ainda tinham conteudo. O banco de producao tinha. A migracao abortava,
+`db:deploy` saia com erro, o build morria -- e, como o build e o deploy, nenhum
+commit novo chegava ao ar. O sintoma que aparecia era o painel em branco, que
+nao se parece nem um pouco com a causa; o unico sinal fiel era um X vermelho ao
+lado de cada commit no GitHub.
+
+A licao nao e abandonar a regra: ela esta certa quando o **codigo que vai subir
+depende do schema**. A licao e que ela nao vale para migracao de limpeza. A
+0007 nao tinha nada dependendo dela -- as tabelas nao estao no schema Drizzle e
+nenhuma rota as le -- entao derrubar o build por causa delas protegia zero e
+bloqueava tudo.
+
+Hoje a 0007 **avisa e mantem** as tabelas, e a 0014 conclui a limpeza quando o
+conteudo tiver sido retirado. Nos dois casos o dado continua intocado; o que
+mudou e quem espera: antes, a plataforma inteira; agora, so a faxina.
+
+Ao escrever uma migracao nova, a pergunta e essa: *alguma coisa que vai subir
+depende disto?* Se sim, falhar e certo. Se e so arrumacao, avise e siga.
+
+### Quando um deploy falha, o sinal esta no commit
+
+A lista de commits do GitHub mostra o resultado do deploy de cada um. Um X
+vermelho com `0 / 1` e a implantacao da Vercel falhando, e o estado completo
+sai por:
+
+```bash
+gh api repos/<owner>/<repo>/commits/<sha>/status --jq '.state, .statuses[].description'
+```
+
+A descricao traz o comando `npx vercel inspect <id> --logs`, que abre o log do
+build e nomeia o passo que quebrou.
+
 ### Nao promova um Preview a producao
 
 A primeira regra tem uma consequencia que nao e obvia no painel da Vercel: uma
@@ -441,6 +477,7 @@ houver precos ajustados no painel mestre que voce queira preservar.
 | `/api/health` responde 503 `misconfigured` | `DATABASE_URL` ausente ou `AUTH_SECRET` com menos de 32 caracteres |
 | "Nenhum plano inicial configurado" | `pnpm db:seed` nunca rodou no banco de producao |
 | `relation "users" does not exist` nos logs | `pnpm db:migrate` nunca rodou no banco de producao |
+| Painel em branco e **commits com X vermelho no GitHub** | O deploy esta falhando: producao segue servindo uma implantacao antiga. Veja "Quando um deploy falha", secao 5 |
 | Painel abre em branco, com "Carregando o painel..." parado | O bundle nao chegou ao navegador. Quase sempre `index.html` antigo em cache: `Ctrl+F5` confirma. Veja tambem se o ultimo build terminou |
 | Painel abre com "O painel encontrou um erro" | Erro de renderizacao. A mensagem na tela e a do erro; o rastro completo esta no console do navegador |
 | Painel responde 404 | O dominio do painel nao esta na reescrita por host |

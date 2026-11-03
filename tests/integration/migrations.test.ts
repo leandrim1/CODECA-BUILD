@@ -50,6 +50,7 @@ async function aplicar(db: Database, arquivos: Array<{ name: string; statements:
 }
 const DESTRUTIVA = '0007_remove_tabelas_do_renderizador.sql';
 const MODULOS_NOVOS = '0010_depoimentos_equipe_faq.sql';
+const LIMPEZA = '0014_limpeza_do_renderizador.sql';
 const REMOVIDAS = ['pages', 'page_versions', 'navigation_menus', 'redirects', 'site_settings'];
 
 /**
@@ -59,12 +60,21 @@ const REMOVIDAS = ['pages', 'page_versions', 'navigation_menus', 'redirects', 's
  * existia: aplicar tudo e so entao criar o dado mostraria o estado final, nao
  * a transicao.
  */
-async function bancoAntesDe(alvo: string) {
+async function bancoAntesDe(alvo: string, tambemAdiadas: readonly string[] = []) {
   const client = new PGlite();
   const db = drizzle(client, { schema, casing: 'snake_case' }) as unknown as Database;
   const todas = await readMigrations(MIGRATIONS_DIR);
 
-  for (const migracao of todas.filter((m) => m.name !== alvo)) {
+  /**
+   * `tambemAdiadas` existe por causa do par 0007/0014.
+   *
+   * As duas mexem nas mesmas tabelas: a 0014 conclui o que a 0007 adiou. Se o
+   * banco de partida ja tivesse rodado a 0014, as tabelas estariam derrubadas
+   * antes de a 0007 ser testada, e o teste observaria um banco que nao existe
+   * na pratica -- um em que a limpeza aconteceu duas vezes.
+   */
+  const adiadas = new Set([alvo, ...tambemAdiadas]);
+  for (const migracao of todas.filter((m) => !adiadas.has(m.name))) {
     for (const instrucao of migracao.statements) {
       await db.execute(sql.raw(instrucao));
     }
@@ -92,10 +102,35 @@ async function bancoAntesDe(alvo: string) {
   };
 }
 
-/** Banco com todas as migracoes **menos** a destrutiva. */
+/** Banco com todas as migracoes **menos** a destrutiva e a limpeza. */
 async function bancoAntesDaRemocao() {
-  const banco = await bancoAntesDe(DESTRUTIVA);
+  const banco = await bancoAntesDe(DESTRUTIVA, [LIMPEZA]);
   return { ...banco, aplicarDestrutiva: banco.aplicar };
+}
+
+/**
+ * Banco no estado que a 0014 existe para resolver.
+ *
+ * A 0007 ja rodou e **avisou** -- tabelas de pe, com conteudo -- e e sobre
+ * esse banco que a 0014 precisa ser segura.
+ */
+async function bancoDepoisDoAviso() {
+  const banco = await bancoAntesDe(LIMPEZA, [DESTRUTIVA]);
+  const todas = await readMigrations(MIGRATIONS_DIR);
+  const zeroSete = todas.find((m) => m.name === DESTRUTIVA)!;
+
+  await banco.db.execute(
+    sql.raw(`ALTER TABLE "navigation_menus"
+             DROP CONSTRAINT "navigation_menus_tenant_id_tenants_id_fk"`),
+  );
+  await banco.db.execute(
+    sql.raw(`INSERT INTO "navigation_menus" ("tenant_id", "key", "label")
+             VALUES (gen_random_uuid(), 'principal', 'Menu do editor antigo')`),
+  );
+  for (const instrucao of zeroSete.statements) {
+    await banco.db.execute(sql.raw(instrucao));
+  }
+  return banco;
 }
 
 async function tabelas(db: Database): Promise<string[]> {
@@ -124,7 +159,18 @@ describe('remocao das tabelas do renderizador', () => {
     }
   });
 
-  it('interrompe e nao apaga nada quando ainda existe conteudo antigo', async () => {
+  /**
+   * O conteudo antigo segura a limpeza -- e **nao** segura o deploy.
+   *
+   * Ate 03/11/2026 a migracao interrompia aqui, e o efeito foi pior do que o
+   * problema que evitava: `prepare-db` roda dentro do build, entao a migracao
+   * barrada derrubou o deploy inteiro por dias. Nada no ar le estas tabelas,
+   * entao falhar o build por causa delas protegia zero e bloqueava tudo.
+   *
+   * O que o teste exige continua sendo o essencial -- **nada apagado** -- mais
+   * a parte nova: a migracao termina, e as seguintes podem rodar.
+   */
+  it('mantem tudo e deixa o deploy seguir quando ainda existe conteudo antigo', async () => {
     const banco = await bancoAntesDaRemocao();
     try {
       // A chave estrangeira sai porque o teste e sobre a guarda, nao sobre
@@ -139,21 +185,39 @@ describe('remocao das tabelas do renderizador', () => {
                  VALUES (gen_random_uuid(), 'principal', 'Menu do editor antigo')`),
       );
 
-      // A mensagem do Postgres fica em `cause`: o Drizzle embrulha tudo em
-      // `Failed query: <o SQL>`. E por isso que a CLI de migracao desce a
-      // cadeia antes de imprimir.
-      const erro = await banco.aplicarDestrutiva().then(
-        () => null,
-        (motivo: unknown) => motivo,
-      );
-      expect(erro, 'a guarda deveria ter interrompido a migracao').not.toBeNull();
-      expect(formatDatabaseFailure(erro)).toMatch(/navigation_menus \(1 linha\(s\)\)/);
-      expect(formatDatabaseFailure(erro)).toMatch(/TRUNCATE/);
+      // Nao lanca: o deploy nao pode parar por causa de tabela que ninguem le.
+      await expect(banco.aplicarDestrutiva()).resolves.toBeUndefined();
 
-      // O essencial: falhou **antes** de apagar. Se a guarda tivesse ficado
-      // depois de um DROP, este teste encontraria tabelas faltando.
+      // O essencial, inalterado: nenhuma tabela derrubada, nenhuma linha
+      // perdida. A guarda vem antes de qualquer `DROP`.
       const depois = await tabelas(banco.db);
       expect(depois).toEqual(expect.arrayContaining(REMOVIDAS));
+
+      const linhas = await banco.db.execute(
+        sql.raw(`SELECT count(*)::int AS total FROM "navigation_menus"`),
+      );
+      expect(resultRows<{ total: number }>(linhas)[0]!.total).toBe(1);
+    } finally {
+      await banco.close();
+    }
+  });
+
+  /**
+   * A 0014 conclui o que a 0007 adiou -- e so quando for seguro.
+   *
+   * Migracao aplicada nao roda de novo, entao num banco onde a 0007 avisou as
+   * tabelas ficariam para sempre sem um segundo ato. A 0014 e esse ato, e
+   * repete a mesma regra: tabela com linha dentro nao e tocada.
+   */
+  it('a 0014 nao apaga tabela que ainda tem conteudo', async () => {
+    const banco = await bancoDepoisDoAviso();
+    try {
+      await expect(banco.aplicar()).resolves.toBeUndefined();
+
+      // A que tinha conteudo fica; as vazias saem.
+      const depois = await tabelas(banco.db);
+      expect(depois).toContain('navigation_menus');
+      expect(depois).not.toContain('pages');
 
       const linhas = await banco.db.execute(
         sql.raw(`SELECT count(*)::int AS total FROM "navigation_menus"`),
