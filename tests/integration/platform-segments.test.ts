@@ -86,21 +86,39 @@ async function modulosDoSite(siteId: string): Promise<string[]> {
 }
 
 describe('catalogo de segmentos', () => {
-  it('lista os tres da instalacao com a contagem de sites', async () => {
+  it('lista os da instalacao com a contagem de sites', async () => {
     const response = await listar();
     expect(response.status, response.errorMessage ?? '').toBe(200);
 
     const items = response.body.items as Array<{ code: string; siteCount: number; isDefault: boolean }>;
-    expect(items.map((s) => s.code).sort()).toEqual(['construtora', 'corretor', 'imobiliaria']);
+    // Ramos distintos, e nao so o imobiliario de onde a plataforma nasceu.
+    expect(items.map((s) => s.code).sort()).toEqual([
+      'clinica',
+      'construtora',
+      'corretor',
+      'escola',
+      'imobiliaria',
+      'institucional',
+      'prestador',
+      'restaurante',
+      'varejo',
+    ]);
 
-    // Duas empresas cadastradas no beforeEach, as duas construtoras.
-    expect(items.find((s) => s.code === 'construtora')!.siteCount).toBe(2);
+    // Duas empresas cadastradas no beforeEach, as duas no segmento padrao.
+    expect(items.find((s) => s.code === 'institucional')!.siteCount).toBe(2);
     expect(items.find((s) => s.code === 'corretor')!.siteCount).toBe(0);
   });
 
-  it('exatamente um segmento e o padrao de empresas novas', async () => {
+  /**
+   * O padrao e o segmento **neutro**, nao um de ramo.
+   *
+   * Era `construtora`, e isso tinha efeito pratico: um restaurante que se
+   * cadastrasse abria o painel com Imoveis e Obras ligados. O institucional
+   * nao liga modulo de ramo nenhum.
+   */
+  it('exatamente um segmento e o padrao, e ele e neutro', async () => {
     const items = (await listar()).body.items as Array<{ code: string; isDefault: boolean }>;
-    expect(items.filter((s) => s.isDefault).map((s) => s.code)).toEqual(['construtora']);
+    expect(items.filter((s) => s.isDefault).map((s) => s.code)).toEqual(['institucional']);
   });
 
   it('um administrador de empresa nao alcanca o catalogo', async () => {
@@ -171,14 +189,15 @@ describe('cadastro de um ramo novo', () => {
   });
 
   it('nao remove um segmento que organiza sites: manda desativar', async () => {
-    const construtora = await segmentoPorCodigo('construtora');
-    const response = await admin.client.delete(`/api/platform/segments/${construtora!.id}`);
+    // As duas empresas do `beforeEach` nascem no segmento padrao.
+    const padrao = await segmentoPorCodigo('institucional');
+    const response = await admin.client.delete(`/api/platform/segments/${padrao!.id}`);
 
     expect(response.status).toBe(409);
     expect(response.errorMessage).toMatch(/Desative/i);
     // A chave estrangeira e `on delete set null`: remover desligaria o
     // segmento de dois sites no ar sem avisar ninguem.
-    expect(await segmentoPorCodigo('construtora')).toBeDefined();
+    expect(await segmentoPorCodigo('institucional')).toBeDefined();
   });
 });
 
@@ -219,9 +238,9 @@ describe('o segmento padrao', () => {
   it('nao deixa a instalacao sem padrao', async () => {
     // Sem padrao, uma empresa nova nasceria com todos os modulos ligados --
     // inclusive os que o projeto dela nao tem.
-    const construtora = await segmentoPorCodigo('construtora');
-    const response = await admin.client.patch(`/api/platform/segments/${construtora!.id}`, {
-      name: 'Construtora',
+    const padrao = await segmentoPorCodigo('institucional');
+    const response = await admin.client.patch(`/api/platform/segments/${padrao!.id}`, {
+      name: 'Site institucional',
       description: '',
       defaultModules: ['institucional'],
       isActive: true,
@@ -264,12 +283,12 @@ describe('editar um segmento nao alcanca os sites', () => {
     // ter sido ajustado a mao; se a edicao do segmento o reconfigurasse, o
     // cliente perderia uma tela que usa, sem que ninguem tivesse pedido.
     const antes = await modulosDoSite(empresa.siteId);
-    expect(antes).toContain('obras');
+    expect(antes).toContain('servicos');
 
-    const construtora = await segmentoPorCodigo('construtora');
-    const response = await admin.client.patch(`/api/platform/segments/${construtora!.id}`, {
-      name: 'Construtora',
-      description: 'Sem obras a partir de agora.',
+    const padrao = await segmentoPorCodigo('institucional');
+    const response = await admin.client.patch(`/api/platform/segments/${padrao!.id}`, {
+      name: 'Site institucional',
+      description: 'Sem servicos a partir de agora.',
       defaultModules: ['institucional', 'contato'],
       isActive: true,
       isDefault: true,
@@ -280,9 +299,9 @@ describe('editar um segmento nao alcanca os sites', () => {
   });
 
   it('a trilha de auditoria diz que a edicao nao mexeu em site nenhum', async () => {
-    const construtora = await segmentoPorCodigo('construtora');
-    await admin.client.patch(`/api/platform/segments/${construtora!.id}`, {
-      name: 'Construtora',
+    const padrao = await segmentoPorCodigo('institucional');
+    await admin.client.patch(`/api/platform/segments/${padrao!.id}`, {
+      name: 'Site institucional',
       description: '',
       defaultModules: ['institucional'],
       isActive: true,
@@ -415,7 +434,7 @@ describe('aplicar o segmento a um site existente', () => {
 
     expect(registro).toBeDefined();
     expect(registro!.entityId).toBe(empresa.siteId);
-    expect((registro!.metadata as { segment: string }).segment).toBe('construtora');
+    expect((registro!.metadata as { segment: string }).segment).toBe('institucional');
   });
 
   it('um administrador de empresa nao aplica segmento no proprio site', async () => {

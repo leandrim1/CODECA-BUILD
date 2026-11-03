@@ -51,6 +51,7 @@ async function aplicar(db: Database, arquivos: Array<{ name: string; statements:
 const DESTRUTIVA = '0007_remove_tabelas_do_renderizador.sql';
 const MODULOS_NOVOS = '0010_depoimentos_equipe_faq.sql';
 const LIMPEZA = '0014_limpeza_do_renderizador.sql';
+const SEGMENTOS = '0015_segmentos_por_ramo.sql';
 const REMOVIDAS = ['pages', 'page_versions', 'navigation_menus', 'redirects', 'site_settings'];
 
 /**
@@ -247,7 +248,10 @@ describe('depoimentos, equipe e FAQ viram modulos', () => {
     // As tres telas valiam para todo site antes de serem modulos. O painel
     // esconde o que nao esta habilitado, entao sem este passo a migracao
     // tiraria tres telas de todo cliente no ar.
-    const banco = await bancoAntesDe(MODULOS_NOVOS);
+    // A 0015 fica de fora junto: o segmento padrao que ela instala ja liga
+    // depoimentos, equipe e FAQ, e o teste precisa do banco **anterior** a
+    // 0010 -- um em que esses modulos ainda nao chegaram a site nenhum.
+    const banco = await bancoAntesDe(MODULOS_NOVOS, [SEGMENTOS]);
     try {
       await seedDatabase(banco.db, {
         demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' },
@@ -269,7 +273,10 @@ describe('depoimentos, equipe e FAQ viram modulos', () => {
   });
 
   it('nao desfaz a escolha de quem ja tinha configurado o modulo', async () => {
-    const banco = await bancoAntesDe(MODULOS_NOVOS);
+    // A 0015 fica de fora junto: o segmento padrao que ela instala ja liga
+    // depoimentos, equipe e FAQ, e o teste precisa do banco **anterior** a
+    // 0010 -- um em que esses modulos ainda nao chegaram a site nenhum.
+    const banco = await bancoAntesDe(MODULOS_NOVOS, [SEGMENTOS]);
     try {
       await seedDatabase(banco.db, {
         demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' },
@@ -298,7 +305,10 @@ describe('depoimentos, equipe e FAQ viram modulos', () => {
   });
 
   it('e segura de reaplicar', async () => {
-    const banco = await bancoAntesDe(MODULOS_NOVOS);
+    // A 0015 fica de fora junto: o segmento padrao que ela instala ja liga
+    // depoimentos, equipe e FAQ, e o teste precisa do banco **anterior** a
+    // 0010 -- um em que esses modulos ainda nao chegaram a site nenhum.
+    const banco = await bancoAntesDe(MODULOS_NOVOS, [SEGMENTOS]);
     try {
       await seedDatabase(banco.db, {
         demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' },
@@ -458,6 +468,111 @@ describe('recuperacao de um banco pela metade', () => {
       );
     } finally {
       await client.close();
+    }
+  });
+});
+
+/**
+ * Segmentos de outros ramos num banco que ja existia.
+ *
+ * `ensureBaselineSegments` so semeia com a tabela vazia, entao acrescentar
+ * entradas em `DEFAULT_SEGMENTS` nao muda nada numa instalacao que ja rodou.
+ * Quem leva os novos para la e a 0015 -- sem ela, o catalogo ampliado ficaria
+ * so no codigo.
+ */
+describe('segmentos por ramo', () => {
+  const RAMOS_NOVOS = ['institucional', 'restaurante', 'clinica', 'escola', 'varejo', 'prestador'];
+
+  async function codigos(db: Database): Promise<string[]> {
+    const linhas = await db.select({ code: schema.segments.code }).from(schema.segments);
+    return linhas.map((l) => l.code).sort();
+  }
+
+  it('acrescenta os ramos novos sem tocar nos que ja existiam', async () => {
+    const banco = await bancoAntesDe(SEGMENTOS);
+    try {
+      const antes = await codigos(banco.db);
+      expect(antes).toEqual(['construtora', 'corretor', 'imobiliaria']);
+
+      await banco.aplicar();
+
+      const depois = await codigos(banco.db);
+      // Os tres originais continuam la, com os sites que os usam.
+      expect(depois).toEqual(expect.arrayContaining(antes));
+      expect(depois).toEqual(expect.arrayContaining(RAMOS_NOVOS));
+    } finally {
+      await banco.close();
+    }
+  });
+
+  /**
+   * O padrao sai de `construtora` e vai para o neutro.
+   *
+   * Nao e cosmetico: enquanto `construtora` era o padrao, um restaurante que
+   * se cadastrasse abria o painel com Imoveis e Obras ligados.
+   */
+  it('move o padrao para o segmento neutro', async () => {
+    const banco = await bancoAntesDe(SEGMENTOS);
+    try {
+      const padraoAntes = await banco.db
+        .select({ code: schema.segments.code })
+        .from(schema.segments)
+        .where(eq(schema.segments.isDefault, true));
+      expect(padraoAntes.map((l) => l.code)).toEqual(['construtora']);
+
+      await banco.aplicar();
+
+      const padraoDepois = await banco.db
+        .select({ code: schema.segments.code })
+        .from(schema.segments)
+        .where(eq(schema.segments.isDefault, true));
+      // Exatamente um, e o neutro: um indice unico parcial garante o resto.
+      expect(padraoDepois.map((l) => l.code)).toEqual(['institucional']);
+    } finally {
+      await banco.close();
+    }
+  });
+
+  /**
+   * Uma escolha deliberada da CODECA IA nao e desfeita.
+   *
+   * A migracao so move o padrao quando ele ainda e o valor semeado. Se alguem
+   * ja escolheu outro no painel mestre, essa decisao fica.
+   */
+  it('nao mexe no padrao que alguem ja trocou a mao', async () => {
+    const banco = await bancoAntesDe(SEGMENTOS);
+    try {
+      await banco.db
+        .update(schema.segments)
+        .set({ isDefault: false })
+        .where(eq(schema.segments.code, 'construtora'));
+      await banco.db
+        .update(schema.segments)
+        .set({ isDefault: true })
+        .where(eq(schema.segments.code, 'corretor'));
+
+      await banco.aplicar();
+
+      const padrao = await banco.db
+        .select({ code: schema.segments.code })
+        .from(schema.segments)
+        .where(eq(schema.segments.isDefault, true));
+      expect(padrao.map((l) => l.code)).toEqual(['corretor']);
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('e segura de reaplicar', async () => {
+    const banco = await bancoAntesDe(SEGMENTOS);
+    try {
+      await banco.aplicar();
+      const depoisDaPrimeira = await codigos(banco.db);
+
+      await expect(banco.aplicar()).resolves.toBeUndefined();
+      expect(await codigos(banco.db)).toEqual(depoisDaPrimeira);
+    } finally {
+      await banco.close();
     }
   });
 });

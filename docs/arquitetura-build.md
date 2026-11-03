@@ -202,12 +202,26 @@ Um segmento e um **conjunto padrao de modulos**, aplicado no cadastro do site.
 Nao e uma trava: um site de corretor pode habilitar o modulo de obras se o
 projeto dele tiver.
 
-Os segmentos sao **dados**, nao codigo. A instalacao comeca com `empresa`,
-`imobiliaria` e `corretor` porque foi dai que a plataforma nasceu, e nada
-depende desses tres: cadastrar "Clinica odontologica" ou "Restaurante" e uma
-linha na tabela, pelo painel mestre. Ate a etapa 7 `segments.code` era um enum
-do Postgres, e atender um ramo novo pedia `ALTER TYPE` e implantacao --
-exatamente o contrario do que este documento afirmava.
+Os segmentos sao **dados**, nao codigo: cadastrar um ramo novo e uma linha na
+tabela, pelo painel mestre. Ate a etapa 7 `segments.code` era um enum do
+Postgres, e atender um ramo novo pedia `ALTER TYPE` e implantacao -- exatamente
+o contrario do que este documento afirmava.
+
+A instalacao comeca com nove: `institucional` (o **padrao**), `restaurante`,
+`clinica`, `escola`, `varejo`, `prestador`, e os tres de onde a plataforma
+nasceu -- `construtora`, `imobiliaria` e `corretor`.
+
+O padrao ser neutro nao e detalhe de catalogo. Ate 11/2026 o padrao era
+`construtora`, e o efeito era pratico: um restaurante que se cadastrasse abria
+o painel com Imoveis e Obras ligados. `institucional` nao liga modulo de ramo
+nenhum, entao serve de ponto de partida honesto para um negocio cujo ramo
+ainda nao foi escolhido.
+
+Para quem ja tinha instalacao, quem leva os seis novos e a **migracao 0015** --
+`ensureBaselineSegments` so semeia com a tabela vazia, entao mexer na constante
+nao mudaria nada num banco que ja rodou. Ela nao remove nem renomeia nada, e so
+move o padrao quando ele ainda e o valor semeado: uma escolha feita a mao no
+painel mestre fica como esta.
 
 Tres regras organizam o resto:
 

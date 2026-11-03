@@ -135,7 +135,8 @@ substituem as que descreviam o modelo antigo.
 | Ativar, suspender e cancelar empresa | Pronto | reflete no site publico na hora |
 | Planos: criar, editar limites e recursos | Pronto | limites verificados no backend |
 | Segmentos: criar, editar, desativar e remover | Pronto | qualquer ramo, sem migracao; codigo e texto desde a etapa 7 |
-| Segmento padrao de empresas novas | Pronto | exatamente um, garantido por indice unico parcial |
+| Segmento padrao de empresas novas | Pronto | exatamente um, garantido por indice unico parcial; o padrao e o neutro `institucional`, que nao liga modulo de ramo nenhum |
+| Catalogo inicial de segmentos | Pronto | nove ramos, de restaurante a construtora; a migracao 0015 leva os novos para instalacoes que ja existiam |
 | Aplicar o segmento a um site existente | Pronto | ato separado e auditado; habilita o que falta e nao desliga nada |
 | Editar um segmento nao reconfigura sites | Pronto | coberto por teste; a auditoria grava `appliedToExistingSites: false` |
 | Limites de armazenamento por plano | Pronto | conferidos antes de cada upload |

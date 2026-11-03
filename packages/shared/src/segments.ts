@@ -24,13 +24,19 @@ export interface SegmentView {
 /**
  * Segmentos de uma instalacao nova.
  *
- * Sao os tres de onde a plataforma nasceu, e nada no codigo depende deles:
- * existem para que uma instalacao recem-criada tenha um conjunto inicial e um
- * padrao, nao para dizer quais ramos a plataforma atende. A CODECA IA
- * cadastra os demais no painel.
+ * Nada no codigo depende desta lista: ela existe para que uma instalacao
+ * recem-criada tenha um conjunto inicial e um padrao. A CODECA IA cadastra,
+ * renomeia e remove os que quiser no painel mestre.
+ *
+ * Ate 11/2026 eram tres, e as tres do ramo imobiliario -- de onde a
+ * plataforma nasceu. O efeito era pratico, nao cosmetico: um restaurante que
+ * se cadastrasse caia em "Construtora" por omissao e abria o painel com
+ * Imoveis e Obras ligados. A lista cobre agora ramos distintos, e o padrao e
+ * um segmento **neutro**, que nao liga modulo de ramo nenhum.
  *
  * Como `ensureBaselinePlans`, so entram **com a tabela vazia**: um segmento
- * removido de proposito nao volta no proximo deploy.
+ * removido de proposito nao volta no proximo deploy. Para as instalacoes que
+ * ja existiam, quem acrescenta e a migracao 0015.
  */
 export interface SegmentSeed {
   code: string;
@@ -41,6 +47,60 @@ export interface SegmentSeed {
 }
 
 export const DEFAULT_SEGMENTS: readonly SegmentSeed[] = [
+  {
+    /**
+     * Padrao da instalacao: nao liga modulo de ramo nenhum.
+     *
+     * Um site institucional serve a qualquer negocio, entao e o ponto de
+     * partida honesto para uma empresa cujo ramo ainda nao foi escolhido --
+     * ao contrario de "Construtora", que abriria o painel com Imoveis e Obras
+     * para um restaurante.
+     *
+     * O codigo coincide com o do modulo `institucional`, e nao ha conflito:
+     * segmento e modulo sao tabelas diferentes. Aqui e "que tipo de negocio";
+     * la e "qual conteudo o site tem".
+     */
+    code: 'institucional',
+    name: 'Site institucional',
+    description: 'Apresentacao, servicos e contato. Ponto de partida para qualquer ramo.',
+    defaultModules: ['institucional', 'banners', 'contato', 'servicos', 'depoimentos', 'equipe', 'faq', 'galerias'],
+    isDefault: true,
+  },
+  {
+    code: 'restaurante',
+    name: 'Restaurante ou bar',
+    description: 'Cardapio por categoria, ambiente e equipe.',
+    defaultModules: ['institucional', 'banners', 'contato', 'produtos', 'categorias', 'galerias', 'depoimentos', 'equipe', 'faq'],
+    isDefault: false,
+  },
+  {
+    code: 'clinica',
+    name: 'Clinica ou consultorio',
+    description: 'Especialidades, corpo clinico e agendamento por contato.',
+    defaultModules: ['institucional', 'banners', 'contato', 'servicos', 'equipe', 'depoimentos', 'faq', 'galerias'],
+    isDefault: false,
+  },
+  {
+    code: 'escola',
+    name: 'Escola ou curso',
+    description: 'Cursos, corpo docente e estrutura.',
+    defaultModules: ['institucional', 'banners', 'contato', 'servicos', 'equipe', 'depoimentos', 'faq', 'galerias'],
+    isDefault: false,
+  },
+  {
+    code: 'varejo',
+    name: 'Loja ou varejo',
+    description: 'Catalogo de produtos por categoria, com vitrine.',
+    defaultModules: ['institucional', 'banners', 'contato', 'produtos', 'categorias', 'galerias', 'depoimentos', 'faq'],
+    isDefault: false,
+  },
+  {
+    code: 'prestador',
+    name: 'Prestador de servicos',
+    description: 'Servicos oferecidos, portfolio e equipe.',
+    defaultModules: ['institucional', 'banners', 'contato', 'servicos', 'equipe', 'galerias', 'depoimentos', 'faq'],
+    isDefault: false,
+  },
   {
     code: 'construtora',
     name: 'Construtora',
@@ -57,7 +117,7 @@ export const DEFAULT_SEGMENTS: readonly SegmentSeed[] = [
       'faq',
       'galerias',
     ],
-    isDefault: true,
+    isDefault: false,
   },
   {
     code: 'imobiliaria',
