@@ -50,11 +50,74 @@ function codecaDevServer(env: Record<string, string>): Plugin {
   };
 }
 
+/**
+ * Endereco publico do site, quando ele e conhecido.
+ *
+ * Tags como `og:image`, o canonico e o mapa do site exigem URL **absoluta**, e
+ * escreve-la a mao seria apontar para um dominio que pode nao ser o real.
+ * Entao vem do ambiente: `SITE_URL`, se alguem a definir, ou o dominio de
+ * producao que a Vercel informa no build. Sem nenhum dos dois, essas tags
+ * simplesmente nao sao emitidas -- melhor do que emitir uma errada.
+ */
+function enderecoPublico(env: Record<string, string>): string | null {
+  const explicito = env.SITE_URL?.trim();
+  if (explicito) return explicito.replace(/\/+$/, '');
+  const vercel = env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (vercel) return `https://${vercel.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`;
+  return null;
+}
+
+/**
+ * Metadados dependentes do endereco publico, mais `robots.txt` e `sitemap.xml`.
+ *
+ * O painel e a API ficam fora dos mecanismos de busca; a pagina inicial e as
+ * paginas legais ficam dentro.
+ */
+function codecaSeo(env: Record<string, string>): Plugin {
+  const site = enderecoPublico(env);
+  const paginas = ['/', '/termos', '/privacidade'];
+
+  return {
+    name: 'codeca-seo',
+    transformIndexHtml(html) {
+      const tags = site
+        ? [
+            `<link rel="canonical" href="${site}/" />`,
+            `<meta property="og:url" content="${site}/" />`,
+            `<meta property="og:image" content="${site}/og-image.jpg" />`,
+            '<meta property="og:image:width" content="1200" />',
+            '<meta property="og:image:height" content="630" />',
+            `<meta name="twitter:image" content="${site}/og-image.jpg" />`,
+          ].join('\n    ')
+        : '';
+      return html.replace('<!--codeca:seo-url-->', tags);
+    },
+    generateBundle() {
+      const robots = [
+        'User-agent: *',
+        'Allow: /',
+        'Disallow: /painel',
+        'Disallow: /plataforma',
+        'Disallow: /api/',
+        ...(site ? ['', `Sitemap: ${site}/sitemap.xml`] : []),
+        '',
+      ].join('\n');
+      this.emitFile({ type: 'asset', fileName: 'robots.txt', source: robots });
+
+      if (site) {
+        const itens = paginas.map((p) => `  <url><loc>${site}${p === '/' ? '/' : p}</loc></url>`).join('\n');
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${itens}\n</urlset>\n`;
+        this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: xml });
+      }
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, resolvePath('../..'), '');
 
   return {
-    plugins: [react(), tailwindcss(), codecaDevServer(env)],
+    plugins: [react(), tailwindcss(), codecaSeo({ ...env, ...(process.env as Record<string, string>) }), codecaDevServer(env)],
     resolve: {
       alias: {
         // Os pacotes internos sao consumidos a partir do codigo-fonte, o que

@@ -24,6 +24,7 @@ import { platformSiteRoutes } from './routes/platform-sites.js';
 import { projectRoutes } from './routes/projects.js';
 import { publicApiRoutes } from './routes/public-api.js';
 import { propertyRoutes } from './routes/properties.js';
+import { publicPlanRoutes } from './routes/public-plans.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { sessionMiddleware, tenantMiddleware } from './middleware/auth.js';
@@ -107,6 +108,9 @@ export function createApp(options: CreateAppOptions = {}) {
   // API publica dos sites dos clientes: autenticada por chave de integracao,
   // nunca por sessao. Versionada desde a primeira rota.
   app.route('/v1', publicApiRoutes());
+
+  // Vitrine de planos: publica, somente leitura, sem sessao.
+  app.route('/public', publicPlanRoutes());
 
   // Job de reconciliacao, protegido por segredo proprio (Vercel Cron).
   app.route('/billing', billingJobRoutes());

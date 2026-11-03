@@ -1,0 +1,67 @@
+/**
+ * Estilos que so a pagina inicial usa.
+ *
+ * Moram aqui, e nao em `index.css`, para irem junto do codigo da pagina (que
+ * carrega sob demanda): quem entra direto no painel nao baixa nada disto.
+ */
+
+.landing {
+  /* Inter embarcada (ver `LandingPage`): a pagina nao depende de a maquina de
+     quem visita ter a fonte instalada. */
+  font-family: 'Inter Variable', 'Inter var', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  text-rendering: optimizeLegibility;
+}
+
+/*
+ * Malha de projeto: duas familias de linhas finas, como numa planta.
+ *
+ * E o unico motivo grafico recorrente da pagina, e tem funcao -- a ideia de
+ * "estrutura" que o texto fala. Aparece esmaecida e so em duas areas.
+ */
+.lp-grid {
+  background-image:
+    linear-gradient(to right, rgb(29 78 216 / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(29 78 216 / 0.07) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 75% 30%, #000 10%, transparent 75%);
+  mask-image: radial-gradient(ellipse 80% 70% at 75% 30%, #000 10%, transparent 75%);
+}
+
+.lp-grid-dark {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.06) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 0%, #000 0%, transparent 80%);
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 0%, #000 0%, transparent 80%);
+}
+
+/* Entrada discreta: sobe 12px e aparece. Sem JS, o conteudo ja esta visivel. */
+.lp-reveal {
+  transition:
+    opacity 0.7s var(--ease-out-soft),
+    transform 0.7s var(--ease-out-soft);
+}
+.lp-reveal[data-pending='true'] {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+/* Perguntas: o marcador nativo sai, entra um sinal que gira ao abrir. */
+.lp-faq summary {
+  list-style: none;
+}
+.lp-faq summary::-webkit-details-marker {
+  display: none;
+}
+.lp-faq details[open] .lp-faq-sinal {
+  transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-reveal[data-pending='true'] {
+    opacity: 1;
+    transform: none;
+  }
+}

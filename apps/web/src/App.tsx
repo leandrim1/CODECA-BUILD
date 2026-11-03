@@ -9,12 +9,12 @@ import {
   RequirePlatformAdmin,
   RequireTenant,
 } from './components/Guards.js';
+import { Suspense } from 'react';
 import { lazyRoute } from './lib/routePreload.js';
 import { SiteModulesProvider, useSiteModules } from './hooks/useSiteModules.js';
 import { AuthLayout } from './layouts/AuthLayout.js';
 import { DashboardLayout } from './layouts/DashboardLayout.js';
 import { PlatformLayout } from './layouts/PlatformLayout.js';
-import { LandingPage } from './pages/LandingPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
@@ -22,6 +22,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage.js';
 import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
 import { AcceptInvitePage } from './pages/AcceptInvitePage.js';
 import { NotFoundPage } from './pages/NotFoundPage.js';
+import { RouteMeta } from './components/RouteMeta.js';
 import { OverviewPage } from './dashboard/OverviewPage.js';
 
 /**
@@ -31,6 +32,12 @@ import { OverviewPage } from './dashboard/OverviewPage.js';
  * carregamento tardio, de modo que o editor, o renderizador de previa e o
  * painel mestre nao pesem no primeiro acesso ao painel.
  */
+/**
+ * A pagina inicial tem codigo, imagens e fonte proprios, e quem vai direto ao
+ * painel nao precisa de nada disso: carrega sob demanda como as demais.
+ */
+const LandingPage = lazyRoute(['/'], () => import('./pages/LandingPage.js').then((m) => ({ default: m.LandingPage })));
+const LegalPage = lazyRoute(['/termos', '/privacidade'], () => import('./pages/LegalPage.js').then((m) => ({ default: m.LegalPage })));
 const DocumentModulePage = lazyRoute(['/painel/institucional', '/painel/contato'], () => import('./dashboard/DocumentModulePage.js').then((m) => ({ default: m.DocumentModulePage })));
 const CustomModulePage = lazyRoute(['/painel/p'], () => import('./dashboard/CustomModulePage.js').then((m) => ({ default: m.CustomModulePage })));
 const CustomDocumentPage = lazyRoute(['/painel/p'], () => import('./dashboard/CustomModulePage.js').then((m) => ({ default: m.CustomDocumentPage })));
@@ -64,9 +71,13 @@ export function App() {
   return (
     <ToastProvider>
       <AuthProvider>
+        <RouteMeta />
+        <Suspense fallback={<LoadingScreen label="Carregando" />}>
         <Routes>
           {/* Site institucional da plataforma */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/termos" element={<LegalPage tipo="termos" />} />
+          <Route path="/privacidade" element={<LegalPage tipo="privacidade" />} />
 
           {/* Acesso */}
           <Route element={<AuthLayout />}>
@@ -232,6 +243,7 @@ export function App() {
           <Route path="/dashboard" element={<Navigate to="/painel" replace />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        </Suspense>
       </AuthProvider>
     </ToastProvider>
   );

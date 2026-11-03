@@ -42,6 +42,16 @@ Legenda:
 | Acesso de suporte explicito, temporario e auditado | Pronto | `support_access_grants`, somente leitura |
 | Autenticacao em dois fatores | Nao implementado | — |
 
+## Página inicial
+
+| Item | Status | Observacao |
+| --- | --- | --- |
+| Landing em dez secoes, responsiva | Pronto | ver [landing.md](landing.md); capturas reais da interface com dados de demonstracao |
+| Planos e precos vindos do banco | Pronto | `GET /api/public/plans`; sem valor de semente quando a consulta falha |
+| FAQ que cita plano | Pronto | respostas derivadas dos planos; sem os dados, ficam gerais |
+| SEO (titulo, descricao, Open Graph, robots) | Pronto | `og:image`, canonico e sitemap so com `SITE_URL` (ou o dominio de producao da Vercel) |
+| Termos de uso e politica de privacidade | **Pendente** | paginas existem e dizem "documento ainda nao publicado"; o texto juridico precisa vir da CODECA IA |
+
 ## Painel do cliente
 
 | Item | Status | Observacao |
@@ -205,7 +215,7 @@ deploy sem abrir o painel.
 
 ## Testes
 
-796 testes no Vitest, em 49 arquivos; os de integracao rodam contra Postgres real em processo
+826 testes no Vitest, em 51 arquivos; os de integracao rodam contra Postgres real em processo
 (PGlite) com as mesmas migracoes enviadas ao Neon. Nenhuma cobranca real
 acontece nos testes: a ValidaPay e substituida por um provedor em memoria que
 reproduz o fluxo documentado (incluindo o fato de a assinatura nascer apenas do
@@ -214,6 +224,8 @@ pagamento).
 | Area exigida | Onde |
 | --- | --- |
 | Cadastro e autenticacao | `integration/auth.test.ts` |
+| Vitrine publica de planos (so ativos e publicos, nada interno, reflete o painel mestre) | `integration/public-plans.test.ts` |
+| Texto da landing a partir dos planos (beneficios, preco, FAQ) | `unit/landing-plans.test.ts` |
 | Cache de consultas (frescor, deduplicacao, cancelamento, invalidacao, erro, logout) | `unit/query-cache.test.ts` |
 | Ligacao rede-cache (escrita envelhece o cache, 401 encerra a sessao) | `unit/api-client-cache.test.ts` |
 | Permissoes por papel | `integration/rbac.test.ts` |

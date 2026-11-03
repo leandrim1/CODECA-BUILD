@@ -713,3 +713,31 @@ export const platformSiteApi = {
   removeWebhook: (siteId: string, webhookId: string) =>
     api.delete<void>(`/api/platform/sites/${siteId}/webhooks/${webhookId}`),
 };
+
+/**
+ * Vitrine de planos da pagina inicial: publica, sem sessao.
+ *
+ * Devolve o que esta no banco -- a mesma fonte da cobranca --, e nao as
+ * constantes de semente, para a pagina nunca anunciar um valor que o painel
+ * mestre ja mudou.
+ */
+export interface PublicPlan {
+  code: string;
+  name: string;
+  description: string;
+  priceCents: number;
+  /** Dias de avaliacao gratuita, quando o plano os tem. */
+  trialDays: number | null;
+  limits: {
+    maxUsers: number;
+    maxPublishedProperties: number;
+    maxProjects: number;
+    maxDomains: number;
+    storageBytes: number;
+    features: string[];
+  };
+}
+
+export const publicApi = {
+  plans: () => api.get<{ currency: 'BRL'; plans: PublicPlan[] }>('/api/public/plans'),
+};
