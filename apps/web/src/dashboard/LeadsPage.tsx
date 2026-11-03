@@ -48,6 +48,7 @@ export function LeadsPage() {
   const [removing, setRemoving] = useState<LeadRecord | null>(null);
 
   const list = useResource(
+    'leadApi.list',
     () =>
       leadApi.list(tenantId, {
         page,
@@ -57,6 +58,8 @@ export function LeadsPage() {
         ...(interest ? { interestType: interest } : {}),
       }),
     [tenantId, page, debounced, status, interest],
+    // Contatos chegam por fora, do formulario do site: sempre conferidos.
+    { staleTime: 0 },
   );
 
   const updateStatus = useMutation(
@@ -133,7 +136,7 @@ export function LeadsPage() {
         can('leads:write') ? (
           <Select
             label="Situacao"
-            className="[&>label]:sr-only w-40"
+            className="[&>label]:sr-only w-full sm:w-40"
             value={lead.status}
             options={toOptions(labels.leadStatus, LEAD_STATUSES)}
             onChange={(event) => void updateStatus.run({ id: lead.id, status: event.target.value })}
@@ -189,7 +192,7 @@ export function LeadsPage() {
           title="Contatos"
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <TextInput
                   label="Buscar"
                   className="[&>label]:sr-only"
@@ -201,7 +204,7 @@ export function LeadsPage() {
                   }}
                 />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select
                   label="Situacao"
                   className="[&>label]:sr-only"
@@ -214,7 +217,7 @@ export function LeadsPage() {
                   }}
                 />
               </div>
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <Select
                   label="Assunto"
                   className="[&>label]:sr-only"
@@ -280,8 +283,8 @@ function LeadDetailModal({ lead, onClose }: { lead: LeadRecord; onClose: () => v
   const { can } = useAuth();
   const [note, setNote] = useState('');
 
-  const detail = useResource(() => leadApi.detail(tenantId, lead.id), [tenantId, lead.id]);
-  const members = useResource(() => memberApi.list(tenantId), [tenantId], { enabled: can('members:read') });
+  const detail = useResource('leadApi.detail', () => leadApi.detail(tenantId, lead.id), [tenantId, lead.id], { fresh: true });
+  const members = useResource('memberApi.list', () => memberApi.list(tenantId), [tenantId], { enabled: can('members:read') });
 
   const addNote = useMutation((value: string) => leadApi.addNote(tenantId, lead.id, value), {
     onSuccess: () => {

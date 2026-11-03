@@ -34,10 +34,23 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-sm">
+    // `relative`: o `caption` e `sr-only` (posicao absoluta). Sem um ancestral
+    // posicionado dentro da area que rola, ele ancora fora dela e alarga a
+    // pagina inteira -- o celular ganhava rolagem lateral por um texto invisivel.
+    <div className="relative overflow-x-auto">
+      {/*
+        No celular a tabela vira uma lista de cartoes.
+
+        Uma tabela de cinco colunas em 375px so cabe rolando de lado, e a acao
+        da linha (editar, remover) fica justamente na ultima coluna -- fora da
+        tela. Cada linha vira um bloco: a primeira coluna e o titulo, as demais
+        aparecem com o nome da coluna ao lado. A partir de `sm` e a tabela de
+        sempre. O cabecalho continua no DOM (so some da vista) para leitores
+        de tela seguirem lendo uma tabela.
+      */}
+      <table className="block w-full border-collapse text-sm sm:table">
         {caption ? <caption className="sr-only">{caption}</caption> : null}
-        <thead>
+        <thead className="sr-only sm:not-sr-only sm:table-header-group">
           <tr className="border-b border-slate-200/70 text-left">
             {columns.map((column) => (
               <th
@@ -58,7 +71,7 @@ export function DataTable<T>({
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="block sm:table-row-group">
           {rows.map((row) => (
             <tr
               key={rowKey(row)}
@@ -72,23 +85,34 @@ export function DataTable<T>({
                   }
                 : {})}
               className={cx(
-                'border-b border-slate-100 transition-colors duration-150 last:border-0',
+                'block border-b border-slate-100 px-4 py-3 transition-colors duration-150 last:border-0',
+                'sm:table-row sm:p-0',
                 onRowClick && 'cursor-pointer hover:bg-slate-50/80 focus-visible:bg-slate-50',
               )}
             >
-              {columns.map((column) => (
-                <td
-                  key={column.key}
-                  className={cx(
-                    'px-5 py-3.5 align-middle text-slate-700',
-                    column.align === 'right' && 'text-right',
-                    column.align === 'center' && 'text-center',
-                    column.hideOnMobile && 'hidden sm:table-cell',
-                  )}
-                >
-                  {column.render(row)}
-                </td>
-              ))}
+              {columns.map((column, index) => {
+                const label = index > 0 && typeof column.header === 'string' && column.header !== ''
+                  ? column.header
+                  : undefined;
+                return (
+                  <td
+                    key={column.key}
+                    {...(label ? { 'data-label': label } : {})}
+                    className={cx(
+                      'flex min-w-0 items-center gap-3 py-1.5 align-middle text-slate-700',
+                      'sm:table-cell sm:px-5 sm:py-3.5',
+                      // Com rotulo: nome da coluna a esquerda, valor a direita.
+                      label &&
+                        'justify-between before:text-xs before:font-medium before:uppercase before:tracking-wider before:text-slate-400 before:content-[attr(data-label)] sm:before:content-none',
+                      column.align === 'right' && 'justify-end sm:text-right',
+                      column.align === 'center' && 'justify-center sm:text-center',
+                      column.hideOnMobile && 'hidden sm:table-cell',
+                    )}
+                  >
+                    {column.render(row)}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

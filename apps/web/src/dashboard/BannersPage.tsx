@@ -40,7 +40,7 @@ export function BannersPage() {
   const [editando, setEditando] = useState<BannerRecord | 'novo' | null>(null);
   const [removendo, setRemovendo] = useState<BannerRecord | null>(null);
   const toast = useToast();
-  const banners = useResource(() => bannerApi.list(tenantId), [tenantId]);
+  const banners = useResource('bannerApi.list', () => bannerApi.list(tenantId), [tenantId]);
 
   const remover = useMutation((id: string) => bannerApi.remove(tenantId, id), {
     onSuccess: () => {
@@ -70,7 +70,7 @@ export function BannersPage() {
 
       <ResourcePanel resource={banners}>
         {(data) =>
-          data.banners.length === 0 ? (
+          data.items.length === 0 ? (
             <EmptyState
               title="Nenhum banner cadastrado"
               description="Um banner tem imagem, titulo e, se quiser, um botao que leva para outra pagina do site."
@@ -82,7 +82,7 @@ export function BannersPage() {
             />
           ) : (
             <div className="grid gap-3">
-              {data.banners.map((banner) => (
+              {data.items.map((banner) => (
                 <Card key={banner.id}>
                   <CardBody className="flex flex-wrap items-start gap-4">
                     {banner.image?.url ? (

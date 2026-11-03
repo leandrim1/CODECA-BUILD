@@ -45,7 +45,7 @@ export function UsersPage() {
   const [inviting, setInviting] = useState(false);
   const [removing, setRemoving] = useState<MemberRecord | null>(null);
 
-  const list = useResource(() => memberApi.list(tenantId), [tenantId]);
+  const list = useResource('memberApi.list', () => memberApi.list(tenantId), [tenantId]);
   const form = useForm({ email: '', name: '', role: 'editor' });
 
   const invite = useMutation(
@@ -117,7 +117,7 @@ export function UsersPage() {
         can('members:update') && canAssignRole(currentRole, member.role) ? (
           <Select
             label="Papel"
-            className="[&>label]:sr-only w-44"
+            className="[&>label]:sr-only w-full sm:w-44"
             value={member.role}
             options={TENANT_ROLES.filter((role) => canAssignRole(currentRole, role)).map((role) => ({
               value: role,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { CUSTOM_RECORD_STATUSES, type CustomRecordStatus } from '@codeca/shared';
 import {
@@ -50,6 +50,7 @@ export function CustomModulePage({ moduleKey }: { moduleKey: string }) {
   const [removendo, setRemovendo] = useState<CustomRecordRow | null>(null);
 
   const lista = useResource(
+    'customModuleApi.records',
     () => customModuleApi.records(tenantId, moduleKey, { pageSize: 50 }),
     [tenantId, moduleKey],
   );
@@ -199,9 +200,10 @@ function FormularioRegistro({
   const doContexto = customModule(moduleKey);
 
   const detalhe = useResource(
+    'customModuleApi.record',
     () => customModuleApi.record(tenantId, moduleKey, registro!.id),
     [tenantId, moduleKey, registro?.id],
-    { enabled: registro !== null },
+    { enabled: registro !== null, fresh: true },
   );
 
   const campos: SiteModuleFieldView[] = detalhe.data?.fields ?? doContexto?.fields ?? [];
@@ -343,6 +345,7 @@ export function CustomDocumentPage({ moduleKey }: { moduleKey: string }) {
   const { can } = useAuth();
 
   const documento = useResource(
+    'customModuleApi.document',
     () => customModuleApi.document(tenantId, moduleKey),
     [tenantId, moduleKey],
   );
@@ -351,9 +354,11 @@ export function CustomDocumentPage({ moduleKey }: { moduleKey: string }) {
   const [status, setStatus] = useState<CustomRecordStatus>('draft');
   const [valores, setValores] = useState<Record<string, unknown>>({});
 
+  // Ver `DocumentModulePage`: a conferencia em segundo plano nao apaga a digitacao.
+  const alterado = useRef(false);
   useEffect(() => {
     const dados = documento.data;
-    if (!dados) return;
+    if (!dados || alterado.current) return;
     setTitle(dados.record?.title ?? dados.module.name);
     setStatus(dados.record?.publicationStatus ?? 'draft');
     setValores(dados.record?.data ?? {});
@@ -375,6 +380,7 @@ export function CustomDocumentPage({ moduleKey }: { moduleKey: string }) {
     {
       onSuccess: () => {
         toast.success('Documento salvo');
+        alterado.current = false;
         documento.reload();
       },
       onError: (error) => toast.error('Nao foi possivel salvar', error.message),
@@ -396,7 +402,10 @@ export function CustomDocumentPage({ moduleKey }: { moduleKey: string }) {
                   label="Titulo"
                   value={title}
                   required
-                  onChange={(event) => setTitle(event.target.value)}
+                  onChange={(event) => {
+                    alterado.current = true;
+                    setTitle(event.target.value);
+                  }}
                 />
 
                 {campos.length === 0 ? (
@@ -412,9 +421,10 @@ export function CustomDocumentPage({ moduleKey }: { moduleKey: string }) {
                       campo={campo}
                       valor={valores[campo.key]}
                       erro={undefined}
-                      onChange={(valor) =>
-                        setValores((atual) => ({ ...atual, [campo.key]: valor }))
-                      }
+                      onChange={(valor) => {
+                        alterado.current = true;
+                        setValores((atual) => ({ ...atual, [campo.key]: valor }));
+                      }}
                     />
                   ))
                 )}
@@ -423,7 +433,10 @@ export function CustomDocumentPage({ moduleKey }: { moduleKey: string }) {
                   label="Situacao"
                   value={status}
                   options={toOptions(labels.publication, CUSTOM_RECORD_STATUSES)}
-                  onChange={(event) => setStatus(event.target.value as CustomRecordStatus)}
+                  onChange={(event) => {
+                    alterado.current = true;
+                    setStatus(event.target.value as CustomRecordStatus);
+                  }}
                 />
 
                 {can('content:write') ? (

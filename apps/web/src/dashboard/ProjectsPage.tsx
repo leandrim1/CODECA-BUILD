@@ -61,6 +61,7 @@ export function ProjectsPage() {
   const [updatesOf, setUpdatesOf] = useState<ProjectRecord | null>(null);
 
   const list = useResource(
+    'projectApi.list',
     () => projectApi.list(tenantId, { page, pageSize: 20, ...(status ? { status } : {}) }),
     [tenantId, page, status],
   );
@@ -194,7 +195,7 @@ export function ProjectsPage() {
         <CardHeader
           title="Obras cadastradas"
           actions={
-            <div className="w-44">
+            <div className="w-full sm:w-44">
               <Select
                 label="Situacao"
                 className="[&>label]:sr-only"
@@ -306,8 +307,9 @@ function ProjectFormModal({
   const [cover, setCover] = useState<MediaRef | null>(null);
   const [gallery, setGallery] = useState<MediaRef[]>([]);
 
-  const detail = useResource(() => projectApi.detail(tenantId, projectId as string), [tenantId, projectId], {
+  const detail = useResource('projectApi.detail', () => projectApi.detail(tenantId, projectId as string), [tenantId, projectId], {
     enabled: Boolean(projectId),
+    fresh: true,
   });
 
   const personalizados = useCamposPersonalizados('obras', detail.data?.project.customFields);
@@ -608,7 +610,7 @@ function ProjectUpdatesModal({
   const tenantId = useTenantId();
   const toast = useToast();
   const { can } = useAuth();
-  const detail = useResource(() => projectApi.detail(tenantId, project.id), [tenantId, project.id]);
+  const detail = useResource('projectApi.detail', () => projectApi.detail(tenantId, project.id), [tenantId, project.id], { fresh: true });
   const form = useForm({
     title: '',
     note: '',

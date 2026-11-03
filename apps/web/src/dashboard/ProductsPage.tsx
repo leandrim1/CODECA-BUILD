@@ -48,11 +48,12 @@ export function ProductsPage() {
   const toast = useToast();
 
   const produtos = useResource(
+    'catalogApi.products',
     () => catalogApi.products(tenantId, { pageSize: 100, categoryId: categoria || undefined }),
     [tenantId, categoria],
   );
   // Sem o modulo de categorias nao ha o que filtrar nem onde escolher.
-  const categorias = useResource(() => catalogApi.categories(tenantId), [tenantId], {
+  const categorias = useResource('catalogApi.categories', () => catalogApi.categories(tenantId), [tenantId], {
     enabled: enabled('categorias'),
   });
 

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { ApiError, FieldErrors } from '../services/api.js';
 
 /**
@@ -10,8 +10,16 @@ import type { ApiError, FieldErrors } from '../services/api.js';
 export function useForm<T extends Record<string, unknown>>(initial: T) {
   const [values, setValues] = useState<T>(initial);
   const [errors, setErrors] = useState<FieldErrors>({});
+  /**
+   * `true` depois que a pessoa mexeu em algum campo.
+   *
+   * Existe para uma coisa: uma resposta que chega depois (uma conferencia em
+   * segundo plano) nao pode sobrescrever o que esta sendo digitado.
+   */
+  const dirty = useRef(false);
 
   const setField = useCallback(<K extends keyof T>(key: K, value: T[K]) => {
+    dirty.current = true;
     setValues((current) => ({ ...current, [key]: value }));
     setErrors((current) => {
       if (!(key in current)) return current;
@@ -22,6 +30,7 @@ export function useForm<T extends Record<string, unknown>>(initial: T) {
   }, []);
 
   const setMany = useCallback((patch: Partial<T>) => {
+    dirty.current = true;
     setValues((current) => ({ ...current, ...patch }));
   }, []);
 
@@ -31,13 +40,37 @@ export function useForm<T extends Record<string, unknown>>(initial: T) {
 
   const reset = useCallback(
     (next?: T) => {
+      dirty.current = false;
       setValues(next ?? initial);
       setErrors({});
     },
     [initial],
   );
 
-  return { values, errors, setField, setMany, setValues, applyApiError, setErrors, reset };
+  /**
+   * Aplica valores vindos do servidor, a menos que a pessoa ja esteja digitando.
+   * Depois de salvar, `reset` os aplica de qualquer jeito.
+   */
+  const syncFromServer = useCallback((next: T) => {
+    if (dirty.current) return;
+    setValues(next);
+    setErrors({});
+  }, []);
+
+  return {
+    values,
+    errors,
+    setField,
+    setMany,
+    setValues,
+    applyApiError,
+    setErrors,
+    reset,
+    syncFromServer,
+    markPristine: () => {
+      dirty.current = false;
+    },
+  };
 }
 
 /** Converte "" em null, para campos numericos e opcionais. */

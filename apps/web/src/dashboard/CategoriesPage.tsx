@@ -40,7 +40,7 @@ export function CategoriesPage() {
   const [editando, setEditando] = useState<CategoryRecord | 'nova' | null>(null);
   const [removendo, setRemovendo] = useState<CategoryRecord | null>(null);
   const toast = useToast();
-  const categorias = useResource(() => catalogApi.categories(tenantId), [tenantId]);
+  const categorias = useResource('catalogApi.categories', () => catalogApi.categories(tenantId), [tenantId]);
 
   const remover = useMutation((id: string) => catalogApi.removeCategory(tenantId, id), {
     onSuccess: () => {

@@ -1,5 +1,5 @@
-import { Suspense, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, NavLink } from 'react-router-dom';
 import {
   Building2,
   ChevronDown,
@@ -27,10 +27,12 @@ import {
   X,
 } from 'lucide-react';
 import type { ModuleKey } from '@codeca/shared';
-import { Badge, Button, Spinner, cx } from '@codeca/ui';
+import { Badge, Button, Skeleton, cx } from '@codeca/ui';
 import { useAuth } from '../hooks/useAuth.js';
 import { useSiteModules } from '../hooks/useSiteModules.js';
 import { SafeIcon } from '../components/SafeIcon.js';
+import { NavigationProgress, PageArea } from '../components/PageFeedback.js';
+import { preloadRoute, preloadWhenIdle } from '../lib/routePreload.js';
 import { labels, tenantTone } from '../utils/labels.js';
 
 /**
@@ -202,47 +204,73 @@ const NAV_GROUPS: NavGroup[] = [
 
 export function DashboardLayout() {
   const { tenant, memberships, user, selectTenant, logout, isPlatformAdmin, can } = useAuth();
-  const { enabled, readOnly, blocked, panelIncluded, planName, customModules } = useSiteModules();
+  const { enabled, loading: modulesLoading, readOnly, blocked, panelIncluded, planName, customModules } =
+    useSiteModules();
   const [menuOpen, setMenuOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
-  const location = useLocation();
-
-  if (!tenant) return null;
 
   /**
-   * Os modulos criados para este site, ao fim do grupo de conteudo.
+   * O menu so muda quando muda o que o decide: papel, modulos, plano.
    *
-   * O menu junta as duas listas aqui -- e um dos dois lugares onde a separacao
+   * Os modulos criados para este site entram ao fim do grupo de conteudo. O
+   * menu junta as duas listas aqui -- e um dos dois lugares onde a separacao
    * entre `modules` e `customModules` cobra o seu preco, e esta e a conta que
    * se escolheu pagar para nao alargar `ModuleKey` para `string`.
    *
    * Ordem e icone vem da configuracao; `enabled` nao e conferido porque a API
    * so manda os habilitados nesta lista.
    */
-  const itensProprios: NavItem[] = panelIncluded
-    ? customModules.map((modulo) => ({
-        to: `/painel/p/${modulo.key}`,
-        label: modulo.name,
-        iconName: modulo.icon,
-        capability: 'content:read' as const,
-      }))
-    : [];
+  const visibleGroups = useMemo(() => {
+    const itensProprios: NavItem[] = panelIncluded
+      ? customModules.map((modulo) => ({
+          to: `/painel/p/${modulo.key}`,
+          label: modulo.name,
+          iconName: modulo.icon,
+          capability: 'content:read' as const,
+        }))
+      : [];
 
-  const visibleGroups = NAV_GROUPS.map((group) => ({
-    ...group,
-    items: [
-      ...group.items,
-      ...(group.title === 'Conteudo do site' ? itensProprios : []),
-    ].filter((item) => {
-      if (item.capability && !can(item.capability)) return false;
-      // O plano sem painel esconde conteudo inteiro; o que e conta permanece.
-      if (!panelIncluded) return item.semPainel === true;
-      if (!item.module) return true;
-      // Enquanto a configuracao nao chega, o item de modulo fica fora: e
-      // melhor o menu crescer do que oferecer uma tela que nao existe.
-      return enabled(item.module);
-    }),
-  })).filter((group) => group.items.length > 0);
+    return NAV_GROUPS.map((group) => ({
+      ...group,
+      items: [
+        ...group.items,
+        ...(group.title === 'Conteudo do site' ? itensProprios : []),
+      ].filter((item) => {
+        if (item.capability && !can(item.capability)) return false;
+        // O plano sem painel esconde conteudo inteiro; o que e conta permanece.
+        if (!panelIncluded) return item.semPainel === true;
+        if (!item.module) return true;
+        // Enquanto a configuracao nao chega, o item de modulo fica fora e o
+        // grupo mostra marcadores de espera no lugar: o menu nao cresce
+        // aos poucos nem oferece uma tela que nao existe.
+        return enabled(item.module);
+      }),
+    })).filter((group) => group.items.length > 0);
+  }, [can, enabled, panelIncluded, customModules]);
+
+  // Baixa o codigo das telas do menu em horas vagas: o clique nao espera rede.
+  const rotasDoMenu = useMemo(
+    () => visibleGroups.flatMap((group) => group.items.map((item) => item.to)),
+    [visibleGroups],
+  );
+  useEffect(() => preloadWhenIdle(rotasDoMenu), [rotasDoMenu]);
+
+  // Gaveta aberta no celular: o fundo nao rola por baixo e Esc a fecha.
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const anterior = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const aoTeclar = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('keydown', aoTeclar);
+    return () => {
+      document.body.style.overflow = anterior;
+      document.removeEventListener('keydown', aoTeclar);
+    };
+  }, [menuOpen]);
+
+  if (!tenant) return null;
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[17rem_1fr]">
@@ -320,12 +348,17 @@ export function DashboardLayout() {
                 {group.title}
               </p>
               <ul className="grid gap-0.5">
+                {group.title === 'Conteudo do site' && modulesLoading && panelIncluded ? (
+                  <MarcadoresDoMenu />
+                ) : null}
                 {group.items.map((item) => (
                   <li key={item.to}>
                     <NavLink
                       to={item.to}
                       end={item.end}
                       onClick={() => setMenuOpen(false)}
+                      onPointerEnter={() => preloadRoute(item.to)}
+                      onFocus={() => preloadRoute(item.to)}
                       className={({ isActive }) =>
                         cx(
                           // O item ativo mantem exatamente o azul de antes
@@ -381,6 +414,7 @@ export function DashboardLayout() {
 
       {/* Conteudo */}
       <div className="flex min-w-0 flex-col">
+        <NavigationProgress />
         <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200/70 bg-white/80 px-4 backdrop-blur-xl sm:px-6">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(true)} aria-label="Abrir menu">
             <Menu aria-hidden="true" className="size-5" />
@@ -416,20 +450,31 @@ export function DashboardLayout() {
           <AvisoDeSuspensao bloqueado={blocked} />
         ) : null}
 
-        <main className="flex-1" key={location.pathname.split('/').slice(0, 3).join('/')}>
-          {/* As telas do painel sao carregadas sob demanda. */}
-          <Suspense
-            fallback={
-              <div className="panel-shell">
-                <Spinner label="Carregando tela" />
-              </div>
-            }
-          >
-            <Outlet />
-          </Suspense>
+        <main className="flex-1">
+          {/* As telas do painel chegam sob demanda; a anterior fica visivel ate la. */}
+          <PageArea />
         </main>
       </div>
     </div>
+  );
+}
+
+/**
+ * Marcadores no lugar dos itens de modulo, ate a configuracao do site chegar.
+ *
+ * A altura de cada um e a de um item do menu, e a quantidade e a de um site
+ * tipico: quando os itens reais chegam, o menu praticamente nao se mexe.
+ */
+function MarcadoresDoMenu() {
+  return (
+    <>
+      {[0, 1, 2, 3, 4].map((indice) => (
+        <li key={indice} aria-hidden="true" className="flex h-10 items-center gap-3 px-3">
+          <Skeleton className="size-4 flex-none" />
+          <Skeleton className="h-3.5 w-28" />
+        </li>
+      ))}
+    </>
   );
 }
 

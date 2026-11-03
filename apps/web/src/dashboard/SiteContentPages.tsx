@@ -91,7 +91,7 @@ function TestimonialsSection() {
   const [editing, setEditing] = useState<TestimonialRecord | 'new' | null>(null);
   const [removing, setRemoving] = useState<TestimonialRecord | null>(null);
 
-  const list = useResource(() => contentApi.testimonials(tenantId, { pageSize: 50 }), [tenantId]);
+  const list = useResource('contentApi.testimonials', () => contentApi.testimonials(tenantId, { pageSize: 50 }), [tenantId]);
   const remove = useMutation((id: string) => contentApi.removeTestimonial(tenantId, id), {
     onSuccess: () => {
       toast.success('Depoimento removido');
@@ -357,7 +357,7 @@ function TeamSection() {
   const [editing, setEditing] = useState<TeamMemberRecord | 'new' | null>(null);
   const [removing, setRemoving] = useState<TeamMemberRecord | null>(null);
 
-  const list = useResource(() => contentApi.team(tenantId), [tenantId]);
+  const list = useResource('contentApi.team', () => contentApi.team(tenantId), [tenantId]);
   const remove = useMutation((id: string) => contentApi.removeTeamMember(tenantId, id), {
     onSuccess: () => {
       toast.success('Integrante removido');
@@ -598,7 +598,7 @@ function FaqSection() {
   const [editing, setEditing] = useState<FaqRecord | 'new' | null>(null);
   const [removing, setRemoving] = useState<FaqRecord | null>(null);
 
-  const list = useResource(() => contentApi.faqs(tenantId), [tenantId]);
+  const list = useResource('contentApi.faqs', () => contentApi.faqs(tenantId), [tenantId]);
   const remove = useMutation((id: string) => contentApi.removeFaq(tenantId, id), {
     onSuccess: () => {
       toast.success('Pergunta removida');

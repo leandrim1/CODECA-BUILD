@@ -69,7 +69,7 @@ const ABAS = [
 ] as const;
 
 export function PlatformSitesPage() {
-  const sites = useResource(() => platformSiteApi.list(), []);
+  const sites = useResource('platformSiteApi.list', () => platformSiteApi.list(), []);
   const [siteId, setSiteId] = useState<string | null>(null);
 
   const colunas: Array<Column<{ id: string; name: string; tenantName: string; status: SiteStatus; segment: string | null }>> = [
@@ -139,7 +139,7 @@ export function PlatformSitesPage() {
 
 function ConfiguracaoDoSite({ siteId, onClose }: { siteId: string; onClose: () => void }) {
   const [aba, setAba] = useState<string>('identidade');
-  const detalhe = useResource(() => platformSiteApi.detail(siteId), [siteId]);
+  const detalhe = useResource('platformSiteApi.detail', () => platformSiteApi.detail(siteId), [siteId], { fresh: true });
 
   return (
     <Card>
@@ -212,7 +212,7 @@ function AbaIdentidade({
   const [internalNotes, setInternalNotes] = useState(site.internalNotes);
   const [segmentId, setSegmentId] = useState<string>(site.segmentId ?? '');
   const [hostingProjectId, setHostingProjectId] = useState<string>(site.hostingProjectId ?? '');
-  const segmentos = useResource(() => platformApi.segments(), []);
+  const segmentos = useResource('platformApi.segments', () => platformApi.segments(), []);
 
   /**
    * O campo so e travado quando **o plano** nao inclui hospedagem.
@@ -493,7 +493,7 @@ function AbaModulos({
 
 function AbaOrigens({ siteId }: { siteId: string }) {
   const toast = useToast();
-  const lista = useResource(() => platformSiteApi.origins(siteId), [siteId]);
+  const lista = useResource('platformSiteApi.origins', () => platformSiteApi.origins(siteId), [siteId], { fresh: true });
   const [origens, setOrigens] = useState<Array<{ origin: string; note: string }>>([]);
   const [nova, setNova] = useState('');
 
@@ -578,7 +578,7 @@ function AbaOrigens({ siteId }: { siteId: string }) {
 
 function AbaChaves({ siteId }: { siteId: string }) {
   const toast = useToast();
-  const lista = useResource(() => platformSiteApi.keys(siteId), [siteId]);
+  const lista = useResource('platformSiteApi.keys', () => platformSiteApi.keys(siteId), [siteId]);
   const [emitida, setEmitida] = useState<IssuedKey | null>(null);
   const [revogar, setRevogar] = useState<SiteApiKeyRow | null>(null);
 
@@ -773,7 +773,7 @@ function ChaveEmitida({
  */
 function AbaAvisos({ siteId }: { siteId: string }) {
   const toast = useToast();
-  const lista = useResource(() => platformSiteApi.webhooks(siteId), [siteId]);
+  const lista = useResource('platformSiteApi.webhooks', () => platformSiteApi.webhooks(siteId), [siteId]);
   const [emitido, setEmitido] = useState<{ url: string; secret: string } | null>(null);
   const [removendo, setRemovendo] = useState<SiteWebhookRow | null>(null);
   const [url, setUrl] = useState('');
@@ -1052,8 +1052,8 @@ function AbaCampos({
   onSaved: () => void;
 }) {
   const toast = useToast();
-  const lista = useResource(() => platformSiteApi.customFields(siteId), [siteId]);
-  const proprios = useResource(() => platformSiteApi.customModules(siteId), [siteId]);
+  const lista = useResource('platformSiteApi.customFields', () => platformSiteApi.customFields(siteId), [siteId]);
+  const proprios = useResource('platformSiteApi.customModules', () => platformSiteApi.customModules(siteId), [siteId]);
 
   /**
    * As duas origens de modulo que aceitam campo, numa lista para o seletor.
@@ -1317,7 +1317,7 @@ function AbaModulosProprios({
   onSaved: () => void;
 }) {
   const toast = useToast();
-  const lista = useResource(() => platformSiteApi.customModules(siteId), [siteId]);
+  const lista = useResource('platformSiteApi.customModules', () => platformSiteApi.customModules(siteId), [siteId]);
   const [criando, setCriando] = useState(false);
   const [removendo, setRemovendo] = useState<CustomModuleView | null>(null);
   const [novo, setNovo] = useState({

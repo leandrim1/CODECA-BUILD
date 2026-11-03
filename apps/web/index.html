@@ -10,6 +10,17 @@
     />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>Codeca Build | Painel de conteudo do seu site</title>
+    <style>
+      /* Mesmo fundo e mesmo espinner da tela de espera do React: a passagem do
+         HTML inicial para o painel nao deve ser vista. */
+      html, body { background: #f8fafc; }
+      @keyframes boot-giro { to { transform: rotate(360deg); } }
+      .boot-giro {
+        width: 16px; height: 16px; border-radius: 9999px;
+        border: 2px solid #cbd5e1; border-top-color: #1d4ed8;
+        animation: boot-giro 1s linear infinite;
+      }
+    </style>
   </head>
   <body>
     <!--
@@ -26,10 +37,11 @@
       quebrou.
     -->
     <div id="root">
-      <div id="boot" style="min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#475569">
-        <div style="max-width:32rem;display:grid;gap:12px;text-align:center">
-          <p id="boot-msg" style="margin:0">Carregando o painel...</p>
-          <div id="boot-falha" hidden style="display:grid;gap:12px">
+      <div id="boot" style="min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:'Inter var',Inter,system-ui,-apple-system,'Segoe UI',sans-serif;color:#64748b">
+        <div style="max-width:32rem;display:grid;gap:12px;justify-items:center;text-align:center">
+          <span id="boot-giro" class="boot-giro" role="status" aria-label="Carregando"></span>
+          <p id="boot-msg" style="margin:0;font-size:14px;line-height:20px">Carregando o painel...</p>
+          <div id="boot-falha" style="display:none;gap:12px">
             <h1 style="font-size:1.25rem;font-weight:600;margin:0;color:#0f172a">
               Nao foi possivel carregar o painel
             </h1>
@@ -53,7 +65,9 @@
         var falha = document.getElementById('boot-falha');
         var msg = document.getElementById('boot-msg');
         if (!falha || !document.getElementById('boot')) return;
-        falha.hidden = false;
+        falha.style.display = 'grid';
+        var giro = document.getElementById('boot-giro');
+        if (giro) giro.remove();
         if (msg) msg.remove();
       }, 12000);
     </script>

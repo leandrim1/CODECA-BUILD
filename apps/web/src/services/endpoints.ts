@@ -272,7 +272,7 @@ export const moduleApi = {
 
 export const bannerApi = {
   list: (tenantId: string) =>
-    api.get<{ banners: BannerRecord[] }>(`${tenantBase(tenantId)}/banners`),
+    api.get<{ items: BannerRecord[] }>(`${tenantBase(tenantId)}/banners`),
 
   create: (tenantId: string, body: unknown) =>
     api.post<{ banner: BannerRecord }>(`${tenantBase(tenantId)}/banners`, body),

@@ -1,4 +1,3 @@
-import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { ToastProvider } from '@codeca/ui';
 import { AuthProvider } from './hooks/useAuth.js';
@@ -10,6 +9,7 @@ import {
   RequirePlatformAdmin,
   RequireTenant,
 } from './components/Guards.js';
+import { lazyRoute } from './lib/routePreload.js';
 import { SiteModulesProvider, useSiteModules } from './hooks/useSiteModules.js';
 import { AuthLayout } from './layouts/AuthLayout.js';
 import { DashboardLayout } from './layouts/DashboardLayout.js';
@@ -31,34 +31,34 @@ import { OverviewPage } from './dashboard/OverviewPage.js';
  * carregamento tardio, de modo que o editor, o renderizador de previa e o
  * painel mestre nao pesem no primeiro acesso ao painel.
  */
-const DocumentModulePage = lazy(() => import('./dashboard/DocumentModulePage.js').then((m) => ({ default: m.DocumentModulePage })));
-const CustomModulePage = lazy(() => import('./dashboard/CustomModulePage.js').then((m) => ({ default: m.CustomModulePage })));
-const CustomDocumentPage = lazy(() => import('./dashboard/CustomModulePage.js').then((m) => ({ default: m.CustomDocumentPage })));
-const BannersPage = lazy(() => import('./dashboard/BannersPage.js').then((m) => ({ default: m.BannersPage })));
-const MediaPage = lazy(() => import('./dashboard/MediaPage.js').then((m) => ({ default: m.MediaPage })));
-const PropertiesPage = lazy(() => import('./dashboard/PropertiesPage.js').then((m) => ({ default: m.PropertiesPage })));
-const ProjectsPage = lazy(() => import('./dashboard/ProjectsPage.js').then((m) => ({ default: m.ProjectsPage })));
-const ServicesPage = lazy(() => import('./dashboard/ServicesPage.js').then((m) => ({ default: m.ServicesPage })));
-const ProductsPage = lazy(() => import('./dashboard/ProductsPage.js').then((m) => ({ default: m.ProductsPage })));
-const CategoriesPage = lazy(() => import('./dashboard/CategoriesPage.js').then((m) => ({ default: m.CategoriesPage })));
-const GalleriesPage = lazy(() => import('./dashboard/GalleriesPage.js').then((m) => ({ default: m.GalleriesPage })));
-const TestimonialsPage = lazy(() => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.TestimonialsPage })));
-const SiteTeamPage = lazy(() => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.SiteTeamPage })));
-const FaqPage = lazy(() => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.FaqPage })));
-const LeadsPage = lazy(() => import('./dashboard/LeadsPage.js').then((m) => ({ default: m.LeadsPage })));
-const DomainsPage = lazy(() => import('./dashboard/DomainsPage.js').then((m) => ({ default: m.DomainsPage })));
-const UsersPage = lazy(() => import('./dashboard/UsersPage.js').then((m) => ({ default: m.UsersPage })));
-const BillingPage = lazy(() => import('./dashboard/BillingPage.js').then((m) => ({ default: m.BillingPage })));
-const CompanyPage = lazy(() => import('./dashboard/CompanyPage.js').then((m) => ({ default: m.CompanyPage })));
-const PlatformOverviewPage = lazy(() => import('./dashboard/platform/PlatformOverviewPage.js').then((m) => ({ default: m.PlatformOverviewPage })));
-const PlatformTenantsPage = lazy(() => import('./dashboard/platform/PlatformTenantsPage.js').then((m) => ({ default: m.PlatformTenantsPage })));
-const PlatformSitesPage = lazy(() => import('./dashboard/platform/PlatformSitesPage.js').then((m) => ({ default: m.PlatformSitesPage })));
-const PlatformSegmentsPage = lazy(() => import('./dashboard/platform/PlatformSegmentsPage.js').then((m) => ({ default: m.PlatformSegmentsPage })));
-const PlatformPlansPage = lazy(() => import('./dashboard/platform/PlatformPlansPage.js').then((m) => ({ default: m.PlatformPlansPage })));
-const PlatformBillingPage = lazy(() => import('./dashboard/platform/PlatformBillingPage.js').then((m) => ({ default: m.PlatformBillingPage })));
-const PlatformDomainsPage = lazy(() => import('./dashboard/platform/PlatformDomainsPage.js').then((m) => ({ default: m.PlatformDomainsPage })));
-const PlatformSupportPage = lazy(() => import('./dashboard/platform/PlatformSupportPage.js').then((m) => ({ default: m.PlatformSupportPage })));
-const PlatformAuditPage = lazy(() => import('./dashboard/platform/PlatformAuditPage.js').then((m) => ({ default: m.PlatformAuditPage })));
+const DocumentModulePage = lazyRoute(['/painel/institucional', '/painel/contato'], () => import('./dashboard/DocumentModulePage.js').then((m) => ({ default: m.DocumentModulePage })));
+const CustomModulePage = lazyRoute(['/painel/p'], () => import('./dashboard/CustomModulePage.js').then((m) => ({ default: m.CustomModulePage })));
+const CustomDocumentPage = lazyRoute(['/painel/p'], () => import('./dashboard/CustomModulePage.js').then((m) => ({ default: m.CustomDocumentPage })));
+const BannersPage = lazyRoute(['/painel/banners'], () => import('./dashboard/BannersPage.js').then((m) => ({ default: m.BannersPage })));
+const MediaPage = lazyRoute(['/painel/midia'], () => import('./dashboard/MediaPage.js').then((m) => ({ default: m.MediaPage })));
+const PropertiesPage = lazyRoute(['/painel/imoveis'], () => import('./dashboard/PropertiesPage.js').then((m) => ({ default: m.PropertiesPage })));
+const ProjectsPage = lazyRoute(['/painel/obras'], () => import('./dashboard/ProjectsPage.js').then((m) => ({ default: m.ProjectsPage })));
+const ServicesPage = lazyRoute(['/painel/servicos'], () => import('./dashboard/ServicesPage.js').then((m) => ({ default: m.ServicesPage })));
+const ProductsPage = lazyRoute(['/painel/produtos'], () => import('./dashboard/ProductsPage.js').then((m) => ({ default: m.ProductsPage })));
+const CategoriesPage = lazyRoute(['/painel/categorias'], () => import('./dashboard/CategoriesPage.js').then((m) => ({ default: m.CategoriesPage })));
+const GalleriesPage = lazyRoute(['/painel/galerias'], () => import('./dashboard/GalleriesPage.js').then((m) => ({ default: m.GalleriesPage })));
+const TestimonialsPage = lazyRoute(['/painel/depoimentos'], () => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.TestimonialsPage })));
+const SiteTeamPage = lazyRoute(['/painel/equipe'], () => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.SiteTeamPage })));
+const FaqPage = lazyRoute(['/painel/perguntas'], () => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.FaqPage })));
+const LeadsPage = lazyRoute(['/painel/interessados'], () => import('./dashboard/LeadsPage.js').then((m) => ({ default: m.LeadsPage })));
+const DomainsPage = lazyRoute(['/painel/dominio'], () => import('./dashboard/DomainsPage.js').then((m) => ({ default: m.DomainsPage })));
+const UsersPage = lazyRoute(['/painel/usuarios'], () => import('./dashboard/UsersPage.js').then((m) => ({ default: m.UsersPage })));
+const BillingPage = lazyRoute(['/painel/plano'], () => import('./dashboard/BillingPage.js').then((m) => ({ default: m.BillingPage })));
+const CompanyPage = lazyRoute(['/painel/empresa'], () => import('./dashboard/CompanyPage.js').then((m) => ({ default: m.CompanyPage })));
+const PlatformOverviewPage = lazyRoute(['/plataforma'], () => import('./dashboard/platform/PlatformOverviewPage.js').then((m) => ({ default: m.PlatformOverviewPage })));
+const PlatformTenantsPage = lazyRoute(['/plataforma/empresas'], () => import('./dashboard/platform/PlatformTenantsPage.js').then((m) => ({ default: m.PlatformTenantsPage })));
+const PlatformSitesPage = lazyRoute(['/plataforma/sites'], () => import('./dashboard/platform/PlatformSitesPage.js').then((m) => ({ default: m.PlatformSitesPage })));
+const PlatformSegmentsPage = lazyRoute(['/plataforma/segmentos'], () => import('./dashboard/platform/PlatformSegmentsPage.js').then((m) => ({ default: m.PlatformSegmentsPage })));
+const PlatformPlansPage = lazyRoute(['/plataforma/planos'], () => import('./dashboard/platform/PlatformPlansPage.js').then((m) => ({ default: m.PlatformPlansPage })));
+const PlatformBillingPage = lazyRoute(['/plataforma/cobranca'], () => import('./dashboard/platform/PlatformBillingPage.js').then((m) => ({ default: m.PlatformBillingPage })));
+const PlatformDomainsPage = lazyRoute(['/plataforma/dominios'], () => import('./dashboard/platform/PlatformDomainsPage.js').then((m) => ({ default: m.PlatformDomainsPage })));
+const PlatformSupportPage = lazyRoute(['/plataforma/suporte'], () => import('./dashboard/platform/PlatformSupportPage.js').then((m) => ({ default: m.PlatformSupportPage })));
+const PlatformAuditPage = lazyRoute(['/plataforma/auditoria'], () => import('./dashboard/platform/PlatformAuditPage.js').then((m) => ({ default: m.PlatformAuditPage })));
 
 export function App() {
   return (

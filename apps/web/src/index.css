@@ -80,6 +80,23 @@
     letter-spacing: -0.03em;
   }
 
+  /**
+   * Trilha unica de grade que NAO se expande pelo conteudo.
+   *
+   * Uma grade sem colunas declaradas cria uma coluna `auto`, e `auto` cresce
+   * ate caber o conteudo mais largo -- uma tabela, um endereco longo, um campo
+   * de busca. No celular isso empurrava a pagina inteira para alem da tela, e o
+   * `overflow-x-auto` da tabela nunca chegava a rolar porque o pai ja tinha
+   * crescido junto. `minmax(0, 1fr)` limita a coluna a largura disponivel; so
+   * entao o que e largo demais rola dentro do proprio bloco.
+   *
+   * Fica na camada base: qualquer `grid-cols-*` do Tailwind, em qualquer
+   * breakpoint, continua mandando (as utilidades vem depois).
+   */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-brand-600;
   }
@@ -119,4 +136,18 @@
     background-size: 16px 16px;
     background-position: 0 0, 0 8px, 8px -8px, -8px 0;
   }
+}
+
+/* Linha de progresso de navegacao: discreta, sem alterar a paleta. */
+@keyframes nav-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+.nav-progress {
+  animation: nav-progress 1.1s var(--ease-out-soft) infinite;
 }

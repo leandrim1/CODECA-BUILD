@@ -18,7 +18,7 @@ import {
   relativeTime,
   type ModuleKey,
 } from '@codeca/shared';
-import { Alert, Badge, Button, Card, CardBody, CardHeader, EmptyState, Meter, PageHeader, cx } from '@codeca/ui';
+import { Alert, Badge, Button, Card, CardBody, CardHeader, EmptyState, Meter, PageHeader, Skeleton, cx } from '@codeca/ui';
 import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useResource } from '../hooks/useResource.js';
 import { useSiteModules } from '../hooks/useSiteModules.js';
@@ -108,10 +108,13 @@ const INDICADORES: Indicador[] = [
 export function OverviewPage() {
   const tenantId = useTenantId();
   const { user, tenant, can } = useAuth();
-  const { enabled, panelIncluded, planName } = useSiteModules();
-  const overview = useResource(() => tenantApi.overview(tenantId), [tenantId], {
+  const { enabled, panelIncluded, planName, loading: modulesLoading } = useSiteModules();
+  const overview = useResource('tenantApi.overview', () => tenantApi.overview(tenantId), [tenantId], {
     // Sem painel no plano a rota responde 402: nem pede.
     enabled: panelIncluded,
+    // Contagens e contatos mudam por fora (o site do cliente envia contatos):
+    // o numero guardado aparece na hora, mas e conferido a cada visita.
+    staleTime: 0,
   });
 
   const saudacao = `Ola, ${user?.name.split(' ')[0] ?? 'tudo bem'}`;
@@ -172,7 +175,16 @@ export function OverviewPage() {
         </Alert>
       ) : null}
 
-      <ResourcePanel resource={overview}>
+      {/*
+        Os cartoes de indicador dependem dos modulos do site. Se aparecessem
+        quando a configuracao chega -- depois do resumo -- empurrariam tudo o
+        que esta abaixo. Entao a tela espera os dois e, enquanto isso, reserva
+        o espaco com um esqueleto do mesmo desenho.
+      */}
+      <ResourcePanel
+        resource={modulesLoading ? { ...overview, initialLoading: true } : overview}
+        skeleton={<ResumoEmEspera />}
+      >
         {(data) => {
           const primaryDomain = data.domains.find((domain) => domain.isPrimary) ?? data.domains[0];
           const visiveis = INDICADORES.filter((item) => {
@@ -392,6 +404,23 @@ export function OverviewPage() {
           );
         }}
       </ResourcePanel>
+    </div>
+  );
+}
+
+/** Esqueleto com o desenho do resumo: indicadores no alto, dois cartoes abaixo. */
+function ResumoEmEspera() {
+  return (
+    <div className="grid gap-6" role="status" aria-label="Carregando o resumo">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[0, 1, 2, 3].map((indice) => (
+          <Skeleton key={indice} className="h-[8.5rem] rounded-2xl" />
+        ))}
+      </div>
+      <div className="grid items-start gap-6 lg:grid-cols-[1.5fr_1fr]">
+        <Skeleton className="h-72 rounded-2xl" />
+        <Skeleton className="h-48 rounded-2xl" />
+      </div>
     </div>
   );
 }

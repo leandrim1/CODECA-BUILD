@@ -42,7 +42,7 @@ export function CardHeader({
   return (
     <div
       className={cx(
-        'flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/70 px-6 py-5',
+        'flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/70 px-4 py-4 sm:px-6 sm:py-5',
         className,
       )}
     >
@@ -50,13 +50,14 @@ export function CardHeader({
         <h2 className="text-base font-semibold tracking-tight text-slate-900">{title}</h2>
         {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {/* `w-full` no celular: filtros e botoes podem ocupar a linha inteira. */}
+      {actions ? <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div> : null}
     </div>
   );
 }
 
 export function CardBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx('p-6', className)}>{children}</div>;
+  return <div className={cx('p-4 sm:p-6', className)}>{children}</div>;
 }
 
 export function PageHeader({

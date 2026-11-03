@@ -66,6 +66,7 @@ export function PropertiesPage() {
   const [removing, setRemoving] = useState<PropertyRecord | null>(null);
 
   const list = useResource(
+    'propertyApi.list',
     () =>
       propertyApi.list(tenantId, {
         page,
@@ -77,7 +78,7 @@ export function PropertiesPage() {
     [tenantId, page, debounced, status, type],
   );
 
-  const facets = useResource(() => propertyApi.facets(tenantId), [tenantId]);
+  const facets = useResource('propertyApi.facets', () => propertyApi.facets(tenantId), [tenantId]);
 
   const remove = useMutation((id: string) => propertyApi.remove(tenantId, id), {
     onSuccess: () => {
@@ -221,7 +222,7 @@ export function PropertiesPage() {
           title="Carteira de imoveis"
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <TextInput
                   label="Buscar"
                   className="[&>label]:sr-only"
@@ -233,7 +234,7 @@ export function PropertiesPage() {
                   }}
                 />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select
                   label="Situacao"
                   className="[&>label]:sr-only"
@@ -246,7 +247,7 @@ export function PropertiesPage() {
                   }}
                 />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select
                   label="Tipo"
                   className="[&>label]:sr-only"
@@ -380,8 +381,9 @@ function PropertyFormModal({
   const [cover, setCover] = useState<MediaRef | null>(null);
   const [gallery, setGallery] = useState<MediaRef[]>([]);
 
-  const detail = useResource(() => propertyApi.detail(tenantId, propertyId as string), [tenantId, propertyId], {
+  const detail = useResource('propertyApi.detail', () => propertyApi.detail(tenantId, propertyId as string), [tenantId, propertyId], {
     enabled: Boolean(propertyId),
+    fresh: true,
   });
 
   useEffect(() => {

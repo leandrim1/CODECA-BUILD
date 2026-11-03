@@ -11,7 +11,7 @@ type Row = DomainRecord & { tenantId: string; tenantName: string };
 
 /** Dominios de todas as empresas, para acompanhar pendencias. */
 export function PlatformDomainsPage() {
-  const list = useResource(() => platformApi.domains(), []);
+  const list = useResource('platformApi.domains', () => platformApi.domains(), []);
 
   const columns: Array<Column<Row>> = [
     {

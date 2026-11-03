@@ -48,8 +48,9 @@ export function MediaPage() {
   const [removing, setRemoving] = useState<MediaAssetRecord | null>(null);
   const [removeBlockedBy, setRemoveBlockedBy] = useState<string[] | null>(null);
 
-  const usage = useResource(() => mediaApi.usage(tenantId), [tenantId]);
+  const usage = useResource('mediaApi.usage', () => mediaApi.usage(tenantId), [tenantId]);
   const list = useResource(
+    'mediaApi.list',
     () =>
       mediaApi.list(tenantId, {
         page,
@@ -132,7 +133,7 @@ export function MediaPage() {
             title="Arquivos"
             actions={
               <div className="flex flex-wrap items-center gap-2">
-                <div className="w-48">
+                <div className="w-full sm:w-48">
                   <TextInput
                     label="Buscar"
                     className="[&>label]:sr-only"
@@ -144,7 +145,7 @@ export function MediaPage() {
                     }}
                   />
                 </div>
-                <div className="w-40">
+                <div className="w-full sm:w-40">
                   <Select
                     label="Etiqueta"
                     className="[&>label]:sr-only"

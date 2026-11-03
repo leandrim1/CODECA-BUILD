@@ -63,6 +63,7 @@ export function SiteModulesProvider({ children }: { children: ReactNode }) {
   const tenantId = tenant?.tenantId ?? null;
 
   const recurso = useResource(
+    'moduleApi.list',
     () => moduleApi.list(tenantId!),
     [tenantId],
     { enabled: tenantId !== null },

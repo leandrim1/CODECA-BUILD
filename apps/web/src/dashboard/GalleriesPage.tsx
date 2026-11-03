@@ -41,7 +41,7 @@ export function GalleriesPage() {
   const [editando, setEditando] = useState<GalleryRecord | 'nova' | null>(null);
   const [removendo, setRemovendo] = useState<GalleryRecord | null>(null);
   const toast = useToast();
-  const galerias = useResource(() => catalogApi.galleries(tenantId), [tenantId]);
+  const galerias = useResource('catalogApi.galleries', () => catalogApi.galleries(tenantId), [tenantId]);
 
   const remover = useMutation((id: string) => catalogApi.removeGallery(tenantId, id), {
     onSuccess: () => {

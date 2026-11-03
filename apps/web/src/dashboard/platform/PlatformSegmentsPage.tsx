@@ -35,7 +35,7 @@ import type { SegmentRecord } from '../../types/index.js';
  */
 export function PlatformSegmentsPage() {
   const [editing, setEditing] = useState<SegmentRecord | 'new' | null>(null);
-  const segments = useResource(() => platformApi.segments(), []);
+  const segments = useResource('platformApi.segments', () => platformApi.segments(), []);
 
   return (
     <div className="panel-shell grid gap-6">

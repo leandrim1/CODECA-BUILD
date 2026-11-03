@@ -38,7 +38,7 @@ import type { PlanRecord } from '../../types/index.js';
 /** Planos comerciais: limites e recursos por plano. */
 export function PlatformPlansPage() {
   const [editing, setEditing] = useState<PlanRecord | 'new' | null>(null);
-  const plans = useResource(() => platformApi.plans(), []);
+  const plans = useResource('platformApi.plans', () => platformApi.plans(), []);
 
   return (
     <div className="panel-shell grid gap-6">

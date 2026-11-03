@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Alert, Button, EmptyState, Spinner } from '@codeca/ui';
+import { PageSkeleton } from './PageFeedback.js';
 import { Building2, PackageOpen } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
 import type { ModuleKey } from '@codeca/shared';
@@ -117,13 +118,10 @@ export function RequireCustomModule({
 }) {
   const { customModule, loading } = useSiteModules();
 
-  if (loading) {
-    return (
-      <div className="panel-shell">
-        <Spinner label="Carregando o site" />
-      </div>
-    );
-  }
+  // Esqueleto de tela, e nao um indicador de espera: o que vem depois e a
+  // propria tela (que tem o seu esqueleto), e assim o conteudo passa por uma
+  // so troca em vez de duas.
+  if (loading) return <PageSkeleton />;
 
   if (!customModule(moduleKey)) {
     return (
@@ -149,13 +147,10 @@ function RequireModuleBase({
 }) {
   const { enabled, loading, module } = useSiteModules();
 
-  if (loading) {
-    return (
-      <div className="panel-shell">
-        <Spinner label="Carregando o site" />
-      </div>
-    );
-  }
+  // Esqueleto de tela, e nao um indicador de espera: o que vem depois e a
+  // propria tela (que tem o seu esqueleto), e assim o conteudo passa por uma
+  // so troca em vez de duas.
+  if (loading) return <PageSkeleton />;
 
   if (!enabled(moduleKey)) {
     return (

@@ -50,6 +50,33 @@ function readCookie(name: string): string | null {
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 }
 
+/**
+ * Observadores da camada de rede.
+ *
+ * Moram aqui, e nao no cache, para a dependencia correr num sentido so: o
+ * cache conhece o cliente da API, e o cliente da API nao conhece o cache.
+ */
+type Listener = () => void;
+const writeListeners = new Set<Listener>();
+let unauthenticatedHandler: Listener | null = null;
+
+/** Avisa a cada escrita bem-sucedida (POST, PATCH, PUT, DELETE). */
+export function subscribeToWrites(listener: Listener): () => void {
+  writeListeners.add(listener);
+  return () => writeListeners.delete(listener);
+}
+
+/**
+ * Chamado quando uma consulta autenticada volta como "sem sessao".
+ *
+ * E a unica forma de a interface saber que a sessao expirou no meio do uso:
+ * sem isto, cada tela mostraria o proprio erro e a moldura do painel
+ * continuaria de pe, oferecendo um menu que nao leva a lugar nenhum.
+ */
+export function setUnauthenticatedHandler(handler: Listener | null): void {
+  unauthenticatedHandler = handler;
+}
+
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;
@@ -92,6 +119,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     throw new ApiError(0, 'network_error', 'Falha de conexao. Verifique sua internet e tente novamente.');
   }
 
+  if (response.ok && method !== 'GET') for (const listener of writeListeners) listener();
+
   if (response.status === 204) return undefined as T;
 
   if (options.raw) {
@@ -115,12 +144,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (!response.ok) {
     const error = (payload as { error?: { code?: AppErrorCode; message?: string; details?: unknown } } | null)
       ?.error;
-    throw new ApiError(
+    const failure = new ApiError(
       response.status,
       error?.code ?? 'internal_error',
       error?.message ?? opaqueErrorMessage(response.status),
       error?.details,
     );
+    // Consultar a sessao e entrar respondem "sem sessao" de forma esperada; em
+    // qualquer outra rota isso significa que a sessao acabou no meio do uso.
+    const expected = path === '/api/auth/session' || path === '/api/auth/login';
+    if (failure.isUnauthenticated && !expected) unauthenticatedHandler?.();
+    throw failure;
   }
 
   return (payload as { data?: T })?.data as T;

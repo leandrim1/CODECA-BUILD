@@ -18,6 +18,7 @@ export function PlatformAuditPage() {
   const debounced = useDebounced(action);
 
   const list = useResource(
+    'platformApi.audit',
     () => platformApi.audit({ page, pageSize: 30, ...(debounced ? { action: debounced } : {}) }),
     [page, debounced],
   );
@@ -73,7 +74,7 @@ export function PlatformAuditPage() {
         <CardHeader
           title="Registros"
           actions={
-            <div className="w-56">
+            <div className="w-full sm:w-56">
               <TextInput
                 label="Filtrar por acao"
                 className="[&>label]:sr-only"

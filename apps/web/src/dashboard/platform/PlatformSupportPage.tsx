@@ -13,7 +13,7 @@ import type { SupportGrantRow } from '../../types/index.js';
  */
 export function PlatformSupportPage() {
   const toast = useToast();
-  const list = useResource(() => platformApi.supportGrants(), []);
+  const list = useResource('platformApi.supportGrants', () => platformApi.supportGrants(), []);
 
   const revoke = useMutation((grantId: string) => platformApi.revokeSupportAccess(grantId), {
     onSuccess: () => {

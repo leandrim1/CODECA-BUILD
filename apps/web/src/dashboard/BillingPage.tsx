@@ -45,7 +45,7 @@ import type { BillingPlanOption, ChargeView } from '../types/index.js';
 export function BillingPage() {
   const tenantId = useTenantId();
   const toast = useToast();
-  const billing = useResource(() => billingApi.overview(tenantId), [tenantId]);
+  const billing = useResource('billingApi.overview', () => billingApi.overview(tenantId), [tenantId]);
 
   const [checkoutPlan, setCheckoutPlan] = useState<BillingPlanOption | null>(null);
   const [method, setMethod] = useState<PaymentMethodCode | ''>('');

@@ -36,7 +36,7 @@ export function CompanyPage() {
   const readOnly = !can('tenant:update');
   const [tab, setTab] = useState('empresa');
 
-  const tenant = useResource(() => tenantApi.detail(tenantId), [tenantId]);
+  const tenant = useResource('tenantApi.detail', () => tenantApi.detail(tenantId), [tenantId]);
 
   const profile = useForm({ legalName: '', displayName: '', taxId: '', description: '', foundedYear: '', creaNumber: '' });
   const contact = useForm({
@@ -60,7 +60,7 @@ export function CompanyPage() {
   useEffect(() => {
     const data = tenant.data;
     if (!data) return;
-    profile.reset({
+    profile.syncFromServer({
       legalName: data.tenant.legalName,
       displayName: data.tenant.displayName,
       taxId: data.tenant.taxId,
@@ -68,7 +68,7 @@ export function CompanyPage() {
       foundedYear: data.tenant.foundedYear === null ? '' : String(data.tenant.foundedYear),
       creaNumber: data.tenant.creaNumber,
     });
-    contact.reset({
+    contact.syncFromServer({
       email: data.tenant.contactEmail,
       phone: data.tenant.contactPhone,
       whatsapp: data.tenant.whatsapp,
@@ -101,6 +101,7 @@ export function CompanyPage() {
     {
       onSuccess: () => {
         toast.success('Dados da empresa salvos');
+        profile.markPristine();
         tenant.reload();
       },
       onError: (error) => {
@@ -134,6 +135,7 @@ export function CompanyPage() {
     {
       onSuccess: () => {
         toast.success('Contato salvo');
+        contact.markPristine();
         tenant.reload();
       },
       onError: (error) => {
@@ -417,7 +419,7 @@ function AccountSection({ email, onSaved }: { email: string; onSaved: () => void
   const { user } = useAuth();
   const profile = useForm({ name: user?.name ?? '', phone: user?.phone ?? '' });
   const password = useForm({ currentPassword: '', newPassword: '' });
-  const sessions = useResource(() => authApi.sessions(), []);
+  const sessions = useResource('authApi.sessions', () => authApi.sessions(), []);
 
   const saveProfile = useMutation(() => authApi.updateProfile(profile.values), {
     onSuccess: () => {

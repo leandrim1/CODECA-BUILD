@@ -40,7 +40,7 @@ export function ServicesPage() {
   const [editing, setEditing] = useState<ServiceRecord | 'new' | null>(null);
   const [removing, setRemoving] = useState<ServiceRecord | null>(null);
 
-  const list = useResource(() => contentApi.services(tenantId, { pageSize: 50 }), [tenantId]);
+  const list = useResource('contentApi.services', () => contentApi.services(tenantId, { pageSize: 50 }), [tenantId]);
 
   const remove = useMutation((id: string) => contentApi.removeService(tenantId, id), {
     onSuccess: () => {

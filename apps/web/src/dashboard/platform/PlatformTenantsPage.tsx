@@ -37,8 +37,9 @@ export function PlatformTenantsPage() {
   const [creating, setCreating] = useState(false);
   const [opened, setOpened] = useState<PlatformTenantRow | null>(null);
 
-  const plans = useResource(() => platformApi.plans(), []);
+  const plans = useResource('platformApi.plans', () => platformApi.plans(), []);
   const list = useResource(
+    'platformApi.tenants',
     () =>
       platformApi.tenants({
         page,
@@ -121,7 +122,7 @@ export function PlatformTenantsPage() {
           title="Empresas"
           actions={
             <div className="flex flex-wrap gap-2">
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <TextInput
                   label="Buscar"
                   className="[&>label]:sr-only"
@@ -133,7 +134,7 @@ export function PlatformTenantsPage() {
                   }}
                 />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select
                   label="Situacao"
                   className="[&>label]:sr-only"
@@ -240,8 +241,8 @@ function TenantDetailModal({
   onChanged: () => void;
 }) {
   const toast = useToast();
-  const detail = useResource(() => platformApi.tenantDetail(tenantRow.id), [tenantRow.id]);
-  const plans = useResource(() => platformApi.plans(), []);
+  const detail = useResource('platformApi.tenantDetail', () => platformApi.tenantDetail(tenantRow.id), [tenantRow.id], { fresh: true });
+  const plans = useResource('platformApi.plans', () => platformApi.plans(), []);
   const [status, setStatus] = useState(tenantRow.status as string);
   const [planCode, setPlanCode] = useState(tenantRow.planCode);
   const [notes, setNotes] = useState('');

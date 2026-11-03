@@ -34,7 +34,7 @@ export function DomainsPage() {
   const [hostname, setHostname] = useState('');
   const [removing, setRemoving] = useState<DomainRecord | null>(null);
 
-  const list = useResource(() => domainApi.list(tenantId), [tenantId]);
+  const list = useResource('domainApi.list', () => domainApi.list(tenantId), [tenantId]);
 
   const add = useMutation((value: string) => domainApi.add(tenantId, value), {
     onSuccess: (result) => {
@@ -138,7 +138,7 @@ export function DomainsPage() {
                       void add.run(hostname);
                     }}
                   >
-                    <div className="min-w-64 flex-1">
+                    <div className="w-full min-w-0 flex-1 sm:min-w-64">
                       <TextInput
                         label="Dominio"
                         placeholder="www.suaempresa.com.br"

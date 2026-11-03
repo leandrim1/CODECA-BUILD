@@ -47,8 +47,9 @@ export function PlatformBillingPage() {
   const [eventStatus, setEventStatus] = useState('failed');
   const [search, setSearch] = useState('');
 
-  const overview = useResource(() => platformBillingApi.overview(), []);
+  const overview = useResource('platformBillingApi.overview', () => platformBillingApi.overview(), []);
   const subscriptions = useResource(
+    'platformBillingApi.subscriptions',
     () =>
       platformBillingApi.subscriptions({
         ...(stateFilter ? { state: stateFilter } : {}),
@@ -58,15 +59,16 @@ export function PlatformBillingPage() {
     [stateFilter, search],
     { enabled: tab === 'assinaturas' },
   );
-  const charges = useResource(() => platformBillingApi.charges({ pageSize: 25 }), [], {
+  const charges = useResource('platformBillingApi.charges', () => platformBillingApi.charges({ pageSize: 25 }), [], {
     enabled: tab === 'cobrancas',
   });
   const events = useResource(
+    'platformBillingApi.webhooks',
     () => platformBillingApi.webhooks({ ...(eventStatus ? { status: eventStatus } : {}), pageSize: 25 }),
     [eventStatus],
     { enabled: tab === 'eventos' },
   );
-  const history = useResource(() => platformBillingApi.history({ pageSize: 40 }), [], {
+  const history = useResource('platformBillingApi.history', () => platformBillingApi.history({ pageSize: 40 }), [], {
     enabled: tab === 'historico',
   });
 

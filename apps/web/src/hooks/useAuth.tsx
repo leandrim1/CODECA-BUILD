@@ -4,11 +4,14 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { roleCan, type TenantCapability } from '@codeca/shared';
-import { ApiError } from '../services/api.js';
+import { useToast } from '@codeca/ui';
+import { ApiError, setUnauthenticatedHandler } from '../services/api.js';
+import { queryCache, replaceEqualDeep } from '../services/queryCache.js';
 import { authApi } from '../services/endpoints.js';
 import type { FeatureFlags, SessionMembership, SessionPayload, SessionUser } from '../types/index.js';
 
@@ -56,6 +59,15 @@ function readStoredTenant(): string | null {
   }
 }
 
+/**
+ * A consulta da sessao em curso, compartilhada.
+ *
+ * O React em modo estrito monta o provedor duas vezes em desenvolvimento, e
+ * duas consultas de sessao identicas nao tem ganho algum. Quem chega enquanto
+ * uma esta em voo espera a mesma resposta.
+ */
+let sessionRequest: ReturnType<typeof authApi.session> | null = null;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [memberships, setMemberships] = useState<SessionMembership[]>([]);
@@ -64,17 +76,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(() => readStoredTenant());
 
+  const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  const userIdRef = useRef<string | null>(null);
+
   const applySession = useCallback((session: SessionPayload | null) => {
-    setUser(session?.user ?? null);
-    setMemberships(session?.memberships ?? []);
+    const nextId = session?.user.id ?? null;
+    // Outra pessoa (ou ninguem) no mesmo navegador: nada do que foi guardado
+    // para a anterior pode aparecer para a proxima.
+    if (userIdRef.current !== nextId) queryCache.clear();
+    userIdRef.current = nextId;
+    // Uma conferencia que devolve o mesmo conteudo nao pode trocar os objetos:
+    // todo consumidor do contexto refaria a tela por nada.
+    setUser((atual) => replaceEqualDeep(atual, session?.user ?? null));
+    setMemberships((atual) => replaceEqualDeep(atual, session?.memberships ?? []));
   }, []);
+
+  // Uma consulta qualquer descobriu que a sessao acabou: a moldura inteira
+  // precisa saber, e nao apenas a tela que levou o 401.
+  useEffect(() => {
+    setUnauthenticatedHandler(() => {
+      if (userIdRef.current === null) return;
+      applySession(null);
+      toastRef.current.error('Sua sessao expirou', 'Entre novamente para continuar.');
+    });
+    return () => setUnauthenticatedHandler(null);
+  }, [applySession]);
 
   const refresh = useCallback(async () => {
     try {
-      const response = await authApi.session();
+      sessionRequest ??= authApi.session().finally(() => {
+        sessionRequest = null;
+      });
+      const response = await sessionRequest;
+      const tinhaSessao = userIdRef.current !== null;
       applySession(response.session);
-      setFeatures(response.features);
-      setPlatform(response.platform);
+      setFeatures((atual) => replaceEqualDeep(atual, response.features));
+      setPlatform((atual) => replaceEqualDeep(atual, response.platform));
+      if (tinhaSessao && !response.session) {
+        toastRef.current.error('Sua sessao expirou', 'Entre novamente para continuar.');
+      }
     } catch (error) {
       if (error instanceof ApiError && error.isUnauthenticated) {
         applySession(null);
@@ -86,6 +128,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
+
+  // Ao voltar para a aba depois de um tempo, confere se a sessao ainda vale.
+  // Sem isso, um painel esquecido aberto so descobriria a expiracao no
+  // proximo clique que precisasse de rede -- e um clique em tela ja guardada
+  // nem isso. Silencioso: nao mexe no estado de carregamento.
+  useEffect(() => {
+    let ultima = Date.now();
+    const aoVoltar = () => {
+      if (document.visibilityState !== 'visible' || userIdRef.current === null) return;
+      if (Date.now() - ultima < 60_000) return;
+      ultima = Date.now();
+      void refresh();
+    };
+    document.addEventListener('visibilitychange', aoVoltar);
+    return () => document.removeEventListener('visibilitychange', aoVoltar);
   }, [refresh]);
 
   const selectTenant = useCallback((tenantId: string) => {
@@ -102,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await authApi.logout();
     } finally {
       applySession(null);
+      queryCache.clear();
       try {
         window.localStorage.removeItem(SELECTED_TENANT_KEY);
       } catch {
@@ -116,6 +175,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return stored ?? memberships[0] ?? null;
   }, [memberships, selectedTenantId]);
 
+  const can = useCallback(
+    (capability: TenantCapability) => (tenant ? roleCan(tenant.role, capability) : false),
+    [tenant],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -128,10 +192,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refresh,
       logout,
       applySession,
-      can: (capability) => (tenant ? roleCan(tenant.role, capability) : false),
+      can,
       isPlatformAdmin: user?.platformRole === 'platform_admin',
     }),
-    [user, memberships, features, platform, loading, tenant, selectTenant, refresh, logout, applySession],
+    [user, memberships, features, platform, loading, tenant, selectTenant, refresh, logout, applySession, can],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

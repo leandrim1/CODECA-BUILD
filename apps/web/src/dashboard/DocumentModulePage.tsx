@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Lock, Save } from 'lucide-react';
 import { SOCIAL_NETWORKS, SOCIAL_NETWORK_LABELS, type SocialNetwork } from '@codeca/shared';
 import {
@@ -45,7 +45,7 @@ export function DocumentModulePage({ moduleKey }: { moduleKey: 'institucional' |
   const tenantId = useTenantId();
   const toast = useToast();
   const { module, reload: reloadModules } = useSiteModules();
-  const documento = useResource(() => moduleApi.document(tenantId, moduleKey), [tenantId, moduleKey]);
+  const documento = useResource('moduleApi.document', () => moduleApi.document(tenantId, moduleKey), [tenantId, moduleKey]);
 
   const definicao = module(moduleKey);
 
@@ -101,7 +101,11 @@ function Formulario({
     paraFormulario(fields, { ...inicial, ...personalizados }),
   );
 
+  // Uma conferencia em segundo plano que traga valores novos nao pode apagar
+  // o que a pessoa esta digitando; depois de salvar, os valores novos entram.
+  const alterado = useRef(false);
   useEffect(() => {
+    if (alterado.current) return;
     setValores(paraFormulario(fields, { ...inicial, ...personalizados }));
   }, [fields, inicial, personalizados]);
 
@@ -110,12 +114,16 @@ function Formulario({
   const salvar = useMutation(
     () => moduleApi.saveDocument(tenantId, moduleKey, paraApi(fields, valores, inicial, personalizados)),
     {
-      onSuccess: onSaved,
+      onSuccess: () => {
+        alterado.current = false;
+        onSaved();
+      },
       onError: (error) => toast.error('Nao foi possivel salvar', error.message),
     },
   );
 
   function definir(key: string, value: FormValue) {
+    alterado.current = true;
     setValores((atual) => ({ ...atual, [key]: value }));
   }
 

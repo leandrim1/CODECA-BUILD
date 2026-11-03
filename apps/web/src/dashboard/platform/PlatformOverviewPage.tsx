@@ -9,7 +9,7 @@ import { tenantTone } from '../../utils/labels.js';
 
 /** Visao geral da plataforma, para o proprietario do SaaS. */
 export function PlatformOverviewPage() {
-  const overview = useResource(() => platformApi.overview(), []);
+  const overview = useResource('platformApi.overview', () => platformApi.overview(), []);
 
   return (
     <div className="panel-shell grid gap-6">

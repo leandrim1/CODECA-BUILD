@@ -72,6 +72,10 @@ Legenda:
 | Configuracoes da empresa | Pronto | dados, contato, WhatsApp, redes sociais |
 | Somente leitura na suspensao | Pronto | aviso no topo de toda tela, dizendo que nada foi apagado |
 | Painel indisponivel no plano sem `cms_panel` | Pronto | aviso de upgrade, nunca de inadimplencia; cobranca e cadastro seguem acessiveis |
+| Navegacao sem piscadas | Pronto | menu e cabecalho nao desmontam; cache de consultas em memoria (mostra o guardado e confere por tras); revisitar uma tela nao mostra esqueleto nem faz requisicao. Ver [navegacao-fluida.md](navegacao-fluida.md) |
+| Sessao expirada no meio do uso | Pronto | limpa o cache, avisa e leva ao login; depois de entrar a pessoa volta para a tela em que estava |
+| Erro de uma tela nao derruba o painel | Pronto | barreira por rota dentro da moldura; o menu continua e trocar de tela limpa o erro |
+| Responsivo (celular e tablet) | Pronto | sem rolagem lateral em nenhuma tela a 375px e 768px; tabelas viram cartoes no celular |
 
 ## Conteudo e publicacao
 
@@ -201,7 +205,7 @@ deploy sem abrir o painel.
 
 ## Testes
 
-765 testes no Vitest, em 47 arquivos; os de integracao rodam contra Postgres real em processo
+796 testes no Vitest, em 49 arquivos; os de integracao rodam contra Postgres real em processo
 (PGlite) com as mesmas migracoes enviadas ao Neon. Nenhuma cobranca real
 acontece nos testes: a ValidaPay e substituida por um provedor em memoria que
 reproduz o fluxo documentado (incluindo o fato de a assinatura nascer apenas do
@@ -210,6 +214,8 @@ pagamento).
 | Area exigida | Onde |
 | --- | --- |
 | Cadastro e autenticacao | `integration/auth.test.ts` |
+| Cache de consultas (frescor, deduplicacao, cancelamento, invalidacao, erro, logout) | `unit/query-cache.test.ts` |
+| Ligacao rede-cache (escrita envelhece o cache, 401 encerra a sessao) | `unit/api-client-cache.test.ts` |
 | Permissoes por papel | `integration/rbac.test.ts` |
 | Isolamento entre empresas (trocando IDs e parametros) | `integration/isolation.test.ts` |
 | CRUD de imoveis e de obras | `integration/content.test.ts` |

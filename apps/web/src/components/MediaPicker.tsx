@@ -21,6 +21,7 @@ export function useMediaLibrary(options: { kind?: 'image' | 'document' } = {}) {
   const debounced = useDebounced(search);
 
   const resource = useResource(
+    'mediaApi.list#seletor',
     () =>
       mediaApi.list(tenantId, {
         pageSize: 60,
@@ -30,7 +31,7 @@ export function useMediaLibrary(options: { kind?: 'image' | 'document' } = {}) {
     [tenantId, debounced, options.kind],
   );
 
-  const usage = useResource(() => mediaApi.usage(tenantId), [tenantId]);
+  const usage = useResource('mediaApi.usage', () => mediaApi.usage(tenantId), [tenantId]);
 
   return { resource, usage, search, setSearch, tenantId };
 }
