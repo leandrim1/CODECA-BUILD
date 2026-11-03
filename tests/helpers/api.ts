@@ -10,7 +10,7 @@ import {
   type MailMessage,
   type MemoryBillingProvider,
 } from '@codeca/api';
-import { and, eq, schema, seedDatabase, type Database } from '@codeca/database';
+import { and, eq, provisionSiteModules, schema, seedDatabase, type Database } from '@codeca/database';
 import { createTestDatabase, type TestDatabase } from './database.js';
 
 /**
@@ -305,7 +305,20 @@ export interface RegisteredAccount {
 /** Cria uma conta com construtora e devolve um cliente autenticado. */
 export async function registerAccount(
   api: TestApi,
-  input: { email: string; companyName: string; name?: string; password?: string },
+  input: {
+    email: string;
+    companyName: string;
+    name?: string;
+    password?: string;
+    /**
+     * Segmento do site criado. `null` deixa o padrao da plataforma valer.
+     *
+     * O padrao daqui e `construtora` porque a maioria dos testes exercita
+     * imoveis e obras. Quem testa o **proprio** comportamento do segmento
+     * padrao passa `null` -- senao o helper mascararia o que esta sob teste.
+     */
+    segment?: string | null;
+  },
 ): Promise<RegisteredAccount> {
   const client = api.client();
   const password = input.password ?? 'senhaSegura123';
@@ -330,6 +343,37 @@ export async function registerAccount(
 
   const tenantId = session.memberships[0]!.tenantId;
   const siteId = await primarySiteId(api, tenantId);
+
+  /**
+   * O site de teste nasce no segmento `construtora`, e nao no padrao.
+   *
+   * O padrao da instalacao e `institucional`, que de proposito **nao** liga
+   * modulo de ramo nenhum -- e o certo para uma empresa cujo ramo ainda nao
+   * foi escolhido. Mas a maioria dos testes exercita conteudo de imoveis e
+   * obras, e precisa de uma empresa que tenha esses modulos.
+   *
+   * Fixar aqui e melhor que depender do padrao: o conjunto que os testes
+   * usam para de mudar quando alguem troca o segmento padrao da plataforma,
+   * que foi exatamente o que quebrou noventa e cinco testes de uma vez.
+   */
+  const codigoSegmento = input.segment === undefined ? 'construtora' : input.segment;
+  const [segmento] = codigoSegmento
+    ? await api.db
+        .select({ id: schema.segments.id, defaultModules: schema.segments.defaultModules })
+        .from(schema.segments)
+        .where(eq(schema.segments.code, codigoSegmento))
+    : [];
+  if (segmento) {
+    await api.db
+      .update(schema.sites)
+      .set({ segmentId: segmento.id })
+      .where(eq(schema.sites.id, siteId));
+    await provisionSiteModules(api.db, {
+      tenantId,
+      siteId,
+      moduleKeys: segmento.defaultModules as string[],
+    });
+  }
 
   return { client, tenantId, siteId, userId: session.user.id, email: input.email, password };
 }

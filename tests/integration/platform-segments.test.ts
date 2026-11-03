@@ -36,7 +36,13 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await api.reset();
-  admin = await registerAccount(api, { email: 'admin@codeca.test', companyName: 'Plataforma' });
+  // `segment: null` em todo este arquivo: aqui o comportamento do segmento
+  // padrao **e** o que esta sob teste, entao o helper nao pode fixar nenhum.
+  admin = await registerAccount(api, {
+    email: 'admin@codeca.test',
+    companyName: 'Plataforma',
+    segment: null,
+  });
   await api.db
     .update(schema.users)
     .set({ platformRole: 'platform_admin' })
@@ -45,6 +51,7 @@ beforeEach(async () => {
   empresa = await registerAccount(api, {
     email: 'contato@horizonte.com.br',
     companyName: 'Construtora Horizonte',
+    segment: null,
   });
 });
 
@@ -213,6 +220,7 @@ describe('o segmento padrao', () => {
     const nova = await registerAccount(api, {
       email: 'contato@vieira.adv.br',
       companyName: 'Vieira Advogados',
+      segment: null,
     });
 
     // Antes da etapa 7 isto vinha de `'construtora'` fixo no codigo: um
