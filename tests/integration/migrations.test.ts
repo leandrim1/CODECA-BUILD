@@ -346,6 +346,58 @@ describe('atomicidade das migracoes', () => {
   });
 });
 
+/**
+ * Um banco que ficou pela metade antes da transacao existir.
+ *
+ * Os deploys anteriores a migracao virar transacao podiam deixar exatamente
+ * isso: as tabelas da 0012/0013 criadas, as constraints criadas, e o nome
+ * **nao** registrado. Sem protecao, toda reexecucao morre em "constraint ja
+ * existe" -- e como o executor roda no build, o deploy inteiro para, de
+ * forma permanente, ate alguem abrir o banco de producao a mao.
+ *
+ * O teste reproduz esse estado e exige que a migracao passe por cima dele.
+ */
+describe('recuperacao de um banco pela metade', () => {
+  it('reaplica 0012 e 0013 sobre o que ja existia, sem erro', async () => {
+    const client = new PGlite();
+    const db = drizzle(client, { schema, casing: 'snake_case' }) as unknown as Database;
+
+    try {
+      const todas = await readMigrations(MIGRATIONS_DIR);
+      const parciais = ['0012_campos_personalizados.sql', '0013_modulos_personalizados.sql'];
+
+      // Aplica tudo, inclusive as duas, mas **sem** registrar as duas: e o
+      // estado que a falha no meio deixava.
+      for (const migracao of todas) {
+        for (const instrucao of migracao.statements) {
+          await db.execute(sql.raw(instrucao));
+        }
+      }
+      await db.execute(
+        sql.raw(`CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
+                   name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`),
+      );
+      for (const migracao of todas.filter((m) => !parciais.includes(m.name))) {
+        await db.execute(
+          sql`insert into ${sql.identifier(MIGRATIONS_TABLE)} (name) values (${migracao.name})`,
+        );
+      }
+
+      // O executor de verdade reencontra as duas como pendentes.
+      const resultado = await runMigrations(db, MIGRATIONS_DIR);
+      expect(resultado.applied).toEqual(expect.arrayContaining(parciais));
+
+      // E o schema continua de pe.
+      const depois = await tabelas(db);
+      expect(depois).toEqual(
+        expect.arrayContaining(['site_custom_fields', 'site_custom_modules', 'custom_records']),
+      );
+    } finally {
+      await client.close();
+    }
+  });
+});
+
 /** Modulos habilitados de um site. */
 async function modulosHabilitados(db: Database, siteId: string): Promise<string[]> {
   const linhas = await db

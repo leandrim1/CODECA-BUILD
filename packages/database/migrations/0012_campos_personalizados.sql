@@ -37,10 +37,22 @@ CREATE TABLE IF NOT EXISTS "site_custom_fields" (
   "updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );--> statement-breakpoint
 
-ALTER TABLE "site_custom_fields" ADD CONSTRAINT "site_custom_fields_tenant_id_tenants_id_fk"
-  FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade;--> statement-breakpoint
-ALTER TABLE "site_custom_fields" ADD CONSTRAINT "site_custom_fields_site_tenant_fk"
-  FOREIGN KEY ("site_id", "tenant_id") REFERENCES "public"."sites"("id", "tenant_id") ON DELETE cascade;--> statement-breakpoint
+-- Cada `ADD CONSTRAINT` vai dentro de um bloco que ignora "ja existe".
+--
+-- O Postgres nao tem `ADD CONSTRAINT IF NOT EXISTS`. Sem o bloco, um banco
+-- que ficou com esta migracao pela metade -- possivel nos deploys anteriores
+-- a migracao virar transacao -- recusa a reexecucao para sempre, e so sai
+-- disso com alguem abrindo o banco de producao a mao.
+DO $$ BEGIN
+  ALTER TABLE "site_custom_fields" ADD CONSTRAINT "site_custom_fields_tenant_id_tenants_id_fk"
+    FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "site_custom_fields" ADD CONSTRAINT "site_custom_fields_site_tenant_fk"
+    FOREIGN KEY ("site_id", "tenant_id") REFERENCES "public"."sites"("id", "tenant_id") ON DELETE cascade;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
 
 -- Uma definicao por chave, dentro do modulo e do site. E o que impede dois
 -- campos com o mesmo nome no mesmo formulario.

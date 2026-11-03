@@ -46,10 +46,22 @@ CREATE TABLE IF NOT EXISTS "site_custom_modules" (
   "updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );--> statement-breakpoint
 
-ALTER TABLE "site_custom_modules" ADD CONSTRAINT "site_custom_modules_tenant_id_tenants_id_fk"
-  FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade;--> statement-breakpoint
-ALTER TABLE "site_custom_modules" ADD CONSTRAINT "site_custom_modules_site_tenant_fk"
-  FOREIGN KEY ("site_id", "tenant_id") REFERENCES "public"."sites"("id", "tenant_id") ON DELETE cascade;--> statement-breakpoint
+-- Cada `ADD CONSTRAINT` vai dentro de um bloco que ignora "ja existe".
+--
+-- O Postgres nao tem `ADD CONSTRAINT IF NOT EXISTS`. Sem o bloco, um banco
+-- que ficou com esta migracao pela metade -- possivel nos deploys anteriores
+-- a migracao virar transacao -- recusa a reexecucao para sempre, e so sai
+-- disso com alguem abrindo o banco de producao a mao.
+DO $$ BEGIN
+  ALTER TABLE "site_custom_modules" ADD CONSTRAINT "site_custom_modules_tenant_id_tenants_id_fk"
+    FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "site_custom_modules" ADD CONSTRAINT "site_custom_modules_site_tenant_fk"
+    FOREIGN KEY ("site_id", "tenant_id") REFERENCES "public"."sites"("id", "tenant_id") ON DELETE cascade;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
 
 CREATE UNIQUE INDEX IF NOT EXISTS "site_custom_modules_key"
   ON "site_custom_modules" USING btree ("site_id", "key");--> statement-breakpoint
@@ -86,13 +98,19 @@ CREATE TABLE IF NOT EXISTS "custom_records" (
   "updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );--> statement-breakpoint
 
-ALTER TABLE "custom_records" ADD CONSTRAINT "custom_records_tenant_id_tenants_id_fk"
-  FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "custom_records" ADD CONSTRAINT "custom_records_tenant_id_tenants_id_fk"
+    FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
 -- A mesma chave estrangeira composta de todo conteudo: o banco, e nao a
 -- aplicacao, garante que um registro nao pode pertencer ao site de outra
 -- empresa.
-ALTER TABLE "custom_records" ADD CONSTRAINT "custom_records_site_tenant_fk"
-  FOREIGN KEY ("site_id", "tenant_id") REFERENCES "public"."sites"("id", "tenant_id") ON DELETE cascade;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "custom_records" ADD CONSTRAINT "custom_records_site_tenant_fk"
+    FOREIGN KEY ("site_id", "tenant_id") REFERENCES "public"."sites"("id", "tenant_id") ON DELETE cascade;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
 
 CREATE UNIQUE INDEX IF NOT EXISTS "custom_records_slug"
   ON "custom_records" USING btree ("site_id", "module_key", "slug");--> statement-breakpoint
