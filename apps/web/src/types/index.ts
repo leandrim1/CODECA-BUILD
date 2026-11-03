@@ -183,11 +183,27 @@ export interface DomainRecord extends DomainSummary {
   verifiedAt: string | null;
   verificationRecordName: string;
   verificationRecordValue: string;
-  dns: {
-    domain: string;
-    apex: boolean;
-    records: Array<{ type: 'A' | 'CNAME' | 'TXT'; name: string; value: string; note?: string }>;
-  };
+  /**
+   * `null` quando a plataforma nao hospeda o site.
+   *
+   * Nao e omissao: sem hospedagem ela nao sabe para onde o endereco deve
+   * apontar, e inventar um alvo mandaria o cliente apontar o dominio para um
+   * lugar que nao serve o site dele.
+   */
+  dns: DomainDns | null;
+}
+
+export interface DomainDns {
+  domain: string;
+  apex: boolean;
+  records: Array<{ type: 'A' | 'CNAME' | 'TXT'; name: string; value: string; note?: string }>;
+}
+
+/** Quem hospeda o site, do ponto de vista do que a plataforma pode afirmar. */
+export interface DomainHosting {
+  /** `true` quando a plataforma gerencia o dominio na Vercel. */
+  managed: boolean;
+  reason: 'plan_without_hosting' | 'no_hosting_project' | null;
 }
 
 export interface Paginated<T> {
@@ -614,6 +630,8 @@ export interface PlatformSite {
   isPrimary: boolean;
   internalNotes: string;
   segmentId: string | null;
+  /** Projeto Vercel do site do cliente. `null` quando a plataforma nao hospeda. */
+  hostingProjectId: string | null;
 }
 
 /**

@@ -108,7 +108,7 @@ Opcionais; cada uma desliga um recurso de forma explicita quando ausente:
 | Variavel | Sem ela |
 | --- | --- |
 | `BLOB_READ_WRITE_TOKEN` | A biblioteca de imagens informa que o envio esta indisponivel |
-| `VERCEL_API_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`) | Dominios ficam aguardando configuracao externa e nunca sao marcados como ativos |
+| `VERCEL_API_TOKEN` (+ `VERCEL_TEAM_ID`) | Dominios **gerenciados** ficam aguardando configuracao externa e nunca sao marcados como ativos. O projeto e de cada site, no painel mestre -- `VERCEL_PROJECT_ID` nao existe mais |
 | `RESEND_API_KEY` + `MAIL_FROM` | Confirmacao, redefinicao de senha e convites vao para o log do servidor |
 | `VALIDAPAY_CLIENT_ID` + `VALIDAPAY_CLIENT_SECRET` (+ `VALIDAPAY_BASE_URL`) | A contratacao de planos e recusada com mensagem explicita |
 | `VALIDAPAY_WEBHOOK_SECRET` | Os webhooks de pagamento sao recusados (401) |

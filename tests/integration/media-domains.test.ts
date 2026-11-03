@@ -12,9 +12,12 @@ let account: RegisteredAccount;
 function createFakeDomainProvider(): DomainProvider & {
   state: Map<string, DomainProviderStatus>;
   calls: string[];
+  /** Cada projeto que recebeu uma chamada, na ordem. */
+  projects: string[];
 } {
   const state = new Map<string, DomainProviderStatus>();
   const calls: string[] = [];
+  const projects: string[] = [];
 
   const pending = (hostname: string): DomainProviderStatus => ({
     ownershipVerified: false,
@@ -28,22 +31,30 @@ function createFakeDomainProvider(): DomainProvider & {
   return {
     state,
     calls,
+    projects,
     configured: true,
-    async add(hostname) {
+    // `projectId` primeiro, como na interface real. Declarar so `(hostname)`
+    // compila -- uma funcao com menos parametros e atribuivel -- e receberia o
+    // projeto no lugar do hostname, em silencio.
+    async add(projectId, hostname) {
+      projects.push(projectId);
       calls.push(`add:${hostname}`);
       const status = state.get(hostname) ?? pending(hostname);
       state.set(hostname, status);
       return status;
     },
-    async status(hostname) {
+    async status(projectId, hostname) {
+      projects.push(projectId);
       calls.push(`status:${hostname}`);
       return state.get(hostname) ?? pending(hostname);
     },
-    async verify(hostname) {
+    async verify(projectId, hostname) {
+      projects.push(projectId);
       calls.push(`verify:${hostname}`);
       return state.get(hostname) ?? pending(hostname);
     },
-    async remove(hostname) {
+    async remove(projectId, hostname) {
+      projects.push(projectId);
       calls.push(`remove:${hostname}`);
       state.delete(hostname);
     },
@@ -65,6 +76,7 @@ beforeEach(async () => {
   await api.reset();
   provider.state.clear();
   provider.calls.length = 0;
+  provider.projects.length = 0;
   account = await registerAccount(api, { email: 'dono@alpha.com.br', companyName: 'Construtora Alpha' });
   await verifyEmail(api, account);
   await usePlan('profissional');
@@ -73,6 +85,25 @@ beforeEach(async () => {
 async function usePlan(code: 'trial' | 'essencial' | 'profissional' | 'empresas'): Promise<void> {
   const [plan] = await api.db.select().from(schema.plans).where(eq(schema.plans.code, code));
   await api.db.update(schema.tenants).set({ planId: plan!.id }).where(eq(schema.tenants.id, account.tenantId));
+}
+
+/** Projeto Vercel do site do cliente, como a CODECA IA o configuraria. */
+const PROJETO_DO_SITE = 'prj_site_alpha';
+
+/**
+ * Coloca a empresa no regime em que a plataforma **gerencia** o dominio.
+ *
+ * Sao duas condicoes, e as duas sao necessarias: o plano inclui hospedagem
+ * **e** o site tem projeto configurado. Os testes que exercitam a Vercel
+ * chamam isto; os demais ficam no padrao do `beforeEach`, o Profissional, em
+ * que a plataforma so registra o dominio.
+ */
+async function useHostedSite(projectId: string = PROJETO_DO_SITE): Promise<void> {
+  await usePlan('empresas');
+  await api.db
+    .update(schema.sites)
+    .set({ hostingProjectId: projectId })
+    .where(eq(schema.sites.id, account.siteId));
 }
 
 function imageUpload(name: string, bytes = 2048, type = 'image/jpeg'): FormData {
@@ -245,6 +276,7 @@ describe('exclusao de midia', () => {
 
 describe('dominios proprios', () => {
   it('cadastra o dominio como pendente, nunca como ativo', async () => {
+    await useHostedSite();
     const response = await account.client.post(`/api/tenants/${account.tenantId}/domains`, {
       domain: 'https://WWW.Construtora-Alpha.com.br/sobre',
     });
@@ -256,6 +288,9 @@ describe('dominios proprios', () => {
     expect(response.body.domain.status).not.toBe('active');
     expect(response.body.domain.sslStatus).toBe('pending');
     expect(provider.calls).toContain('add:www.construtora-alpha.com.br');
+    // A chamada vai ao projeto **do site** -- nao ao da plataforma, que serve o
+    // painel e abriria o login no endereco do cliente.
+    expect(provider.projects).toEqual([PROJETO_DO_SITE]);
 
     // As instrucoes de DNS trazem CNAME para subdominio.
     expect(response.body.dns.records[0].type).toBe('CNAME');
@@ -263,6 +298,7 @@ describe('dominios proprios', () => {
   });
 
   it('sugere registro A quando o dominio e apex', async () => {
+    await useHostedSite();
     const response = await account.client.post(`/api/tenants/${account.tenantId}/domains`, {
       domain: 'construtora-alpha.com.br',
     });
@@ -293,6 +329,7 @@ describe('dominios proprios', () => {
   });
 
   it('ativa somente quando o provedor confirma propriedade e DNS', async () => {
+    await useHostedSite();
     const created = await account.client.post(`/api/tenants/${account.tenantId}/domains`, {
       domain: 'www.construtora-alpha.com.br',
     });
@@ -401,6 +438,7 @@ describe('dominios proprios', () => {
   });
 
   it('desvincula o dominio tambem no provedor', async () => {
+    await useHostedSite();
     const created = await account.client.post(`/api/tenants/${account.tenantId}/domains`, {
       domain: 'www.remover.com.br',
     });
@@ -409,8 +447,221 @@ describe('dominios proprios', () => {
     const response = await account.client.delete(`/api/tenants/${account.tenantId}/domains/${domainId}`);
     expect(response.status).toBe(204);
     expect(provider.calls).toContain('remove:www.remover.com.br');
+    // E o desfazer tambem: o projeto do site, nunca outro.
+    expect(provider.projects.at(-1)).toBe(PROJETO_DO_SITE);
 
     const rows = await api.db.select().from(schema.domains).where(eq(schema.domains.id, domainId));
     expect(rows).toHaveLength(0);
+  });
+});
+
+/**
+ * Quem hospeda o site decide o que a plataforma pode afirmar sobre o dominio.
+ *
+ * A especificacao comercial separa as duas coisas: dominio incluido nos tres
+ * planos, hospedagem so no Empresas. Entao a plataforma nao pode assumir que
+ * hospeda -- e quando nao hospeda, nao tem como verificar nem configurar o DNS
+ * de um site que esta em outro lugar.
+ *
+ * O erro que isto corrige: o provedor usava um projeto unico do ambiente, o da
+ * propria plataforma, que serve o painel. Anexar a ele o dominio de um cliente
+ * faria o endereco dele abrir o login do painel.
+ */
+describe('quem hospeda o site', () => {
+  const HOST = 'www.construtora-alpha.com.br';
+  const base = () => `/api/tenants/${account.tenantId}/domains`;
+
+  describe('plano sem hospedagem: a plataforma so registra', () => {
+    // O `beforeEach` do arquivo ja deixa a empresa no Profissional.
+
+    it('registra o dominio sem chamar a Vercel', async () => {
+      const response = await account.client.post(base(), { domain: HOST });
+
+      expect(response.status, response.errorMessage ?? '').toBe(201);
+      expect(response.body.domain.status).toBe('registered');
+      // Nenhuma chamada: nao ha projeto algum a que ela pudesse se dirigir.
+      expect(provider.calls).toEqual([]);
+      expect(provider.projects).toEqual([]);
+    });
+
+    /**
+     * O que o cliente nao pode ler: um alvo de DNS. A plataforma nao sabe para
+     * onde o endereco deve apontar, e inventar um mandaria o cliente apontar o
+     * dominio dele para um lugar que nao serve o site.
+     */
+    it('nao inventa instrucao de DNS', async () => {
+      const criado = await account.client.post(base(), { domain: HOST });
+      expect(criado.body.dns).toBeNull();
+
+      const lista = await account.client.get(base());
+      expect(lista.body.domains[0].dns).toBeNull();
+    });
+
+    it('nao afirma nada que nao pode saber: propriedade, DNS e HTTPS ficam falsos', async () => {
+      const response = await account.client.post(base(), { domain: HOST });
+      const dominio = response.body.domain;
+
+      expect(dominio.ownershipVerified).toBe(false);
+      expect(dominio.dnsConfigured).toBe(false);
+      expect(dominio.sslStatus).toBe('pending');
+      expect(dominio.verifiedAt).toBeNull();
+      expect(dominio.status).not.toBe('active');
+    });
+
+    it('diz com todas as letras que a hospedagem e externa', async () => {
+      const response = await account.client.post(base(), { domain: HOST });
+      expect(response.body.message).toMatch(/nao e hospedado pela plataforma/i);
+      expect(response.body.message).toMatch(/nao verifica nem configura o DNS/i);
+    });
+
+    it('a listagem informa o motivo, para a tela explicar', async () => {
+      const lista = await account.client.get(base());
+      expect(lista.body.hosting).toEqual({ managed: false, reason: 'plan_without_hosting' });
+    });
+
+    it('recusa verificar: nao ha o que verificar', async () => {
+      const criado = await account.client.post(base(), { domain: HOST });
+      const response = await account.client.post(`${base()}/${criado.body.domain.id}/verify`);
+
+      expect(response.status).toBe(400);
+      expect(response.errorMessage).toMatch(/nao verifica nem configura/i);
+      expect(provider.calls).toEqual([]);
+    });
+
+    it('desvincular tambem nao toca na Vercel', async () => {
+      const criado = await account.client.post(base(), { domain: HOST });
+      const response = await account.client.delete(`${base()}/${criado.body.domain.id}`);
+
+      expect(response.status).toBe(204);
+      expect(provider.calls).toEqual([]);
+    });
+
+    /** Os limites do plano e a unicidade valem igual: so o provedor some. */
+    it('continua recusando dominio de outra empresa e o limite do plano', async () => {
+      await account.client.post(base(), { domain: HOST });
+
+      const outra = await registerAccount(api, {
+        email: 'dono@beta.com.br',
+        companyName: 'Construtora Beta',
+      });
+      await verifyEmail(api, outra);
+      const [plano] = await api.db.select().from(schema.plans).where(eq(schema.plans.code, 'profissional'));
+      await api.db.update(schema.tenants).set({ planId: plano!.id }).where(eq(schema.tenants.id, outra.tenantId));
+
+      const roubo = await outra.client.post(`/api/tenants/${outra.tenantId}/domains`, { domain: HOST });
+      expect(roubo.status).toBe(409);
+
+      const excedente = await account.client.post(base(), { domain: 'www.outro-endereco.com.br' });
+      expect(excedente.status).toBe(402);
+    });
+  });
+
+  describe('plano com hospedagem, mas sem projeto configurado', () => {
+    it('tambem so registra: sem projeto a plataforma nao sabe onde anexar', async () => {
+      await usePlan('empresas');
+
+      const response = await account.client.post(base(), { domain: HOST });
+      expect(response.status, response.errorMessage ?? '').toBe(201);
+      expect(response.body.domain.status).toBe('registered');
+      expect(provider.calls).toEqual([]);
+
+      const lista = await account.client.get(base());
+      expect(lista.body.hosting).toEqual({ managed: false, reason: 'no_hosting_project' });
+    });
+  });
+
+  describe('plano com hospedagem e projeto configurado: a plataforma gerencia', () => {
+    it('anexa o dominio ao projeto DO SITE', async () => {
+      await useHostedSite();
+
+      const response = await account.client.post(base(), { domain: HOST });
+      expect(response.status, response.errorMessage ?? '').toBe(201);
+
+      expect(provider.calls).toEqual([`add:${HOST}`]);
+      expect(provider.projects).toEqual([PROJETO_DO_SITE]);
+      expect(response.body.dns).not.toBeNull();
+    });
+
+    it('a listagem diz que e gerenciado', async () => {
+      await useHostedSite();
+      const lista = await account.client.get(base());
+      expect(lista.body.hosting).toEqual({ managed: true, reason: null });
+    });
+
+    it('dois sites de empresas diferentes usam projetos diferentes', async () => {
+      await useHostedSite('prj_site_alpha');
+
+      const outra = await registerAccount(api, {
+        email: 'dono@beta.com.br',
+        companyName: 'Construtora Beta',
+      });
+      await verifyEmail(api, outra);
+      const [empresas] = await api.db.select().from(schema.plans).where(eq(schema.plans.code, 'empresas'));
+      await api.db.update(schema.tenants).set({ planId: empresas!.id }).where(eq(schema.tenants.id, outra.tenantId));
+      await api.db
+        .update(schema.sites)
+        .set({ hostingProjectId: 'prj_site_beta' })
+        .where(eq(schema.sites.id, outra.siteId));
+
+      await account.client.post(base(), { domain: 'www.alpha.com.br' });
+      await outra.client.post(`/api/tenants/${outra.tenantId}/domains`, { domain: 'www.beta.com.br' });
+
+      // Cada dominio foi ao projeto do proprio site, na ordem: nenhum caiu no
+      // projeto do vizinho.
+      expect(provider.projects).toEqual(['prj_site_alpha', 'prj_site_beta']);
+    });
+
+    /**
+     * Um dominio registrado antes de a hospedagem existir precisa ser
+     * **anexado**, nao verificado: a Vercel responde 404 a um `verify` de
+     * dominio que o projeto nao conhece.
+     */
+    it('anexa, em vez de verificar, o dominio registrado antes da hospedagem', async () => {
+      const criado = await account.client.post(base(), { domain: HOST });
+      expect(criado.body.domain.status).toBe('registered');
+      expect(provider.calls).toEqual([]);
+
+      // A CODECA IA configura a hospedagem depois.
+      await useHostedSite();
+
+      const primeira = await account.client.post(`${base()}/${criado.body.domain.id}/verify`);
+      expect(primeira.status, primeira.errorMessage ?? '').toBe(200);
+      expect(provider.calls).toEqual([`add:${HOST}`]);
+      expect(primeira.body.domain.status).not.toBe('registered');
+
+      // Ja esta no projeto: as proximas verificam.
+      await account.client.post(`${base()}/${criado.body.domain.id}/verify`);
+      expect(provider.calls).toEqual([`add:${HOST}`, `verify:${HOST}`]);
+      expect(new Set(provider.projects)).toEqual(new Set([PROJETO_DO_SITE]));
+    });
+  });
+
+  describe('downgrade depois de gerenciado', () => {
+    it('o dominio continua removivel pelo projeto do site, mesmo sem o recurso no plano', async () => {
+      await useHostedSite();
+      const criado = await account.client.post(base(), { domain: HOST });
+      expect(provider.projects).toEqual([PROJETO_DO_SITE]);
+
+      // Rebaixado: o plano deixa de incluir hospedagem.
+      await usePlan('profissional');
+      const lista = await account.client.get(base());
+      expect(lista.body.hosting.managed).toBe(false);
+
+      // Remover usa o projeto do SITE, e nao o plano atual: senao o dominio
+      // ficaria preso a um projeto que a plataforma deixou de enxergar.
+      const response = await account.client.delete(`${base()}/${criado.body.domain.id}`);
+      expect(response.status).toBe(204);
+      expect(provider.calls).toContain(`remove:${HOST}`);
+      expect(provider.projects.at(-1)).toBe(PROJETO_DO_SITE);
+    });
+
+    it('recusa verificar depois do downgrade, em vez de fingir que verificou', async () => {
+      await useHostedSite();
+      const criado = await account.client.post(base(), { domain: HOST });
+      await usePlan('profissional');
+
+      const response = await account.client.post(`${base()}/${criado.body.domain.id}/verify`);
+      expect(response.status).toBe(400);
+    });
   });
 });

@@ -18,6 +18,7 @@ import { clientIp, created, noContent, ok, parseJsonBody, parseParams } from '..
 import { assertFeature, assertWithinLimit, loadEffectivePlan } from '../lib/plan-limits.js';
 import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ratelimit.js';
 import { platformHosts } from '../env.js';
+import { EXTERNAL_HOSTING_MESSAGE, loadHosting, type HostingMode } from '../lib/hosting.js';
 import type { DomainProviderStatus } from '../lib/vercel-domains.js';
 import { requireCapability, requireVerifiedEmail } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
@@ -29,6 +30,18 @@ import type { AppBindings } from '../types.js';
  * vem da resposta do provedor (propriedade comprovada + DNS apontado). A
  * unicidade global de `domains.hostname` impede que duas empresas usem o
  * mesmo dominio, e os hosts da plataforma sao recusados.
+ *
+ * ## Dois modos, decididos por `loadHosting`
+ *
+ * **Gerenciado**: o plano inclui hospedagem e o site tem projeto configurado.
+ * A Vercel e chamada contra o projeto **do site** e o estado vem dela.
+ *
+ * **Registro**: qualquer outro caso. A plataforma guarda que o endereco pertence
+ * a este site e **nao afirma nada sobre DNS**, porque nao hospeda e nao tem
+ * como verificar. Nenhuma chamada a Vercel acontece.
+ *
+ * O projeto da propria plataforma nunca entra: ele serve o painel, e anexar a
+ * ele o dominio de um cliente faria o endereco abrir o login.
  */
 
 export function domainRoutes() {
@@ -45,22 +58,33 @@ export function domainRoutes() {
       .orderBy(schema.domains.createdAt);
 
     const plan = await loadEffectivePlan(ctx.db, tenant.tenantId);
+    const { mode } = await loadHosting(ctx.db, {
+      tenantId: tenant.tenantId,
+      siteId: tenant.siteId,
+      plan,
+    });
 
     return ok(c, {
       domains: rows.map((row) => ({
         ...row,
         statusLabel: DOMAIN_STATUS_LABELS[row.status as DomainStatus],
-        dns: dnsInstructions(row.hostname, {
-          aRecordIp: ctx.env.DOMAIN_A_RECORD_IP,
-          cnameTarget: ctx.env.DOMAIN_CNAME_TARGET,
-          verificationTxt: row.verificationRecordName
-            ? { name: row.verificationRecordName, value: row.verificationRecordValue }
-            : null,
-        }),
+        // Instrucao de DNS so quando a plataforma hospeda. Fora disso ela nao
+        // sabe para onde o endereco deve apontar, e inventar um alvo mandaria
+        // o cliente apontar o dominio para um lugar que nao serve o site dele.
+        dns: mode.managed
+          ? dnsInstructions(row.hostname, {
+              aRecordIp: ctx.env.DOMAIN_A_RECORD_IP,
+              cnameTarget: ctx.env.DOMAIN_CNAME_TARGET,
+              verificationTxt: row.verificationRecordName
+                ? { name: row.verificationRecordName, value: row.verificationRecordValue }
+                : null,
+            })
+          : null,
       })),
       limits: { maxDomains: plan.limits.maxDomains, planName: plan.planName },
       customDomainAvailable: plan.limits.features.includes('custom_domain'),
       providerConfigured: ctx.domains.configured,
+      hosting: hostingView(mode),
     });
   });
 
@@ -101,9 +125,19 @@ export function domainRoutes() {
         );
       }
 
-      // Registra no provedor antes de gravar, para ja nascer com o estado real.
-      const providerStatus = await ctx.domains.add(hostname);
-      const mapped = mapProviderStatus(providerStatus, ctx.domains.configured);
+      // Gerenciado: registra no provedor antes de gravar, para ja nascer com o
+      // estado real. Registro: nao ha provedor a consultar.
+      const { mode } = await loadHosting(ctx.db, {
+        tenantId: tenant.tenantId,
+        siteId: tenant.siteId,
+        plan,
+      });
+      const providerStatus = mode.managed
+        ? await ctx.domains.add(mode.projectId, hostname)
+        : registeredStatus();
+      const mapped: { status: DomainStatus } = mode.managed
+        ? mapProviderStatus(providerStatus, ctx.domains.configured)
+        : { status: 'registered' };
 
       const [row] = await ctx.db
         .insert(schema.domains)
@@ -133,19 +167,22 @@ export function domainRoutes() {
         action: AUDIT_ACTIONS.domainAdded,
         entityType: 'domain',
         entityId: row.id,
-        metadata: { hostname, status: mapped.status },
+        metadata: { hostname, status: mapped.status, managed: mode.managed },
       });
 
       return created(c, {
         domain: { ...row, statusLabel: DOMAIN_STATUS_LABELS[mapped.status] },
         message: providerStatus.message,
-        dns: dnsInstructions(hostname, {
-          aRecordIp: ctx.env.DOMAIN_A_RECORD_IP,
-          cnameTarget: ctx.env.DOMAIN_CNAME_TARGET,
-          verificationTxt: providerStatus.challenges[0]
-            ? { name: providerStatus.challenges[0].domain, value: providerStatus.challenges[0].value }
-            : null,
-        }),
+        dns: mode.managed
+          ? dnsInstructions(hostname, {
+              aRecordIp: ctx.env.DOMAIN_A_RECORD_IP,
+              cnameTarget: ctx.env.DOMAIN_CNAME_TARGET,
+              verificationTxt: providerStatus.challenges[0]
+                ? { name: providerStatus.challenges[0].domain, value: providerStatus.challenges[0].value }
+                : null,
+            })
+          : null,
+        hosting: hostingView(mode),
       });
     },
   );
@@ -169,7 +206,19 @@ export function domainRoutes() {
       .where(and(eq(schema.domains.id, domainId), eq(schema.domains.tenantId, tenant.tenantId)));
     if (!domain) throw AppError.notFound('Dominio nao encontrado.');
 
-    const providerStatus = await ctx.domains.verify(domain.hostname);
+    const { mode } = await loadHosting(ctx.db, { tenantId: tenant.tenantId, siteId: domain.siteId });
+    if (!mode.managed) {
+      // Recusa em vez de devolver um "tudo certo" vazio: nao ha o que verificar,
+      // e dizer isso evita o cliente apertar o botao esperando uma mudanca.
+      throw AppError.badRequest(EXTERNAL_HOSTING_MESSAGE);
+    }
+
+    // Dominio que ainda nao esta no projeto -- registrado antes de a hospedagem
+    // existir -- precisa ser **anexado**, nao verificado: a Vercel responde 404
+    // a um `verify` de dominio que o projeto nao conhece. `add` e idempotente.
+    const providerStatus = domain.vercelDomainId
+      ? await ctx.domains.verify(mode.projectId, domain.hostname)
+      : await ctx.domains.add(mode.projectId, domain.hostname);
     const mapped = mapProviderStatus(providerStatus, ctx.domains.configured);
 
     const [row] = await ctx.db
@@ -202,6 +251,7 @@ export function domainRoutes() {
     return ok(c, {
       domain: row ? { ...row, statusLabel: DOMAIN_STATUS_LABELS[mapped.status] } : null,
       message: providerStatus.message,
+      hosting: hostingView(mode),
       dns: dnsInstructions(domain.hostname, {
         aRecordIp: ctx.env.DOMAIN_A_RECORD_IP,
         cnameTarget: ctx.env.DOMAIN_CNAME_TARGET,
@@ -253,8 +303,17 @@ export function domainRoutes() {
       .where(and(eq(schema.domains.id, domainId), eq(schema.domains.tenantId, tenant.tenantId)));
     if (!domain) throw AppError.notFound('Dominio nao encontrado.');
 
+    // So desfaz no provedor o que foi la colocado: `vercelDomainId` e o sinal.
+    // O projeto vem do site e **nao** do plano atual -- um downgrade nao pode
+    // deixar o dominio preso a um projeto que a plataforma deixou de enxergar.
+    const { hostingProjectId } = await loadHosting(ctx.db, {
+      tenantId: tenant.tenantId,
+      siteId: domain.siteId,
+    });
     try {
-      await ctx.domains.remove(domain.hostname);
+      if (domain.vercelDomainId && hostingProjectId) {
+        await ctx.domains.remove(hostingProjectId, domain.hostname);
+      }
     } catch (error) {
       // O vinculo local e removido mesmo se o provedor falhar; o estado fica
       // registrado para nova tentativa manual.
@@ -313,4 +372,26 @@ async function setPrimary(
       .set({ isPrimary: true, updatedAt: input.now })
       .where(and(eq(schema.domains.id, input.domainId), eq(schema.domains.tenantId, input.tenantId)));
   });
+}
+
+/** O que o painel precisa saber sobre quem hospeda, sem expor o projeto. */
+function hostingView(mode: HostingMode): { managed: boolean; reason: string | null } {
+  return { managed: mode.managed, reason: mode.managed ? null : mode.reason };
+}
+
+/**
+ * Estado de um dominio que a plataforma nao gerencia.
+ *
+ * Nenhum campo afirma o que ela nao pode saber: propriedade, DNS e certificado
+ * ficam falsos, e a mensagem diz por que.
+ */
+function registeredStatus(): DomainProviderStatus {
+  return {
+    ownershipVerified: false,
+    dnsConfigured: false,
+    sslActive: false,
+    challenges: [],
+    message: EXTERNAL_HOSTING_MESSAGE,
+    providerDomainId: null,
+  };
 }

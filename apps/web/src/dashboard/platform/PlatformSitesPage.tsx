@@ -35,6 +35,7 @@ import { SafeIcon } from '../../components/SafeIcon.js';
 import type {
   CustomFieldRow,
   CustomModuleView,
+  DomainHosting,
   IssuedKey,
   SiteApiKeyRow,
   SiteModuleView,
@@ -158,7 +159,12 @@ function ConfiguracaoDoSite({ siteId, onClose }: { siteId: string; onClose: () =
           {(data) => (
             <>
               {aba === 'identidade' ? (
-                <AbaIdentidade siteId={siteId} site={data.site} onSaved={() => void detalhe.reload()} />
+                <AbaIdentidade
+                  siteId={siteId}
+                  site={data.site}
+                  hosting={data.hosting}
+                  onSaved={() => void detalhe.reload()}
+                />
               ) : null}
               {aba === 'proprios' ? (
                 <AbaModulosProprios siteId={siteId} onSaved={() => void detalhe.reload()} />
@@ -185,6 +191,7 @@ function ConfiguracaoDoSite({ siteId, onClose }: { siteId: string; onClose: () =
 function AbaIdentidade({
   siteId,
   site,
+  hosting,
   onSaved,
 }: {
   siteId: string;
@@ -194,7 +201,9 @@ function AbaIdentidade({
     internalNotes: string;
     slug: string;
     segmentId: string | null;
+    hostingProjectId: string | null;
   };
+  hosting: DomainHosting;
   onSaved: () => void;
 }) {
   const toast = useToast();
@@ -202,7 +211,19 @@ function AbaIdentidade({
   const [status, setStatus] = useState<SiteStatus>(site.status);
   const [internalNotes, setInternalNotes] = useState(site.internalNotes);
   const [segmentId, setSegmentId] = useState<string>(site.segmentId ?? '');
+  const [hostingProjectId, setHostingProjectId] = useState<string>(site.hostingProjectId ?? '');
   const segmentos = useResource(() => platformApi.segments(), []);
+
+  /**
+   * O campo so e travado quando **o plano** nao inclui hospedagem.
+   *
+   * Nao quando o projeto esta vazio -- esse e justamente o caso em que a
+   * CODECA IA vem preenche-lo. E quem ja tem um projeto configurado consegue
+   * limpar mesmo depois de um downgrade: desvincular nunca da algo a mais.
+   */
+  const planoSemHospedagem = hosting.reason === 'plan_without_hosting';
+  const campoTravado = planoSemHospedagem && !site.hostingProjectId;
+  const hostingMudou = hostingProjectId.trim() !== (site.hostingProjectId ?? '');
 
   const salvar = useMutation(
     () =>
@@ -211,6 +232,12 @@ function AbaIdentidade({
         status,
         internalNotes,
         segmentId: segmentId === '' ? null : segmentId,
+        // So vai quando mudou. A API trata ausente como "nao mexa", e enviar o
+        // valor de sempre a cada salvamento faria esta tela, aberta ha horas,
+        // desfazer uma troca feita em outra aba.
+        ...(hostingMudou
+          ? { hostingProjectId: hostingProjectId.trim() === '' ? null : hostingProjectId.trim() }
+          : {}),
       }),
     {
       onSuccess: () => {
@@ -272,6 +299,36 @@ function AbaIdentidade({
         ]}
         hint="Classifica o projeto. Trocar aqui nao mexe nos modulos do site."
       />
+
+      <div className="grid gap-2">
+        <TextInput
+          label="Projeto de hospedagem (Vercel)"
+          value={hostingProjectId}
+          placeholder="prj_..."
+          disabled={campoTravado}
+          onChange={(e) => setHostingProjectId(e.target.value)}
+          hint="Onde o site deste cliente esta hospedado. Com ele, a plataforma gerencia o dominio na Vercel."
+        />
+        {/*
+          Dizer o motivo, nao so desabilitar: "o plano nao inclui hospedagem" e
+          uma informacao que se pode agir sobre; um campo cinza e um enigma.
+        */}
+        {campoTravado ? (
+          <Alert tone="info" title="O plano desta empresa nao inclui hospedagem">
+            Sem hospedagem incluida a plataforma so <strong>registra</strong> os dominios dela e nao
+            toca na Vercel. Para gerenciar o dominio aqui, troque para um plano que inclua
+            hospedagem.
+          </Alert>
+        ) : hosting.managed ? (
+          <p className="text-xs text-emerald-700">
+            Dominios deste site sao gerenciados pela plataforma.
+          </p>
+        ) : (
+          <p className="text-xs text-slate-500">
+            Sem projeto configurado, os dominios deste site ficam apenas registrados.
+          </p>
+        )}
+      </div>
 
       <TextArea
         label="Anotacoes internas"

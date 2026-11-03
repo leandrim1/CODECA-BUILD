@@ -70,7 +70,11 @@ export function platformRoutes() {
       .select({
         total: countOf,
         active: sql<number>`cast(count(*) filter (where ${schema.domains.status} = 'active') as int)`,
-        pending: sql<number>`cast(count(*) filter (where ${schema.domains.status} <> 'active') as int)`,
+        // "Registrado" nao esta pendente: nao ha nada aguardando, a plataforma
+        // so guarda o endereco. Contar junto inflaria a fila de quem opera com
+        // dominios que nunca vao mudar de estado.
+        pending: sql<number>`cast(count(*) filter (where ${schema.domains.status} not in ('active', 'registered')) as int)`,
+        registered: sql<number>`cast(count(*) filter (where ${schema.domains.status} = 'registered') as int)`,
       })
       .from(schema.domains);
 
@@ -104,7 +108,7 @@ export function platformRoutes() {
     return ok(c, {
       tenants: tenants ?? { total: 0, active: 0, trialing: 0, suspended: 0 },
       users: users?.total ?? 0,
-      domains: domains ?? { total: 0, active: 0, pending: 0 },
+      domains: domains ?? { total: 0, active: 0, pending: 0, registered: 0 },
       storageBytes: Number(storage?.bytes ?? 0),
       leadsLast30Days: leads?.total ?? 0,
       byPlan,

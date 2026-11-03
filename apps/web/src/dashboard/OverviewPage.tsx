@@ -261,8 +261,15 @@ export function OverviewPage() {
                               <Globe aria-hidden="true" className="size-4 text-slate-400" />
                               {primaryDomain.hostname}
                             </p>
+                            {/*
+                              "HTTPS: pendente" num dominio so registrado diria
+                              que a plataforma vai emitir um certificado. Nao
+                              vai: o site e hospedado fora dela.
+                            */}
                             <p className="mt-0.5 text-xs text-slate-500">
-                              HTTPS: {primaryDomain.sslStatus === 'active' ? 'ativo' : 'pendente'}
+                              {primaryDomain.status === 'registered'
+                                ? 'Hospedado fora da plataforma'
+                                : `HTTPS: ${primaryDomain.sslStatus === 'active' ? 'ativo' : 'pendente'}`}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -281,7 +288,8 @@ export function OverviewPage() {
                               </a>
                             ) : can('domains:read') ? (
                               <Link to="/painel/dominio" className="text-sm link">
-                                Concluir
+                                {/* Registrado nao tem o que concluir: so ha o que ver. */}
+                                {primaryDomain.status === 'registered' ? 'Ver' : 'Concluir'}
                               </Link>
                             ) : null}
                           </div>

@@ -62,7 +62,8 @@ Legenda:
 | Biblioteca de imagens | Pronto, depende de credencial | sem `BLOB_READ_WRITE_TOKEN` o envio e recusado com aviso |
 | Interessados (filtros, status, observacoes internas) | Pronto | — |
 | Exportacao de interessados em CSV | Pronto | recurso de plano (`lead_export`) |
-| Dominio proprio | Pronto, **mas em revisao** | o codigo registra o dominio no projeto Vercel **da plataforma** (`lib/vercel-domains.ts`), que era o que servia o renderizador removido na etapa 0. Hoje o site do cliente e um projeto Vercel dele, e o dominio deveria ser apontado la. Ver a nota no fim desta secao |
+| Dominio proprio | Pronto, nos dois modos | **Gerenciado** (plano com hospedagem + projeto configurado): anexado ao projeto Vercel **do site**, estado vindo da Vercel. **Registro** (qualquer outro caso): so guarda o endereco, sem DNS nem verificacao. Ver [dominios.md](dominios.md) |
+| Projeto de hospedagem por site | Pronto | aba Identidade do site, no painel mestre; so num plano com hospedagem, um projeto por site (indice unico), ausente nao desvincula |
 | Campo travado pela CODECA IA aparece como leitura | Pronto | com explicacao de por que esta travado |
 | Campos personalizados do projeto no formulario | Pronto | definidos pela CODECA IA por site e modulo; entram na mesma lista dos campos tipados |
 | Modulos criados so para um projeto | Pronto | tela de lista ou de documento montada a partir dos campos definidos, em `/painel/p/<chave>` |
@@ -101,23 +102,14 @@ Legenda:
 | `customFields` nas respostas de conteudo | Pronto | objeto vazio quando o site nao tem campo definido; `Record<string, unknown>` no SDK, porque o conjunto e dado |
 | Modulos do projeto em `/api/v1/custom/<chave>` | Pronto | namespace proprio, para uma chave futura do catalogo nunca mudar o significado de um endereco que ja existe; `codeca.custom(chave)` no SDK |
 
-**Decisao em aberto -- dominios.** A etapa 0 removeu o renderizador, mas o
-cadastro de dominio continua chamando a API da Vercel para apontar o hostname
-ao projeto **da plataforma**. Com o site do cliente num projeto Vercel proprio,
-isso aponta o dominio para um renderizador que nao existe mais. Sao dois
-caminhos possiveis, e a escolha e comercial, nao tecnica:
-
-1. **A plataforma so registra** qual dominio pertence a qual site, e quem
-   configura DNS e dominio e o projeto Vercel do cliente. `VERCEL_API_TOKEN`,
-   `VERCEL_PROJECT_ID` e `lib/vercel-domains.ts` saem, e [dominios.md](dominios.md)
-   encolhe para o registro e a explicacao do que o cliente faz no painel dele.
-2. **A plataforma hospeda** -- o que o plano Empresas vende como "hospedagem
-   incluida". Entao o projeto Vercel de destino e por site, nao um fixo no
-   ambiente, e a tabela precisa saber em qual projeto cada dominio entrou.
-
-Nada foi mexido ate a decisao, porque as duas saidas apagam trabalho da outra.
-O recurso `included_hosting` segue listado como **nao aplicado** por essa mesma
-razao.
+**Decisao tomada -- dominios.** A especificacao comercial responde sozinha:
+dominio incluido nos tres planos, hospedagem so no Empresas. Entao a plataforma
+nao pode assumir que hospeda. O projeto Vercel passou a ser **do site** (coluna
+`sites.hosting_project_id`), e so e usado quando o plano inclui hospedagem **e**
+o projeto esta configurado; fora disso a plataforma apenas registra o dominio.
+O motivo e o erro que isto corrige -- o provedor anexava o dominio do cliente ao
+projeto **da propria plataforma**, que serve o painel -- estao em
+[dominios.md](dominios.md).
 
 **Nota de historico:** este arquivo descrevia, ate a etapa A, um renderizador
 publico com SSR, paginas por blocos, historico de versoes e `sitemap.xml`. Esse
@@ -156,7 +148,7 @@ substituem as que descreviam o modelo antigo.
 | Verificacao de limites no backend | Pronto | usuarios, imoveis publicados, obras, dominios, armazenamento |
 | Recursos por plano | Pronto | painel de conteudo, dominio proprio, exportacao de interessados, hospedagem incluida |
 | Plano sem painel de conteudo (Essencial) | Pronto | bloqueio proprio, com mensagem de upgrade -- nunca de inadimplencia |
-| Hospedagem incluida | Registrado, nao aplicado | a plataforma nao hospeda site; o campo diz o que foi vendido |
+| Hospedagem incluida | Aplicada ao dominio | habilita o gerenciamento do dominio na Vercel para sites com projeto configurado; **a plataforma nao faz o deploy do site** -- isso continua sendo da CODECA IA |
 | Periodicidade e formas de pagamento por plano | Pronto | editaveis no painel mestre (`plans.billing`) |
 | Sincronizacao do plano como produto + preco recorrente | Pronto, depende de credencial | `POST /v1/products`; plano gratuito nao e sincronizavel (a API exige valor > 0) |
 | Contratacao por sessao de checkout hospedada | Pronto, depende de credencial | `POST /v1/checkout-sessions`; o cartao e tokenizado na pagina da ValidaPay |
@@ -195,7 +187,7 @@ substituem as que descreviam o modelo antigo.
 | Segredo de sessao | `AUTH_SECRET` | a aplicacao nao sobe (obrigatoria) |
 | Host do painel | `APP_URL`, `PLATFORM_HOSTS` + reescrita no `vercel.json` | o painel responde 404 ou e tratado como site de cliente |
 | Vercel Blob | `BLOB_READ_WRITE_TOKEN` | biblioteca de imagens recusa envios com aviso |
-| Dominios na Vercel | `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` | dominios ficam em "Aguardando DNS" e nunca viram ativos |
+| Dominios na Vercel | `VERCEL_API_TOKEN`, `VERCEL_TEAM_ID` (o projeto e de cada site, no painel mestre) | dominios **gerenciados** ficam em "Aguardando DNS" e nunca viram ativos; os registrados nao dependem disto |
 | Alvos de DNS | `DOMAIN_A_RECORD_IP`, `DOMAIN_CNAME_TARGET` | instrucoes mostram os valores padrao da Vercel, que podem estar desatualizados |
 | E-mail transacional | `RESEND_API_KEY`, `MAIL_FROM` | confirmacao, redefinicao e convites vao para o log do servidor |
 | Pagamentos ValidaPay | `VALIDAPAY_CLIENT_ID`, `VALIDAPAY_CLIENT_SECRET`, `VALIDAPAY_BASE_URL` | a contratacao de planos e recusada com mensagem explicita |
@@ -209,7 +201,7 @@ deploy sem abrir o painel.
 
 ## Testes
 
-728 testes no Vitest, em 46 arquivos; os de integracao rodam contra Postgres real em processo
+765 testes no Vitest, em 47 arquivos; os de integracao rodam contra Postgres real em processo
 (PGlite) com as mesmas migracoes enviadas ao Neon. Nenhuma cobranca real
 acontece nos testes: a ValidaPay e substituida por um provedor em memoria que
 reproduz o fluxo documentado (incluindo o fato de a assinatura nascer apenas do

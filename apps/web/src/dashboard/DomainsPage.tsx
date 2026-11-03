@@ -84,7 +84,7 @@ export function DomainsPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Dominio proprio"
-        description="Conecte o endereco da empresa, por exemplo www.suaempresa.com.br, para o site responder nele com HTTPS."
+        description="O endereco da empresa, por exemplo www.suaempresa.com.br, vinculado a este site."
       />
 
       <ResourcePanel resource={list}>
@@ -97,11 +97,24 @@ export function DomainsPage() {
               </Alert>
             ) : null}
 
-            {!data.providerConfigured ? (
+            {/*
+              Dois avisos, e so um aparece. Quando a plataforma nao hospeda o
+              site, falar de credenciais da Vercel seria ruido: nada ali depende
+              delas. Quando hospeda, a falta delas e o que impede a ativacao.
+            */}
+            {!data.hosting.managed && data.customDomainAvailable ? (
+              <Alert tone="info" title="O site deste projeto nao e hospedado pela plataforma">
+                Os enderecos ficam <strong>registrados</strong> nesta conta, mas a CODECA Build nao
+                verifica nem configura o DNS deles: o apontamento e feito no provedor onde o site esta
+                hospedado. Em caso de duvida, fale com a CODECA IA.
+              </Alert>
+            ) : null}
+
+            {data.hosting.managed && !data.providerConfigured ? (
               <Alert tone="warning" title="Verificacao automatica indisponivel">
-                A plataforma nao esta com as credenciais da Vercel configuradas
-                (<code>VERCEL_API_TOKEN</code> e <code>VERCEL_PROJECT_ID</code>). Os dominios ficam
-                aguardando configuracao externa e nao sao ativados automaticamente.
+                A plataforma nao esta com as credenciais da Vercel configuradas (
+                <code>VERCEL_API_TOKEN</code>). Os dominios ficam aguardando configuracao externa e nao
+                sao ativados automaticamente.
               </Alert>
             ) : null}
 
@@ -169,7 +182,9 @@ export function DomainsPage() {
                           <Badge tone={domainTone(domain.status)}>
                             {domain.statusLabel ?? DOMAIN_STATUS_LABELS[domain.status]}
                           </Badge>
-                          {domain.sslStatus === 'active' ? (
+                          {/* "HTTPS pendente" num dominio so registrado diria que a
+                              plataforma vai emitir um certificado. Nao vai. */}
+                          {domain.status === 'registered' ? null : domain.sslStatus === 'active' ? (
                             <Badge tone="success">
                               <Lock aria-hidden="true" className="size-3" /> HTTPS
                             </Badge>
@@ -179,22 +194,28 @@ export function DomainsPage() {
                         </span>
                       }
                       description={
-                        domain.lastCheckedAt
-                          ? `Ultima verificacao em ${formatDateTime(domain.lastCheckedAt)}`
-                          : 'Ainda nao verificado'
+                        domain.status === 'registered'
+                          ? 'Registrado nesta conta'
+                          : domain.lastCheckedAt
+                            ? `Ultima verificacao em ${formatDateTime(domain.lastCheckedAt)}`
+                            : 'Ainda nao verificado'
                       }
                       actions={
                         can('domains:manage') ? (
                           <div className="flex flex-wrap gap-1.5">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              loading={verify.loading}
-                              icon={<RefreshCw aria-hidden="true" className="size-3.5" />}
-                              onClick={() => void verify.run(domain.id)}
-                            >
-                              Verificar novamente
-                            </Button>
+                            {/* Sem hospedagem da plataforma nao ha o que verificar: o
+                                botao prometeria uma mudanca que nao vem. */}
+                            {data.hosting.managed ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                loading={verify.loading}
+                                icon={<RefreshCw aria-hidden="true" className="size-3.5" />}
+                                onClick={() => void verify.run(domain.id)}
+                              >
+                                Verificar novamente
+                              </Button>
+                            ) : null}
                             {domain.status === 'active' && !domain.isPrimary ? (
                               <Button
                                 variant="ghost"
@@ -228,74 +249,80 @@ export function DomainsPage() {
                         ) : undefined
                       }
                     />
-                    <CardBody className="grid gap-4">
-                      {domain.lastError ? <Alert tone="danger">{domain.lastError}</Alert> : null}
+                    {domain.lastError || domain.dns ? (
+                      <CardBody className="grid gap-4">
+                        {domain.lastError ? <Alert tone="danger">{domain.lastError}</Alert> : null}
 
-                      <div className="grid gap-2">
-                        <h3 className="text-sm font-semibold text-slate-800">Registros de DNS</h3>
-                        <p className="text-xs text-slate-500">
-                          Configure estes registros no painel do seu provedor de dominio. A propagacao pode
-                          levar algumas horas; use "Verificar novamente" depois.
-                        </p>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                                <th scope="col" className="py-2 pr-3">Tipo</th>
-                                <th scope="col" className="py-2 pr-3">Nome</th>
-                                <th scope="col" className="py-2 pr-3">Valor</th>
-                                <th scope="col" className="py-2"></th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {domain.dns.records.map((record, index) => (
-                                <tr key={index} className="border-b border-slate-100 last:border-0">
-                                  <td className="py-2 pr-3 font-mono text-xs">{record.type}</td>
-                                  <td className="py-2 pr-3 font-mono text-xs">{record.name}</td>
-                                  <td className="py-2 pr-3 break-all font-mono text-xs">{record.value}</td>
-                                  <td className="py-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      aria-label={`Copiar valor do registro ${record.type}`}
-                                      onClick={() => void copy(record.value)}
-                                    >
-                                      <Copy aria-hidden="true" className="size-3.5" />
-                                    </Button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
+                        {domain.dns ? (
+                          <>
+                            <div className="grid gap-2">
+                              <h3 className="text-sm font-semibold text-slate-800">Registros de DNS</h3>
+                              <p className="text-xs text-slate-500">
+                                Configure estes registros no painel do seu provedor de dominio. A propagacao pode
+                                levar algumas horas; use "Verificar novamente" depois.
+                              </p>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                                      <th scope="col" className="py-2 pr-3">Tipo</th>
+                                      <th scope="col" className="py-2 pr-3">Nome</th>
+                                      <th scope="col" className="py-2 pr-3">Valor</th>
+                                      <th scope="col" className="py-2"></th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {domain.dns.records.map((record, index) => (
+                                      <tr key={index} className="border-b border-slate-100 last:border-0">
+                                        <td className="py-2 pr-3 font-mono text-xs">{record.type}</td>
+                                        <td className="py-2 pr-3 font-mono text-xs">{record.name}</td>
+                                        <td className="py-2 pr-3 break-all font-mono text-xs">{record.value}</td>
+                                        <td className="py-2">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label={`Copiar valor do registro ${record.type}`}
+                                            onClick={() => void copy(record.value)}
+                                          >
+                                            <Copy aria-hidden="true" className="size-3.5" />
+                                          </Button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
 
-                      <ul className="grid gap-1.5 text-xs">
-                        <li className="flex items-center gap-1.5">
-                          <CheckCircle2
-                            aria-hidden="true"
-                            className={domain.ownershipVerified ? 'size-3.5 text-emerald-600' : 'size-3.5 text-slate-300'}
-                          />
-                          Propriedade do dominio comprovada
-                        </li>
-                        <li className="flex items-center gap-1.5">
-                          <CheckCircle2
-                            aria-hidden="true"
-                            className={domain.dnsConfigured ? 'size-3.5 text-emerald-600' : 'size-3.5 text-slate-300'}
-                          />
-                          DNS apontando para a plataforma
-                        </li>
-                        <li className="flex items-center gap-1.5">
-                          <CheckCircle2
-                            aria-hidden="true"
-                            className={
-                              domain.sslStatus === 'active' ? 'size-3.5 text-emerald-600' : 'size-3.5 text-slate-300'
-                            }
-                          />
-                          Certificado HTTPS emitido
-                        </li>
-                      </ul>
-                    </CardBody>
+                            <ul className="grid gap-1.5 text-xs">
+                              <li className="flex items-center gap-1.5">
+                                <CheckCircle2
+                                  aria-hidden="true"
+                                  className={domain.ownershipVerified ? 'size-3.5 text-emerald-600' : 'size-3.5 text-slate-300'}
+                                />
+                                Propriedade do dominio comprovada
+                              </li>
+                              <li className="flex items-center gap-1.5">
+                                <CheckCircle2
+                                  aria-hidden="true"
+                                  className={domain.dnsConfigured ? 'size-3.5 text-emerald-600' : 'size-3.5 text-slate-300'}
+                                />
+                                DNS apontando para a plataforma
+                              </li>
+                              <li className="flex items-center gap-1.5">
+                                <CheckCircle2
+                                  aria-hidden="true"
+                                  className={
+                                    domain.sslStatus === 'active' ? 'size-3.5 text-emerald-600' : 'size-3.5 text-slate-300'
+                                  }
+                                />
+                                Certificado HTTPS emitido
+                              </li>
+                            </ul>
+                          </>
+                        ) : null}
+                      </CardBody>
+                    ) : null}
                   </Card>
                 ))}
               </div>

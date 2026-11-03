@@ -69,7 +69,7 @@ export function PlatformDomainsPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Dominios"
-        description="Todos os dominios cadastrados na plataforma e o estado da verificacao de cada um."
+        description="Todos os dominios cadastrados na plataforma. Os registrados pertencem a sites hospedados fora dela e nao sao verificados."
       />
 
       <ResourcePanel resource={list}>
@@ -77,8 +77,9 @@ export function PlatformDomainsPage() {
           <div className="grid gap-4">
             {!data.providerConfigured ? (
               <Alert tone="warning" title="Integracao de dominios nao configurada">
-                Defina <code>VERCEL_API_TOKEN</code> e <code>VERCEL_PROJECT_ID</code> no ambiente para que a
-                plataforma registre e verifique dominios automaticamente.
+                Defina <code>VERCEL_API_TOKEN</code> no ambiente para que a plataforma gerencie os dominios
+                dos sites com hospedagem incluida. O projeto de cada site e configurado na aba Identidade
+                do proprio site.
               </Alert>
             ) : null}
 

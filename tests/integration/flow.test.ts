@@ -40,9 +40,11 @@ function createVerifiedDomainProvider(): DomainProvider {
 
   return {
     configured: true,
-    add: async (hostname) => verified(hostname),
-    status: async (hostname) => verified(hostname),
-    verify: async (hostname) => verified(hostname),
+    // O projeto e o primeiro argumento. Os testes de hospedagem conferem que a
+    // chamada chega ao projeto **do site**; aqui o que importa e o fluxo.
+    add: async (_projectId, hostname) => verified(hostname),
+    status: async (_projectId, hostname) => verified(hostname),
+    verify: async (_projectId, hostname) => verified(hostname),
     remove: async () => undefined,
   };
 }
@@ -62,14 +64,26 @@ beforeEach(async () => {
     companyName: 'Construtora Horizonte',
   });
   await verifyEmail(api, account);
-  // O plano Essencial libera dominio proprio.
-  // Profissional, e nao Essencial: o Essencial nao inclui o painel de
-  // conteudo, e este teste percorre justamente o painel.
-  const [plan] = await api.db.select().from(schema.plans).where(eq(schema.plans.code, 'profissional'));
+  /**
+   * Empresas, com o projeto de hospedagem configurado.
+   *
+   * O teste percorre o painel **e** termina com um dominio ativo e principal --
+   * e dominio ativo e coisa que so a plataforma afirma quando hospeda o site:
+   * plano com hospedagem incluida e projeto configurado. No Profissional o
+   * dominio fica "registrado" (coberto em `media-domains.test.ts`), e este
+   * teste nunca chegaria ao fim.
+   *
+   * Nao e Essencial porque o Essencial nao inclui o painel de conteudo.
+   */
+  const [plan] = await api.db.select().from(schema.plans).where(eq(schema.plans.code, 'empresas'));
   await api.db
     .update(schema.tenants)
     .set({ planId: plan!.id })
     .where(eq(schema.tenants.id, account.tenantId));
+  await api.db
+    .update(schema.sites)
+    .set({ hostingProjectId: 'prj_construtora_horizonte' })
+    .where(eq(schema.sites.id, account.siteId));
 });
 
 describe('da criacao da empresa ao conteudo pronto', () => {

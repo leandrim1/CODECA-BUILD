@@ -13,6 +13,7 @@ import type {
   AuditLogRow,
   BillingOverview,
   ChargeView,
+  DomainHosting,
   DomainRecord,
   FaqRecord,
   LeadNoteRecord,
@@ -325,16 +326,22 @@ export const domainApi = {
       limits: { maxDomains: number; planName: string };
       customDomainAvailable: boolean;
       providerConfigured: boolean;
+      hosting: DomainHosting;
     }>(`${tenantBase(tenantId)}/domains`),
   add: (tenantId: string, domain: string) =>
-    api.post<{ domain: DomainRecord; message: string; dns: DomainRecord['dns'] }>(
-      `${tenantBase(tenantId)}/domains`,
-      { domain },
-    ),
+    api.post<{
+      domain: DomainRecord;
+      message: string;
+      dns: DomainRecord['dns'];
+      hosting: DomainHosting;
+    }>(`${tenantBase(tenantId)}/domains`, { domain }),
   verify: (tenantId: string, domainId: string) =>
-    api.post<{ domain: DomainRecord | null; message: string; dns: DomainRecord['dns'] }>(
-      `${tenantBase(tenantId)}/domains/${domainId}/verify`,
-    ),
+    api.post<{
+      domain: DomainRecord | null;
+      message: string;
+      dns: DomainRecord['dns'];
+      hosting: DomainHosting;
+    }>(`${tenantBase(tenantId)}/domains/${domainId}/verify`),
   setPrimary: (tenantId: string, domainId: string) =>
     api.post<unknown>(`${tenantBase(tenantId)}/domains/${domainId}/primary`),
   remove: (tenantId: string, domainId: string) => api.delete<void>(`${tenantBase(tenantId)}/domains/${domainId}`),
@@ -377,7 +384,7 @@ export const platformApi = {
     api.get<{
       tenants: { total: number; active: number; trialing: number; suspended: number };
       users: number;
-      domains: { total: number; active: number; pending: number };
+      domains: { total: number; active: number; pending: number; registered: number };
       storageBytes: number;
       leadsLast30Days: number;
       byPlan: Array<{ planCode: string; planName: string; tenants: number }>;
@@ -595,7 +602,9 @@ export const platformSiteApi = {
     }>('/api/platform/sites'),
 
   detail: (siteId: string) =>
-    api.get<{ site: PlatformSite; modules: SiteModuleView[] }>(`/api/platform/sites/${siteId}`),
+    api.get<{ site: PlatformSite; modules: SiteModuleView[]; hosting: DomainHosting }>(
+      `/api/platform/sites/${siteId}`,
+    ),
 
   update: (
     siteId: string,
@@ -604,6 +613,8 @@ export const platformSiteApi = {
       status: SiteStatus;
       internalNotes: string;
       segmentId: string | null;
+      /** Ausente = nao mexe. `null` desvincula. Ver `updateSiteSchema` na API. */
+      hostingProjectId?: string | null;
     },
   ) => api.patch<{ site: PlatformSite }>(`/api/platform/sites/${siteId}`, body),
 

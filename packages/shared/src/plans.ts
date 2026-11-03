@@ -13,12 +13,13 @@ import type { PlanBillingInput } from './validators/billing.js';
  * verificado em lugar nenhum, e os planos continuavam anunciando o que a
  * plataforma nao faz mais.
  *
- * `included_hosting` e diferente dos outros tres: e um compromisso comercial
- * registrado, nao um recurso que a plataforma aplica. Quem publica o site do
- * cliente e o projeto Vercel dele, entao a plataforma nao tem como garantir
- * hospedagem -- so registrar que foi vendida, para o painel mestre e a tela
- * de plano mostrarem. Esta distincao fica aqui para ninguem procurar depois a
- * verificacao que nao existe.
+ * `included_hosting` e aplicado em um ponto so: **o dominio**. Quem hospeda o
+ * site e o projeto Vercel do cliente, e a plataforma nao deploya nada -- mas
+ * so o plano que inclui hospedagem tem o dominio gerenciado por ela (anexado
+ * ao projeto do site, verificado, com HTTPS). Nos demais a plataforma apenas
+ * registra o endereco, porque nao hospeda e nao tem como verificar o DNS de um
+ * site que esta em outro lugar. Ate 11/2026 isto era so um compromisso
+ * registrado, e o recurso existia sem que nada o conferisse.
  */
 export const PLAN_FEATURES = [
   'cms_panel',
@@ -36,12 +37,17 @@ export const PLAN_FEATURE_LABELS: Record<PlanFeature, string> = {
 };
 
 /**
- * Recursos que a plataforma apenas registra, sem aplicar.
+ * O que um recurso faz **de fato**, para o painel mestre dizer na propria caixa.
  *
- * O painel mestre mostra o aviso a partir desta lista, em vez de repetir a
- * explicacao em cada tela.
+ * Existe porque o nome sozinho engana: "Hospedagem incluida" parece fazer a
+ * plataforma hospedar, e ela nao hospeda. Dizer o efeito real evita vender
+ * achando que ele e maior -- ou procurar depois uma verificacao que nao existe.
  */
-export const PLAN_FEATURES_NOT_ENFORCED: readonly PlanFeature[] = ['included_hosting'];
+export const PLAN_FEATURE_NOTES: Partial<Record<PlanFeature, string>> = {
+  included_hosting:
+    'A plataforma passa a gerenciar o dominio (Vercel) dos sites com projeto de hospedagem '
+    + 'configurado. Quem faz o deploy do site continua sendo a CODECA IA.',
+};
 
 
 export const planLimitsSchema = z.object({

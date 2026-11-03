@@ -52,6 +52,8 @@ const DESTRUTIVA = '0007_remove_tabelas_do_renderizador.sql';
 const MODULOS_NOVOS = '0010_depoimentos_equipe_faq.sql';
 const LIMPEZA = '0014_limpeza_do_renderizador.sql';
 const SEGMENTOS = '0015_segmentos_por_ramo.sql';
+const HOSPEDAGEM = '0016_projeto_de_hospedagem_por_site.sql';
+const DOMINIOS_SEM_HOSPEDAGEM = '0017_dominios_sem_hospedagem.sql';
 const REMOVIDAS = ['pages', 'page_versions', 'navigation_menus', 'redirects', 'site_settings'];
 
 /**
@@ -571,6 +573,196 @@ describe('segmentos por ramo', () => {
 
       await expect(banco.aplicar()).resolves.toBeUndefined();
       expect(await codigos(banco.db)).toEqual(depoisDaPrimeira);
+    } finally {
+      await banco.close();
+    }
+  });
+});
+
+/**
+ * O projeto de hospedagem passa a ser do site.
+ *
+ * O que a migracao promete e estrutural -- uma coluna nula, um valor de enum, um
+ * indice parcial --, entao e conferido no catalogo do Postgres. O
+ * `seedDatabase` nao serve para montar o banco anterior: ele usa o schema atual,
+ * que ja tem a coluna que ainda nao existe la.
+ */
+describe('projeto de hospedagem por site', () => {
+  async function colunaHosting(db: Database) {
+    const r = await db.execute(
+      sql.raw(`SELECT is_nullable FROM information_schema.columns
+               WHERE table_name = 'sites' AND column_name = 'hosting_project_id'`),
+    );
+    return resultRows<{ is_nullable: string }>(r)[0] ?? null;
+  }
+
+  async function estadosDeDominio(db: Database): Promise<string[]> {
+    const r = await db.execute(
+      sql.raw(`SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+               WHERE t.typname = 'domain_status' ORDER BY e.enumsortorder`),
+    );
+    return resultRows<{ enumlabel: string }>(r).map((l) => l.enumlabel);
+  }
+
+  it('acrescenta a coluna (nula) e o estado "registrado", sem tirar nada', async () => {
+    // A 0017 fica de fora junto: ela usa o valor `registered`, que a 0016 ainda
+    // vai criar. Na pipeline real a ordem garante; o helper aplica "tudo menos
+    // um", e sem isto aplicaria a 0017 sobre um banco que nao tem o valor.
+    const banco = await bancoAntesDe(HOSPEDAGEM, [DOMINIOS_SEM_HOSPEDAGEM]);
+    try {
+      expect(await colunaHosting(banco.db), 'a coluna nao existe antes').toBeNull();
+      const antes = await estadosDeDominio(banco.db);
+      expect(antes).not.toContain('registered');
+
+      await banco.aplicar();
+
+      // Nula: o caso comum, e o que mantem "sem projeto" como padrao seguro.
+      expect(await colunaHosting(banco.db)).toEqual({ is_nullable: 'YES' });
+      // Apenas acrescenta: nenhum dominio existente muda de estado.
+      expect(await estadosDeDominio(banco.db)).toEqual([...antes, 'registered']);
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('e segura de reaplicar', async () => {
+    // A 0017 fica de fora junto: ela usa o valor `registered`, que a 0016 ainda
+    // vai criar. Na pipeline real a ordem garante; o helper aplica "tudo menos
+    // um", e sem isto aplicaria a 0017 sobre um banco que nao tem o valor.
+    const banco = await bancoAntesDe(HOSPEDAGEM, [DOMINIOS_SEM_HOSPEDAGEM]);
+    try {
+      await banco.aplicar();
+      await expect(banco.aplicar()).resolves.toBeUndefined();
+      expect(await estadosDeDominio(banco.db)).toContain('registered');
+    } finally {
+      await banco.close();
+    }
+  });
+
+  /**
+   * `ALTER TYPE ... ADD VALUE` nao pode ser *usado* na mesma transacao em que e
+   * criado, e `runMigrations` envolve cada arquivo numa. A 0016 so acrescenta e
+   * nao usa o valor -- este teste passa o arquivo pelo executor de verdade para
+   * garantir que isso continue assim.
+   */
+  it('passa pelo executor transacional de verdade', async () => {
+    const client = new PGlite();
+    const db = drizzle(client, { schema, casing: 'snake_case' }) as unknown as Database;
+    try {
+      const resultado = await runMigrations(db, MIGRATIONS_DIR);
+      expect(resultado.applied).toContain(HOSPEDAGEM);
+      expect(await estadosDeDominio(db)).toContain('registered');
+    } finally {
+      await client.close();
+    }
+  });
+});
+
+/**
+ * Dominios que nunca chegaram a Vercel passam a ser "registrados".
+ *
+ * Antes, todo dominio nascia esperando a Vercel; sem credenciais ficava em
+ * "aguardando DNS" para sempre. Com a regra nova a plataforma so afirma algo
+ * sobre DNS quando hospeda o site, e deixar esses dominios assim contradiria a
+ * propria explicacao da tela.
+ *
+ * O criterio que organiza o bloco e o que a migracao **nao** pode tocar:
+ * dominio que a Vercel conhece esta la de verdade.
+ */
+describe('dominios sem hospedagem', () => {
+  async function bancoComSite() {
+    const banco = await bancoAntesDe(DOMINIOS_SEM_HOSPEDAGEM);
+    await seedDatabase(banco.db, {
+      demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' },
+    });
+    const [site] = await banco.db
+      .select({ id: schema.sites.id, tenantId: schema.sites.tenantId })
+      .from(schema.sites);
+    return { banco, site: site! };
+  }
+
+  async function estados(db: Database): Promise<Record<string, string>> {
+    const linhas = await db
+      .select({ hostname: schema.domains.hostname, status: schema.domains.status })
+      .from(schema.domains);
+    return Object.fromEntries(linhas.map((l) => [l.hostname, l.status]));
+  }
+
+  function dominio(
+    site: { id: string; tenantId: string },
+    hostname: string,
+    status: 'pending' | 'awaiting_dns' | 'verifying_ownership' | 'active' | 'misconfigured',
+    vercelDomainId: string | null,
+  ) {
+    return { tenantId: site.tenantId, siteId: site.id, hostname, status, vercelDomainId };
+  }
+
+  it('converte so o que nunca foi aceito pelo provedor', async () => {
+    const { banco, site } = await bancoComSite();
+    try {
+      await banco.db.insert(schema.domains).values([
+        // Nunca chegaram a Vercel: esperavam para sempre.
+        dominio(site, 'espera.com.br', 'awaiting_dns', null),
+        dominio(site, 'pendente.com.br', 'pending', null),
+        dominio(site, 'sem-txt.com.br', 'verifying_ownership', null),
+        // A Vercel conhece estes: o estado deles e real e nao se reescreve.
+        dominio(site, 'ativo.com.br', 'active', 'ativo.com.br'),
+        dominio(site, 'erro.com.br', 'misconfigured', 'erro.com.br'),
+        dominio(site, 'dns.com.br', 'awaiting_dns', 'dns.com.br'),
+      ]);
+
+      await banco.aplicar();
+
+      expect(await estados(banco.db)).toEqual({
+        'espera.com.br': 'registered',
+        'pendente.com.br': 'registered',
+        'sem-txt.com.br': 'registered',
+        'ativo.com.br': 'active',
+        'erro.com.br': 'misconfigured',
+        'dns.com.br': 'awaiting_dns',
+      });
+    } finally {
+      await banco.close();
+    }
+  });
+
+  /**
+   * Site com projeto de hospedagem e gerenciado: o proximo "verificar" anexa o
+   * dominio e traz o estado real. Reescrever antes seria afirmar o que ainda
+   * nao se sabe.
+   */
+  it('nao toca em dominio de site que ja tem projeto de hospedagem', async () => {
+    const { banco, site } = await bancoComSite();
+    try {
+      await banco.db
+        .update(schema.sites)
+        .set({ hostingProjectId: 'prj_hospedado' })
+        .where(eq(schema.sites.id, site.id));
+      await banco.db
+        .insert(schema.domains)
+        .values(dominio(site, 'gerenciado.com.br', 'awaiting_dns', null));
+
+      await banco.aplicar();
+
+      expect(await estados(banco.db)).toEqual({ 'gerenciado.com.br': 'awaiting_dns' });
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('e segura de reaplicar', async () => {
+    const { banco, site } = await bancoComSite();
+    try {
+      await banco.db.insert(schema.domains).values([
+        dominio(site, 'espera.com.br', 'awaiting_dns', null),
+        dominio(site, 'ativo.com.br', 'active', 'ativo.com.br'),
+      ]);
+
+      await banco.aplicar();
+      const depoisDaPrimeira = await estados(banco.db);
+      await expect(banco.aplicar()).resolves.toBeUndefined();
+
+      expect(await estados(banco.db)).toEqual(depoisDaPrimeira);
     } finally {
       await banco.close();
     }

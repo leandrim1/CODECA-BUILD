@@ -284,11 +284,23 @@ export const sites = pgTable(
     isPrimary: boolean('is_primary').notNull().default(false),
     /** Anotacoes da CODECA IA sobre o projeto; nunca expostas ao cliente. */
     internalNotes: text('internal_notes').notNull().default(''),
+    /**
+     * Projeto Vercel onde o site do cliente esta hospedado.
+     *
+     * Do **site**, e nao do ambiente: o projeto da plataforma serve o painel,
+     * e anexar a ele o dominio de um cliente faria o endereco abrir o login.
+     * So e usado quando o plano inclui hospedagem; nulo e o caso comum.
+     */
+    hostingProjectId: text('hosting_project_id'),
     createdAt,
     updatedAt,
   },
   (table) => [
     uniqueIndex('sites_id_tenant_key').on(table.id, table.tenantId),
+    /** Um projeto de hospedagem pertence a um site: nunca dois. */
+    uniqueIndex('sites_hosting_project_key')
+      .on(table.hostingProjectId)
+      .where(sql`${table.hostingProjectId} is not null`),
     uniqueIndex('sites_tenant_slug_key').on(table.tenantId, table.slug),
     uniqueIndex('sites_primary_per_tenant_key')
       .on(table.tenantId)

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, provisionSiteModules, schema, sql, type Database } from '@codeca/database';
+import { and, asc, desc, eq, inArray, ne, provisionSiteModules, schema, sql, type Database } from '@codeca/database';
 import {
   API_KEY_KINDS,
   API_KEY_SCOPES,
@@ -12,6 +12,7 @@ import {
   maskApiKey,
   normalizeOrigin,
   uuidSchema,
+  HOSTING_PROJECT_ID_PATTERN,
   MAX_CUSTOM_MODULES_PER_SITE,
   customModuleInputSchema,
   customModuleUpdateSchema,
@@ -27,6 +28,8 @@ import { issueApiKey, revokeApiKeyById, rotateApiKey } from '../lib/integration/
 import { generateWebhookSecret } from '@codeca/shared/server';
 import { customFieldsOf, loadSiteModules } from '../lib/modules.js';
 import { loadCustomModules, toCustomModuleView } from '../lib/custom-modules.js';
+import { loadHosting } from '../lib/hosting.js';
+import { loadEffectivePlan } from '../lib/plan-limits.js';
 import { listDeliveries } from '../lib/integration/outbound.js';
 import { requireAuth, requirePlatform, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
@@ -54,6 +57,22 @@ const updateSiteSchema = z.object({
    * ajustado a mao. Aplicar o conjunto do segmento e um pedido separado.
    */
   segmentId: uuidSchema.nullable().default(null),
+  /**
+   * Projeto Vercel onde o site do cliente esta hospedado. `null` desvincula.
+   *
+   * **`optional`, nao `default(null)`, ao contrario dos campos vizinhos.** Os
+   * outros sao reescritos a cada salvamento; este nao pode ser: uma tela que
+   * nao o envie -- aberta antes de o campo existir, ou de outro cliente --
+   * desvincularia a hospedagem em silencio, e a proxima vez que o cliente
+   * cadastrasse um dominio ele cairia no modo "so registra". Ausente significa
+   * "nao mexa".
+   */
+  hostingProjectId: z
+    .string()
+    .trim()
+    .regex(HOSTING_PROJECT_ID_PATTERN, 'Use o identificador do projeto na Vercel (ex.: prj_abc123).')
+    .nullable()
+    .optional(),
 });
 
 const keyParamSchema = z.object({ siteId: uuidSchema, keyId: uuidSchema });
@@ -152,6 +171,7 @@ async function loadSite(db: Parameters<typeof loadSiteModules>[0], siteId: strin
       isPrimary: schema.sites.isPrimary,
       internalNotes: schema.sites.internalNotes,
       segmentId: schema.sites.segmentId,
+      hostingProjectId: schema.sites.hostingProjectId,
     })
     .from(schema.sites)
     .where(eq(schema.sites.id, siteId));
@@ -190,7 +210,19 @@ export function platformSiteRoutes() {
     const { siteId } = parseParams(c, siteParamSchema);
     const site = await loadSite(ctx.db, siteId);
     const state = await loadSiteModules(ctx.db, siteId);
-    return ok(c, { site, modules: state.modules });
+    const { mode } = await loadHosting(ctx.db, { tenantId: site.tenantId, siteId });
+    return ok(c, {
+      site,
+      modules: state.modules,
+      /**
+       * Se a plataforma gerencia o dominio deste site, e por que nao.
+       *
+       * A tela precisa disso para dizer **por que** o campo esta desabilitado,
+       * em vez de so desabilitar: "o plano nao inclui hospedagem" e uma
+       * informacao, um campo cinza e um enigma.
+       */
+      hosting: { managed: mode.managed, reason: mode.managed ? null : mode.reason },
+    });
   });
 
   app.patch('/sites/:siteId', requirePlatform('platform:tenants:write'), async (c) => {
@@ -200,6 +232,51 @@ export function platformSiteRoutes() {
     const input = await parseJsonBody(c, updateSiteSchema);
 
     if (input.segmentId !== null) await assertSegmentoExiste(ctx.db, input.segmentId);
+
+    /**
+     * So se configura projeto de hospedagem num plano que a inclui.
+     *
+     * Sem isto, a CODECA IA poderia ligar a hospedagem de um cliente do
+     * Profissional sem que ela tenha sido vendida -- e a plataforma passaria a
+     * anexar o dominio dele a um projeto como se fosse parte do plano.
+     * **Desvincular nunca e recusado**: tirar o projeto nunca da algo a mais.
+     */
+    if (input.hostingProjectId) {
+      const plano = await loadEffectivePlan(ctx.db, site.tenantId);
+      if (!plano.limits.features.includes('included_hosting')) {
+        throw AppError.conflict(
+          `O plano ${plano.planName} desta empresa nao inclui hospedagem. `
+            + 'Troque o plano antes de configurar o projeto de hospedagem.',
+        );
+      }
+    }
+
+    /**
+     * Um projeto de hospedagem pertence a um unico site.
+     *
+     * O indice unico e a garantia; esta conferencia e a mensagem. Sem ela, o
+     * erro seria uma violacao de chave do Postgres -- e quem opera nao
+     * descobriria **qual** site ja usa o projeto, que e a unica coisa que
+     * precisa saber para corrigir.
+     */
+    if (input.hostingProjectId) {
+      const [emUso] = await ctx.db
+        .select({ name: schema.sites.name, tenantName: schema.tenants.displayName })
+        .from(schema.sites)
+        .innerJoin(schema.tenants, eq(schema.tenants.id, schema.sites.tenantId))
+        .where(
+          and(
+            eq(schema.sites.hostingProjectId, input.hostingProjectId),
+            ne(schema.sites.id, siteId),
+          ),
+        );
+      if (emUso) {
+        throw AppError.conflict(
+          `Este projeto de hospedagem ja esta vinculado ao site "${emUso.name}" (${emUso.tenantName}). `
+            + 'Dois sites no mesmo projeto fariam o dominio de uma empresa abrir o site da outra.',
+        );
+      }
+    }
 
     const [row] = await ctx.db
       .update(schema.sites)
@@ -218,6 +295,14 @@ export function platformSiteRoutes() {
         // A trilha diz explicitamente que trocar o segmento nao reconfigurou
         // o site: sem isto, quem le a auditoria depois teria de adivinhar.
         modulesChanged: false,
+        // O identificador do projeto nao e segredo, mas a trilha registra so se
+        // a hospedagem foi ligada, trocada ou tirada -- que e o que se pergunta.
+        hosting:
+          input.hostingProjectId === undefined
+            ? 'unchanged'
+            : input.hostingProjectId === null
+              ? 'unlinked'
+              : 'linked',
       },
     });
 

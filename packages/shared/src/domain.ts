@@ -7,6 +7,14 @@ export const DOMAIN_STATUSES = [
   'active',
   'misconfigured',
   'unlinked',
+  /**
+   * Endereco registrado, com a hospedagem fora da plataforma.
+   *
+   * A plataforma nao hospeda o site, entao nao verifica nem configura o DNS.
+   * `awaiting_dns` diria que falta apontar algo que ela nao cobra, e `pending`
+   * diria que algo vai acontecer -- nenhum dos dois e verdade.
+   */
+  'registered',
 ] as const;
 export type DomainStatus = (typeof DOMAIN_STATUSES)[number];
 
@@ -17,7 +25,19 @@ export const DOMAIN_STATUS_LABELS: Record<DomainStatus, string> = {
   active: 'Ativo',
   misconfigured: 'Erro de configuracao',
   unlinked: 'Desvinculado',
+  registered: 'Registrado',
 };
+
+/**
+ * Identificador de um projeto Vercel.
+ *
+ * O formato real e `prj_...`, mas a API da Vercel tambem aceita o **nome** do
+ * projeto, e quem configura pode colar qualquer um dos dois. O que se confere
+ * e que nao carregue caractere que mude o caminho da chamada: o valor entra
+ * numa URL (`/v10/projects/<id>/domains`), e uma barra ou `?` ali apontaria a
+ * chamada para outro recurso.
+ */
+export const HOSTING_PROJECT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
 
 /**
  * Remove protocolo, porta, caminho, ponto final e caixa alta.

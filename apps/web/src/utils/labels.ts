@@ -83,6 +83,8 @@ export function domainTone(status: string): BadgeTone {
   if (status === 'active') return 'success';
   if (status === 'misconfigured') return 'danger';
   if (status === 'unlinked') return 'neutral';
+  // Registrado nao e um problema nem uma espera: e so o endereco guardado.
+  if (status === 'registered') return 'info';
   return 'warning';
 }
 

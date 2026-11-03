@@ -8,6 +8,18 @@ import type { Env } from '../env.js';
  * painel: o estado vem da resposta da Vercel (propriedade comprovada + DNS
  * apontado). Sem credenciais configuradas, o provedor informa explicitamente
  * que a etapa depende de configuracao externa.
+ *
+ * ## O projeto e argumento de cada chamada, nao configuracao do provedor
+ *
+ * Ate novembro de 2026 o projeto vinha de `VERCEL_PROJECT_ID`, um valor unico
+ * do ambiente -- o projeto da propria plataforma. Anexar a ele o dominio de um
+ * cliente fazia o endereco abrir o login do painel, porque aquele projeto serve
+ * o painel e a API, nao o site de ninguem. Quem servia esses dominios era o
+ * renderizador removido na etapa 0.
+ *
+ * O site de um cliente e um projeto Vercel proprio. O token e da CODECA IA (o
+ * time e o mesmo); o projeto e de cada site, e o chamador o passa. Assim e
+ * impossivel esquecer de escolher: nao existe valor padrao a que recorrer.
  */
 
 export interface DomainVerificationChallenge {
@@ -33,16 +45,17 @@ export interface DomainProviderStatus {
 
 export interface DomainProvider {
   readonly configured: boolean;
-  add: (hostname: string) => Promise<DomainProviderStatus>;
-  status: (hostname: string) => Promise<DomainProviderStatus>;
-  verify: (hostname: string) => Promise<DomainProviderStatus>;
-  remove: (hostname: string) => Promise<void>;
+  /** `projectId` e o projeto Vercel **do site**, nunca um valor do ambiente. */
+  add: (projectId: string, hostname: string) => Promise<DomainProviderStatus>;
+  status: (projectId: string, hostname: string) => Promise<DomainProviderStatus>;
+  verify: (projectId: string, hostname: string) => Promise<DomainProviderStatus>;
+  remove: (projectId: string, hostname: string) => Promise<void>;
 }
 
 const UNCONFIGURED_MESSAGE =
-  'A integracao de dominios da Vercel nao esta configurada. Defina VERCEL_API_TOKEN e '
-  + 'VERCEL_PROJECT_ID no ambiente para que a plataforma registre e verifique o dominio '
-  + 'automaticamente. Enquanto isso, o dominio fica aguardando configuracao externa.';
+  'A integracao de dominios da Vercel nao esta configurada. Defina VERCEL_API_TOKEN no '
+  + 'ambiente para que a plataforma registre e verifique o dominio automaticamente. '
+  + 'Enquanto isso, o dominio fica aguardando configuracao externa.';
 
 function unconfiguredStatus(): DomainProviderStatus {
   return {
@@ -58,10 +71,10 @@ function unconfiguredStatus(): DomainProviderStatus {
 export function createUnconfiguredDomainProvider(): DomainProvider {
   return {
     configured: false,
-    add: async () => unconfiguredStatus(),
-    status: async () => unconfiguredStatus(),
-    verify: async () => unconfiguredStatus(),
-    remove: async () => {
+    add: async (_projectId, _hostname) => unconfiguredStatus(),
+    status: async (_projectId, _hostname) => unconfiguredStatus(),
+    verify: async (_projectId, _hostname) => unconfiguredStatus(),
+    remove: async (_projectId, _hostname) => {
       // Nada a desfazer no provedor: o dominio nunca foi registrado lá.
     },
   };
@@ -81,7 +94,6 @@ interface VercelDomainConfig {
 
 export function createVercelDomainProvider(options: {
   token: string;
-  projectId: string;
   teamId?: string | undefined;
   fetchImpl?: typeof fetch;
 }): DomainProvider {
@@ -123,9 +135,9 @@ export function createVercelDomainProvider(options: {
     return { ok: true, data: payload as T };
   }
 
-  async function readStatus(hostname: string): Promise<DomainProviderStatus> {
+  async function readStatus(projectId: string, hostname: string): Promise<DomainProviderStatus> {
     const domain = await call<VercelProjectDomain>(
-      `/v9/projects/${encodeURIComponent(options.projectId)}/domains/${encodeURIComponent(hostname)}${query}`,
+      `/v9/projects/${encodeURIComponent(projectId)}/domains/${encodeURIComponent(hostname)}${query}`,
     );
     if (!domain.ok) {
       if (domain.status === 404) {
@@ -173,9 +185,9 @@ export function createVercelDomainProvider(options: {
   return {
     configured: true,
 
-    async add(hostname) {
+    async add(projectId, hostname) {
       const created = await call<VercelProjectDomain>(
-        `/v10/projects/${encodeURIComponent(options.projectId)}/domains${query}`,
+        `/v10/projects/${encodeURIComponent(projectId)}/domains${query}`,
         { method: 'POST', body: JSON.stringify({ name: hostname }) },
       );
       if (!created.ok && created.code !== 'domain_already_in_use_by_this_project') {
@@ -191,25 +203,25 @@ export function createVercelDomainProvider(options: {
         }
         throw new AppError('upstream_error', created.message);
       }
-      return readStatus(hostname);
+      return readStatus(projectId, hostname);
     },
 
     status: readStatus,
 
-    async verify(hostname) {
+    async verify(projectId, hostname) {
       const verified = await call<VercelProjectDomain>(
-        `/v9/projects/${encodeURIComponent(options.projectId)}/domains/${encodeURIComponent(hostname)}/verify${query}`,
+        `/v9/projects/${encodeURIComponent(projectId)}/domains/${encodeURIComponent(hostname)}/verify${query}`,
         { method: 'POST' },
       );
       if (!verified.ok && verified.status !== 400 && verified.status !== 409) {
         throw new AppError('upstream_error', verified.message);
       }
-      return readStatus(hostname);
+      return readStatus(projectId, hostname);
     },
 
-    async remove(hostname) {
+    async remove(projectId, hostname) {
       const removed = await call<unknown>(
-        `/v9/projects/${encodeURIComponent(options.projectId)}/domains/${encodeURIComponent(hostname)}${query}`,
+        `/v9/projects/${encodeURIComponent(projectId)}/domains/${encodeURIComponent(hostname)}${query}`,
         { method: 'DELETE' },
       );
       if (!removed.ok && removed.status !== 404) {
@@ -228,10 +240,10 @@ function safeJson(text: string): unknown {
 }
 
 export function createDomainProvider(env: Env, fetchImpl?: typeof fetch): DomainProvider {
-  if (!env.VERCEL_API_TOKEN || !env.VERCEL_PROJECT_ID) return createUnconfiguredDomainProvider();
+  // So o token. O projeto e de cada site e vem do banco, na hora da chamada.
+  if (!env.VERCEL_API_TOKEN) return createUnconfiguredDomainProvider();
   return createVercelDomainProvider({
     token: env.VERCEL_API_TOKEN,
-    projectId: env.VERCEL_PROJECT_ID,
     teamId: env.VERCEL_TEAM_ID,
     ...(fetchImpl ? { fetchImpl } : {}),
   });

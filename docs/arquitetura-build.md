@@ -803,7 +803,7 @@ Essencial e a CODECA IA que mantem o conteudo, e o site precisa ler. Quem
 decide se um site do Essencial e integrado e a CODECA IA, ao emitir ou nao a
 chave.
 
-### Recursos de plano: quatro, e um deles nao e aplicado
+### Recursos de plano: quatro, e um deles tem alcance estreito
 
 `cms_panel`, `custom_domain`, `lead_export` e `included_hosting`. Sairam
 `visual_editor_advanced_blocks`, `version_history`, `multi_page`,
@@ -811,10 +811,19 @@ chave.
 removido na etapa 0, nenhum era verificado em lugar nenhum, e os planos
 seguiam anunciando o que a plataforma nao faz mais.
 
-`included_hosting` e diferente dos outros tres: **a plataforma registra, nao
-aplica.** Quem publica o site e o projeto Vercel do cliente, entao nao ha como
-garantir hospedagem daqui -- so registrar que foi vendida, para o painel
-mestre e a tela de plano mostrarem. A caixa no painel mestre diz isso.
+`included_hosting` e aplicado em **um ponto so: o dominio.** Quem publica o site
+e o projeto Vercel do cliente, e a plataforma nao faz deploy nenhum -- mas so o
+plano que inclui hospedagem tem o dominio **gerenciado** por ela (anexado ao
+projeto do site, verificado, com HTTPS). Nos demais ela apenas registra o
+endereco, porque nao hospeda e nao tem como verificar o DNS de um site que esta
+em outro lugar. A caixa no painel mestre diz o efeito real, e nao o do nome.
+
+Ate 11/2026 isto era so um compromisso registrado, e o recurso existia sem que
+nada o conferisse -- ao mesmo tempo em que o cadastro de dominio anexava o
+endereco do cliente ao projeto **da propria plataforma**, que serve o painel. As
+duas coisas eram o mesmo problema: a plataforma agindo como se hospedasse. A
+regra esta em `apps/api/src/lib/hosting.ts` e o detalhe em
+[dominios.md](dominios.md).
 
 ### O dado nunca e apagado
 

@@ -49,7 +49,6 @@ export const envSchema = z.object({
 
   /** Credenciais da API da Vercel para registrar dominios dos clientes. */
   VERCEL_API_TOKEN: z.string().optional(),
-  VERCEL_PROJECT_ID: z.string().optional(),
   VERCEL_TEAM_ID: z.string().optional(),
 
   /** Alvos de DNS exibidos ao cliente nas instrucoes de dominio. */
@@ -127,7 +126,7 @@ export interface FeatureFlags {
 export function featureFlags(env: Env): FeatureFlags {
   return {
     blobStorage: Boolean(env.BLOB_READ_WRITE_TOKEN || env.BLOB_STORE_ID),
-    vercelDomains: Boolean(env.VERCEL_API_TOKEN && env.VERCEL_PROJECT_ID),
+    vercelDomains: Boolean(env.VERCEL_API_TOKEN),
     transactionalEmail: Boolean(env.RESEND_API_KEY),
     billing: Boolean(env.VALIDAPAY_CLIENT_ID && env.VALIDAPAY_CLIENT_SECRET),
     billingWebhooks: Boolean(env.VALIDAPAY_WEBHOOK_SECRET),
