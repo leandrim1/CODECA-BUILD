@@ -69,7 +69,28 @@ describe('site da empresa', () => {
 
   it('o segmento padrao vem da migracao, com os modulos do segmento', async () => {
     const segmentos = await api.db.select().from(schema.segments);
-    expect(segmentos.map((s) => s.code).sort()).toEqual(['construtora', 'corretor', 'imobiliaria']);
+
+    /**
+     * O catalogo cobre ramos distintos, e nao so o imobiliario.
+     *
+     * A assercao e por conjunto, e nao por quantidade: um segmento novo no
+     * catalogo nao deveria quebrar um teste que fala de modulos.
+     */
+    const codigos = segmentos.map((s) => s.code);
+    expect(codigos).toEqual(
+      expect.arrayContaining(['institucional', 'restaurante', 'construtora', 'corretor']),
+    );
+
+    /**
+     * O padrao e o **neutro**: nao liga modulo de ramo nenhum.
+     *
+     * Era `construtora`, e isso tinha efeito pratico -- um restaurante que se
+     * cadastrasse abria o painel com Imoveis e Obras ligados.
+     */
+    const padrao = segmentos.filter((s) => s.isDefault);
+    expect(padrao.map((s) => s.code)).toEqual(['institucional']);
+    expect(padrao[0]!.defaultModules).not.toContain('imoveis');
+    expect(padrao[0]!.defaultModules).not.toContain('obras');
 
     const [construtora] = segmentos.filter((s) => s.code === 'construtora');
     expect(construtora!.defaultModules).toContain('imoveis');
