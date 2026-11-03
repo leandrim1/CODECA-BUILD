@@ -53,7 +53,7 @@ export function Modal({
       ref={ref}
       aria-labelledby="modal-title"
       className={cx(
-        'w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-0 shadow-xl',
+        'w-[calc(100vw-2rem)] rounded-2xl border border-slate-200/70 bg-white p-0 shadow-overlay',
         'backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm',
         widths[size],
       )}
@@ -62,7 +62,7 @@ export function Modal({
         if (event.target === ref.current) onClose();
       }}
     >
-      <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
+      <div className="flex items-start justify-between gap-4 border-b border-slate-200/70 px-6 py-5">
         <div className="min-w-0">
           <h2 id="modal-title" className="text-base font-semibold text-slate-900">
             {title}
@@ -73,7 +73,7 @@ export function Modal({
           <X aria-hidden="true" className="size-4" />
         </Button>
       </div>
-      {children ? <div className="max-h-[70vh] overflow-y-auto p-5">{children}</div> : null}
+      {children ? <div className="max-h-[70vh] overflow-y-auto px-6 py-5">{children}</div> : null}
       {footer ? (
         <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-slate-50 p-4">{footer}</div>
       ) : null}

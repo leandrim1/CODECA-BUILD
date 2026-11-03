@@ -30,18 +30,24 @@ const ITEMS = [
 export function PlatformLayout() {
   return (
     <div className="min-h-dvh bg-slate-900">
-      <header className="border-b border-slate-700 bg-slate-900">
+      {/*
+        O painel mestre usa fundo escuro de proposito, para a CODECA IA nunca
+        confundir em qual dos dois paineis esta. O escuro e neutro de apoio --
+        o azul da marca segue sendo o unico destaque, agora tambem no item
+        ativo do menu.
+      */}
+      <header className="border-b border-slate-800 bg-slate-900">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <Link to="/painel" className="inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white">
             <ArrowLeft aria-hidden="true" className="size-4" />
             Voltar ao painel
           </Link>
-          <span className="ml-auto rounded-full bg-amber-400/15 px-3 py-1 text-xs font-semibold text-amber-300">
+          <span className="ml-auto rounded-full bg-amber-400/15 px-3 py-1 text-xs font-medium tracking-wide text-amber-300 ring-1 ring-inset ring-amber-400/20">
             Area restrita da plataforma
           </span>
         </div>
         <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" aria-label="Menu da plataforma">
-          <ul className="flex flex-wrap gap-1 pb-2">
+          <ul className="flex flex-wrap gap-1 pb-3">
             {ITEMS.map((item) => (
               <li key={item.to}>
                 <NavLink
@@ -49,8 +55,13 @@ export function PlatformLayout() {
                   end={item.end}
                   className={({ isActive }) =>
                     cx(
-                      'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-                      isActive ? 'bg-white/10 font-medium text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white',
+                      'inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm',
+                      'transition-all duration-200 ease-[var(--ease-out-soft)]',
+                      isActive
+                        // O ativo deixa de ser so "mais claro" e passa a
+                        // carregar o azul da marca, como no painel do cliente.
+                        ? 'bg-brand-600/15 font-medium text-white ring-1 ring-inset ring-brand-500/30'
+                        : 'text-slate-300 hover:bg-white/5 hover:text-white',
                     )
                   }
                 >

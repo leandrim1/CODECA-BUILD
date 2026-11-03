@@ -13,7 +13,18 @@ export function Card({
   as?: 'div' | 'section' | 'article' | 'li';
 }) {
   return (
-    <Tag className={cx('rounded-xl border border-slate-200 bg-white shadow-sm', className)}>{children}</Tag>
+    <Tag
+      className={cx(
+        // Borda mais clara que antes (`slate-200` -> `slate-150` via /70) e a
+        // sombra em camadas: o cartao se separa do fundo pela profundidade, e
+        // nao por um tracado forte. E o que deixa a tela calma com muitos
+        // cartoes ao mesmo tempo.
+        'rounded-2xl border border-slate-200/70 bg-white shadow-card',
+        className,
+      )}
+    >
+      {children}
+    </Tag>
   );
 }
 
@@ -29,10 +40,15 @@ export function CardHeader({
   className?: string;
 }) {
   return (
-    <div className={cx('flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 p-5', className)}>
+    <div
+      className={cx(
+        'flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/70 px-6 py-5',
+        className,
+      )}
+    >
       <div className="min-w-0">
-        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-        {description ? <p className="mt-0.5 text-sm text-slate-500">{description}</p> : null}
+        <h2 className="text-base font-semibold tracking-tight text-slate-900">{title}</h2>
+        {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
@@ -40,7 +56,7 @@ export function CardHeader({
 }
 
 export function CardBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx('p-5', className)}>{children}</div>;
+  return <div className={cx('p-6', className)}>{children}</div>;
 }
 
 export function PageHeader({
@@ -55,8 +71,10 @@ export function PageHeader({
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">{title}</h1>
-        {description ? <p className="mt-1 max-w-2xl text-sm text-slate-500">{description}</p> : null}
+        <h1 className="text-2xl font-semibold text-slate-900 sm:text-[1.75rem]">{title}</h1>
+        {description ? (
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-slate-500">{description}</p>
+        ) : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </header>
@@ -86,7 +104,7 @@ export function Badge({
   return (
     <span
       className={cx(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset',
+        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset',
         TONES[tone],
         className,
       )}
@@ -108,10 +126,10 @@ export function EmptyState({
   icon?: ReactNode;
 }) {
   return (
-    <div className="grid place-items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-6 py-12 text-center">
-      {icon ? <div className="text-slate-400">{icon}</div> : null}
+    <div className="grid place-items-center gap-4 rounded-2xl border border-dashed border-slate-300/70 bg-slate-50/60 px-6 py-16 text-center">
+      {icon ? <div className="text-slate-300">{icon}</div> : null}
       <div>
-        <p className="font-medium text-slate-800">{title}</p>
+        <p className="font-medium tracking-tight text-slate-800">{title}</p>
         {description ? <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{description}</p> : null}
       </div>
       {action}
@@ -152,7 +170,7 @@ export function Alert({
   } as const;
 
   return (
-    <div className={cx('flex flex-wrap items-start justify-between gap-3 rounded-lg border p-4 text-sm', tones[tone])}>
+    <div className={cx('flex flex-wrap items-start justify-between gap-3 rounded-xl border p-4 text-sm', tones[tone])}>
       <div className="min-w-0">
         {title ? <p className="font-semibold">{title}</p> : null}
         <div className={title ? 'mt-0.5' : undefined}>{children}</div>

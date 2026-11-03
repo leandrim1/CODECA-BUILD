@@ -18,7 +18,7 @@ import {
   relativeTime,
   type ModuleKey,
 } from '@codeca/shared';
-import { Alert, Badge, Button, Card, CardBody, CardHeader, EmptyState, Meter, PageHeader } from '@codeca/ui';
+import { Alert, Badge, Button, Card, CardBody, CardHeader, EmptyState, Meter, PageHeader, cx } from '@codeca/ui';
 import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useResource } from '../hooks/useResource.js';
 import { useSiteModules } from '../hooks/useSiteModules.js';
@@ -393,17 +393,34 @@ function StatCard({
   to: string;
 }) {
   return (
-    <Card>
-      <CardBody className="grid gap-1">
+    /*
+      O cartao inteiro e o alvo do clique, nao so o link embaixo.
+      
+      O numero e o que a pessoa olha; obrigar a mirar num "Gerenciar" de 11px
+      depois de ja ter lido o numero e trabalho a toa. O link continua ali,
+      visivel e com foco proprio, para quem navega por teclado.
+    */
+    <Card className="group relative transition-shadow duration-200 ease-[var(--ease-out-soft)] hover:shadow-raised">
+      <CardBody className="grid gap-1.5">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm text-slate-500">{label}</span>
-          <span className="grid size-8 place-items-center rounded-lg bg-slate-100 text-slate-500">
+          <span
+            className={cx(
+              'grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-500',
+              // No hover o icone assume o azul da marca: a cor confirma que o
+              // cartao e clicavel, usando a paleta que ja existe.
+              'transition-colors duration-200 group-hover:bg-brand-50 group-hover:text-brand-600',
+            )}
+          >
             <Icon aria-hidden="true" className="size-4" />
           </span>
         </div>
-        <p className="text-2xl font-semibold tabular-nums text-slate-900">{value}</p>
-        <p className="text-xs text-slate-500">{detail}</p>
-        <Link to={to} className="mt-1 text-xs link">
+        <p className="text-3xl font-semibold tabular-nums tracking-tight text-slate-900">{value}</p>
+        <p className="text-xs leading-relaxed text-slate-500">{detail}</p>
+        <Link
+          to={to}
+          className="mt-1 text-xs link after:absolute after:inset-0 after:content-['']"
+        >
           Gerenciar
         </Link>
       </CardBody>

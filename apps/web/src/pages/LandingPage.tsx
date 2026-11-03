@@ -18,8 +18,11 @@ import { useAuth } from '../hooks/useAuth.js';
 const RECURSOS = [
   {
     icon: LayoutTemplate,
-    title: 'Editor visual por blocos',
-    text: 'Monte as paginas arrastando secoes prontas. Sem codigo, com previa em desktop, tablet e celular.',
+    // O editor visual por blocos foi removido na etapa 0: hoje quem desenha o
+    // site e a CODECA IA, e o cliente administra o conteudo dele. Anunciar o
+    // editor aqui vendia uma tela que nao existe.
+    title: 'Conteudo sob seu controle',
+    text: 'Textos, imagens, banners e listas editaveis no painel. A alteracao aparece no site sem novo deploy.',
   },
   {
     icon: Building2,
@@ -91,9 +94,9 @@ export function LandingPage() {
               O site da sua construtora, com imoveis, obras e dominio proprio.
             </h1>
             <p className="mt-5 text-lg text-slate-600">
-              Cada construtora tem o proprio site, a propria identidade visual e o proprio painel. Monte as
-              paginas no editor visual, cadastre imoveis e obras, conecte seu dominio e receba os contatos
-              direto no painel.
+              Cada construtora tem o proprio site, a propria identidade visual e o proprio painel. Atualize
+              textos e imagens, cadastre imoveis e obras, conecte seu dominio e receba os contatos direto no
+              painel.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/criar-conta">

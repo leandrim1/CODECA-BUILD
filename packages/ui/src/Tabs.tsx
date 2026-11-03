@@ -32,7 +32,8 @@ export function Tabs({
             aria-selected={selected}
             onClick={() => onChange(item.id)}
             className={cx(
-              '-mb-px inline-flex items-center gap-2 border-b-2 px-3.5 py-2.5 text-sm font-medium transition-colors',
+              '-mb-px inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium',
+              'transition-colors duration-200 ease-[var(--ease-out-soft)]',
               selected
                 ? 'border-brand-600 text-brand-700'
                 : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
@@ -59,7 +60,7 @@ export function SegmentedControl<T extends string>({
   label: string;
 }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex rounded-lg bg-slate-100 p-0.5">
+    <div role="group" aria-label={label} className="inline-flex rounded-xl bg-slate-100 p-1">
       {options.map((option) => (
         <button
           key={option.value}
@@ -68,8 +69,8 @@ export function SegmentedControl<T extends string>({
           onClick={() => onChange(option.value)}
           title={option.label}
           className={cx(
-            'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
-            option.value === value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800',
+            'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200',
+            option.value === value ? 'bg-white text-slate-900 shadow-card' : 'text-slate-500 hover:text-slate-800',
           )}
         >
           {option.icon}

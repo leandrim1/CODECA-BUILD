@@ -249,7 +249,7 @@ export function DashboardLayout() {
       {/* Barra lateral */}
       <aside
         className={cx(
-          'fixed inset-y-0 left-0 z-40 w-72 overflow-y-auto border-r border-slate-200 bg-white',
+          'fixed inset-y-0 left-0 z-40 w-72 overflow-y-auto border-r border-slate-200/70 bg-white',
           'transition-transform lg:static lg:translate-x-0',
           menuOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full',
         )}
@@ -309,10 +309,14 @@ export function DashboardLayout() {
           </div>
         </div>
 
-        <nav className="p-3">
+        <nav className="p-4">
           {visibleGroups.map((group) => (
-            <div key={group.title} className="mb-4">
-              <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <div key={group.title} className="mb-6 last:mb-0">
+              {/*
+                Rotulo de grupo em peso medio e cor fraca: ele organiza a lista
+                sem disputar atencao com os itens, que sao o que se clica.
+              */}
+              <p className="px-3 pb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
                 {group.title}
               </p>
               <ul className="grid gap-0.5">
@@ -324,10 +328,18 @@ export function DashboardLayout() {
                       onClick={() => setMenuOpen(false)}
                       className={({ isActive }) =>
                         cx(
-                          'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors',
+                          // O item ativo mantem exatamente o azul de antes
+                          // (`brand-50` de fundo, `brand-700` de texto) e ganha
+                          // um marcador vertical: a cor sozinha exige comparar
+                          // dois itens para saber qual esta ativo; a barra
+                          // responde sem comparacao.
+                          'relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm',
+                          'transition-all duration-200 ease-[var(--ease-out-soft)]',
+                          'before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5',
+                          'before:-translate-y-1/2 before:rounded-full before:transition-colors',
                           isActive
-                            ? 'bg-brand-50 font-medium text-brand-700'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                            ? 'bg-brand-50 font-medium text-brand-700 before:bg-brand-600'
+                            : 'text-slate-600 before:bg-transparent hover:bg-slate-100/80 hover:text-slate-900',
                         )
                       }
                     >
@@ -348,7 +360,7 @@ export function DashboardLayout() {
             <div className="mb-4 border-t border-slate-200 pt-4">
               <NavLink
                 to="/plataforma"
-                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors duration-200 hover:bg-slate-100"
               >
                 <ShieldCheck aria-hidden="true" className="size-4" />
                 Painel da plataforma
@@ -369,7 +381,7 @@ export function DashboardLayout() {
 
       {/* Conteudo */}
       <div className="flex min-w-0 flex-col">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200/70 bg-white/80 px-4 backdrop-blur-xl sm:px-6">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(true)} aria-label="Abrir menu">
             <Menu aria-hidden="true" className="size-5" />
           </Button>

@@ -30,7 +30,12 @@ export function AuthLayout() {
             Site profissional, dominio proprio e carteira de imoveis em um so lugar.
           </h2>
           <ul className="mt-8 grid gap-3 text-slate-300">
-            <li>Editor visual por blocos, sem precisar programar</li>
+            {/*
+              A lista descreve o que a plataforma faz **hoje**. O primeiro item
+              era "Editor visual por blocos", recurso removido na etapa 0 -- a
+              tela de entrada vendia algo que nao existe mais.
+            */}
+            <li>Conteudo do site editavel sem novo deploy</li>
             <li>Imoveis a venda com pagina propria e busca</li>
             <li>Obras em andamento com evolucao e fotos</li>
             <li>Interessados organizados direto no painel</li>

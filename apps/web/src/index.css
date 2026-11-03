@@ -22,7 +22,35 @@
 
   --font-sans: 'Inter var', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
+  /**
+   * Raios maiores que o padrao do Tailwind.
+   *
+   * O raio e o que mais separa uma interface administrativa comum de uma
+   * cuidada: 8px parece formulario, 12-16px parece produto. Subiram juntos
+   * para botao, campo e cartao -- se so o cartao crescesse, o botao dentro
+   * dele pareceria pequeno demais.
+   */
+  --radius-lg: 0.625rem;
   --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+
+  /**
+   * Elevacao em camadas, nao uma sombra so.
+   *
+   * Uma sombra unica e difusa sempre parece suja. Duas camadas -- um contorno
+   * quase opaco de 1px e um borrao largo e muito fraco -- dao profundidade sem
+   * cinza visivel, que e o que torna a sombra "discreta" em vez de ausente.
+   *
+   * O tom nao e preto puro: leva o azul da marca (#1b3375) com opacidade
+   * baixa, para a sombra pertencer a paleta em vez de brigar com ela.
+   */
+  --shadow-card: 0 1px 2px 0 rgb(27 51 117 / 0.04), 0 1px 3px 0 rgb(27 51 117 / 0.03);
+  --shadow-raised: 0 1px 2px 0 rgb(27 51 117 / 0.05), 0 4px 12px -2px rgb(27 51 117 / 0.06);
+  --shadow-overlay: 0 1px 3px 0 rgb(27 51 117 / 0.06), 0 16px 40px -8px rgb(27 51 117 / 0.14);
+  --shadow-brand: 0 1px 2px 0 rgb(29 78 216 / 0.20), 0 4px 10px -2px rgb(29 78 216 / 0.22);
+
+  /** Curva unica para toda transicao: sai rapido, chega devagar. */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @layer base {
@@ -32,6 +60,24 @@
 
   body {
     @apply bg-slate-50 font-sans text-slate-800 antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  /**
+   * Titulo com entreletra negativa.
+   *
+   * E a assinatura tipografica da referencia: quanto maior o texto, mais o
+   * espaco natural entre letras parece frouxo. Apertar proporcionalmente ao
+   * tamanho e o que faz o titulo parecer desenhado em vez de so grande.
+   */
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+  }
+
+  h1 {
+    letter-spacing: -0.03em;
   }
 
   :focus-visible {

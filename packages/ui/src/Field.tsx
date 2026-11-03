@@ -46,10 +46,20 @@ export function Field({ label, hint, error, required, children, className }: Fie
   );
 }
 
+/**
+ * Base de todo controle de formulario.
+ *
+ * O foco continua sendo o azul da marca -- `brand-500` na borda e um anel
+ * translucido da mesma cor. O que mudou e o conforto: 2.5 de altura interna em
+ * vez de 2, raio maior e a transicao que acompanha borda e sombra, para o
+ * campo responder ao toque em vez de piscar.
+ */
 const CONTROL =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 '
-  + 'placeholder:text-slate-400 focus:border-brand-500 focus:outline-2 focus:outline-offset-0 '
-  + 'focus:outline-brand-500/40 disabled:bg-slate-50 disabled:text-slate-500 '
+  'w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 '
+  + 'transition-[border-color,box-shadow,outline-color] duration-200 ease-[var(--ease-out-soft)] '
+  + 'placeholder:text-slate-400 hover:border-slate-400 '
+  + 'focus:border-brand-500 focus:outline-2 focus:outline-offset-0 '
+  + 'focus:outline-brand-500/40 disabled:bg-slate-50 disabled:text-slate-500 disabled:hover:border-slate-300 '
   + 'aria-[invalid=true]:border-rose-400 aria-[invalid=true]:focus:outline-rose-400/40';
 
 export interface TextInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
@@ -292,7 +302,7 @@ export function ColorInput({
           value={isHex ? value.slice(0, 7) : '#000000'}
           onChange={(event) => onChange(event.target.value.toUpperCase())}
           aria-label={`${label}: seletor visual`}
-          className="size-9 flex-none cursor-pointer rounded-lg border border-slate-300 bg-white p-0.5"
+          className="size-10 flex-none cursor-pointer rounded-xl border border-slate-300 bg-white p-0.5"
         />
         <input
           id={id}
