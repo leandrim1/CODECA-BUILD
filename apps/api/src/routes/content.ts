@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, ilike, inArray, schema, sql, type Database } from '@codeca/database';
+import { assertContentLimit } from '../lib/plan-limits.js';
 import {
   AppError,
   contentQuerySchema,
@@ -104,6 +105,7 @@ export function contentRoutes() {
     const { data: input, raw } = await parseJsonBodyWithRaw(c, serviceInputSchema);
 
     const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'servicos', raw);
+    await assertContentLimit(ctx.db, tenant.tenantId);
 
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.imageId]);
 
@@ -302,6 +304,7 @@ export function contentRoutes() {
     const tenant = c.get('tenant');
     const { data: input, raw } = await parseJsonBodyWithRaw(c, testimonialInputSchema);
     const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'depoimentos', raw);
+    await assertContentLimit(ctx.db, tenant.tenantId);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.photoId]);
     await assertProjectBelongsToTenant(ctx.db, tenant.tenantId, input.relatedProjectId);
 
@@ -415,6 +418,7 @@ export function contentRoutes() {
     const tenant = c.get('tenant');
     const { data: input, raw } = await parseJsonBodyWithRaw(c, teamMemberInputSchema);
     const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'equipe', raw);
+    await assertContentLimit(ctx.db, tenant.tenantId);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.photoId]);
 
     const [row] = await ctx.db
@@ -499,6 +503,7 @@ export function contentRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const input = await parseJsonBody(c, faqInputSchema);
+    await assertContentLimit(ctx.db, tenant.tenantId);
     const [row] = await ctx.db
       .insert(schema.faqs)
       .values({ tenantId: tenant.tenantId, siteId: tenant.siteId, ...input })

@@ -9,6 +9,7 @@ import {
   PUBLIC_SITE_ON_SUSPENSION,
   PUBLIC_SITE_ON_SUSPENSION_LABELS,
   formatBytes,
+  planBenefits,
   formatPlanPrice,
   type PanelOnSuspension,
   type PublicSiteOnSuspension,
@@ -82,12 +83,17 @@ export function PlatformPlansPage() {
                     {plan.priceCents === 0 ? 'Gratuito' : formatPlanPrice(plan.priceCents)}
                     {plan.priceCents > 0 ? <span className="text-sm font-normal text-slate-500">/mes</span> : null}
                   </p>
+                  {/*
+                    A mesma lista da pagina inicial e da tela de plano do
+                    cliente: ela sai de `planBenefits`, entao o que o
+                    superadmin configura aqui e exatamente o que o visitante
+                    le. Os recursos ligados aparecem logo abaixo, com o nome
+                    tecnico que se escolhe no formulario.
+                  */}
                   <ul className="grid gap-1 text-sm text-slate-600">
-                    <li>{plan.limits.maxPublishedProperties} imoveis publicados</li>
-                    <li>{plan.limits.maxProjects} obras</li>
-                    <li>{plan.limits.maxUsers} usuarios</li>
-                    <li>{plan.limits.maxDomains} dominio(s)</li>
-                    <li>{formatBytes(plan.limits.storageBytes)} de armazenamento</li>
+                    {planBenefits(plan).map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
                   </ul>
                   <ul className="grid gap-0.5 text-xs text-slate-500">
                     {plan.limits.features.map((feature) => (
@@ -133,8 +139,7 @@ function PlanModal({
     description: plan?.description ?? '',
     priceReais: plan ? String(plan.priceCents / 100) : '0',
     maxUsers: String(plan?.limits.maxUsers ?? 5),
-    maxPublishedProperties: String(plan?.limits.maxPublishedProperties ?? 40),
-    maxProjects: String(plan?.limits.maxProjects ?? 20),
+    maxContentRecords: String(plan?.limits.maxContentRecords ?? 100),
     maxDomains: String(plan?.limits.maxDomains ?? 1),
     storageMb: String(Math.round((plan?.limits.storageBytes ?? 2048 * MB) / MB)),
     features: (plan?.limits.features ?? []) as string[],
@@ -148,8 +153,7 @@ function PlanModal({
     () => {
       const limits = {
         maxUsers: Number(form.values.maxUsers),
-        maxPublishedProperties: Number(form.values.maxPublishedProperties),
-        maxProjects: Number(form.values.maxProjects),
+        maxContentRecords: Number(form.values.maxContentRecords),
         maxDomains: Number(form.values.maxDomains),
         storageBytes: Number(form.values.storageMb) * MB,
         features: form.values.features,
@@ -232,7 +236,7 @@ function PlanModal({
           onChange={(event) => setField('priceReais', event.target.value)}
         />
 
-        <fieldset className="grid gap-4 sm:grid-cols-3">
+        <fieldset className="grid items-start gap-4 sm:grid-cols-3">
           <legend className="text-sm font-medium text-slate-700">Limites</legend>
           <TextInput
             label="Usuarios"
@@ -241,16 +245,12 @@ function PlanModal({
             onChange={(event) => setField('maxUsers', event.target.value)}
           />
           <TextInput
-            label="Imoveis publicados"
+            label="Conteudos cadastrados"
             inputMode="numeric"
-            value={values.maxPublishedProperties}
-            onChange={(event) => setField('maxPublishedProperties', event.target.value)}
-          />
-          <TextInput
-            label="Obras"
-            inputMode="numeric"
-            value={values.maxProjects}
-            onChange={(event) => setField('maxProjects', event.target.value)}
+            value={values.maxContentRecords}
+            error={errors['limits.maxContentRecords']}
+            hint="Limite geral: soma dos registros de todos os modulos do site."
+            onChange={(event) => setField('maxContentRecords', event.target.value)}
           />
           <TextInput
             label="Dominios"
@@ -264,6 +264,13 @@ function PlanModal({
             value={values.storageMb}
             onChange={(event) => setField('storageMb', event.target.value)}
           />
+          <p className="text-xs leading-relaxed text-slate-500 sm:col-span-3">
+            <strong>Conteudos cadastrados</strong> e um limite unico, igual para todo segmento: conta os
+            registros de todos os modulos de colecao habilitados no site (produtos, servicos, imoveis, obras,
+            equipe, galerias, banners e os modulos personalizados). Rascunhos e arquivados contam; excluidos
+            nao; documentos (institucional, contato) nao. Reduzir o limite nunca apaga nada: quem ja passou
+            dele continua editando e excluindo, e so deixa de cadastrar novos.
+          </p>
         </fieldset>
 
         <fieldset className="grid gap-1.5">

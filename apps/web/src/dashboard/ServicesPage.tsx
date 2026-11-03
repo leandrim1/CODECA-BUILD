@@ -1,3 +1,4 @@
+import { ContentLimitNotice } from '../components/ContentUsage.js';
 import { useEffect, useState } from 'react';
 import { Pencil, Plus, Trash2, Wrench } from 'lucide-react';
 import { PUBLICATION_STATUSES, SAFE_ICONS, slugify, type PublicationStatus } from '@codeca/shared';
@@ -64,6 +65,8 @@ export function ServicesPage() {
           ) : undefined
         }
       />
+
+      <ContentLimitNotice />
 
       <ResourcePanel resource={list}>
         {(data) =>

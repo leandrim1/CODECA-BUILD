@@ -302,7 +302,7 @@ describe('plano de avaliacao', () => {
     expect(response.body.subscription.state).toBe('trialing');
     expect(response.body.subscription.publicationState).toBe('allowed');
     expect(response.body.plans.length).toBeGreaterThan(0);
-    expect(response.body.usage).toHaveProperty('publishedProperties');
+    expect(response.body.usage).toHaveProperty('contentRecords');
     // O plano gratuito aparece, mas marcado como nao contratavel.
     const trial = response.body.plans.find((plan: { code: string }) => plan.code === 'trial');
     expect(trial?.contractable).toBe(false);

@@ -1,3 +1,4 @@
+import { ContentLimitNotice } from '../components/ContentUsage.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { CUSTOM_RECORD_STATUSES, type CustomRecordStatus } from '@codeca/shared';
@@ -122,6 +123,8 @@ export function CustomModulePage({ moduleKey }: { moduleKey: string }) {
           ) : undefined
         }
       />
+
+      <ContentLimitNotice />
 
       <ResourcePanel resource={lista}>
         {(data) =>

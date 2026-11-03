@@ -356,3 +356,19 @@ export const DOCUMENT_MODULE_KEYS = MODULE_KEYS.filter(
   (key) => MODULE_REGISTRY[key].kind === 'document',
 );
 export type DocumentModuleKey = 'institucional' | 'contato';
+
+/**
+ * Modulos cujos registros contam para o limite geral de conteudos do plano.
+ *
+ * Sao os de **colecao**: cada registro e um conteudo cadastrado (um produto,
+ * um servico, um imovel, um profissional...). Os de documento -- `institucional`
+ * e `contato` -- sao uma pagina so, nao uma lista, e nao contam.
+ *
+ * Derivada do registro de proposito: um modulo novo de colecao entra no limite
+ * sem ninguem lembrar de acrescenta-lo a uma lista. O que o codigo da API
+ * precisa fazer por ele e dizer de que tabela vem a contagem, e um teste
+ * (`content-usage.test.ts`) falha enquanto algum modulo daqui nao tiver tabela.
+ */
+export const CONTENT_LIMIT_MODULE_KEYS: readonly ModuleKey[] = MODULE_KEYS.filter(
+  (key) => MODULE_REGISTRY[key].kind === 'collection',
+);

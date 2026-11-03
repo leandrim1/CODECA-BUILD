@@ -104,6 +104,16 @@ export function SiteModulesProvider({ children }: { children: ReactNode }) {
   return <SiteModulesContext.Provider value={value}>{children}</SiteModulesContext.Provider>;
 }
 
+/**
+ * Os modulos do site, se houver um provedor acima; `null` fora do painel da empresa.
+ *
+ * Para quem mostra dado de **outra** empresa (o painel mestre), onde nao ha
+ * "o site da empresa ativa" e `useSiteModules` lancaria.
+ */
+export function useSiteModulesIfAny(): SiteModulesValue | null {
+  return useContext(SiteModulesContext);
+}
+
 export function useSiteModules(): SiteModulesValue {
   const value = useContext(SiteModulesContext);
   if (!value) throw new Error('useSiteModules precisa estar dentro de <SiteModulesProvider>.');

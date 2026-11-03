@@ -25,10 +25,13 @@ const NOME_DO_MODULO: Partial<Record<ModuleKey, string>> = {
 };
 
 const SEGMENTOS = [
-  { codigo: 'imobiliaria', nome: 'Imobiliária' },
   { codigo: 'varejo', nome: 'Loja' },
-  { codigo: 'construtora', nome: 'Construtora' },
+  { codigo: 'clinica', nome: 'Clínica' },
+  { codigo: 'restaurante', nome: 'Restaurante' },
   { codigo: 'escola', nome: 'Instituição de ensino' },
+  { codigo: 'prestador', nome: 'Prestador de serviços' },
+  { codigo: 'imobiliaria', nome: 'Imobiliária' },
+  { codigo: 'construtora', nome: 'Construtora' },
 ] as const;
 
 function modulosDe(codigo: string): string[] {
@@ -37,7 +40,7 @@ function modulosDe(codigo: string): string[] {
 }
 
 export function Differential() {
-  const [codigo, setCodigo] = useState<(typeof SEGMENTOS)[number]['codigo']>('construtora');
+  const [codigo, setCodigo] = useState<(typeof SEGMENTOS)[number]['codigo']>('varejo');
   const modulos = modulosDe(codigo);
   const nome = SEGMENTOS.find((s) => s.codigo === codigo)?.nome ?? '';
 

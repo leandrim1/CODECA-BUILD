@@ -1,3 +1,4 @@
+import { ContentUsageBreakdown } from '../components/ContentUsage.js';
 import { useCallback, useMemo, useState } from 'react';
 import { AlertTriangle, Check, CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
 import {
@@ -6,6 +7,9 @@ import {
   PLAN_FEATURE_LABELS,
   PUBLIC_SITE_ON_SUSPENSION_LABELS,
   formatBytes,
+  planBenefits,
+  type PlanLimits,
+  type UsageSnapshot,
   formatDateTime,
   type PaymentMethodCode,
 } from '@codeca/shared';
@@ -432,15 +436,11 @@ export function BillingPage() {
 
                     <div className="grid gap-3 border-t border-slate-100 pt-4">
                       <Meter
-                        label="Imoveis publicados"
-                        current={view.usage.publishedProperties}
-                        limit={view.plan.limits.maxPublishedProperties}
+                        label="Conteudos cadastrados"
+                        current={view.usage.contentRecords}
+                        limit={view.plan.limits.maxContentRecords}
                       />
-                      <Meter
-                        label="Obras cadastradas"
-                        current={view.usage.projects}
-                        limit={view.plan.limits.maxProjects}
-                      />
+                      <ContentUsageBreakdown byModule={view.usage.contentByModule} />
                       <Meter label="Usuarios ativos" current={view.usage.users} limit={view.plan.limits.maxUsers} />
                       <Meter label="Dominios" current={view.usage.domains} limit={view.plan.limits.maxDomains} />
                       <Meter
@@ -518,11 +518,11 @@ export function BillingPage() {
                         <p className="mt-1.5 text-sm font-semibold text-slate-800">
                           {plan.priceCents === 0 ? 'Gratuito' : `${plan.priceLabel}/mes`}
                         </p>
+                        {/* Mesma lista da pagina inicial e do painel mestre: vem dos limites do plano. */}
                         <ul className="mt-2 grid gap-0.5 text-xs text-slate-500">
-                          <li>{plan.limits.maxPublishedProperties} imoveis publicados</li>
-                          <li>{plan.limits.maxProjects} obras</li>
-                          <li>{plan.limits.maxUsers} usuarios</li>
-                          <li>{formatBytes(plan.limits.storageBytes)} de armazenamento</li>
+                          {planBenefits(plan).map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
                         </ul>
 
                         {!plan.current && plan.contractable ? (
@@ -689,6 +689,9 @@ export function BillingPage() {
           <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
             {preview ?? 'Simulando o valor da troca junto ao provedor...'}
           </p>
+          {changePlan && data ? (
+            <AvisoDeLimites usage={data.usage} limits={changePlan.limits} planName={changePlan.name} />
+          ) : null}
         </div>
       </Modal>
 
@@ -793,4 +796,54 @@ function chargeTone(status: string): BadgeTone {
     default:
       return 'neutral';
   }
+}
+
+/**
+ * O que acontece com o que a empresa ja tem, se ela trocar para um plano menor.
+ *
+ * Nada e apagado ou escondido: a empresa continua vendo, editando e excluindo
+ * tudo, e so deixa de poder **cadastrar** mais do que o novo plano permite ate
+ * voltar a ficar abaixo do limite. A tela diz isso antes da confirmacao, com os
+ * numeros -- um aviso generico ("pode haver restricoes") nao deixaria ninguem
+ * decidir.
+ */
+function AvisoDeLimites({
+  usage,
+  limits,
+  planName,
+}: {
+  usage: UsageSnapshot;
+  limits: PlanLimits;
+  planName: string;
+}) {
+  const acima: string[] = [];
+  if (usage.contentRecords > limits.maxContentRecords) {
+    acima.push(`${usage.contentRecords} conteudos cadastrados (o limite e ${limits.maxContentRecords})`);
+  }
+  if (usage.users > limits.maxUsers) {
+    acima.push(`${usage.users} usuarios (o limite e ${limits.maxUsers})`);
+  }
+  if (usage.domains > limits.maxDomains) {
+    acima.push(`${usage.domains} dominios (o limite e ${limits.maxDomains})`);
+  }
+  if (usage.storageBytes > limits.storageBytes) {
+    acima.push(
+      `${formatBytes(usage.storageBytes)} de armazenamento (o limite e ${formatBytes(limits.storageBytes)})`,
+    );
+  }
+  if (acima.length === 0) return null;
+
+  return (
+    <Alert tone="warning" title={`Voce usa mais do que o plano ${planName} permite`}>
+      <ul className="list-disc pl-4">
+        {acima.map((linha) => (
+          <li key={linha}>{linha}</li>
+        ))}
+      </ul>
+      <p className="mt-2">
+        Nada sera apagado nem escondido: voce continua vendo, editando e excluindo tudo. So nao sera possivel
+        cadastrar novos itens nesses limites ate voltar a ficar abaixo deles.
+      </p>
+    </Alert>
+  );
 }

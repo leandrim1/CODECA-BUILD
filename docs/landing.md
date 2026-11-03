@@ -51,17 +51,20 @@ respostas do FAQ) em até 5 minutos.
 
 ### O que é editorial
 
-- A frase de apresentação de cada plano (`apresentacao`) vale **enquanto
-  descreve o plano real**: a do Essencial diz que o conteúdo fica com a CODECA IA,
-  e só aparece se o plano continua sem `cms_panel`. Fora disso entra a descrição
-  cadastrada no painel mestre.
-- Os rótulos de recurso são reescritos com acento (o sistema os guarda sem). O
-  que decide se um recurso aparece é `limits.features`.
+- A frase de cada plano é a **descrição cadastrada** no painel mestre (as de fábrica
+  não citam imóveis nem obras: valem para qualquer segmento). Não há mais texto
+  editorial por plano na página.
+- A lista de benefícios vem de `planBenefits` (`@codeca/shared`), a **mesma função**
+  da tela de plano do cliente e do painel mestre. Detalhes em
+  [limites-de-conteudo.md](limites-de-conteudo.md).
 - O nome `Avaliacao` da semente é exibido como `Avaliação`; um nome que o
   superadmin tenha trocado aparece como ele escreveu.
 - O destaque "Recomendado" é do plano de código `profissional`. É uma
   recomendação de produto (é onde está a autonomia que a página vende), **não** uma
   afirmação de que é o mais contratado -- não há dado que a sustente.
+- A página mostra uma faixa de segmentos (lojas, clínicas, restaurantes, escolas,
+  imobiliárias, construtoras, escritórios, prestadores, tecnologia, autônomos) e
+  explica "conteúdos cadastrados" junto dos planos e no FAQ.
 
 ### Os botões de plano
 
@@ -73,12 +76,12 @@ alterado.
 ## 3. Demonstração do produto
 
 As capturas em `src/assets/landing/*.webp` são da **interface real**, com dados de
-demonstração (uma empresa fictícia, ilustrações vetoriais no lugar de fotos). A
+demonstração (uma loja fictícia, ilustrações vetoriais no lugar de fotos -- de propósito um segmento que não é imobiliário nem de construção). A
 página diz isso em legenda. Nada nelas é função que o painel não tenha.
 
 Para refazê-las: subir a API com um banco de teste, cadastrar uma empresa com
-imóveis, obras, serviços, banners e contatos de exemplo, entrar pelo painel e
-fotografar visão geral, lista de imóveis, edição (viewport 1440x900, escala 2) e
+produtos, categorias, banners e contatos de exemplo, entrar pelo painel e
+fotografar visão geral, lista de produtos, edição (viewport 1440x900, escala 2) e
 visão geral no celular (390x844, escala 3); converter para WebP (qualidade 80,
 largura 1920 / 780). A imagem de compartilhamento (`public/og-image.jpg`, 1200x630)
 usa a mesma captura da visão geral.

@@ -1,3 +1,4 @@
+import { ContentLimitNotice } from '../components/ContentUsage.js';
 import { useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { PUBLICATION_STATUSES } from '@codeca/shared';
@@ -68,6 +69,8 @@ export function GalleriesPage() {
           </Can>
         }
       />
+
+      <ContentLimitNotice />
 
       <ResourcePanel resource={galerias}>
         {(data) =>

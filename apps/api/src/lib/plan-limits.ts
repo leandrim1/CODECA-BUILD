@@ -8,6 +8,7 @@ import {
   type PlanLimits,
   type UsageSnapshot,
 } from '@codeca/shared';
+import { assertContentCapacity, loadContentUsage } from './content-usage.js';
 
 /**
  * Limites de plano verificados no servidor.
@@ -63,17 +64,7 @@ export async function loadUsage(db: Database, tenantId: string): Promise<UsageSn
     .from(schema.memberships)
     .where(and(eq(schema.memberships.tenantId, tenantId), eq(schema.memberships.status, 'active')));
 
-  const [publishedProperties] = await db
-    .select({ value: countOf })
-    .from(schema.properties)
-    .where(
-      and(eq(schema.properties.tenantId, tenantId), eq(schema.properties.publicationStatus, 'published')),
-    );
-
-  const [projects] = await db
-    .select({ value: countOf })
-    .from(schema.projects)
-    .where(eq(schema.projects.tenantId, tenantId));
+  const conteudos = await loadContentUsage(db, tenantId);
 
   const [domains] = await db
     .select({ value: countOf })
@@ -87,8 +78,8 @@ export async function loadUsage(db: Database, tenantId: string): Promise<UsageSn
 
   return {
     users: users?.value ?? 0,
-    publishedProperties: publishedProperties?.value ?? 0,
-    projects: projects?.value ?? 0,
+    contentRecords: conteudos.total,
+    contentByModule: conteudos.byModule,
     domains: domains?.value ?? 0,
     storageBytes: Number(storage?.value ?? 0),
   };
@@ -114,19 +105,20 @@ export function assertFeature(plan: EffectivePlan, feature: PlanFeature): void {
   }
 }
 
-type CountableLimit = 'maxUsers' | 'maxPublishedProperties' | 'maxProjects' | 'maxDomains';
+/**
+ * Limites que contam linhas de uma tabela so. O de conteudos cadastrados tem
+ * funcao propria (`assertContentCapacity`): a contagem dele atravessa varios
+ * modulos.
+ */
+type CountableLimit = 'maxUsers' | 'maxDomains';
 
 const LIMIT_LABELS: Record<CountableLimit, string> = {
   maxUsers: 'usuarios ativos',
-  maxPublishedProperties: 'imoveis publicados',
-  maxProjects: 'obras cadastradas',
   maxDomains: 'dominios',
 };
 
 const USAGE_KEY: Record<CountableLimit, keyof UsageSnapshot> = {
   maxUsers: 'users',
-  maxPublishedProperties: 'publishedProperties',
-  maxProjects: 'projects',
   maxDomains: 'domains',
 };
 
@@ -145,7 +137,7 @@ export async function assertWithinLimit(
   const increment = options.increment ?? 1;
 
   const current =
-    options.currentOverride ?? (await loadUsage(db, tenantId))[USAGE_KEY[limit]];
+    options.currentOverride ?? Number((await loadUsage(db, tenantId))[USAGE_KEY[limit]]);
 
   if (current + increment > max) {
     throw AppError.planLimit(
@@ -178,4 +170,17 @@ export async function assertStorageAvailable(
       { used, limit: effective.limits.storageBytes, requested: sizeBytes },
     );
   }
+}
+
+/**
+ * Garante vaga no limite geral de conteudos antes de **cadastrar** um.
+ *
+ * Todo modulo de colecao chama isto na criacao, e e a unica porta: o limite
+ * vale igual para produto, servico, imovel, obra, profissional e registro de
+ * modulo personalizado. Como a contagem e feita, e o que conta, esta em
+ * `content-usage.ts`.
+ */
+export async function assertContentLimit(db: Database, tenantId: string): Promise<void> {
+  const plan = await loadEffectivePlan(db, tenantId);
+  await assertContentCapacity(db, tenantId, plan);
 }

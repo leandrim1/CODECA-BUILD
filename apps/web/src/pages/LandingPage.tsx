@@ -12,6 +12,7 @@ import { HowItWorks } from '../landing/HowItWorks.js';
 import { Pillars } from '../landing/Pillars.js';
 import { Pricing } from '../landing/Pricing.js';
 import { Security } from '../landing/Security.js';
+import { Segments } from '../landing/Segments.js';
 import { Tour } from '../landing/Tour.js';
 
 /**
@@ -45,6 +46,7 @@ export function LandingPage() {
       <Header />
       <main id="conteudo">
         <Hero />
+        <Segments />
         <Pillars />
         <HowItWorks />
         <Tour />

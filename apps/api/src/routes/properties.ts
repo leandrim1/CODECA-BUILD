@@ -29,7 +29,7 @@ import {
   queueContentPublished,
   visibilityChanged,
 } from '../lib/integration/outbound.js';
-import { assertWithinLimit, loadEffectivePlan } from '../lib/plan-limits.js';
+import { assertContentLimit } from '../lib/plan-limits.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
 import { requireCapability } from '../middleware/auth.js';
 import { requireModule } from '../middleware/modules.js';
@@ -139,12 +139,9 @@ export function propertyRoutes() {
       .from(schema.properties)
       .where(eq(schema.properties.tenantId, tenant.tenantId));
 
-    const plan = await loadEffectivePlan(ctx.db, tenant.tenantId);
-
     return ok(c, {
       cities: cities.map((r) => r.value).filter((v): v is string => Boolean(v)).sort(),
       neighborhoods: neighborhoods.map((r) => r.value).filter((v): v is string => Boolean(v)).sort(),
-      maxPublishedProperties: plan.limits.maxPublishedProperties,
     });
   });
 
@@ -183,9 +180,7 @@ export function propertyRoutes() {
 
     const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'imoveis', raw);
 
-    if (input.publicationStatus === 'published') {
-      await assertWithinLimit(ctx.db, tenant.tenantId, 'maxPublishedProperties');
-    }
+    await assertContentLimit(ctx.db, tenant.tenantId);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.coverImageId, ...input.galleryImageIds]);
 
     const slug = await buildUniqueSlug(ctx.db, 'properties', {
@@ -284,10 +279,8 @@ export function propertyRoutes() {
       current,
     );
 
-    // Publicar um imovel que estava em rascunho consome uma vaga do plano.
-    if (input.publicationStatus === 'published' && current.publicationStatus !== 'published') {
-      await assertWithinLimit(ctx.db, tenant.tenantId, 'maxPublishedProperties');
-    }
+    // Publicar, arquivar ou restaurar nao muda a contagem de conteudos
+    // cadastrados: so a criacao consome vaga (ver `content-usage.ts`).
 
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [
       input.coverImageId ?? null,

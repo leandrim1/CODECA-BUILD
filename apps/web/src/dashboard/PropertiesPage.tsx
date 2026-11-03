@@ -1,3 +1,4 @@
+import { ContentLimitNotice } from '../components/ContentUsage.js';
 import { useEffect, useState } from 'react';
 import { Building2, ExternalLink, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import {
@@ -210,12 +211,7 @@ export function PropertiesPage() {
         }
       />
 
-      {facets.data ? (
-        <Alert tone="info">
-          O plano atual permite ate <strong>{facets.data.maxPublishedProperties}</strong> imoveis publicados ao
-          mesmo tempo. Imoveis em rascunho nao contam para o limite.
-        </Alert>
-      ) : null}
+      <ContentLimitNotice />
 
       <Card>
         <CardHeader

@@ -12,7 +12,7 @@ import {
 import { cx } from '@codeca/ui';
 import { Reveal } from './Reveal.js';
 import { Container, Eyebrow, SectionTitle } from './ui.js';
-import imoveis from '../assets/landing/painel-imoveis.webp';
+import produtos from '../assets/landing/painel-produtos.webp';
 
 interface Recurso {
   icon: LucideIcon;
@@ -110,10 +110,10 @@ export function Features() {
               <p className="mt-3 max-w-md leading-relaxed text-slate-600">{GESTAO.texto}</p>
               <div className="relative mt-8 h-56 overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 [mask-image:linear-gradient(to_bottom,#000_60%,transparent)] sm:ml-8 sm:h-60">
                 <img
-                  src={imoveis}
+                  src={produtos}
                   width={1920}
                   height={1200}
-                  alt="Lista de conteúdo no painel, com miniaturas, situação de publicação e ações por item."
+                  alt="Lista de produtos no painel, com miniaturas, preço, situação de publicação e ações por item."
                   loading="lazy"
                   decoding="async"
                   className="block h-auto w-full min-w-[34rem] object-top"

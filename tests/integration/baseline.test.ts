@@ -98,8 +98,7 @@ describe('instalacao em uso', () => {
       priceCents: 99900,
       limits: planLimitsSchema.parse({
         maxUsers: 50,
-        maxPublishedProperties: 1000,
-        maxProjects: 500,
+        maxContentRecords: 1000,
         maxDomains: 10,
         storageBytes: 50 * 1024 * 1024 * 1024,
         features: [],

@@ -118,8 +118,8 @@ describe('imoveis', () => {
     expect(paged.body.totalPages).toBe(2);
   });
 
-  it('respeita o limite de imoveis publicados do plano', async () => {
-    await usePlan('trial'); // maxPublishedProperties = 5
+  it('respeita o limite geral de conteudos do plano', async () => {
+    await usePlan('trial'); // maxContentRecords = 5
 
     for (let index = 0; index < 5; index += 1) {
       const response = await account.client.post(`/api/tenants/${account.tenantId}/properties`, {
@@ -138,20 +138,13 @@ describe('imoveis', () => {
     expect(blocked.status).toBe(402);
     expect(blocked.errorCode).toBe('plan_limit_reached');
 
-    // Rascunho continua permitido: o limite conta apenas o que esta publicado.
+    // Rascunho tambem e um conteudo cadastrado: ocupa vaga e tambem e recusado.
     const draft = await account.client.post(`/api/tenants/${account.tenantId}/properties`, {
       ...BASE_PROPERTY,
       title: 'Imovel em rascunho',
       publicationStatus: 'draft',
     });
-    expect(draft.status).toBe(201);
-
-    // Publicar o rascunho tambem e bloqueado.
-    const publishing = await account.client.patch(
-      `/api/tenants/${account.tenantId}/properties/${draft.body.property.id}`,
-      { publicationStatus: 'published' },
-    );
-    expect(publishing.status).toBe(402);
+    expect(draft.status).toBe(402);
   });
 
   it('exclui o imovel e as referencias de galeria em cascata', async () => {
@@ -249,12 +242,20 @@ describe('obras', () => {
     expect(detail.body.project.progressPercent).toBeNull();
   });
 
-  it('respeita o limite de obras do plano', async () => {
-    await usePlan('trial'); // maxProjects = 3
+  it('obras e imoveis dividem as mesmas vagas: o limite e geral, nao por tipo', async () => {
+    await usePlan('trial'); // maxContentRecords = 5
     for (let index = 0; index < 3; index += 1) {
       const response = await account.client.post(`/api/tenants/${account.tenantId}/projects`, {
         title: `Obra ${index + 1}`,
         category: 'residencial',
+      });
+      expect(response.status).toBe(201);
+    }
+    for (let index = 0; index < 2; index += 1) {
+      const response = await account.client.post(`/api/tenants/${account.tenantId}/properties`, {
+        ...BASE_PROPERTY,
+        title: `Imovel ${index + 1}`,
+        publicationStatus: 'draft',
       });
       expect(response.status).toBe(201);
     }

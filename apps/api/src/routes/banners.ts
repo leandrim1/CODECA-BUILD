@@ -1,4 +1,5 @@
 import { and, asc, eq, schema } from '@codeca/database';
+import { assertContentLimit } from '../lib/plan-limits.js';
 import { AppError, bannerInputSchema, uuidSchema } from '@codeca/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -59,6 +60,7 @@ export function bannerRoutes() {
 
     const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
     assertEditableCreate('banners', raw, overrides);
+    await assertContentLimit(ctx.db, tenant.tenantId);
 
     const [row] = await ctx.db
       .insert(schema.banners)

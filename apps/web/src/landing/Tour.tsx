@@ -4,7 +4,7 @@ import { BrowserFrame, PhoneFrame } from './Frames.js';
 import { Reveal } from './Reveal.js';
 import { Container, Eyebrow, SectionTitle } from './ui.js';
 import visaoGeral from '../assets/landing/painel-visao-geral.webp';
-import imoveis from '../assets/landing/painel-imoveis.webp';
+import produtos from '../assets/landing/painel-produtos.webp';
 import edicao from '../assets/landing/painel-edicao.webp';
 import celular from '../assets/landing/painel-celular.webp';
 
@@ -24,18 +24,18 @@ const TELAS = [
     imagem: visaoGeral,
     largura: 1920,
     altura: 1200,
-    alt: 'Painel do CODECA Build na visão geral, com menu lateral, indicadores de imóveis, obras, serviços e banners, situação do site e limites do plano.',
+    alt: 'Painel do CODECA Build na visão geral, com menu lateral por módulos, indicadores de conteúdo, situação do site e uso do limite de conteúdos do plano.',
   },
   {
     id: 'gestao',
     aba: 'Gestão de conteúdo',
     titulo: 'Cada tipo de conteúdo, na sua lista',
     texto:
-      'Listas com busca e filtros, situação de publicação, imagem de capa e ações por item. Aqui, a carteira de imóveis de uma empresa de demonstração.',
-    imagem: imoveis,
+      'Listas com busca e filtros, situação de publicação, imagem de capa e ações por item. Aqui, o catálogo de produtos de uma loja de demonstração; o mesmo vale para serviços, profissionais, imóveis, projetos e os módulos do seu projeto.',
+    imagem: produtos,
     largura: 1920,
     altura: 1200,
-    alt: 'Lista de imóveis no painel, com miniatura, valor, situação de publicação, localização e ações de editar e remover.',
+    alt: 'Lista de produtos no painel, com miniatura, categoria, preço, situação de publicação e ações de editar e remover.',
   },
   {
     id: 'edicao',
@@ -46,7 +46,7 @@ const TELAS = [
     imagem: edicao,
     largura: 1920,
     altura: 1200,
-    alt: 'Formulário de edição de um imóvel, com campos de identificação, resumo, descrição, tipo e finalidade.',
+    alt: 'Formulário de edição de um produto, com campos de identificação, resumo, descrição, preço e categoria.',
   },
   {
     id: 'celular',
@@ -56,7 +56,7 @@ const TELAS = [
     imagem: celular,
     largura: 780,
     altura: 1688,
-    alt: 'Painel no celular, com indicadores de imóveis, obras, serviços e banners em cartões empilhados.',
+    alt: 'Painel no celular, com indicadores de conteúdo em cartões empilhados.',
     celular: true,
   },
 ] as const;

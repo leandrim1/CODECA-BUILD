@@ -148,7 +148,7 @@ describe('planos', () => {
     expect(trial?.limits.maxDomains).toBe(0);
     expect(planHasFeature(trial!.limits, 'custom_domain')).toBe(false);
     expect(planHasFeature(essencial!.limits, 'custom_domain')).toBe(true);
-    expect(profissional!.limits.maxPublishedProperties).toBeGreaterThan(essencial!.limits.maxPublishedProperties);
+    expect(profissional!.limits.maxContentRecords).toBeGreaterThan(essencial!.limits.maxContentRecords);
     expect(profissional!.limits.storageBytes).toBeGreaterThan(essencial!.limits.storageBytes);
   });
 

@@ -196,8 +196,7 @@ async function seedTwoTenants(): Promise<{
       name: 'Plano de teste',
       limits: {
         maxUsers: 5,
-        maxPublishedProperties: 50,
-        maxProjects: 20,
+        maxContentRecords: 50,
         maxDomains: 2,
         storageBytes: 1024,
         features: [],

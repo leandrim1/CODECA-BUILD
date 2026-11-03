@@ -1,3 +1,4 @@
+import { ContentLimitNotice } from '../components/ContentUsage.js';
 import { useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { PUBLICATION_STATUSES, formatPrice } from '@codeca/shared';
@@ -84,6 +85,8 @@ export function ProductsPage() {
           </Can>
         }
       />
+
+      <ContentLimitNotice />
 
       {lista.length > 0 ? (
         <Select

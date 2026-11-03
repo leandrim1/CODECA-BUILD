@@ -3,13 +3,15 @@ import {
   AppError,
   updateTenantContactSchema,
   updateTenantSchema,
+  type ContentUsageView,
   type TenantOverview,
 } from '@codeca/shared';
 import { Hono } from 'hono';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
 import { ok, parseJsonBody } from '../lib/http.js';
-import { loadPlanStatus } from '../lib/plan-limits.js';
+import { loadContentUsage } from '../lib/content-usage.js';
+import { loadEffectivePlan, loadPlanStatus } from '../lib/plan-limits.js';
 import { requireCapability } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
@@ -61,6 +63,24 @@ export function tenantRoutes() {
       plan: planStatus.plan,
       usage: planStatus.usage,
     });
+  });
+
+  // -------------------------------------------- conteudos cadastrados
+  app.get('/:tenantId/content-usage', requireCapability('content:read'), async (c) => {
+    const ctx = c.get('ctx');
+    const tenant = c.get('tenant');
+    const [plan, usage] = await Promise.all([
+      loadEffectivePlan(ctx.db, tenant.tenantId),
+      loadContentUsage(ctx.db, tenant.tenantId),
+    ]);
+    const resposta: ContentUsageView = {
+      used: usage.total,
+      max: plan.limits.maxContentRecords,
+      byModule: usage.byModule,
+      planName: plan.planName,
+      overridden: plan.overridden,
+    };
+    return ok(c, resposta);
   });
 
   // ------------------------------------------------------- visao geral

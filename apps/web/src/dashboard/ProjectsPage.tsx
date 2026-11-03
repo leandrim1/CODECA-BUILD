@@ -1,3 +1,4 @@
+import { ContentLimitNotice } from '../components/ContentUsage.js';
 import { useEffect, useState } from 'react';
 import { CalendarPlus, ExternalLink, HardHat, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
@@ -190,6 +191,8 @@ export function ProjectsPage() {
           ) : undefined
         }
       />
+
+      <ContentLimitNotice />
 
       <Card>
         <CardHeader

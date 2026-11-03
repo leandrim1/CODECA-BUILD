@@ -77,7 +77,7 @@ export function Hero() {
               src={painelVisaoGeral}
               width={1920}
               height={1200}
-              alt="Visão geral do painel do CODECA Build, com menu lateral por módulos, indicadores de conteúdo, situação do site e limites do plano."
+              alt="Visão geral do painel do CODECA Build, com menu lateral por módulos, indicadores de conteúdo, situação do site e uso do limite de conteúdos do plano."
               className="block h-auto w-full"
               // A imagem principal da pagina: nao espera, nao carrega em segundo plano.
               fetchPriority="high"

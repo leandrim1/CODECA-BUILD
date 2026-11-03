@@ -1,3 +1,4 @@
+import { ContentLimitNotice } from '../components/ContentUsage.js';
 import { useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import {
@@ -67,6 +68,8 @@ export function BannersPage() {
           </Can>
         }
       />
+
+      <ContentLimitNotice />
 
       <ResourcePanel resource={banners}>
         {(data) =>

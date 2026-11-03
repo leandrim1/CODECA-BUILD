@@ -1,3 +1,4 @@
+import { ContentLimitNotice } from '../components/ContentUsage.js';
 import { useState } from 'react';
 import { CircleHelp, MessageSquareQuote, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import {
@@ -55,6 +56,7 @@ export function TestimonialsPage() {
         title="Depoimentos"
         description="O que seus clientes dizem. Publicar exige a autorizacao de quem falou."
       />
+      <ContentLimitNotice />
       <TestimonialsSection />
     </div>
   );
@@ -67,6 +69,7 @@ export function SiteTeamPage() {
         title="Equipe"
         description="As pessoas da empresa que aparecem no site."
       />
+      <ContentLimitNotice />
       <TeamSection />
     </div>
   );
@@ -79,6 +82,7 @@ export function FaqPage() {
         title="Perguntas frequentes"
         description="As duvidas que o site responde sem ninguem precisar ligar."
       />
+      <ContentLimitNotice />
       <FaqSection />
     </div>
   );

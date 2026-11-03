@@ -54,6 +54,7 @@ const LIMPEZA = '0014_limpeza_do_renderizador.sql';
 const SEGMENTOS = '0015_segmentos_por_ramo.sql';
 const HOSPEDAGEM = '0016_projeto_de_hospedagem_por_site.sql';
 const DOMINIOS_SEM_HOSPEDAGEM = '0017_dominios_sem_hospedagem.sql';
+const LIMITE_GERAL = '0018_limite_geral_de_conteudos.sql';
 const REMOVIDAS = ['pages', 'page_versions', 'navigation_menus', 'redirects', 'site_settings'];
 
 /**
@@ -777,3 +778,226 @@ async function modulosHabilitados(db: Database, siteId: string): Promise<string[
     .where(eq(schema.siteModules.siteId, siteId));
   return linhas.filter((l) => l.enabled).map((l) => l.moduleKey);
 }
+
+
+/**
+ * Limite geral de conteudos, no lugar de "imoveis" e "obras".
+ *
+ * A migracao e **aditiva** de proposito: acrescenta `maxContentRecords` e deixa
+ * as chaves antigas no JSON, porque a Vercel migra durante o build enquanto a
+ * versao anterior do codigo (que exige as duas chaves em cada requisicao) segue
+ * no ar. O teste que mais importa e o que prova isso.
+ */
+describe('limite geral de conteudos', () => {
+  const LEGADO = {
+    trial: { maxPublishedProperties: 5, maxProjects: 3 },
+    essencial: { maxPublishedProperties: 20, maxProjects: 10 },
+    profissional: { maxPublishedProperties: 100, maxProjects: 50 },
+    empresas: { maxPublishedProperties: 400, maxProjects: 200 },
+  } as const;
+
+  const DESCRICAO_ANTIGA: Record<string, string> = {
+    trial: 'Para conhecer o painel antes de contratar.',
+    essencial: 'Site personalizado com dominio proprio. O conteudo e mantido pela CODECA IA.',
+    profissional: 'Site personalizado com painel para a empresa gerenciar o proprio conteudo.',
+    empresas: 'Tudo do Profissional, com a hospedagem do site por conta da CODECA IA.',
+  };
+
+  /** Banco no estado de ANTES: planos com os limites e as descricoes antigos. */
+  async function bancoLegado() {
+    const banco = await bancoAntesDe(LIMITE_GERAL);
+    await seedDatabase(banco.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' } });
+    for (const [codigo, antigo] of Object.entries(LEGADO)) {
+      await banco.db.execute(sql`
+        update plans
+        set limits = (limits - 'maxContentRecords') || ${JSON.stringify(antigo)}::jsonb,
+            description = ${DESCRICAO_ANTIGA[codigo]!}
+        where code = ${codigo}
+      `);
+    }
+    return banco;
+  }
+
+  const limitesDe = async (db: Database, codigo: string) => {
+    const [linha] = await db
+      .select({ limits: schema.plans.limits })
+      .from(schema.plans)
+      .where(eq(schema.plans.code, codigo));
+    return linha!.limits as unknown as Record<string, unknown>;
+  };
+
+  async function novaEmpresa(db: Database, slug: string, overrides: unknown) {
+    const [plano] = await db.select({ id: schema.plans.id }).from(schema.plans).where(eq(schema.plans.code, 'trial'));
+    const [linha] = await db
+      .insert(schema.tenants)
+      .values({
+        slug,
+        legalName: slug,
+        displayName: slug,
+        planId: plano!.id,
+        limitOverrides: overrides as never,
+        address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', postalCode: '', showFullAddress: true } as never,
+      })
+      .returning({ id: schema.tenants.id });
+    return linha!.id;
+  }
+
+  const overridesDe = async (db: Database, id: string) => {
+    const [linha] = await db
+      .select({ o: schema.tenants.limitOverrides })
+      .from(schema.tenants)
+      .where(eq(schema.tenants.id, id));
+    return linha!.o as Record<string, unknown> | null;
+  };
+
+  it('cada plano recebe o limite geral igual ao que tinha em imoveis publicados', async () => {
+    const banco = await bancoLegado();
+    try {
+      await banco.aplicar();
+      expect((await limitesDe(banco.db, 'trial')).maxContentRecords).toBe(5);
+      expect((await limitesDe(banco.db, 'essencial')).maxContentRecords).toBe(20);
+      expect((await limitesDe(banco.db, 'profissional')).maxContentRecords).toBe(100);
+      expect((await limitesDe(banco.db, 'empresas')).maxContentRecords).toBe(400);
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('e aditiva: as chaves antigas continuam no JSON para a versao anterior do codigo', async () => {
+    const banco = await bancoLegado();
+    try {
+      await banco.aplicar();
+      for (const [codigo, antigo] of Object.entries(LEGADO)) {
+        const limites = await limitesDe(banco.db, codigo);
+        expect(limites.maxPublishedProperties, codigo).toBe(antigo.maxPublishedProperties);
+        expect(limites.maxProjects, codigo).toBe(antigo.maxProjects);
+      }
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('nao toca em mais nada do plano: usuarios, dominios, armazenamento, recursos e preco', async () => {
+    const banco = await bancoLegado();
+    try {
+      const antes = await banco.db.select().from(schema.plans);
+      await banco.aplicar();
+      const depois = await banco.db.select().from(schema.plans);
+
+      for (const plano of antes) {
+        const novo = depois.find((p) => p.code === plano.code)!;
+        const { maxContentRecords: _nada, ...restante } = novo.limits as unknown as Record<string, unknown>;
+        void _nada;
+        expect(restante, plano.code).toEqual(plano.limits);
+        expect(novo.priceCents, plano.code).toBe(plano.priceCents);
+        expect(novo.isActive).toBe(plano.isActive);
+      }
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('um plano que o painel mestre criou ou editou mantem a decisao de quem o editou', async () => {
+    const banco = await bancoLegado();
+    try {
+      await banco.db.execute(sql`
+        insert into plans (code, name, limits, billing)
+        values ('sob-medida', 'Sob medida',
+          '{"maxUsers":50,"maxPublishedProperties":1000,"maxProjects":500,"maxDomains":10,"storageBytes":1024,"features":[]}'::jsonb,
+          '{"recurrenceType":"MONTHLY","recurrenceInterval":1,"trialDays":null,"paymentMethods":["creditcard"]}'::jsonb)
+      `);
+      await banco.aplicar();
+      expect((await limitesDe(banco.db, 'sob-medida')).maxContentRecords).toBe(1000);
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('nao sobrescreve um limite geral que ja exista (e segura de reaplicar)', async () => {
+    const banco = await bancoLegado();
+    try {
+      await banco.db.execute(sql`
+        update plans set limits = limits || '{"maxContentRecords": 777}'::jsonb where code = 'profissional'
+      `);
+      await banco.aplicar();
+      await banco.aplicar();
+      expect((await limitesDe(banco.db, 'profissional')).maxContentRecords).toBe(777);
+      expect((await limitesDe(banco.db, 'essencial')).maxContentRecords).toBe(20);
+    } finally {
+      await banco.close();
+    }
+  });
+
+  describe('ajustes individuais por empresa', () => {
+    it('o ajuste de imoveis ou de obras vira ajuste do limite geral, pelo maior valor', async () => {
+      const banco = await bancoLegado();
+      try {
+        const soObras = await novaEmpresa(banco.db, 'so-obras', { maxProjects: 300 });
+        const soImoveis = await novaEmpresa(banco.db, 'so-imoveis', { maxPublishedProperties: 60 });
+        const ambos = await novaEmpresa(banco.db, 'ambos', { maxPublishedProperties: 50, maxProjects: 80 });
+        await banco.aplicar();
+
+        expect((await overridesDe(banco.db, soObras))?.maxContentRecords).toBe(300);
+        expect((await overridesDe(banco.db, soImoveis))?.maxContentRecords).toBe(60);
+        // Um acordo comercial ja feito nao encolhe: vale o maior dos dois.
+        expect((await overridesDe(banco.db, ambos))?.maxContentRecords).toBe(80);
+      } finally {
+        await banco.close();
+      }
+    });
+
+    it('nao inventa ajuste onde nao havia, e nao mexe em ajuste de outro limite', async () => {
+      const banco = await bancoLegado();
+      try {
+        const semAjuste = await novaEmpresa(banco.db, 'sem-ajuste', null);
+        const outro = await novaEmpresa(banco.db, 'outro-ajuste', { maxUsers: 9, maxDomains: 4 });
+        await banco.aplicar();
+
+        expect(await overridesDe(banco.db, semAjuste)).toBeNull();
+        expect(await overridesDe(banco.db, outro)).toEqual({ maxUsers: 9, maxDomains: 4 });
+      } finally {
+        await banco.close();
+      }
+    });
+
+    it('um ajuste geral que ja existia prevalece', async () => {
+      const banco = await bancoLegado();
+      try {
+        const id = await novaEmpresa(banco.db, 'ja-migrada', { maxContentRecords: 11, maxProjects: 999 });
+        await banco.aplicar();
+        expect((await overridesDe(banco.db, id))?.maxContentRecords).toBe(11);
+      } finally {
+        await banco.close();
+      }
+    });
+  });
+
+  describe('descricoes comerciais', () => {
+    it('passam a ser as novas, sem citar imovel nem obra, onde ninguem as tinha editado', async () => {
+      const banco = await bancoLegado();
+      try {
+        await banco.aplicar();
+        const planos = await banco.db.select({ code: schema.plans.code, d: schema.plans.description }).from(schema.plans);
+        const por = Object.fromEntries(planos.map((p) => [p.code, p.d]));
+        expect(por.essencial).toBe('Site personalizado com domínio próprio e gestão de conteúdo realizada pela equipe CODECA IA.');
+        expect(por.profissional).toBe('Mais autonomia para sua empresa administrar e atualizar o próprio site.');
+        expect(por.empresas).toBe('Uma solução ampliada para empresas que precisam de gestão de conteúdo, equipe e hospedagem.');
+        expect(por.trial).toBe('Para conhecer o painel e visualizar o funcionamento da plataforma.');
+      } finally {
+        await banco.close();
+      }
+    });
+
+    it('uma descricao que o painel mestre ja tinha editado nao e desfeita', async () => {
+      const banco = await bancoLegado();
+      try {
+        await banco.db.execute(sql`update plans set description = 'Texto escolhido pela CODECA IA.' where code = 'essencial'`);
+        await banco.aplicar();
+        const [plano] = await banco.db.select({ d: schema.plans.description }).from(schema.plans).where(eq(schema.plans.code, 'essencial'));
+        expect(plano!.d).toBe('Texto escolhido pela CODECA IA.');
+      } finally {
+        await banco.close();
+      }
+    });
+  });
+});

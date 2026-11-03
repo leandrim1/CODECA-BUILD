@@ -159,7 +159,7 @@ substituem as que descreviam o modelo antigo.
 | Item | Status | Observacao |
 | --- | --- | --- |
 | Planos no banco, com limites e recursos | Pronto | Avaliacao (R$ 0), Essencial (R$ 15,90), Profissional (R$ 59,90), Empresas (R$ 119,90) |
-| Verificacao de limites no backend | Pronto | usuarios, imoveis publicados, obras, dominios, armazenamento |
+| Verificacao de limites no backend | Pronto | usuarios, **conteudos cadastrados (limite geral, igual para qualquer segmento)**, dominios, armazenamento. Ver [limites-de-conteudo.md](limites-de-conteudo.md) |
 | Recursos por plano | Pronto | painel de conteudo, dominio proprio, exportacao de interessados, hospedagem incluida |
 | Plano sem painel de conteudo (Essencial) | Pronto | bloqueio proprio, com mensagem de upgrade -- nunca de inadimplencia |
 | Hospedagem incluida | Aplicada ao dominio | habilita o gerenciamento do dominio na Vercel para sites com projeto configurado; **a plataforma nao faz o deploy do site** -- isso continua sendo da CODECA IA |
@@ -225,6 +225,9 @@ pagamento).
 | --- | --- |
 | Cadastro e autenticacao | `integration/auth.test.ts` |
 | Vitrine publica de planos (so ativos e publicos, nada interno, reflete o painel mestre) | `integration/public-plans.test.ts` |
+| Limite geral de conteudos: cada plano, cada modulo, o que conta, empresa acima do limite, painel mestre | `integration/content-limits.test.ts` |
+| Migracao 0018 (limite geral, ajustes por empresa, descricoes, aditiva) | `integration/migrations.test.ts` |
+| Texto dos beneficios dos planos (a partir dos dados) | `unit/plan-benefits.test.ts` |
 | Texto da landing a partir dos planos (beneficios, preco, FAQ) | `unit/landing-plans.test.ts` |
 | Cache de consultas (frescor, deduplicacao, cancelamento, invalidacao, erro, logout) | `unit/query-cache.test.ts` |
 | Ligacao rede-cache (escrita envelhece o cache, 401 encerra a sessao) | `unit/api-client-cache.test.ts` |

@@ -10,12 +10,19 @@ import {
   Plug,
   Users,
   Wrench,
+  Boxes,
+  MessageCircleQuestion,
+  ShoppingBag,
+  Sparkles,
+  Tags,
+  Images,
 } from 'lucide-react';
 import {
   DOMAIN_STATUS_LABELS,
   formatBytes,
   formatDateTime,
   relativeTime,
+  MODULE_REGISTRY,
   type ModuleKey,
 } from '@codeca/shared';
 import { Alert, Badge, Button, Card, CardBody, CardHeader, EmptyState, Meter, PageHeader, Skeleton, cx } from '@codeca/ui';
@@ -38,6 +45,29 @@ import { labels, domainTone, leadTone, siteTone } from '../utils/labels.js';
  * zero sugere que faltou cadastrar, quando na verdade o modulo nao existe
  * naquele projeto.
  */
+
+/**
+ * Modulos de colecao sem um indicador proprio acima.
+ *
+ * Imoveis, obras, servicos e banners tem cartoes com detalhes do que e
+ * especifico deles (disponiveis, em andamento). Os demais -- e os modulos
+ * personalizados do projeto -- aparecem com a contagem de cadastrados, que e
+ * exatamente o que o limite do plano mede. Assim a visao geral de uma loja abre
+ * com produtos, a de uma clinica com a equipe, e nenhuma delas com um zero em
+ * "imoveis".
+ */
+const MODULOS_SEM_INDICADOR_PROPRIO: ReadonlyArray<{
+  key: ModuleKey;
+  icon: LucideIcon;
+  to: string;
+}> = [
+  { key: 'produtos', icon: ShoppingBag, to: '/painel/produtos' },
+  { key: 'categorias', icon: Tags, to: '/painel/categorias' },
+  { key: 'galerias', icon: Images, to: '/painel/galerias' },
+  { key: 'depoimentos', icon: Sparkles, to: '/painel/depoimentos' },
+  { key: 'equipe', icon: Users, to: '/painel/equipe' },
+  { key: 'faq', icon: MessageCircleQuestion, to: '/painel/perguntas' },
+];
 
 type Indicador = {
   icon: LucideIcon;
@@ -108,7 +138,7 @@ const INDICADORES: Indicador[] = [
 export function OverviewPage() {
   const tenantId = useTenantId();
   const { user, tenant, can } = useAuth();
-  const { enabled, panelIncluded, planName, loading: modulesLoading } = useSiteModules();
+  const { enabled, panelIncluded, planName, loading: modulesLoading, customModules } = useSiteModules();
   const overview = useResource('tenantApi.overview', () => tenantApi.overview(tenantId), [tenantId], {
     // Sem painel no plano a rota responde 402: nem pede.
     enabled: panelIncluded,
@@ -195,9 +225,31 @@ export function OverviewPage() {
             return item.module ? enabled(item.module) : true;
           });
 
+          // Cartoes dos demais modulos habilitados, com a contagem que o limite
+          // do plano usa. So quem pode ler conteudo ve.
+          const doPlano = data.usage.contentByModule;
+          const extras = can('content:read')
+            ? [
+                ...MODULOS_SEM_INDICADOR_PROPRIO.filter((m) => enabled(m.key)).map((m) => ({
+                  icon: m.icon,
+                  label: MODULE_REGISTRY[m.key].name,
+                  to: m.to,
+                  value: doPlano[m.key] ?? 0,
+                })),
+                ...customModules
+                  .filter((m) => m.kind === 'collection')
+                  .map((m) => ({
+                    icon: Boxes,
+                    label: m.name,
+                    to: `/painel/p/${m.key}`,
+                    value: doPlano[`custom:${m.key}`] ?? 0,
+                  })),
+              ]
+            : [];
+
           return (
             <div className="grid gap-6">
-              {visiveis.length > 0 ? (
+              {visiveis.length > 0 || extras.length > 0 ? (
                 <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores">
                   {visiveis.map((item) => (
                     <StatCard
@@ -206,6 +258,16 @@ export function OverviewPage() {
                       label={item.label}
                       value={item.value(data)}
                       detail={item.detail(data)}
+                      to={item.to}
+                    />
+                  ))}
+                  {extras.map((item) => (
+                    <StatCard
+                      key={item.to}
+                      icon={item.icon}
+                      label={item.label}
+                      value={item.value}
+                      detail="cadastrado(s) no total"
                       to={item.to}
                     />
                   ))}
@@ -371,20 +433,15 @@ export function OverviewPage() {
                   />
                   <CardBody className="grid gap-4">
                     {/*
-                      Mesma regra dos indicadores: o limite de imoveis so e
-                      informacao para quem tem o modulo. Usuarios e
-                      armazenamento valem para todo site.
+                      O limite de conteudos e geral -- vale para todos os
+                      modulos do site, qualquer que seja o segmento --, entao
+                      aparece sempre, e nao so para quem tem imoveis ou obras.
                     */}
-                    {enabled('imoveis') ? (
-                      <Meter
-                        label="Imoveis publicados"
-                        current={data.usage.publishedProperties}
-                        limit={data.plan.limits.maxPublishedProperties}
-                      />
-                    ) : null}
-                    {enabled('obras') ? (
-                      <Meter label="Obras" current={data.usage.projects} limit={data.plan.limits.maxProjects} />
-                    ) : null}
+                    <Meter
+                      label="Conteudos cadastrados"
+                      current={data.usage.contentRecords}
+                      limit={data.plan.limits.maxContentRecords}
+                    />
                     <Meter label="Usuarios" current={data.usage.users} limit={data.plan.limits.maxUsers} />
                     <Meter
                       label="Armazenamento"

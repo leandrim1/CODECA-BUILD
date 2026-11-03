@@ -1,3 +1,4 @@
+import { ContentUsageBreakdown } from '../../components/ContentUsage.js';
 import { useState } from 'react';
 import { LifeBuoy, Plus } from 'lucide-react';
 import { TENANT_STATUSES, formatBytes, formatDateTime } from '@codeca/shared';
@@ -333,11 +334,11 @@ function TenantDetailModal({
             <section className="grid gap-3">
               <h3 className="text-sm font-semibold text-slate-800">Uso</h3>
               <Meter
-                label="Imoveis publicados"
-                current={data.usage.publishedProperties}
-                limit={data.plan.limits.maxPublishedProperties}
+                label="Conteudos cadastrados"
+                current={data.usage.contentRecords}
+                limit={data.plan.limits.maxContentRecords}
               />
-              <Meter label="Obras" current={data.usage.projects} limit={data.plan.limits.maxProjects} />
+              <ContentUsageBreakdown byModule={data.usage.contentByModule} />
               <Meter label="Usuarios" current={data.usage.users} limit={data.plan.limits.maxUsers} />
               <Meter
                 label="Armazenamento"

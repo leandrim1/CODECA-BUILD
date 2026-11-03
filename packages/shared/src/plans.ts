@@ -50,10 +50,25 @@ export const PLAN_FEATURE_NOTES: Partial<Record<PlanFeature, string>> = {
 };
 
 
+/**
+ * Limites de um plano.
+ *
+ * `maxContentRecords` e o limite **geral** de conteudos cadastrados: a soma de
+ * todos os registros dos modulos de colecao do site (produtos, servicos,
+ * imoveis, obras, equipe, galerias, registros dos modulos personalizados...).
+ * Nao ha limite por tipo: a plataforma atende qualquer segmento, e uma loja usa
+ * as vagas em produtos, uma clinica em servicos e profissionais, uma imobiliaria
+ * em imoveis. Como a contagem e feita esta em `apps/api/src/lib/content-usage.ts`.
+ *
+ * Ate 11/2026 havia dois limites -- `maxPublishedProperties` e `maxProjects` --,
+ * que faziam a plataforma parecer exclusiva de imobiliarias e construtoras e
+ * deixavam todos os outros modulos sem limite nenhum. A migracao 0018 acrescenta
+ * `maxContentRecords` sem remover as chaves antigas do JSON (ver o comentario
+ * dela); elas nao sao mais lidas por ninguem, e este schema as descarta.
+ */
 export const planLimitsSchema = z.object({
   maxUsers: z.number().int().min(1),
-  maxPublishedProperties: z.number().int().min(0),
-  maxProjects: z.number().int().min(0),
+  maxContentRecords: z.number().int().min(0),
   maxDomains: z.number().int().min(0),
   storageBytes: z.number().int().min(0),
   features: z.array(z.enum(PLAN_FEATURES)),
@@ -85,12 +100,11 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
   {
     code: 'trial',
     name: 'Avaliacao',
-    description: 'Para conhecer o painel antes de contratar.',
+    description: 'Para conhecer o painel e visualizar o funcionamento da plataforma.',
     priceCents: 0,
     limits: {
       maxUsers: 2,
-      maxPublishedProperties: 5,
-      maxProjects: 3,
+      maxContentRecords: 5,
       maxDomains: 0,
       storageBytes: 200 * MB,
       // A avaliacao inclui o painel: e justamente o que se quer avaliar.
@@ -107,12 +121,11 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
   {
     code: 'essencial',
     name: 'Essencial',
-    description: 'Site personalizado com dominio proprio. O conteudo e mantido pela CODECA IA.',
+    description: 'Site personalizado com domínio próprio e gestão de conteúdo realizada pela equipe CODECA IA.',
     priceCents: 1590,
     limits: {
       maxUsers: 2,
-      maxPublishedProperties: 20,
-      maxProjects: 10,
+      maxContentRecords: 20,
       maxDomains: 1,
       storageBytes: 500 * MB,
       /**
@@ -134,12 +147,11 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
   {
     code: 'profissional',
     name: 'Profissional',
-    description: 'Site personalizado com painel para a empresa gerenciar o proprio conteudo.',
+    description: 'Mais autonomia para sua empresa administrar e atualizar o próprio site.',
     priceCents: 5990,
     limits: {
       maxUsers: 5,
-      maxPublishedProperties: 100,
-      maxProjects: 50,
+      maxContentRecords: 100,
       maxDomains: 1,
       storageBytes: 2 * 1024 * MB,
       features: ['cms_panel', 'custom_domain', 'lead_export'],
@@ -154,12 +166,11 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
   {
     code: 'empresas',
     name: 'Empresas',
-    description: 'Tudo do Profissional, com a hospedagem do site por conta da CODECA IA.',
+    description: 'Uma solução ampliada para empresas que precisam de gestão de conteúdo, equipe e hospedagem.',
     priceCents: 11990,
     limits: {
       maxUsers: 15,
-      maxPublishedProperties: 400,
-      maxProjects: 200,
+      maxContentRecords: 400,
       maxDomains: 3,
       storageBytes: 10 * 1024 * MB,
       features: ['cms_panel', 'custom_domain', 'lead_export', 'included_hosting'],
@@ -191,8 +202,13 @@ export function formatBytes(bytes: number): string {
 
 export interface UsageSnapshot {
   users: number;
-  publishedProperties: number;
-  projects: number;
+  /** Conteudos cadastrados: o numero que `limits.maxContentRecords` limita. */
+  contentRecords: number;
+  /**
+   * De onde vem a contagem, modulo a modulo (chave do modulo -> registros).
+   * So aparecem os modulos habilitados no site e que tem ao menos um registro.
+   */
+  contentByModule: Record<string, number>;
   domains: number;
   storageBytes: number;
 }
@@ -209,6 +225,20 @@ export interface EffectivePlan {
   planCode: string;
   planName: string;
   limits: PlanLimits;
+  overridden: boolean;
+}
+
+/**
+ * Resposta de `GET /api/tenants/:tenantId/content-usage`: quanto do limite geral
+ * de conteudos a empresa ja usou, e de que modulos vem o uso.
+ */
+export interface ContentUsageView {
+  used: number;
+  max: number;
+  /** Chave do modulo (ou `custom:<chave>`) -> registros. So quem tem algum. */
+  byModule: Record<string, number>;
+  planName: string;
+  /** `true` quando o limite exibido foi ajustado so para esta empresa. */
   overridden: boolean;
 }
 
@@ -229,4 +259,69 @@ export function checkLimit(current: number, limit: number, label: string): Limit
         current,
         message: `Seu plano permite ate ${limit} ${label}. Atualize o plano para continuar.`,
       };
+}
+
+// ---------------------------------------------------------------------------
+// O que o plano oferece, dito em texto
+// ---------------------------------------------------------------------------
+
+const NUMERO_BR = new Intl.NumberFormat('pt-BR');
+
+function pluralizar(n: number, singular: string, plural: string): string {
+  return `${NUMERO_BR.format(n)} ${n === 1 ? singular : plural}`;
+}
+
+/** 200 MB, 2 GB, 1,5 GB: sem ".0" sobrando e com virgula decimal. */
+export function formatStorage(bytes: number): string {
+  const unidades = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let valor = bytes;
+  let i = 0;
+  while (valor >= 1024 && i < unidades.length - 1) {
+    valor /= 1024;
+    i += 1;
+  }
+  const texto = Number.isInteger(valor) ? String(valor) : valor.toFixed(1).replace('.', ',');
+  return `${texto} ${unidades[i]}`;
+}
+
+/**
+ * A lista de beneficios de um plano, na ordem comercial.
+ *
+ * **Fonte unica do texto**: a pagina inicial, a tela de plano do cliente e o
+ * painel mestre leem desta funcao. Antes, cada um montava a propria lista --
+ * e cada um dizia "imoveis publicados" e "obras" -- de modo que mudar um
+ * limite exigia lembrar de tres lugares. Tudo vem de `limits` e de `priceCents`;
+ * nenhum numero e escrito aqui.
+ *
+ * Os textos sao universais: "conteudos cadastrados" vale para produtos,
+ * servicos, imoveis, obras, profissionais, cardapios, portfolio e modulos
+ * personalizados, qualquer que seja o segmento.
+ *
+ * "Site personalizado" e dito de todo plano pago: o site sob medida e o produto
+ * da CODECA IA, nao um recurso ligavel; a avaliacao, que e gratuita, nao o
+ * promete.
+ */
+export function planBenefits(plan: { priceCents: number; limits: PlanLimits }): string[] {
+  const { limits } = plan;
+  const itens = [
+    `Até ${pluralizar(limits.maxContentRecords, 'conteúdo cadastrado', 'conteúdos cadastrados')}`,
+    `Até ${pluralizar(limits.maxUsers, 'usuário vinculado', 'usuários vinculados')}`,
+    `${formatStorage(limits.storageBytes)} de armazenamento`,
+    limits.maxDomains === 0
+      ? 'Sem domínio próprio'
+      : limits.maxDomains === 1
+        ? '1 domínio próprio'
+        : `Até ${limits.maxDomains} domínios próprios`,
+  ];
+
+  if (plan.priceCents > 0) itens.push('Site personalizado');
+
+  if (limits.features.includes('cms_panel')) {
+    itens.push('Painel administrativo CODECA Build', 'Gestão de textos, imagens e módulos');
+  } else {
+    itens.push('Gestão de conteúdo pela CODECA IA');
+  }
+  if (limits.features.includes('lead_export')) itens.push('Exportação de interessados');
+  if (limits.features.includes('included_hosting')) itens.push('Hospedagem incluída');
+  return itens;
 }

@@ -3,7 +3,8 @@ import { cx } from '@codeca/ui';
 import { useResource } from '../hooks/useResource.js';
 import { publicApi, type PublicPlan } from '../services/endpoints.js';
 import { useDestino } from './Header.js';
-import { apresentacao, beneficios, nomeDoPlano, preco } from './plans.js';
+import { planBenefits } from '@codeca/shared';
+import { nomeDoPlano, preco } from './plans.js';
 import { Reveal } from './Reveal.js';
 import { Container, Eyebrow, LinkButton, SectionTitle } from './ui.js';
 
@@ -74,7 +75,16 @@ export function Pricing() {
                   </Reveal>
                 ))}
               </ul>
-              <p className="mt-8 max-w-3xl text-sm leading-relaxed text-slate-500">
+              <aside className="mt-10 max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+                <h3 className="text-base font-semibold tracking-tight text-slate-900">O que são conteúdos cadastrados?</h3>
+                <p className="mt-2 text-[0.95rem] leading-relaxed text-slate-600">
+                  São os registros dos módulos do seu site: produtos, serviços, imóveis, projetos, profissionais,
+                  cursos e turmas, cardápios, veículos, portfólio, galerias e módulos personalizados. O limite é
+                  geral, não por tipo: uma loja pode usar todas as vagas em produtos, uma clínica em serviços e
+                  profissionais, uma imobiliária em imóveis, uma construtora em projetos.
+                </p>
+              </aside>
+              <p className="mt-6 max-w-3xl text-sm leading-relaxed text-slate-500">
                 Valores mensais, em reais.
                 {planos.data.plans.find((p) => p.trialDays) ? ' A avaliação é gratuita e não exige pagamento. ' : ' '}
                 A contratação de um plano pago é feita no painel, em Plano e assinatura, depois de criar a conta.
@@ -127,10 +137,10 @@ function CartaoDePlano({
         <span className="text-4xl font-semibold tracking-[-0.03em] text-slate-900">{valor}</span>
         {periodo ? <span className="text-sm text-slate-500">{periodo}</span> : null}
       </p>
-      <p className="mt-3 text-[0.95rem] leading-relaxed text-slate-600 xl:min-h-[8rem]">{apresentacao(plano)}</p>
+      <p className="mt-3 text-[0.95rem] leading-relaxed text-slate-600 xl:min-h-[8rem]">{plano.description}</p>
 
       <ul className="mt-6 grid flex-1 content-start gap-3 border-t border-slate-200/80 pt-6 text-[0.95rem] text-slate-700">
-        {beneficios(plano).map((item) => (
+        {planBenefits(plano).map((item) => (
           <li key={item} className="flex gap-2.5">
             <Check aria-hidden="true" className="mt-0.5 size-4 flex-none text-brand-600" strokeWidth={2.5} />
             {item}

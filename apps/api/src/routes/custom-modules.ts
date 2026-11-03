@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, ilike, schema, sql } from '@codeca/database';
+import { assertContentLimit } from '../lib/plan-limits.js';
 import {
   AppError,
   contentQuerySchema,
@@ -293,6 +294,7 @@ export function customModuleRoutes() {
       );
     }
 
+    await assertContentLimit(ctx.db, tenant.tenantId);
     const valores = parseRecordData({ modulo, overrides: state.overrides, raw, partial: false });
 
     const slug = await uniqueRecordSlug(ctx.db, {

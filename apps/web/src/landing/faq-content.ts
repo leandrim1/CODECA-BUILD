@@ -66,6 +66,11 @@ export function montarPerguntas(planos: readonly PublicPlan[] | null): Pergunta[
         'Sim. Cada painel mostra os módulos do seu projeto: imóveis, produtos, serviços, obras, equipe, galerias e outros. A CODECA IA define quais ficam ativos e pode criar módulos e campos específicos para o seu negócio.',
     },
     {
+      pergunta: 'O que são conteúdos cadastrados?',
+      resposta:
+        'São os registros dos módulos do seu site: produtos, serviços, imóveis, projetos, profissionais, equipe, cursos e turmas, cardápios, veículos, portfólio, galerias e os módulos personalizados do seu projeto. O limite do plano é geral, não por tipo: uma loja pode usar todas as vagas em produtos, uma clínica em serviços e profissionais, uma imobiliária em imóveis. Rascunhos e arquivados também contam, e o que você exclui libera a vaga na hora.',
+    },
+    {
       pergunta: 'Posso adicionar colaboradores?',
       resposta: `Sim, dentro do limite de usuários do plano${maisUsuarios ? ` (de 2 até ${maisUsuarios}, conforme o plano)` : ''}. Você convida cada pessoa por e-mail e define o papel: Administrador, Editor de conteúdo ou Somente leitura. As permissões são conferidas no servidor.`,
     },

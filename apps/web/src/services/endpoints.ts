@@ -51,7 +51,9 @@ import type {
   SessionPayload,
 } from '../types/index.js';
 import type {
+  ContentUsageView,
   PaymentMethodCode,
+  PlanFeature,
   PlanLimits,
   UsageSnapshot,
 } from '@codeca/shared';
@@ -95,6 +97,9 @@ export const authApi = {
 export const tenantApi = {
   detail: (tenantId: string) => api.get<TenantResponse>(tenantBase(tenantId)),
   overview: (tenantId: string) => api.get<OverviewResponse>(`${tenantBase(tenantId)}/overview`),
+  /** Quanto do limite geral de conteudos cadastrados a empresa ja usou. */
+  contentUsage: (tenantId: string) =>
+    api.get<ContentUsageView>(`${tenantBase(tenantId)}/content-usage`),
   update: (tenantId: string, body: unknown) => api.patch<unknown>(tenantBase(tenantId), body),
   updateContact: (tenantId: string, body: unknown) => api.patch<unknown>(`${tenantBase(tenantId)}/contact`, body),
   plan: (tenantId: string) =>
@@ -131,7 +136,7 @@ export const propertyApi = {
   detail: (tenantId: string, propertyId: string) =>
     api.get<{ property: PropertyRecord }>(`${tenantBase(tenantId)}/properties/${propertyId}`),
   facets: (tenantId: string) =>
-    api.get<{ cities: string[]; neighborhoods: string[]; maxPublishedProperties: number }>(
+    api.get<{ cities: string[]; neighborhoods: string[] }>(
       `${tenantBase(tenantId)}/properties/facets`,
     ),
   create: (tenantId: string, body: unknown) =>
@@ -730,11 +735,10 @@ export interface PublicPlan {
   trialDays: number | null;
   limits: {
     maxUsers: number;
-    maxPublishedProperties: number;
-    maxProjects: number;
+    maxContentRecords: number;
     maxDomains: number;
     storageBytes: number;
-    features: string[];
+    features: PlanFeature[];
   };
 }
 

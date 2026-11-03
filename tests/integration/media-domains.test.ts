@@ -176,8 +176,7 @@ describe('upload de midia', () => {
         name: 'Minusculo',
         limits: {
           maxUsers: 2,
-          maxPublishedProperties: 5,
-          maxProjects: 3,
+          maxContentRecords: 5,
           maxDomains: 1,
           storageBytes: 1024,
           // `cms_panel` porque o teste e sobre o limite de armazenamento: sem

@@ -24,7 +24,7 @@ import {
   parseQuery,
 } from '../lib/http.js';
 import { assertMediaBelongsToTenant, loadGallery, loadMediaByIds, syncGallery } from '../lib/media-refs.js';
-import { assertWithinLimit } from '../lib/plan-limits.js';
+import { assertContentLimit } from '../lib/plan-limits.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
 import { requireCapability, sessionOf } from '../middleware/auth.js';
 import { lerAlteracao, lerCriacao } from '../lib/modules.js';
@@ -156,7 +156,7 @@ export function projectRoutes() {
 
     const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'obras', raw);
 
-    await assertWithinLimit(ctx.db, tenant.tenantId, 'maxProjects');
+    await assertContentLimit(ctx.db, tenant.tenantId);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.coverImageId, ...input.galleryImageIds]);
 
     const slug = await buildUniqueSlug(ctx.db, 'projects', {

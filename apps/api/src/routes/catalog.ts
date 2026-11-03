@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, ilike, schema, sql } from '@codeca/database';
+import { assertContentLimit } from '../lib/plan-limits.js';
 import {
   AppError,
   categoryInputSchema,
@@ -175,6 +176,7 @@ export function catalogRoutes() {
     const { data: input, raw } = await parseJsonBodyWithRaw(c, productInputSchema);
 
     const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'produtos', raw);
+    await assertContentLimit(ctx.db, tenant.tenantId);
 
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [
       input.coverImageId,
@@ -402,6 +404,7 @@ export function catalogRoutes() {
 
     const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
     assertEditableCreate('categorias', raw, overrides);
+    await assertContentLimit(ctx.db, tenant.tenantId);
 
     const slug = await slugDeCategoria(ctx.db, {
       siteId: tenant.siteId,
@@ -532,6 +535,7 @@ export function catalogRoutes() {
 
     const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
     assertEditableCreate('galerias', raw, overrides);
+    await assertContentLimit(ctx.db, tenant.tenantId);
 
     const slug = await buildUniqueSlug(ctx.db, 'galleries', {
       tenantId: tenant.tenantId,
