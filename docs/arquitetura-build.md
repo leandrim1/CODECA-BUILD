@@ -202,7 +202,7 @@ Um segmento e um **conjunto padrao de modulos**, aplicado no cadastro do site.
 Nao e uma trava: um site de corretor pode habilitar o modulo de obras se o
 projeto dele tiver.
 
-Os segmentos sao **dados**, nao codigo. A instalacao comeca com `construtora`,
+Os segmentos sao **dados**, nao codigo. A instalacao comeca com `empresa`,
 `imobiliaria` e `corretor` porque foi dai que a plataforma nasceu, e nada
 depende desses tres: cadastrar "Clinica odontologica" ou "Restaurante" e uma
 linha na tabela, pelo painel mestre. Ate a etapa 7 `segments.code` era um enum
@@ -221,9 +221,9 @@ Tres regras organizam o resto:
    e decisao site a site, na tela de modulos, onde quem decide ve o que esta
    ligado.
 3. **Exatamente um segmento e o padrao** de empresas recem-cadastradas, com
-   indice unico parcial no banco. Antes isso era `'construtora'` fixo no
+   indice unico parcial no banco. Antes isso era `'empresa'` fixo no
    codigo, e um escritorio de advocacia nascia com os modulos de uma
-   construtora.
+   empresa.
 
 Remover um segmento so e possivel enquanto nenhum site o usa; com sites, a
 resposta e desativar. A chave estrangeira e `on delete set null`, entao
@@ -737,7 +737,7 @@ ser combinado.
 ## 7. Assinatura e suspensao
 
 A assinatura e **do site**, nao da empresa. A unicidade esta no banco
-(`subscriptions_site_key`), entao uma construtora com o institucional em um
+(`subscriptions_site_key`), entao uma empresa com o institucional em um
 plano e o portal de lancamentos em outro e o caso normal, nao a excecao.
 
 A maquina de estados de cobranca que ja existia (`BillingState`,
@@ -856,7 +856,7 @@ nao ha nada a corrigir no codigo do site. O SDK expoe `error.isSuspended`.
 A rota administrativa passou a receber `siteId`. Antes ela tambem marcava a
 **empresa** como suspensa, o que fazia sentido quando a assinatura era unica
 por empresa e os dois conceitos coincidiam; agora derrubaria os outros sites
-da mesma construtora e trancaria o painel inteiro. Suspender a empresa
+da mesma empresa e trancaria o painel inteiro. Suspender a empresa
 continua possivel, pela rota de empresas, que e onde essa decisao mora.
 
 `sites.status` tambem fica intacto: e o rotulo operacional da CODECA IA

@@ -146,6 +146,6 @@ export function useAuth(): AuthContextValue {
 /** Empresa ativa, para telas que so existem dentro de um tenant. */
 export function useTenantId(): string {
   const { tenant } = useAuth();
-  if (!tenant) throw new Error('Nenhuma construtora selecionada.');
+  if (!tenant) throw new Error('Nenhuma empresa selecionada.');
   return tenant.tenantId;
 }

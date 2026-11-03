@@ -5,7 +5,7 @@ import { AppError } from '@codeca/shared';
  * Vinculo entre conteudos e a biblioteca de midia.
  *
  * Toda imagem referenciada e conferida contra `media_assets` da propria
- * empresa. Se um identificador apontar para o arquivo de outra construtora, a
+ * empresa. Se um identificador apontar para o arquivo de outra empresa, a
  * operacao falha com 404 -- sem revelar que o arquivo existe em outro lugar.
  */
 

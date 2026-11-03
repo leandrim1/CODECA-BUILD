@@ -39,7 +39,7 @@ import type { AppBindings } from '../types.js';
 /**
  * Obras e projetos.
  *
- * O percentual de evolucao e sempre informado pela construtora. Quando nao e
+ * O percentual de evolucao e sempre informado pela empresa. Quando nao e
  * preenchido, permanece nulo e o site publico nao exibe barra de progresso --
  * a plataforma nunca estima esse numero.
  */

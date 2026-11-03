@@ -16,7 +16,7 @@ export const TENANT_ROLE_LABELS: Record<TenantRole, string> = {
   viewer: 'Somente leitura',
 };
 
-/** Capacidades dentro do escopo de uma construtora (tenant). */
+/** Capacidades dentro do escopo de uma empresa (tenant). */
 export const TENANT_CAPABILITIES = [
   'tenant:read',
   'tenant:update',

@@ -111,7 +111,7 @@ export function createApp(options: CreateAppOptions = {}) {
   // Job de reconciliacao, protegido por segredo proprio (Vercel Cron).
   app.route('/billing', billingJobRoutes());
 
-  // Painel da construtora: sessao obrigatoria e empresa resolvida pela rota.
+  // Painel da empresa: sessao obrigatoria e empresa resolvida pela rota.
   //
   // Os tres middlewares ficam aqui, e nao em cada roteador, por duas razoes.
   // A ordem passa a ser visivel num lugar so -- a suspensao depende da

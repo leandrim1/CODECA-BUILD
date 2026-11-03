@@ -9,7 +9,7 @@ import type { DomainRecord } from '../../types/index.js';
 
 type Row = DomainRecord & { tenantId: string; tenantName: string };
 
-/** Dominios de todas as construtoras, para acompanhar pendencias. */
+/** Dominios de todas as empresas, para acompanhar pendencias. */
 export function PlatformDomainsPage() {
   const list = useResource(() => platformApi.domains(), []);
 

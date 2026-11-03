@@ -42,11 +42,11 @@ export function RequireTenant({ children }: { children: ReactNode }) {
       <div className="panel-shell">
         <EmptyState
           icon={<Building2 aria-hidden="true" className="size-10" />}
-          title="Nenhuma construtora vinculada a sua conta"
+          title="Nenhuma empresa vinculada a sua conta"
           description={
             isPlatformAdmin
               ? 'Sua conta e de administrador da plataforma. Use o painel da plataforma para gerenciar as empresas.'
-              : 'Pedir ao responsavel da construtora que envie um convite para o seu e-mail.'
+              : 'Pedir ao responsavel da empresa que envie um convite para o seu e-mail.'
           }
           action={
             isPlatformAdmin ? (

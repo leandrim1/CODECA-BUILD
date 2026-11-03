@@ -26,7 +26,7 @@ export function PlatformSupportPage() {
   const columns: Array<Column<SupportGrantRow>> = [
     {
       key: 'tenant',
-      header: 'Construtora',
+      header: 'Empresa',
       render: (row) => (
         <div className="min-w-0">
           <p className="truncate font-medium text-slate-900">{row.tenantName}</p>
@@ -68,13 +68,13 @@ export function PlatformSupportPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Acesso de suporte"
-        description="Autorizacoes para consultar dados de uma construtora. Conceda apenas quando houver chamado aberto."
+        description="Autorizacoes para consultar dados de uma empresa. Conceda apenas quando houver chamado aberto."
       />
 
       <Alert tone="info" title="Como funciona">
         O papel de administrador da plataforma nao da acesso ao conteudo das empresas. Para abrir o painel de
-        uma construtora e necessaria uma concessao explicita, somente leitura, com prazo definido e registro
-        em auditoria. A concessao e feita na ficha da empresa, em Construtoras.
+        uma empresa e necessaria uma concessao explicita, somente leitura, com prazo definido e registro
+        em auditoria. A concessao e feita na ficha da empresa, em Empresas.
       </Alert>
 
       <Card>

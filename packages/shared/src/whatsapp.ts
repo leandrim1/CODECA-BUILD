@@ -1,6 +1,6 @@
 /**
  * Montagem de links de WhatsApp com mensagem contextualizada.
- * O numero e sempre o cadastrado pela propria construtora.
+ * O numero e sempre o cadastrado pela propria empresa.
  */
 
 export type WhatsAppContext =

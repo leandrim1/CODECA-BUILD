@@ -24,10 +24,10 @@ export function AuthLayout() {
       >
         <div>
           <p className="text-sm font-semibold uppercase tracking-widest text-brand-300">
-            Plataforma para construtoras
+            Plataforma para empresas
           </p>
           <h2 className="mt-4 text-3xl font-semibold leading-tight">
-            Site profissional, dominio proprio e carteira de imoveis em um so lugar.
+            Site profissional, dominio proprio e o conteudo na sua mao.
           </h2>
           <ul className="mt-8 grid gap-3 text-slate-300">
             {/*
@@ -36,14 +36,14 @@ export function AuthLayout() {
               tela de entrada vendia algo que nao existe mais.
             */}
             <li>Conteudo do site editavel sem novo deploy</li>
-            <li>Imoveis a venda com pagina propria e busca</li>
-            <li>Obras em andamento com evolucao e fotos</li>
+            <li>Modulos ligados conforme o ramo do seu projeto</li>
+            <li>Campos proprios do seu negocio, sem programar</li>
             <li>Interessados organizados direto no painel</li>
             <li>Dominio proprio com HTTPS</li>
           </ul>
         </div>
         <p className="text-sm text-slate-400">
-          Cada construtora tem seu site, seus dados e seus usuarios, isolados das demais.
+          Cada empresa tem seu site, seus dados e seus usuarios, isolados das demais.
         </p>
       </aside>
     </div>

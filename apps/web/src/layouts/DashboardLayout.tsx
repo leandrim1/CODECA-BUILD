@@ -34,7 +34,7 @@ import { SafeIcon } from '../components/SafeIcon.js';
 import { labels, tenantTone } from '../utils/labels.js';
 
 /**
- * Moldura do painel da construtora.
+ * Moldura do painel da empresa.
  *
  * O menu lateral reune todos os modulos pedidos pelo produto. Itens que o papel
  * do usuario nao alcanca ficam escondidos -- mas a decisao que vale e a do

@@ -146,7 +146,7 @@ export function CompanyPage() {
   const whatsappPreview = whatsAppLink(
     contact.values.whatsapp,
     { kind: 'generic' },
-    profile.values.displayName || 'Construtora',
+    profile.values.displayName || 'Empresa',
     contact.values.whatsappDefaultMessage || null,
   );
 
@@ -278,7 +278,7 @@ export function CompanyPage() {
 
                   <div className="grid gap-3 rounded-lg border border-emerald-200 bg-emerald-50/50 p-3">
                     <TextInput
-                      label="WhatsApp da construtora"
+                      label="WhatsApp da empresa"
                       value={contact.values.whatsapp}
                       error={contact.errors.whatsapp}
                       disabled={readOnly}

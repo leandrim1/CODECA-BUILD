@@ -117,7 +117,7 @@ export function dnsInstructions(
 
 /**
  * Hostnames que pertencem a propria plataforma e nunca podem ser vinculados a
- * uma construtora. Aceita a lista configurada no ambiente.
+ * uma empresa. Aceita a lista configurada no ambiente.
  */
 export function isPlatformHost(host: string, platformHosts: readonly string[]): boolean {
   const normalized = host.trim().toLowerCase().split(':')[0] ?? '';

@@ -78,7 +78,7 @@ export function App() {
             <Route path="/aceitar-convite" element={<AcceptInvitePage />} />
           </Route>
 
-          {/* Painel da construtora */}
+          {/* Painel da empresa */}
           <Route
             path="/painel"
             element={

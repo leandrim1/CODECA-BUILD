@@ -65,7 +65,7 @@ export function PlatformPlansPage() {
                       {plan.isPublic ? null : <Badge tone="info">interno</Badge>}
                     </span>
                   }
-                  description={`${plan.code} - ${plan.tenantCount} construtora(s)`}
+                  description={`${plan.code} - ${plan.tenantCount} empresa(s)`}
                   actions={
                     <Button
                       variant="outline"
@@ -342,7 +342,7 @@ function PlanModal({
         />
         <Switch
           label="Plano ativo"
-          hint="Planos inativos nao podem ser atribuidos a novas construtoras."
+          hint="Planos inativos nao podem ser atribuidos a novas empresas."
           checked={values.isActive}
           onChange={(checked) => setField('isActive', checked)}
         />

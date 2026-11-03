@@ -46,7 +46,7 @@ import type { MediaRef, ProjectRecord } from '../types/index.js';
 /**
  * Obras e projetos.
  *
- * O percentual de evolucao e sempre informado pela construtora. Quando fica em
+ * O percentual de evolucao e sempre informado pela empresa. Quando fica em
  * branco, o site nao exibe barra de progresso -- a plataforma nunca estima.
  */
 export function ProjectsPage() {

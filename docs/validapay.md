@@ -19,7 +19,7 @@ cobrar":
 1. Admin cadastra o plano no painel mestre        (banco de dados)
 2. Plataforma sincroniza o plano na ValidaPay     POST /v1/products
    -> devolve productId (prod_) e priceId (price_)
-3. Empresa escolhe plano + forma de pagamento     (painel da construtora)
+3. Empresa escolhe plano + forma de pagamento     (painel da empresa)
 4. Backend cria a sessao de checkout              POST /v1/checkout-sessions
    -> devolve a URL hospedada da ValidaPay
 5. Empresa paga nessa pagina                      (fora da nossa aplicacao)

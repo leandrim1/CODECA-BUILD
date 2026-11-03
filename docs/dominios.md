@@ -1,7 +1,7 @@
 # Dominios proprios e DNS
 
-Cada construtora pode publicar o site em um dominio seu
-(`www.construtorahorizonte.com.br`). Toda a integracao com o provedor acontece
+Cada empresa pode publicar o site em um dominio seu
+(`www.empresahorizonte.com.br`). Toda a integracao com o provedor acontece
 no backend; o navegador apenas mostra o estado e as instrucoes.
 
 ## 1. Preparar a plataforma (uma vez)
@@ -61,13 +61,13 @@ IA; o dominio continua incluso no plano.
 O que mostrar depende de o dominio ser apex ou subdominio; a logica trata
 sufixos de dois niveis comuns no Brasil (`com.br`, `net.br`, ...).
 
-**Apex** (`construtorahorizonte.com.br`):
+**Apex** (`empresahorizonte.com.br`):
 
 | Tipo | Nome | Valor |
 | --- | --- | --- |
 | A | `@` | `76.76.21.21` |
 
-**Subdominio** (`www.construtorahorizonte.com.br`):
+**Subdominio** (`www.empresahorizonte.com.br`):
 
 | Tipo | Nome | Valor |
 | --- | --- | --- |
@@ -126,7 +126,7 @@ projeto Vercel que a CODECA IA desenvolveu para aquele cliente; a plataforma
 entra depois, como origem do conteudo:
 
 ```
-GET https://www.construtorahorizonte.com.br/imoveis/residencial-aurora
+GET https://www.empresahorizonte.com.br/imoveis/residencial-aurora
   |
   +-- projeto Vercel do cliente (React/Vite ou SSR, desenvolvido sob medida)
   +-- @codeca/sdk -> GET https://<plataforma>/api/v1/properties/residencial-aurora

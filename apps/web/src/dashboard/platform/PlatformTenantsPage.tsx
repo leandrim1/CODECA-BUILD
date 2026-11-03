@@ -26,7 +26,7 @@ import { labels, tenantTone, toOptions } from '../../utils/labels.js';
 import { useForm } from '../../utils/forms.js';
 import type { PlatformTenantRow } from '../../types/index.js';
 
-/** Cadastro, ativacao e suspensao das construtoras. */
+/** Cadastro, ativacao e suspensao das empresas. */
 export function PlatformTenantsPage() {
   const toast = useToast();
   const [page, setPage] = useState(1);
@@ -53,7 +53,7 @@ export function PlatformTenantsPage() {
 
   const create = useMutation(() => platformApi.createTenant(createForm.values), {
     onSuccess: () => {
-      toast.success('Construtora criada', 'O proprietario recebeu um convite por e-mail.');
+      toast.success('Empresa criada', 'O proprietario recebeu um convite por e-mail.');
       setCreating(false);
       createForm.reset();
       list.reload();
@@ -67,7 +67,7 @@ export function PlatformTenantsPage() {
   const columns: Array<Column<PlatformTenantRow>> = [
     {
       key: 'name',
-      header: 'Construtora',
+      header: 'Empresa',
       render: (row) => (
         <div className="min-w-0">
           <p className="truncate font-medium text-slate-900">{row.displayName}</p>
@@ -107,11 +107,11 @@ export function PlatformTenantsPage() {
   return (
     <div className="panel-shell grid gap-6">
       <PageHeader
-        title="Construtoras"
+        title="Empresas"
         description="Cadastro, plano, limites e situacao da conta de cada empresa."
         actions={
           <Button icon={<Plus aria-hidden="true" className="size-4" />} onClick={() => setCreating(true)}>
-            Nova construtora
+            Nova empresa
           </Button>
         }
       />
@@ -125,7 +125,7 @@ export function PlatformTenantsPage() {
                 <TextInput
                   label="Buscar"
                   className="[&>label]:sr-only"
-                  placeholder="Nome da construtora"
+                  placeholder="Nome da empresa"
                   value={search}
                   onChange={(event) => {
                     setSearch(event.target.value);
@@ -152,7 +152,7 @@ export function PlatformTenantsPage() {
         <ResourcePanel resource={list}>
           {(data) => (
             <>
-              <DataTable columns={columns} rows={data.items} rowKey={(row) => row.id} caption="Construtoras" />
+              <DataTable columns={columns} rows={data.items} rowKey={(row) => row.id} caption="Empresas" />
               <Pagination page={data.page} totalPages={data.totalPages} total={data.total} onChange={setPage} />
             </>
           )}
@@ -162,7 +162,7 @@ export function PlatformTenantsPage() {
       <Modal
         open={creating}
         onClose={() => setCreating(false)}
-        title="Nova construtora"
+        title="Nova empresa"
         description="O proprietario recebe um convite para definir a senha."
         footer={
           <>
@@ -170,7 +170,7 @@ export function PlatformTenantsPage() {
               Cancelar
             </Button>
             <Button loading={create.loading} onClick={() => void create.run(undefined)}>
-              Criar construtora
+              Criar empresa
             </Button>
           </>
         }
@@ -251,7 +251,7 @@ function TenantDetailModal({
     () => platformApi.updateTenant(tenantRow.id, { status, planCode, notes }),
     {
       onSuccess: () => {
-        toast.success('Construtora atualizada');
+        toast.success('Empresa atualizada');
         detail.reload();
         onChanged();
       },

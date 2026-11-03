@@ -1,6 +1,6 @@
 # Codeca Build
 
-Plataforma SaaS multiempresa em que cada construtora cria, edita e publica o
+Plataforma SaaS multiempresa em que cada empresa cria, edita e publica o
 proprio site institucional — com imoveis, obras, servicos, galerias e captacao
 de interessados — a partir de um unico deploy compartilhado.
 
@@ -47,7 +47,7 @@ requisicao e renderizados no servidor.
 api/                      funcao da Vercel (entrada da API)
 apps/
   api/                    aplicacao HTTP: rotas, autenticacao, autorizacao, regras
-  web/                    painel da construtora e painel mestre
+  web/                    painel da empresa e painel mestre
 packages/
   database/               schema Drizzle, migracoes versionadas, publicacao, seed
   shared/                 contratos Zod, catalogo de blocos, papeis, planos, tema
@@ -82,7 +82,7 @@ ver `docs/arquitetura-build.md`.
 
 ## Cobranca e assinaturas
 
-Cada construtora escolhe um plano mensal e paga uma assinatura para manter o
+Cada empresa escolhe um plano mensal e paga uma assinatura para manter o
 site publicado. O detalhe que define o desenho: **a ValidaPay nao cria
 assinaturas por API** -- elas nascem quando uma cobranca recorrente e paga.
 Por isso:
@@ -145,7 +145,7 @@ primeira conta cadastrada pela tela assume o papel de administrador da
 plataforma** -- e somente a primeira. Para reservar esse papel a um endereco
 especifico, defina `PLATFORM_ADMIN_EMAIL` (so um e-mail, nunca uma senha).
 Para criar o administrador sem passar pela tela, defina tambem
-`PLATFORM_ADMIN_PASSWORD` antes do seed. Para uma construtora de demonstracao
+`PLATFORM_ADMIN_PASSWORD` antes do seed. Para uma empresa de demonstracao
 com site publicado, defina `SEED_DEMO=true` e `SEED_DEMO_PASSWORD`.
 
 Suba tudo com um unico processo:

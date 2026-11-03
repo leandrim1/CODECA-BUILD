@@ -36,7 +36,7 @@ import { ApiError } from '../services/api.js';
 import type { BillingPlanOption, ChargeView } from '../types/index.js';
 
 /**
- * Plano, assinatura e historico de cobrancas da construtora.
+ * Plano, assinatura e historico de cobrancas da empresa.
  *
  * Cada botao aqui corresponde a uma operacao que existe de verdade no backend.
  * Quando a integracao de pagamento nao esta configurada no servidor, a tela diz

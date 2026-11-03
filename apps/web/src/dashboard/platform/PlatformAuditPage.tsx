@@ -66,7 +66,7 @@ export function PlatformAuditPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Auditoria"
-        description="Operacoes relevantes registradas pela plataforma, de todas as construtoras."
+        description="Operacoes relevantes registradas pela plataforma, de todas as empresas."
       />
 
       <Card>

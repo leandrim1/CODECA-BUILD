@@ -47,7 +47,7 @@ export function RegisterPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Criar a conta da construtora</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Criar a conta da empresa</h1>
       <p className="mt-1.5 text-sm text-slate-600">
         Ja tem conta?{' '}
         <Link to="/entrar" className="link">
@@ -66,10 +66,10 @@ export function RegisterPage() {
         {generalError ? <Alert tone="danger">{generalError}</Alert> : null}
 
         <TextInput
-          label="Nome da construtora"
+          label="Nome da empresa"
           required
           autoComplete="organization"
-          placeholder="Construtora Horizonte"
+          placeholder="Nome da sua empresa"
           value={values.companyName}
           error={errors.companyName}
           hint={previewSlug ? `Endereco interno: ${previewSlug}` : undefined}

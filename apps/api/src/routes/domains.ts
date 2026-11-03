@@ -27,7 +27,7 @@ import type { AppBindings } from '../types.js';
  *
  * Um dominio nunca e considerado ativo apenas por estar cadastrado: o estado
  * vem da resposta do provedor (propriedade comprovada + DNS apontado). A
- * unicidade global de `domains.hostname` impede que duas construtoras usem o
+ * unicidade global de `domains.hostname` impede que duas empresas usem o
  * mesmo dominio, e os hosts da plataforma sao recusados.
  */
 

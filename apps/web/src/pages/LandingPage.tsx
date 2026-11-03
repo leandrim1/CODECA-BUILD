@@ -26,23 +26,26 @@ const RECURSOS = [
   },
   {
     icon: Building2,
-    title: 'Imoveis a venda',
-    text: 'Cadastre imoveis com fotos, valores, caracteristicas e pagina propria pronta para os buscadores.',
+    // Os modulos variam por projeto: um restaurante tem cardapio, uma escola
+    // tem turmas, uma imobiliaria tem imoveis. Anunciar dois modulos
+    // especificos aqui fazia a plataforma parecer ser de um ramo so.
+    title: 'Modulos do seu ramo',
+    text: 'Produtos, servicos, imoveis, obras, equipe, galerias: a CODECA IA liga no seu painel o que o seu projeto usa.',
   },
   {
     icon: HardHat,
-    title: 'Obras em andamento',
-    text: 'Mostre a evolucao das obras por etapa, com fotos e datas informadas pela sua equipe.',
+    title: 'Campos do seu negocio',
+    text: 'Cada modulo pode ter campos proprios do seu ramo, com a validacao certa e sem programar nada.',
   },
   {
     icon: Globe,
     title: 'Dominio proprio com HTTPS',
-    text: 'Conecte o dominio da construtora, siga as instrucoes de DNS e acompanhe a verificacao pelo painel.',
+    text: 'Conecte o dominio da empresa, siga as instrucoes de DNS e acompanhe a verificacao pelo painel.',
   },
   {
     icon: MessageCircle,
     title: 'Interessados organizados',
-    text: 'Os contatos do site chegam no painel com assunto, imovel relacionado e historico de atendimento.',
+    text: 'Os contatos do site chegam no painel com assunto, item relacionado e historico de atendimento.',
   },
   {
     icon: Users,
@@ -89,14 +92,14 @@ export function LandingPage() {
       <main>
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
           <div className="max-w-3xl">
-            <Badge tone="brand">Plataforma para construtoras e incorporadoras</Badge>
+            <Badge tone="brand">Plataforma de conteudo para sites sob medida</Badge>
             <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-5xl">
-              O site da sua construtora, com imoveis, obras e dominio proprio.
+              O site da sua empresa, com o conteudo sob o seu controle.
             </h1>
             <p className="mt-5 text-lg text-slate-600">
-              Cada construtora tem o proprio site, a propria identidade visual e o proprio painel. Atualize
-              textos e imagens, cadastre imoveis e obras, conecte seu dominio e receba os contatos direto no
-              painel.
+              A CODECA IA desenvolve o site do seu jeito e conecta a este painel. Voce atualiza textos,
+              imagens e listas do seu ramo -- produtos, servicos, imoveis, turmas, o que o seu projeto
+              usar -- e a alteracao aparece no site sem novo deploy.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/criar-conta">
@@ -142,7 +145,7 @@ export function LandingPage() {
               Planos
             </h2>
             <p className="mt-2 max-w-2xl text-slate-600">
-              Os limites valem por construtora e sao verificados no servidor. A contratacao e a troca de
+              Os limites valem por empresa e sao verificados no servidor. A contratacao e a troca de
               plano sao feitas com a equipe da plataforma.
             </p>
 
@@ -217,17 +220,17 @@ export function LandingPage() {
             <div>
               <h2 className="flex items-center gap-2 text-2xl font-semibold">
                 <ShieldCheck aria-hidden="true" className="size-6 text-brand-300" />
-                Dados de cada construtora separados dos demais
+                Dados de cada empresa separados dos demais
               </h2>
               <p className="mt-3 text-slate-300">
-                Uma unica plataforma atende varias construtoras, mas cada empresa tem seus proprios usuarios,
+                Uma unica plataforma atende varias empresas, mas cada empresa tem seus proprios usuarios,
                 conteudos, dominio e painel. A separacao e garantida no banco de dados e conferida no servidor
                 em toda operacao.
               </p>
             </div>
             <Link to="/criar-conta" className="lg:justify-self-end">
               <Button size="lg" variant="primary">
-                Criar a conta da minha construtora
+                Criar a conta da minha empresa
               </Button>
             </Link>
           </div>
@@ -236,7 +239,7 @@ export function LandingPage() {
 
       <footer className="border-t border-slate-200 py-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 text-sm text-slate-500 sm:px-6">
-          <p>Codeca Build - plataforma de sites para construtoras</p>
+          <p>Codeca Build - plataforma de sites para empresas</p>
           <p>{new Date().getFullYear()}</p>
         </div>
       </footer>

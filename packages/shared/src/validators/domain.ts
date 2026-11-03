@@ -13,7 +13,7 @@ export const addDomainSchema = z.object({
       if (!normalized) {
         ctx.addIssue({
           code: 'custom',
-          message: 'Informe um dominio valido, por exemplo www.suaconstrutora.com.br',
+          message: 'Informe um dominio valido, por exemplo www.suaempresa.com.br',
         });
         return z.NEVER;
       }

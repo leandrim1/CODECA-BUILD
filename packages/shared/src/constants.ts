@@ -213,7 +213,7 @@ export type SafeIcon = (typeof SAFE_ICONS)[number];
  * e os segmentos sao **dados**, cadastrados no painel mestre -- criar
  * "Restaurante" ou "Clinica odontologica" e uma linha na tabela `segments`,
  * nao uma alteracao de schema seguida de implantacao. A instalacao comeca com
- * construtora, imobiliaria e corretor porque foi dai que a plataforma
+ * empresa, imobiliaria e corretor porque foi dai que a plataforma
  * nasceu; nada no codigo depende desses tres.
  */
 export const SEGMENT_CODE_MAX_LENGTH = 48;

@@ -39,7 +39,7 @@ import { requireCapability, requireVerifiedEmail, sessionOf } from '../middlewar
 import type { AppBindings } from '../types.js';
 
 /**
- * Cobranca da construtora.
+ * Cobranca da empresa.
  *
  * Tudo aqui e escopado pela empresa resolvida da sessao: nenhuma rota aceita um
  * `tenantId` do corpo, e uma cobranca de outra empresa responde 404 mesmo que o

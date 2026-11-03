@@ -15,14 +15,14 @@ export function PlatformOverviewPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Visao geral da plataforma"
-        description="Numeros agregados de todas as construtoras. Para ver o conteudo de uma empresa e necessaria uma concessao de suporte."
+        description="Numeros agregados de todas as empresas. Para ver o conteudo de uma empresa e necessaria uma concessao de suporte."
       />
 
       <ResourcePanel resource={overview}>
         {(data) => (
           <div className="grid gap-6">
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label="Indicadores">
-              <Stat icon={Building2} label="Construtoras" value={data.tenants.total} detail={`${data.tenants.active} ativas - ${data.tenants.trialing} em avaliacao`} />
+              <Stat icon={Building2} label="Empresas" value={data.tenants.total} detail={`${data.tenants.active} ativas - ${data.tenants.trialing} em avaliacao`} />
               <Stat icon={Users} label="Usuarios" value={data.users} detail="Contas na plataforma" />
               <Stat icon={Globe} label="Dominios" value={data.domains.total} detail={`${data.domains.active} ativos - ${data.domains.pending} pendentes`} />
               <Stat icon={HardDrive} label="Armazenamento" value={0} detail={formatBytes(data.storageBytes)} hideValue />
@@ -30,10 +30,10 @@ export function PlatformOverviewPage() {
 
             <div className="grid gap-6 lg:grid-cols-2">
               <Card>
-                <CardHeader title="Construtoras por plano" />
+                <CardHeader title="Empresas por plano" />
                 <CardBody>
                   {data.byPlan.length === 0 ? (
-                    <p className="text-sm text-slate-500">Nenhuma construtora cadastrada.</p>
+                    <p className="text-sm text-slate-500">Nenhuma empresa cadastrada.</p>
                   ) : (
                     <ul className="grid gap-2">
                       {data.byPlan.map((row) => (
@@ -49,7 +49,7 @@ export function PlatformOverviewPage() {
 
               <Card>
                 <CardHeader
-                  title="Ultimas construtoras"
+                  title="Ultimas empresas"
                   actions={
                     <Link to="/plataforma/empresas" className="text-sm link">
                       Ver todas
@@ -58,7 +58,7 @@ export function PlatformOverviewPage() {
                 />
                 <CardBody>
                   {data.recentTenants.length === 0 ? (
-                    <p className="text-sm text-slate-500">Nenhuma construtora cadastrada.</p>
+                    <p className="text-sm text-slate-500">Nenhuma empresa cadastrada.</p>
                   ) : (
                     <ul className="grid gap-2">
                       {data.recentTenants.map((item) => (

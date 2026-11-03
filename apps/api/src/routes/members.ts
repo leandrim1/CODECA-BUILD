@@ -18,7 +18,7 @@ import { requireCapability, requireVerifiedEmail, sessionOf } from '../middlewar
 import type { AppBindings } from '../types.js';
 
 /**
- * Equipe da construtora.
+ * Equipe da empresa.
  *
  * Um convite cria o usuario (sem senha) e o vinculo com status `invited`.
  * O vinculo so passa a valer quando o convite e aceito, o que impede que um

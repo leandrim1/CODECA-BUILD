@@ -32,7 +32,7 @@ import { labels, publicationTone, toOptions } from '../utils/labels.js';
 import { formatList, parseList, useForm } from '../utils/forms.js';
 import type { MediaRef, ServiceRecord } from '../types/index.js';
 
-/** Servicos oferecidos pela construtora. */
+/** Servicos oferecidos pela empresa. */
 export function ServicesPage() {
   const tenantId = useTenantId();
   const toast = useToast();
@@ -55,7 +55,7 @@ export function ServicesPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Servicos"
-        description="O que a construtora oferece. Os servicos publicados alimentam o bloco de servicos do site."
+        description="O que a empresa oferece. Os servicos publicados alimentam o bloco de servicos do site."
         actions={
           can('content:write') ? (
             <Button icon={<Plus aria-hidden="true" className="size-4" />} onClick={() => setEditing('new')}>

@@ -49,8 +49,8 @@ usar a chave. Sem nenhuma origem cadastrada, a chave publicavel **nao
 atende** -- falhar assim e melhor do que atender a qualquer um.
 
 A comparacao e **exata** sobre a origem normalizada (esquema + host, porta
-padrao removida). Nada de sufixo: `termina com .construtora.com.br`
-autorizaria `construtora.com.br.invasor.com`.
+padrao removida). Nada de sufixo: `termina com .empresa.com.br`
+autorizaria `empresa.com.br.invasor.com`.
 
 Isto nao protege contra um servidor determinado -- `Origin` so existe no
 navegador, e quem chama por fora simplesmente nao o envia. E exatamente por

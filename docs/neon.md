@@ -59,7 +59,7 @@ opcionais:
 | Variavel | Efeito |
 | --- | --- |
 | `PLATFORM_ADMIN_EMAIL` + `PLATFORM_ADMIN_PASSWORD` | Cria o administrador da plataforma com e-mail ja verificado |
-| `SEED_DEMO=true` + `SEED_DEMO_PASSWORD` | Cria a construtora de demonstracao com site publicado |
+| `SEED_DEMO=true` + `SEED_DEMO_PASSWORD` | Cria a empresa de demonstracao com site publicado |
 
 O seed e seguro de repetir: ele reconcilia os planos e nao duplica usuarios.
 Nao defina `SEED_DEMO=true` em producao.
@@ -104,7 +104,7 @@ Decisoes que valem conhecer:
   (`sites_primary_per_tenant_key`) e um dominio por host em toda a plataforma
   (`domains_hostname_key`, global de proposito — dois clientes nao podem
   reivindicar o mesmo dominio).
-- **Slugs unicos por site**, nao globais: duas construtoras podem ter
+- **Slugs unicos por site**, nao globais: duas empresas podem ter
   `/contato`.
 - **Dinheiro nunca em ponto flutuante**, e duas representacoes com motivo:
   `plans.price_cents` em centavos inteiros, porque conversa com a ValidaPay e a

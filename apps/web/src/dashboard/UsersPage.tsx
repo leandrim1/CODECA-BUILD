@@ -174,7 +174,7 @@ export function UsersPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Equipe e usuarios"
-        description="Quem tem acesso ao painel desta construtora e o que cada pessoa pode fazer."
+        description="Quem tem acesso ao painel desta empresa e o que cada pessoa pode fazer."
         actions={
           can('members:invite') ? (
             <Button icon={<UserPlus aria-hidden="true" className="size-4" />} onClick={() => setInviting(true)}>
@@ -274,7 +274,7 @@ export function UsersPage() {
         title="Remover acesso"
         message={
           <>
-            <strong>{removing?.name || removing?.email}</strong> perdera o acesso ao painel desta construtora.
+            <strong>{removing?.name || removing?.email}</strong> perdera o acesso ao painel desta empresa.
             A conta da pessoa continua existindo na plataforma.
           </>
         }

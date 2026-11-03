@@ -84,7 +84,7 @@ export function DomainsPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Dominio proprio"
-        description="Conecte o endereco da construtora, por exemplo www.suaconstrutora.com.br, para o site responder nele com HTTPS."
+        description="Conecte o endereco da empresa, por exemplo www.suaempresa.com.br, para o site responder nele com HTTPS."
       />
 
       <ResourcePanel resource={list}>
@@ -93,7 +93,7 @@ export function DomainsPage() {
             {!data.customDomainAvailable ? (
               <Alert tone="warning" title="Recurso nao incluido no plano">
                 O plano {data.limits.planName} nao inclui dominio proprio. Atualize o plano para conectar o
-                endereco da construtora.
+                endereco da empresa.
               </Alert>
             ) : null}
 
@@ -128,7 +128,7 @@ export function DomainsPage() {
                     <div className="min-w-64 flex-1">
                       <TextInput
                         label="Dominio"
-                        placeholder="www.suaconstrutora.com.br"
+                        placeholder="www.suaempresa.com.br"
                         value={hostname}
                         error={add.error?.fieldErrors.domain}
                         hint="Informe com ou sem www. Enderecos administrativos (app, painel, api) sao reservados."

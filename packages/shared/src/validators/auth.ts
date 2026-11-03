@@ -6,8 +6,8 @@ export const registerSchema = z.object({
   name: personNameSchema,
   email: emailSchema,
   password: passwordSchema,
-  /** Dados da primeira construtora criada junto com a conta. */
-  companyName: z.string().trim().min(2, 'Informe o nome da construtora.').max(160),
+  /** Dados da primeira empresa criada junto com a conta. */
+  companyName: z.string().trim().min(2, 'Informe o nome da empresa.').max(160),
   companySlug: slugSchema.optional(),
   phone: phoneSchema.default(''),
   acceptedTerms: z.literal(true, { message: 'E necessario aceitar os termos de uso.' }),

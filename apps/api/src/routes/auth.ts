@@ -104,7 +104,7 @@ export function authRoutes() {
           },
         })
         .returning({ id: schema.tenants.id });
-      if (!tenant) throw AppError.internal('Nao foi possivel criar a construtora.');
+      if (!tenant) throw AppError.internal('Nao foi possivel criar a empresa.');
 
       await tx.insert(schema.memberships).values({
         tenantId: tenant.id,
@@ -651,7 +651,7 @@ function serializeSession(session: {
 }
 
 async function nextTenantSlug(db: Database, desired: string): Promise<string> {
-  const base = slugify(desired) || 'construtora';
+  const base = slugify(desired) || 'empresa';
   const rows = await db.select({ slug: schema.tenants.slug }).from(schema.tenants);
   return uniqueSlug(base, rows.map((row) => row.slug));
 }

@@ -2,7 +2,7 @@
   "name": "codeca-build",
   "private": true,
   "version": "0.1.0",
-  "description": "Plataforma SaaS multiempresa para sites de construtoras e incorporadoras",
+  "description": "Plataforma SaaS multiempresa de conteudo para sites desenvolvidos sob medida",
   "type": "module",
   "packageManager": "pnpm@10.28.0",
   "engines": {

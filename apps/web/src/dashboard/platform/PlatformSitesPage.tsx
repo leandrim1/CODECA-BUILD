@@ -467,7 +467,7 @@ function AbaOrigens({ siteId }: { siteId: string }) {
       <div className="flex gap-2">
         <TextInput
           label="Endereco do site"
-          placeholder="https://construtora.com.br"
+          placeholder="https://empresa.com.br"
           value={nova}
           onChange={(e) => setNova(e.target.value)}
           className="flex-1"

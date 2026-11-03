@@ -34,7 +34,7 @@ export function LoginPage() {
       <p className="mt-1.5 text-sm text-slate-600">
         Nao tem conta?{' '}
         <Link to="/criar-conta" className="link">
-          Criar conta da construtora
+          Criar conta da empresa
         </Link>
       </p>
 

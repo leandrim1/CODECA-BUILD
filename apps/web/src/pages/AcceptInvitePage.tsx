@@ -48,7 +48,7 @@ export function AcceptInvitePage() {
     <div>
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Aceitar convite</h1>
       <p className="mt-1.5 text-sm text-slate-600">
-        Defina seu nome e sua senha para entrar no painel da construtora. Se voce ja tem conta, basta
+        Defina seu nome e sua senha para entrar no painel da empresa. Se voce ja tem conta, basta
         confirmar.
       </p>
 
