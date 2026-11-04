@@ -47,12 +47,14 @@ export function RequireTenant({ children }: { children: ReactNode }) {
           description={
             isPlatformAdmin
               ? 'Sua conta e de administrador da plataforma. Use o painel da plataforma para gerenciar as empresas.'
-              : 'Pedir ao responsável da empresa que envie um convite para o seu e-mail.'
+              : 'Cadastre a sua empresa ou peça ao responsável por ela que envie um convite para o seu e-mail.'
           }
           action={
             isPlatformAdmin ? (
               <Button onClick={() => window.location.assign('/plataforma')}>Abrir painel da plataforma</Button>
-            ) : undefined
+            ) : (
+              <Button onClick={() => window.location.assign('/criar-empresa')}>Cadastrar minha empresa</Button>
+            )
           }
         />
       </div>

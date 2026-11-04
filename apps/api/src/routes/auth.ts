@@ -1,8 +1,6 @@
-import { and, createPrimarySite, eq, isNull, schema, type Database } from '@codeca/database';
+import { and, eq, isNull, schema, type Database } from '@codeca/database';
 import {
   AppError,
-  DEFAULT_GRACE_PERIOD_DAYS,
-  TRIAL_PERIOD_DAYS,
   acceptInviteSchema,
   changePasswordSchema,
   loginSchema,
@@ -10,8 +8,6 @@ import {
   requestPasswordResetSchema,
   resendVerificationSchema,
   resetPasswordSchema,
-  slugify,
-  uniqueSlug,
   updateProfileSchema,
   verifyEmailSchema,
 } from '@codeca/shared';
@@ -19,6 +15,7 @@ import { hashPassword, verifyPassword } from '@codeca/shared/server';
 import { Hono } from 'hono';
 import { AUDIT_ACTIONS, recordAudit } from '../lib/audit.js';
 import { claimFirstPlatformAdmin } from '../lib/bootstrap.js';
+import { createCompanyForUser, loadTrialPlan, nextTenantSlug } from '../lib/company.js';
 import { clearSessionCookies, setSessionCookies } from '../lib/cookies.js';
 import { assertSameOrigin } from '../lib/csrf.js';
 import { clientIp, created, noContent, ok, parseJsonBody, userAgent } from '../lib/http.js';
@@ -26,6 +23,7 @@ import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ra
 import { createSession, resolveSession, revokeAllUserSessions, revokeSession } from '../lib/session.js';
 import { buildActionUrl, consumeUserToken, issueUserToken } from '../lib/tokens.js';
 import { requireAuth, sessionMiddleware, sessionOf } from '../middleware/auth.js';
+import { createCompanyHandler, googleAuthRoutes } from './auth-google.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -47,6 +45,10 @@ export function authRoutes() {
   const app = new Hono<AppBindings>();
   app.use('*', sessionMiddleware());
 
+  // Login com Google e cadastro da primeira empresa de quem entrou por ele.
+  app.route('/google', googleAuthRoutes());
+  app.post('/company', requireAuth(), createCompanyHandler);
+
   // ------------------------------------------------------------- cadastro
   app.post('/register', async (c) => {
     const ctx = c.get('ctx');
@@ -64,13 +66,7 @@ export function authRoutes() {
       throw AppError.conflict('Já existe uma conta com este e-mail. Faca login ou recupere a senha.');
     }
 
-    const [trialPlan] = await ctx.db
-      .select({ id: schema.plans.id })
-      .from(schema.plans)
-      .where(and(eq(schema.plans.code, 'trial'), eq(schema.plans.isActive, true)));
-    if (!trialPlan) {
-      throw AppError.internal('Nenhum plano inicial configurado. Rode o seed de planos.');
-    }
+    const trialPlan = await loadTrialPlan(ctx.db);
 
     const slug = await nextTenantSlug(ctx.db, input.companySlug ?? input.companyName);
     const passwordHash = await hashPassword(input.password);
@@ -82,60 +78,14 @@ export function authRoutes() {
         .returning({ id: schema.users.id, email: schema.users.email });
       if (!user) throw AppError.internal('Não foi possível criar a conta.');
 
-      const [tenant] = await tx
-        .insert(schema.tenants)
-        .values({
-          slug,
-          legalName: input.companyName,
-          displayName: input.companyName,
-          planId: trialPlan.id,
-          status: 'trialing',
-          contactEmail: input.email,
-          contactPhone: input.phone,
-          address: {
-            street: '',
-            number: '',
-            complement: '',
-            neighborhood: '',
-            city: '',
-            state: '',
-            postalCode: '',
-            showFullAddress: true,
-          },
-        })
-        .returning({ id: schema.tenants.id });
-      if (!tenant) throw AppError.internal('Não foi possível criar a empresa.');
-
-      await tx.insert(schema.memberships).values({
-        tenantId: tenant.id,
+      const tenant = await createCompanyForUser(tx as unknown as Database, {
         userId: user.id,
-        role: 'owner',
-        status: 'active',
-        acceptedAt: ctx.now(),
-      });
-
-      // O site e criado junto com a empresa: todo conteudo pertence a um, e a
-      // assinatura tambem. Nasce como rascunho -- quem o publica e a CODECA IA
-      // ao concluir a integracao do site desenvolvido para o cliente.
-      const site = await createPrimarySite(tx as unknown as Database, {
-        tenantId: tenant.id,
-        name: input.companyName,
-      });
-
-      // A avaliacao ja libera o acesso: `accessUntil` e o campo que a API
-      // publica consulta, e vence sozinho quando o trial acaba.
-      const trialEndsAt = new Date(ctx.now().getTime() + TRIAL_PERIOD_DAYS * 24 * 3600 * 1000);
-      await tx.insert(schema.subscriptions).values({
-        tenantId: tenant.id,
-        siteId: site.id,
-        planId: trialPlan.id,
-        status: 'trialing',
-        publicationState: 'allowed',
-        trialEndsAt,
-        accessUntil: trialEndsAt,
-        currentPeriodStart: ctx.now(),
-        currentPeriodEnd: trialEndsAt,
-        gracePeriodDays: DEFAULT_GRACE_PERIOD_DAYS,
+        contactEmail: input.email,
+        companyName: input.companyName,
+        phone: input.phone,
+        slug,
+        trialPlanId: trialPlan.id,
+        now: ctx.now(),
       });
 
       // Instalacao nova: a primeira conta assume o painel mestre. Dentro da
@@ -148,7 +98,7 @@ export function authRoutes() {
 
       return {
         userId: user.id,
-        tenantId: tenant.id,
+        tenantId: tenant.tenantId,
         email: user.email,
         becamePlatformAdmin: adminClaim.claimed,
       };
@@ -638,8 +588,17 @@ export function authRoutes() {
   return app;
 }
 
-function serializeSession(session: {
-  user: { id: string; email: string; name: string; phone: string; platformRole: string; emailVerified: boolean };
+export function serializeSession(session: {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    phone: string;
+    platformRole: string;
+    emailVerified: boolean;
+    hasPassword: boolean;
+    google: { email: string } | null;
+  };
   memberships: Array<{ tenantId: string; tenantSlug: string; tenantName: string; tenantStatus: string; role: string }>;
   expiresAt: Date;
 }) {
@@ -648,10 +607,4 @@ function serializeSession(session: {
     memberships: session.memberships,
     expiresAt: session.expiresAt.toISOString(),
   };
-}
-
-async function nextTenantSlug(db: Database, desired: string): Promise<string> {
-  const base = slugify(desired) || 'empresa';
-  const rows = await db.select({ slug: schema.tenants.slug }).from(schema.tenants);
-  return uniqueSlug(base, rows.map((row) => row.slug));
 }

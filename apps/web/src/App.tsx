@@ -15,6 +15,7 @@ import { SiteModulesProvider, useSiteModules } from './hooks/useSiteModules.js';
 import { AuthLayout } from './layouts/AuthLayout.js';
 import { DashboardLayout } from './layouts/DashboardLayout.js';
 import { PlatformLayout } from './layouts/PlatformLayout.js';
+import { CompanySetupPage } from './pages/CompanySetupPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
@@ -87,6 +88,15 @@ export function App() {
             <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
             <Route path="/confirmar-email" element={<VerifyEmailPage />} />
             <Route path="/aceitar-convite" element={<AcceptInvitePage />} />
+            {/* Primeira empresa de quem entrou pelo Google. */}
+            <Route
+              path="/criar-empresa"
+              element={
+                <RequireAuth>
+                  <CompanySetupPage />
+                </RequireAuth>
+              }
+            />
           </Route>
 
           {/* Painel da empresa */}

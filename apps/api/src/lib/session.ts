@@ -18,6 +18,10 @@ export interface SessionUser {
   phone: string;
   platformRole: PlatformRole;
   emailVerified: boolean;
+  /** Entra com e-mail e senha. Falso para quem so usa o Google. */
+  hasPassword: boolean;
+  /** Conta Google vinculada, quando houver. Nunca carrega token. */
+  google: { email: string } | null;
 }
 
 export interface SessionMembership {
@@ -91,6 +95,7 @@ export async function resolveSession(
       phone: schema.users.phone,
       platformRole: schema.users.platformRole,
       emailVerifiedAt: schema.users.emailVerifiedAt,
+      passwordHash: schema.users.passwordHash,
     })
     .from(schema.sessions)
     .innerJoin(schema.users, eq(schema.users.id, schema.sessions.userId))
@@ -103,6 +108,11 @@ export async function resolveSession(
     );
 
   if (!row) return null;
+
+  const [googleIdentity] = await db
+    .select({ email: schema.userIdentities.email })
+    .from(schema.userIdentities)
+    .where(and(eq(schema.userIdentities.userId, row.userId), eq(schema.userIdentities.provider, 'google')));
 
   const memberships = await db
     .select({
@@ -127,6 +137,8 @@ export async function resolveSession(
       phone: row.phone,
       platformRole: row.platformRole as PlatformRole,
       emailVerified: row.emailVerifiedAt !== null,
+      hasPassword: row.passwordHash !== null,
+      google: googleIdentity ? { email: googleIdentity.email } : null,
     },
     memberships: memberships.map((m) => ({
       tenantId: m.tenantId,

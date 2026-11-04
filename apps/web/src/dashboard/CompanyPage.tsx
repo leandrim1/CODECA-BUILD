@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Save } from 'lucide-react';
 import {
   BRAZIL_STATES,
@@ -22,8 +23,10 @@ import {
   TextInput,
   useToast,
 } from '@codeca/ui';
+import { GoogleIcon, GoogleResultAlert, useGoogleResult } from '../components/GoogleAuth.js';
 import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useMutation, useResource } from '../hooks/useResource.js';
+import { ApiError } from '../services/api.js';
 import { authApi, tenantApi } from '../services/endpoints.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { useForm } from '../utils/forms.js';
@@ -34,7 +37,9 @@ export function CompanyPage() {
   const toast = useToast();
   const { can, user, refresh } = useAuth();
   const readOnly = !can('tenant:update');
-  const [tab, setTab] = useState('empresa');
+  // O retorno do Google (vincular conta) chega com ?google=<resultado> e abre direto a conta.
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.has('google') ? 'conta' : 'empresa');
 
   const tenant = useResource('tenantApi.detail', () => tenantApi.detail(tenantId), [tenantId]);
 
@@ -413,6 +418,109 @@ export function CompanyPage() {
   );
 }
 
+/**
+ * Vincular ou desvincular a conta Google.
+ *
+ * Vincular exige a senha de novo: quem so tem a sessao aberta (um computador
+ * emprestado, uma sessao roubada) nao pode, sozinho, prender a conta a um
+ * Google que e dele. Desvincular tambem, e so existe para quem tem senha -- sem
+ * ela a conta ficaria sem nenhuma forma de entrar.
+ */
+function GoogleAccountCard({ onChanged }: { onChanged: () => void }) {
+  const toast = useToast();
+  const { user, features } = useAuth();
+  const result = useGoogleResult();
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Vinculou: o retorno do Google trouxe a pagina de novo; confere a sessao.
+  useEffect(() => {
+    if (result.code === 'linked') onChanged();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result.code]);
+
+  if (!user) return null;
+  const linked = user.google;
+  if (!linked && !features.googleAuth) return null;
+
+  const link = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { authorizationUrl } = await authApi.googleStart({ intent: 'link', password });
+      window.location.assign(authorizationUrl);
+    } catch (caught) {
+      setBusy(false);
+      setError(caught instanceof ApiError ? (caught.fieldErrors.password ?? caught.message) : 'Não foi possível iniciar.');
+    }
+  };
+
+  const unlink = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await authApi.googleUnlink(password);
+      toast.success('Google desvinculado', 'Você continua entrando com e-mail e senha.');
+      setPassword('');
+      onChanged();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? (caught.fieldErrors.password ?? caught.message) : 'Não foi possível desvincular.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader
+        title="Entrar com Google"
+        description={
+          linked
+            ? `Conta Google vinculada: ${linked.email}`
+            : 'Vincule uma conta Google para entrar sem digitar a senha.'
+        }
+      />
+      <CardBody className="grid gap-4">
+        <GoogleResultAlert code={result.code} onDismiss={result.dismiss} />
+        {user.hasPassword ? (
+          <>
+            <TextInput
+              label="Sua senha"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              error={error ?? undefined}
+              hint="Pedimos a senha para confirmar que a conta é sua."
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            {linked ? (
+              <Button variant="outline" loading={busy} disabled={!password} onClick={() => void unlink()}>
+                Desvincular o Google
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                loading={busy}
+                disabled={!password}
+                icon={<GoogleIcon />}
+                onClick={() => void link()}
+              >
+                Vincular conta Google
+              </Button>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-slate-600">
+            Esta conta entra só pelo Google. Para também poder entrar com e-mail e senha, use{' '}
+            <strong>Esqueci minha senha</strong> na tela de entrada e defina uma senha.
+          </p>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
 /** Dados do usuario autenticado e troca de senha. */
 function AccountSection({ email, onSaved }: { email: string; onSaved: () => void }) {
   const toast = useToast();
@@ -501,6 +609,8 @@ function AccountSection({ email, onSaved }: { email: string; onSaved: () => void
           </Button>
         </CardBody>
       </Card>
+
+      <GoogleAccountCard onChanged={onSaved} />
 
       <Card>
         <CardHeader

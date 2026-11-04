@@ -19,6 +19,9 @@ export interface RateLimitRule {
 export const RATE_LIMITS = {
   login: { action: 'login', limit: 10, windowSeconds: 300 },
   register: { action: 'register', limit: 5, windowSeconds: 3600 },
+  /** Inicio e retorno do login com Google, por IP. */
+  oauthStart: { action: 'oauth_start', limit: 20, windowSeconds: 300 },
+  oauthCallback: { action: 'oauth_callback', limit: 30, windowSeconds: 300 },
   passwordReset: { action: 'password_reset', limit: 5, windowSeconds: 3600 },
   emailVerification: { action: 'email_verification', limit: 5, windowSeconds: 3600 },
   publicLead: { action: 'public_lead', limit: 5, windowSeconds: 600 },

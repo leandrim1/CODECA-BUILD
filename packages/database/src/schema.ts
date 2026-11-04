@@ -540,6 +540,77 @@ export const memberships = pgTable(
   ],
 );
 
+/**
+ * Identidades externas: um login por provedor (Google) ligado a um usuario.
+ *
+ * A identidade INTERNA do usuario continua sendo `users.id`. Esta tabela so diz
+ * "este usuario tambem entra por este provedor". Um usuario pode ter senha,
+ * Google, ou os dois.
+ *
+ * ## Por que a chave e `sub`, e nao o e-mail
+ *
+ * O e-mail de uma conta Google pode mudar e ser reaproveitado; o `sub` e o
+ * identificador estavel do provedor. Procurar por e-mail para decidir "quem e
+ * este" permitiria que outra pessoa, ao assumir um endereco antigo, entrasse na
+ * conta de alguem. O e-mail aqui e so informativo.
+ *
+ * ## Dois indices unicos, dois riscos
+ *
+ * - `(provider, provider_subject)`: uma conta Google pertence a UM usuario. Sem
+ *   isso, a mesma conta Google abriria duas contas da plataforma.
+ * - `(user_id, provider)`: um usuario tem UMA conta Google. Sem isso, trocar de
+ *   Google deixaria o vinculo antigo ativo.
+ */
+export const userIdentities = pgTable(
+  'user_identities',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    provider: text('provider').notNull(),
+    providerSubject: text('provider_subject').notNull(),
+    /** Informativo: o e-mail que o provedor informou na ultima entrada. */
+    email: text('email').notNull().default(''),
+    emailVerified: boolean('email_verified').notNull().default(false),
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex('user_identities_provider_subject_key').on(table.provider, table.providerSubject),
+    uniqueIndex('user_identities_user_provider_key').on(table.userId, table.provider),
+  ],
+);
+
+/**
+ * Tentativas de login por provedor em andamento (`state` do OAuth).
+ *
+ * Guarda so o HASH do `state`: quem lesse o banco nao conseguiria completar o
+ * fluxo de ninguem. Uso unico (`consumed_at`) e validade curta (`expires_at`).
+ * `user_id` so existe quando a intencao e vincular uma conta a quem ja esta
+ * logado, e amarra o fluxo a essa pessoa.
+ */
+export const oauthStates = pgTable(
+  'oauth_states',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    stateHash: text('state_hash').notNull(),
+    provider: text('provider').notNull(),
+    /** `continue` (entrar ou cadastrar) ou `link` (vincular a conta logada). */
+    intent: text('intent').notNull(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    /** Destino depois de entrar; ja validado como caminho interno. */
+    nextPath: text('next_path').notNull().default(''),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex('oauth_states_hash_key').on(table.stateHash),
+    index('oauth_states_expires_idx').on(table.expiresAt),
+  ],
+);
+
 export const sessions = pgTable(
   'sessions',
   {

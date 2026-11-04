@@ -77,6 +77,16 @@ export const authApi = {
   login: (body: unknown) =>
     api.post<{ session: SessionPayload | null; csrfToken: string }>('/api/auth/login', body),
   logout: () => api.post<void>('/api/auth/logout'),
+  /**
+   * Login com Google. O servidor monta a URL (state, PKCE, nonce); o navegador
+   * so segue para ela. Nenhum token do Google passa por aqui.
+   */
+  googleStart: (body: { intent: 'continue'; next?: string } | { intent: 'link'; password: string }) =>
+    api.post<{ authorizationUrl: string }>('/api/auth/google/start', body),
+  googleUnlink: (password: string) => api.post<void>('/api/auth/google/unlink', { password }),
+  /** Primeira empresa de quem entrou pelo Google. */
+  createCompany: (body: { companyName: string; phone: string; acceptedTerms: boolean }) =>
+    api.post<{ tenantId: string; session: SessionPayload | null }>('/api/auth/company', body),
   verifyEmail: (token: string) => api.post<{ verified: boolean }>('/api/auth/verify-email', { token }),
   resendVerification: (email: string) => api.post<{ sent: boolean }>('/api/auth/resend-verification', { email }),
   forgotPassword: (email: string) => api.post<{ sent: boolean }>('/api/auth/forgot-password', { email }),

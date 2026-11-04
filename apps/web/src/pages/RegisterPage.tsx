@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Alert, Button, Checkbox, TextInput, useToast } from '@codeca/ui';
 import { slugify } from '@codeca/shared';
+import { GoogleResultAlert, GoogleSignIn, useGoogleResult } from '../components/GoogleAuth.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useMutation } from '../hooks/useResource.js';
 import { authApi } from '../services/endpoints.js';
@@ -12,6 +13,7 @@ export function RegisterPage() {
   const toast = useToast();
   const { applySession, refresh } = useAuth();
   const [generalError, setGeneralError] = useState<string | null>(null);
+  const google = useGoogleResult();
 
   const { values, errors, setField, applyApiError } = useForm({
     name: '',
@@ -55,8 +57,18 @@ export function RegisterPage() {
         </Link>
       </p>
 
+      <div className="mt-8 grid gap-4">
+        <GoogleResultAlert code={google.code} onDismiss={google.dismiss} />
+        <GoogleSignIn onError={(message) => setGeneralError(message)} />
+        <p className="-mt-1 text-xs text-slate-500">
+          Ao continuar com o Google você cadastra a empresa no passo seguinte e aceita os{' '}
+          <Link to="/termos" className="link">termos de uso</Link> e a{' '}
+          <Link to="/privacidade" className="link">política de privacidade</Link>.
+        </p>
+      </div>
+
       <form
-        className="mt-8 grid gap-4"
+        className="mt-4 grid gap-4"
         onSubmit={(event) => {
           event.preventDefault();
           setGeneralError(null);
@@ -117,7 +129,13 @@ export function RegisterPage() {
         />
 
         <Checkbox
-          label="Aceito os termos de uso e a política de privacidade"
+          label={
+            <>
+              Aceito os{' '}
+              <Link to="/termos" className="link" target="_blank" rel="noreferrer">termos de uso</Link> e a{' '}
+              <Link to="/privacidade" className="link" target="_blank" rel="noreferrer">política de privacidade</Link>
+            </>
+          }
           checked={values.acceptedTerms}
           onChange={(checked) => setField('acceptedTerms', checked)}
         />

@@ -47,6 +47,10 @@ export interface SessionUser {
   phone: string;
   platformRole: PlatformRole;
   emailVerified: boolean;
+  /** Entra com e-mail e senha. Falso para quem so usa o Google. */
+  hasPassword: boolean;
+  /** Conta Google vinculada, quando houver. */
+  google: { email: string } | null;
 }
 
 export interface SessionMembership {
@@ -67,6 +71,8 @@ export interface FeatureFlags {
   blobStorage: boolean;
   vercelDomains: boolean;
   transactionalEmail: boolean;
+  /** Login com Google configurado no servidor. */
+  googleAuth: boolean;
 }
 
 export interface SessionResponse {

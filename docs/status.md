@@ -41,6 +41,7 @@ Legenda:
 | Isolamento entre empresas | Pronto | `tests/integration/isolation.test.ts` troca IDs e espera 404 |
 | Acesso de suporte explicito, temporario e auditado | Pronto | `support_access_grants`, somente leitura |
 | Autenticacao em dois fatores | Nao implementado | — |
+| Login com Google ("Continuar com Google") | Pronto, depende de credencial | OAuth 2.0 com PKCE, `state` amarrado ao navegador e `id_token` validado no servidor (RS256, emissor, audiencia, expiracao, nonce). Usuario novo cria so a conta e cadastra a empresa pelo fluxo normal; **e-mail ja cadastrado nunca e vinculado so por ser igual** -- vincular exige a senha. Ver [google-oauth.md](google-oauth.md) |
 
 ## Página inicial
 

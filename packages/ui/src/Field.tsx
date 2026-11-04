@@ -163,7 +163,8 @@ export function Checkbox({
   onChange,
   disabled,
 }: {
-  label: string;
+  /** `ReactNode`: o rotulo de aceite de termos leva links. */
+  label: ReactNode;
   hint?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;

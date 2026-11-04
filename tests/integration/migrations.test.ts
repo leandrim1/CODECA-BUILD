@@ -56,6 +56,7 @@ const HOSPEDAGEM = '0016_projeto_de_hospedagem_por_site.sql';
 const DOMINIOS_SEM_HOSPEDAGEM = '0017_dominios_sem_hospedagem.sql';
 const LIMITE_GERAL = '0018_limite_geral_de_conteudos.sql';
 const ACENTOS = '0019_acentos_nos_textos_de_fabrica.sql';
+const LOGIN_EXTERNO = '0020_login_com_provedores_externos.sql';
 const REMOVIDAS = ['pages', 'page_versions', 'navigation_menus', 'redirects', 'site_settings'];
 
 /**
@@ -1072,6 +1073,111 @@ describe('acentos nos textos de fabrica', () => {
       await banco.aplicar();
       await banco.aplicar();
       expect(await planoDe(banco.db, 'trial')).toBe('Avaliação');
+    } finally {
+      await banco.close();
+    }
+  });
+});
+
+describe('login com provedores externos', () => {
+  async function bancoComUsuarios() {
+    const banco = await bancoAntesDe(LOGIN_EXTERNO);
+    await seedDatabase(banco.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' } });
+    return banco;
+  }
+
+  const usuarios = (db: Database) =>
+    db
+      .select({ id: schema.users.id, email: schema.users.email, hash: schema.users.passwordHash })
+      .from(schema.users);
+
+  it('so acrescenta: nenhum usuario, senha ou vinculo existente e tocado', async () => {
+    const banco = await bancoComUsuarios();
+    try {
+      const antes = await usuarios(banco.db);
+      const vinculosAntes = await banco.db.select().from(schema.memberships);
+      expect(antes.length).toBeGreaterThan(0);
+
+      await banco.aplicar();
+
+      expect(await usuarios(banco.db)).toEqual(antes);
+      expect(await banco.db.select().from(schema.memberships)).toEqual(vinculosAntes);
+      expect(await banco.db.select().from(schema.userIdentities)).toHaveLength(0);
+      expect(await banco.db.select().from(schema.oauthStates)).toHaveLength(0);
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('uma conta Google pertence a um usuario so, e um usuario tem uma conta Google so', async () => {
+    const banco = await bancoComUsuarios();
+    try {
+      await banco.aplicar();
+      const [a] = await usuarios(banco.db);
+      const [b] = await banco.db
+        .insert(schema.users)
+        .values({ email: 'outro@x.com.br', name: 'Outro', passwordHash: null })
+        .returning({ id: schema.users.id });
+      const identidade = (userId: string, sub: string) =>
+        banco.db.insert(schema.userIdentities).values({ userId, provider: 'google', providerSubject: sub });
+
+      await identidade(a!.id, 'sub-1');
+      // Mesma conta Google em outro usuario: recusado pelo banco.
+      await expect(identidade(b!.id, 'sub-1')).rejects.toThrow();
+      // Segunda conta Google para o mesmo usuario: recusado pelo banco.
+      await expect(identidade(a!.id, 'sub-2')).rejects.toThrow();
+      // Outro provedor para o mesmo usuario seria permitido (um por provedor).
+      await banco.db.insert(schema.userIdentities).values({ userId: a!.id, provider: 'outro', providerSubject: 'sub-1' });
+      expect(await banco.db.select().from(schema.userIdentities)).toHaveLength(2);
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('apagar o usuario apaga os vinculos e os estados do fluxo dele, sem deixar orfao', async () => {
+    const banco = await bancoComUsuarios();
+    try {
+      await banco.aplicar();
+      const [usuario] = await banco.db
+        .insert(schema.users)
+        .values({ email: 'google@x.com.br', name: 'G', passwordHash: null })
+        .returning({ id: schema.users.id });
+      await banco.db.insert(schema.userIdentities).values({ userId: usuario!.id, provider: 'google', providerSubject: 'sub-z' });
+      await banco.db.insert(schema.oauthStates).values({
+        stateHash: 'hash-1',
+        provider: 'google',
+        intent: 'link',
+        userId: usuario!.id,
+        expiresAt: new Date(Date.now() + 600_000),
+      });
+
+      await banco.db.delete(schema.users).where(eq(schema.users.id, usuario!.id));
+
+      expect(await banco.db.select().from(schema.userIdentities)).toHaveLength(0);
+      expect(await banco.db.select().from(schema.oauthStates)).toHaveLength(0);
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('o state e unico (nao se registra o mesmo duas vezes)', async () => {
+    const banco = await bancoComUsuarios();
+    try {
+      await banco.aplicar();
+      const linha = { stateHash: 'mesmo', provider: 'google', intent: 'continue', expiresAt: new Date(Date.now() + 600_000) };
+      await banco.db.insert(schema.oauthStates).values(linha);
+      await expect(banco.db.insert(schema.oauthStates).values(linha)).rejects.toThrow();
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('e segura de reaplicar', async () => {
+    const banco = await bancoComUsuarios();
+    try {
+      await banco.aplicar();
+      await banco.aplicar();
+      expect(await banco.db.select().from(schema.userIdentities)).toHaveLength(0);
     } finally {
       await banco.close();
     }

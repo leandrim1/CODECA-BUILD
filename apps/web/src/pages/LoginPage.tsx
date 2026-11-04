@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Alert, Button, Checkbox, TextInput, useToast } from '@codeca/ui';
+import { GoogleResultAlert, GoogleSignIn, useGoogleResult } from '../components/GoogleAuth.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useMutation } from '../hooks/useResource.js';
 import { authApi } from '../services/endpoints.js';
@@ -13,12 +14,13 @@ export function LoginPage() {
   const { applySession, refresh } = useAuth();
   const { values, errors, setField, applyApiError } = useForm({ email: '', password: '', rememberMe: false });
   const [generalError, setGeneralError] = useState<string | null>(null);
+  const google = useGoogleResult();
+  const from = (location.state as { from?: string } | null)?.from;
 
   const login = useMutation(authApi.login, {
     onSuccess: async (result) => {
       applySession(result.session);
       await refresh();
-      const from = (location.state as { from?: string } | null)?.from;
       navigate(from && from.startsWith('/painel') ? from : '/painel', { replace: true });
     },
     onError: (error) => {
@@ -38,8 +40,16 @@ export function LoginPage() {
         </Link>
       </p>
 
+      <div className="mt-8 grid gap-4">
+        <GoogleResultAlert code={google.code} onDismiss={google.dismiss} />
+        <GoogleSignIn
+          {...(from && from.startsWith('/painel') ? { next: from } : {})}
+          onError={(message) => setGeneralError(message)}
+        />
+      </div>
+
       <form
-        className="mt-8 grid gap-4"
+        className="mt-4 grid gap-4"
         onSubmit={(event) => {
           event.preventDefault();
           setGeneralError(null);

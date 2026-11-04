@@ -29,6 +29,8 @@ export interface TestApiOptions {
   now?: () => Date;
   /** Variaveis de ambiente acrescentadas ou sobrescritas neste cenario. */
   env?: Record<string, string>;
+  /** Cliente HTTP da API (por exemplo, um Google falso). */
+  fetch?: typeof globalThis.fetch;
 }
 
 /** Uma requisicao que a plataforma enviou ao site do cliente. */
@@ -128,7 +130,8 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     blob,
     domains: options.domains ?? createUnconfiguredDomainProvider(),
     billing,
-    fetch: webhooks.fetch,
+    // Webhooks de saida por padrao; o teste do login com Google injeta o seu.
+    fetch: options.fetch ?? webhooks.fetch,
     ...(options.now ? { now: options.now } : {}),
   });
 

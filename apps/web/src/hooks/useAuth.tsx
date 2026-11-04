@@ -49,6 +49,7 @@ const DEFAULT_FEATURES: FeatureFlags = {
   blobStorage: false,
   vercelDomains: false,
   transactionalEmail: false,
+  googleAuth: false,
 };
 
 function readStoredTenant(): string | null {

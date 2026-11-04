@@ -76,6 +76,20 @@ export const envSchema = z.object({
   /** Tolerancia do timestamp do webhook, em segundos. */
   VALIDAPAY_WEBHOOK_TOLERANCE_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
 
+  /**
+   * Login com Google (OAuth 2.0, fluxo de codigo com PKCE).
+   *
+   * O segredo fica so no servidor: o navegador nunca o ve. Sem o par
+   * ID + segredo o botao "Continuar com Google" nao aparece e a rota recusa.
+   */
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  /**
+   * URL de retorno cadastrada no Google. Opcional: sem ela vale
+   * `<APP_URL>/api/auth/google/callback`, que e a rota real da API.
+   */
+  GOOGLE_REDIRECT_URI: z.string().optional(),
+
   /** Segredo exigido pelo job de reconciliacao. */
   BILLING_RECONCILIATION_SECRET: z.string().optional(),
   /** Dias de tolerancia entre o vencimento e a suspensao do site. */
@@ -121,6 +135,8 @@ export interface FeatureFlags {
   billingWebhooks: boolean;
   /** Job de reconciliacao habilitado. */
   billingReconciliation: boolean;
+  /** Login com Google configurado (ID e segredo presentes). */
+  googleAuth: boolean;
 }
 
 export function featureFlags(env: Env): FeatureFlags {
@@ -131,7 +147,21 @@ export function featureFlags(env: Env): FeatureFlags {
     billing: Boolean(env.VALIDAPAY_CLIENT_ID && env.VALIDAPAY_CLIENT_SECRET),
     billingWebhooks: Boolean(env.VALIDAPAY_WEBHOOK_SECRET),
     billingReconciliation: Boolean(env.BILLING_RECONCILIATION_SECRET),
+    googleAuth: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
   };
+}
+
+/**
+ * URL de retorno do login com Google.
+ *
+ * Tem que ser IGUAL, caractere por caractere, a uma das cadastradas no Google
+ * Cloud: o Google recusa qualquer diferenca (inclusive barra no fim e http x
+ * https).
+ */
+export function googleRedirectUri(env: Env): string {
+  const explicit = env.GOOGLE_REDIRECT_URI?.trim();
+  if (explicit) return explicit;
+  return `${env.APP_URL.replace(/\/$/, '')}/api/auth/google/callback`;
 }
 
 export function isProduction(env: Env): boolean {
