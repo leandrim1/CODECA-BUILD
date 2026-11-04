@@ -20,6 +20,7 @@ export interface HousekeepingReport {
   loginCodes: number;
   userTokens: number;
   oauthStates: number;
+  analyticsStates: number;
 }
 
 export async function pruneExpiredRecords(db: Database, now = new Date()): Promise<HousekeepingReport> {
@@ -46,11 +47,17 @@ export async function pruneExpiredRecords(db: Database, now = new Date()): Promi
     .where(lt(schema.oauthStates.expiresAt, ago(DAY)))
     .returning({ id: schema.oauthStates.expiresAt });
 
+  const analyticsStates = await db
+    .delete(schema.analyticsOauthStates)
+    .where(lt(schema.analyticsOauthStates.expiresAt, ago(DAY)))
+    .returning({ id: schema.analyticsOauthStates.id });
+
   return {
     rateLimits: rateLimits.length,
     sessions: sessions.length,
     loginCodes: loginCodes.length,
     userTokens: userTokens.length,
     oauthStates: oauthStates.length,
+    analyticsStates: analyticsStates.length,
   };
 }

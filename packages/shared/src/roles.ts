@@ -42,6 +42,8 @@ export const TENANT_CAPABILITIES = [
   'domains:manage',
   'seo:read',
   'seo:write',
+  'analytics:read',
+  'analytics:manage',
   'billing:read',
   'billing:manage',
   'audit:read',
@@ -86,6 +88,7 @@ const ADMIN: TenantCapability[] = [
   'members:remove',
   'leads:delete',
   'domains:manage',
+  'analytics:manage',
 ];
 
 const OWNER: TenantCapability[] = [...ADMIN, 'tenant:delete', 'billing:manage'];

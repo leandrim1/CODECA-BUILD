@@ -110,6 +110,7 @@ Opcionais; cada uma desliga um recurso de forma explicita quando ausente:
 | `BLOB_READ_WRITE_TOKEN` | A biblioteca de imagens informa que o envio esta indisponivel |
 | `VERCEL_API_TOKEN` (+ `VERCEL_TEAM_ID`) | Dominios **gerenciados** ficam aguardando configuracao externa e nunca sao marcados como ativos. O projeto e de cada site, no painel mestre -- `VERCEL_PROJECT_ID` nao existe mais |
 | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` (+ `GOOGLE_REDIRECT_URI`) | O botao "Continuar com Google" some e `POST /api/auth/google/start` responde 501. Passo a passo em [google-oauth.md](google-oauth.md) |
+| `INTEGRATIONS_ENCRYPTION_KEY` (com as credenciais Google) | A integracao com o Google Analytics fica desligada (`features.googleAnalytics: false`) e `connect/start` responde 501. Nunca se grava token sem cifra. Passo a passo em [google-analytics.md](google-analytics.md) |
 | `RESEND_API_KEY` + `MAIL_FROM` | Confirmacao, redefinicao de senha e convites vao para o log do servidor, **e o codigo de verificacao por e-mail (2a etapa do login) fica desligado**: a senha entra direto. Com `LOGIN_CODE_REQUIRED=true` ninguem entra sem ele. Ver [login-por-codigo.md](login-por-codigo.md) |
 | `LOGIN_CODE_REQUIRED` | Padrao `false`. Em producao use `true`: sem o provedor de e-mail o login recusa (501) em vez de entrar sem a 2a etapa |
 | `VALIDAPAY_CLIENT_ID` + `VALIDAPAY_CLIENT_SECRET` (+ `VALIDAPAY_BASE_URL`) | A contratacao de planos e recusada com mensagem explicita |

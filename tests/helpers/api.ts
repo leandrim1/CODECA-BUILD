@@ -199,6 +199,14 @@ export class TestClient {
     this.cookies.set(name, value);
   }
 
+  getCookie(name: string): string | null {
+    return this.cookies.get(name) ?? null;
+  }
+
+  deleteCookie(name: string): void {
+    this.cookies.delete(name);
+  }
+
   clearCookies(): void {
     this.cookies.clear();
   }

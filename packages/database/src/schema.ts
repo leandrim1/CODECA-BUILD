@@ -1968,3 +1968,86 @@ export type TeamMemberRow = typeof teamMembers.$inferSelect;
 export type FaqRow = typeof faqs.$inferSelect;
 export type LeadRow = typeof leads.$inferSelect;
 export type LeadNoteRow = typeof leadNotes.$inferSelect;
+
+/**
+ * Conexao de um site com uma propriedade do Google Analytics 4.
+ *
+ * Independente do login com Google: tabela, `state`, escopo e callback proprios.
+ * Uma conexao por site (indice unico em `site_id`), e o par `(site, empresa)` e
+ * conferido pelo banco como em toda tabela de site.
+ *
+ * `refresh_token_enc` e o token de renovacao **cifrado** (AES-256-GCM, com
+ * empresa e site como dado autenticado): quem lesse o banco nao teria o token, e
+ * uma linha copiada para outra empresa nao decifraria. O token de acesso nunca
+ * e gravado: vive so em memoria, por no maximo ~45 min.
+ *
+ * `status`: `pending_property` (autorizado, falta escolher a propriedade),
+ * `active`, `needs_reconnect` (o Google recusou a renovacao: acesso revogado).
+ */
+export const analyticsConnections = pgTable(
+  'analytics_connections',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    status: text('status').notNull().default('pending_property'),
+    refreshTokenEnc: text('refresh_token_enc').notNull(),
+    /** Escopos que o Google de fato concedeu (informativo). */
+    scope: text('scope').notNull().default(''),
+    /** Identificador numerico da propriedade GA4 (sem o prefixo `properties/`). */
+    propertyId: text('property_id'),
+    propertyName: text('property_name').notNull().default(''),
+    accountName: text('account_name').notNull().default(''),
+    connectedByUserId: uuid('connected_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    connectedAt: timestamp('connected_at', { withTimezone: true }).notNull().defaultNow(),
+    lastRefreshAt: timestamp('last_refresh_at', { withTimezone: true }),
+    /** Motivo da ultima falha, sem corpo de resposta alheia e sem token. */
+    lastError: text('last_error').notNull().default(''),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('analytics_connections_site_key').on(table.siteId),
+    index('analytics_connections_tenant_idx').on(table.tenantId),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'analytics_connections_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
+/**
+ * `state` do OAuth do Analytics: o que impede um retorno forjado de conectar
+ * uma conta a uma empresa. Mesmas garantias do login (hash, uso unico, 10 min),
+ * em tabela propria, e amarrado a empresa, site e usuario que clicaram em
+ * "Conectar" -- o callback nunca confia em empresa vinda da URL.
+ */
+export const analyticsOauthStates = pgTable(
+  'analytics_oauth_states',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    stateHash: text('state_hash').notNull(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex('analytics_oauth_states_hash_key').on(table.stateHash),
+    index('analytics_oauth_states_expires_idx').on(table.expiresAt),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'analytics_oauth_states_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);

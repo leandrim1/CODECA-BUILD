@@ -1,5 +1,5 @@
 import { getDatabase, setSlowQueryThreshold, type Database } from '@codeca/database';
-import { authCacheTtl, featureFlags, parseEnv, publicCacheTtl, type Env, type FeatureFlags } from './env.js';
+import { analyticsCacheTtl, authCacheTtl, featureFlags, parseEnv, publicCacheTtl, type Env, type FeatureFlags } from './env.js';
 import { createCaches, type Caches } from './lib/caches.js';
 import { createBlobStorage, type BlobStorage } from './lib/blob.js';
 import { createDomainProvider, type DomainProvider } from './lib/vercel-domains.js';
@@ -55,7 +55,11 @@ export function createContext(options: CreateContextOptions = {}): AppContext {
     env,
     features: featureFlags(env),
     caches: createCaches(
-      { authTtlSeconds: authCacheTtl(env), publicTtlSeconds: publicCacheTtl(env) },
+      {
+        authTtlSeconds: authCacheTtl(env),
+        publicTtlSeconds: publicCacheTtl(env),
+        analyticsTtlSeconds: analyticsCacheTtl(env),
+      },
       () => now().getTime(),
     ),
     db: options.db ?? getDatabase(env.DATABASE_URL, { poolMax: env.DB_POOL_MAX }),

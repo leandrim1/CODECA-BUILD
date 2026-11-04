@@ -310,6 +310,7 @@ Limites conhecidos da suite, para nao haver ilusao de cobertura:
 | Protecao contra sobrecarga | Pronto, desligada por padrao | `MAX_CONCURRENT_REQUESTS`; 503 + `Retry-After`; so ligar com valor medido |
 | Banco fora do ar | Pronto | 503 + `Retry-After` (nao 500); repeticao so do que nao chegou ao banco; disjuntor no Resend |
 | Metricas e logs estruturados | Pronto | `GET /api/metrics` (com `METRICS_SECRET`); logs JSON `slow_query`, `slow_request`, `request_error`, `db_unavailable` |
+| Estatisticas do site (Google Analytics 4) | Pronto, nao exercitado com o Google real | cada cliente conecta a propria propriedade GA4; fluxo OAuth independente do login, token cifrado (AES-256-GCM), isolamento por empresa/site. Depende de `INTEGRATIONS_ENCRYPTION_KEY` e de ativar as APIs no Google Cloud; `analytics.readonly` e escopo sensivel. Ver [google-analytics.md](google-analytics.md) |
 | Limpeza de registros vencidos | Pronto | sessoes, contadores, codigos e tokens, no job diario |
 | Upload direto ao Blob (sem passar pela funcao) | Nao implementado | a imagem e reduzida/convertida para WebP no navegador; limite de 4 MB por arquivo |
 | Bloqueio otimista de edicao | Nao implementado | dois usuarios no mesmo registro: o ultimo a salvar vence |

@@ -59,6 +59,12 @@ export const AUDIT_ACTIONS = {
   leadUpdated: 'lead.updated',
   leadDeleted: 'lead.deleted',
   leadNoteAdded: 'lead.note_added',
+  /** Google Analytics: nunca registra token, so propriedade e acao. */
+  analyticsConnected: 'analytics.connected',
+  analyticsPropertySelected: 'analytics.property_selected',
+  analyticsDisconnected: 'analytics.disconnected',
+  analyticsNeedsReconnect: 'analytics.needs_reconnect',
+  analyticsBlocked: 'analytics.connect_blocked',
   planCreated: 'platform.plan_created',
   planUpdated: 'platform.plan_updated',
   /**

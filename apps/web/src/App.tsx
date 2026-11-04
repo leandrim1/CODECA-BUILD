@@ -54,6 +54,7 @@ const TestimonialsPage = lazyRoute(['/painel/depoimentos'], () => import('./dash
 const SiteTeamPage = lazyRoute(['/painel/equipe'], () => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.SiteTeamPage })));
 const FaqPage = lazyRoute(['/painel/perguntas'], () => import('./dashboard/SiteContentPages.js').then((m) => ({ default: m.FaqPage })));
 const LeadsPage = lazyRoute(['/painel/interessados'], () => import('./dashboard/LeadsPage.js').then((m) => ({ default: m.LeadsPage })));
+const AnalyticsPage = lazyRoute(['/painel/estatisticas'], () => import('./dashboard/AnalyticsPage.js').then((m) => ({ default: m.AnalyticsPage })));
 const DomainsPage = lazyRoute(['/painel/dominio'], () => import('./dashboard/DomainsPage.js').then((m) => ({ default: m.DomainsPage })));
 const UsersPage = lazyRoute(['/painel/usuarios'], () => import('./dashboard/UsersPage.js').then((m) => ({ default: m.UsersPage })));
 const BillingPage = lazyRoute(['/painel/plano'], () => import('./dashboard/BillingPage.js').then((m) => ({ default: m.BillingPage })));
@@ -221,6 +222,7 @@ export function App() {
               }
             />
             <Route path="interessados" element={<LeadsPage />} />
+            <Route path="estatisticas" element={<AnalyticsPage />} />
             <Route path="dominio" element={<DomainsPage />} />
             {/* Gestao de acessos ao painel, nao a equipe exibida no site. */}
             <Route path="usuarios" element={<UsersPage />} />

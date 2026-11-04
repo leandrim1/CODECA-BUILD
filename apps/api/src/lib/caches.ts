@@ -55,6 +55,10 @@ export interface Caches {
   billing: TtlCache<SiteBillingSituation & { tenantId: string }>;
   apiKey: TtlCache<CachedApiKey>;
   publicResponse: TtlCache<CachedPublicResponse>;
+  /** Token de acesso do Google Analytics (so em memoria, nunca no banco). */
+  analyticsToken: TtlCache<string>;
+  /** Relatorios do Analytics, por conexao+propriedade+periodo. */
+  analyticsReport: TtlCache<unknown>;
   /** Contadores da janela do limite da API publica (por chave, nesta instancia). */
   publicRate: Map<string, { count: number; resetAt: number }>;
   readonly enabled: boolean;
@@ -66,7 +70,7 @@ export interface Caches {
 }
 
 export function createCaches(
-  options: { authTtlSeconds: number; publicTtlSeconds: number },
+  options: { authTtlSeconds: number; publicTtlSeconds: number; analyticsTtlSeconds?: number },
   now: () => number = () => Date.now(),
 ): Caches {
   const auth = options.authTtlSeconds * 1000;
@@ -78,6 +82,10 @@ export function createCaches(
   const billing = new TtlCache<SiteBillingSituation & { tenantId: string }>(auth, 5_000, now);
   const apiKey = new TtlCache<CachedApiKey>(auth, 5_000, now);
   const publicResponse = new TtlCache<CachedPublicResponse>(pub, 2_000, now);
+  const analyticsReport = new TtlCache<unknown>((options.analyticsTtlSeconds ?? 0) * 1000, 500, now);
+  // Token de acesso do Google dura ~1 h; 45 min deixa folga. Segue o cache de
+  // autenticacao: desligado (0) em teste, o token e renovado a cada uso.
+  const analyticsToken = new TtlCache<string>(auth > 0 ? 45 * 60_000 : 0, 5_000, now);
   const publicRate = new Map<string, { count: number; resetAt: number }>();
 
   const caches: Caches = {
@@ -87,6 +95,8 @@ export function createCaches(
     billing,
     apiKey,
     publicResponse,
+    analyticsToken,
+    analyticsReport,
     publicRate,
     enabled: auth > 0 || pub > 0,
 
@@ -96,6 +106,7 @@ export function createCaches(
       if (siteId) billing.delete(siteId);
       else billing.deleteWhere((_k, v) => v.tenantId === tenantId);
       publicResponse.deleteWhere((_k, v) => v.tenantId === tenantId);
+      analyticsReport.deleteWhere((key) => key.startsWith(`${tenantId}:`));
     },
 
     invalidateUser(userId) {
@@ -108,7 +119,7 @@ export function createCaches(
     },
 
     invalidateAll() {
-      for (const c of [session, tenant, plan, billing, apiKey, publicResponse]) c.clear();
+      for (const c of [session, tenant, plan, billing, apiKey, publicResponse, analyticsToken, analyticsReport]) c.clear();
       publicRate.clear();
     },
 
@@ -121,6 +132,7 @@ export function createCaches(
         billing: read(billing),
         apiKey: read(apiKey),
         publicResponse: read(publicResponse),
+        analyticsReport: read(analyticsReport),
       };
     },
   };

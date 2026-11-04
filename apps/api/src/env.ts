@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parseEncryptionKey } from './lib/secret-box.js';
 
 /**
  * Configuracao lida do ambiente.
@@ -133,6 +134,24 @@ export const envSchema = z.object({
   /** Maximo de conexoes WebSocket (transacoes) por instancia ao Neon. */
   DB_POOL_MAX: z.coerce.number().int().min(1).max(50).default(5),
 
+  /**
+   * Google Analytics 4 (integracao dos clientes). Usa o MESMO GOOGLE_CLIENT_ID e
+   * GOOGLE_CLIENT_SECRET do login, com fluxo, `state` e callback proprios.
+   *
+   * URL de retorno do Analytics. Opcional: sem ela vale
+   * `<APP_URL>/api/integrations/google-analytics/callback`. NAO reaproveita
+   * GOOGLE_REDIRECT_URI, que e a do login.
+   */
+  GOOGLE_ANALYTICS_REDIRECT_URI: z.string().optional(),
+  /**
+   * Chave que cifra os tokens do Google Analytics no banco: 32 bytes em base64
+   * (`openssl rand -base64 32`) ou 64 caracteres hexadecimais. Sem uma chave
+   * valida a integracao fica desligada -- nunca se grava token sem cifra.
+   */
+  INTEGRATIONS_ENCRYPTION_KEY: z.string().optional(),
+  /** Validade (s) do cache dos relatorios do Analytics. `0` desliga. Padrao 300; em teste, 0. */
+  ANALYTICS_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(3600).optional(),
+
   /** Segredo exigido pelo job de reconciliacao. */
   BILLING_RECONCILIATION_SECRET: z.string().optional(),
   /** Dias de tolerancia entre o vencimento e a suspensao do site. */
@@ -185,6 +204,12 @@ export interface FeatureFlags {
    * do provedor de e-mail: sem ele o codigo nunca chegaria.
    */
   emailCodeAuth: boolean;
+  /**
+   * Integracao com o Google Analytics 4: credenciais Google + chave de cifra
+   * valida. Independente de `googleAuth` ser usado para login, mas reaproveita as
+   * mesmas credenciais.
+   */
+  googleAnalytics: boolean;
 }
 
 export function featureFlags(env: Env): FeatureFlags {
@@ -197,6 +222,9 @@ export function featureFlags(env: Env): FeatureFlags {
     billingReconciliation: Boolean(env.BILLING_RECONCILIATION_SECRET),
     googleAuth: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
     emailCodeAuth: Boolean(env.RESEND_API_KEY),
+    googleAnalytics: Boolean(
+      env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && parseEncryptionKey(env.INTEGRATIONS_ENCRYPTION_KEY),
+    ),
   };
 }
 
@@ -211,6 +239,21 @@ export function googleRedirectUri(env: Env): string {
   const explicit = env.GOOGLE_REDIRECT_URI?.trim();
   if (explicit) return explicit;
   return `${env.APP_URL.replace(/\/$/, '')}/api/auth/google/callback`;
+}
+
+/**
+ * URL de retorno do Google Analytics. Distinta da do login: cada fluxo tem o seu
+ * callback, e as duas precisam estar cadastradas no Google Cloud.
+ */
+export function analyticsRedirectUri(env: Env): string {
+  const explicit = env.GOOGLE_ANALYTICS_REDIRECT_URI?.trim();
+  if (explicit) return explicit;
+  return `${env.APP_URL.replace(/\/$/, '')}/api/integrations/google-analytics/callback`;
+}
+
+/** Validade efetiva do cache dos relatorios do Analytics. */
+export function analyticsCacheTtl(env: Env): number {
+  return env.ANALYTICS_CACHE_TTL_SECONDS ?? (env.NODE_ENV === 'test' ? 0 : 300);
 }
 
 /** Validade efetiva do cache de autenticacao: 10 s, e 0 em teste a menos que se diga o contrario. */

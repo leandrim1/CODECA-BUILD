@@ -32,6 +32,11 @@ export const RATE_LIMITS = {
   loginCodeVerifyEmail: { action: 'login_code_verify_email', limit: 15, windowSeconds: 3600 },
   oauthStart: { action: 'oauth_start', limit: 20, windowSeconds: 300 },
   oauthCallback: { action: 'oauth_callback', limit: 30, windowSeconds: 300 },
+  /** Google Analytics: inicio e retorno por IP; relatorios por empresa (so quando vao ao Google). */
+  analyticsStart: { action: 'analytics_start', limit: 20, windowSeconds: 300 },
+  analyticsCallback: { action: 'analytics_callback', limit: 30, windowSeconds: 300 },
+  analyticsReport: { action: 'analytics_report', limit: 120, windowSeconds: 3600 },
+  analyticsProperties: { action: 'analytics_properties', limit: 30, windowSeconds: 3600 },
   passwordReset: { action: 'password_reset', limit: 5, windowSeconds: 3600 },
   emailVerification: { action: 'email_verification', limit: 5, windowSeconds: 3600 },
   publicLead: { action: 'public_lead', limit: 5, windowSeconds: 600 },

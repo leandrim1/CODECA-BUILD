@@ -10,6 +10,7 @@ import { loadShedding } from './middleware/load-shedding.js';
 import { requestLog } from './middleware/request-log.js';
 import { snapshotMetrics } from './lib/runtime-metrics.js';
 import { cors, securityHeaders } from './middleware/security.js';
+import { analyticsOAuthRoutes, analyticsRoutes } from './routes/analytics.js';
 import { authRoutes } from './routes/auth.js';
 import { bannerRoutes } from './routes/banners.js';
 import { billingRoutes } from './routes/billing.js';
@@ -121,6 +122,9 @@ export function createApp(options: CreateAppOptions = {}) {
 
   app.route('/auth', authRoutes());
 
+  // Retorno do OAuth do Google Analytics (callback proprio, independente do login).
+  app.route('/integrations/google-analytics', analyticsOAuthRoutes());
+
   // Webhooks do provedor de pagamento: publicos, autenticados por assinatura
   // HMAC do corpo bruto -- nao por sessao nem CSRF.
   app.route('/webhooks', webhookRoutes());
@@ -178,6 +182,7 @@ export function createApp(options: CreateAppOptions = {}) {
   tenantScoped.route('/', leadRoutes());
   tenantScoped.route('/', domainRoutes());
   tenantScoped.route('/', billingRoutes());
+  tenantScoped.route('/', analyticsRoutes());
   app.route('/tenants', tenantScoped);
 
   // Painel mestre da plataforma.

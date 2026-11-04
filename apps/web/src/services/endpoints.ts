@@ -1,5 +1,12 @@
 import { api, query } from './api.js';
 import type {
+  AnalyticsConnectionView,
+  AnalyticsPropertyOption,
+  AnalyticsRange,
+  AnalyticsReport,
+  AnalyticsStatus,
+} from '@codeca/shared';
+import type {
   BannerRecord,
   IssuedKey,
   SiteWebhookRow,
@@ -802,4 +809,24 @@ export interface PublicPlan {
 
 export const publicApi = {
   plans: () => api.get<{ currency: 'BRL'; plans: PublicPlan[] }>('/api/public/plans'),
+};
+
+/**
+ * Google Analytics 4. Nenhum token passa por aqui: o navegador so recebe o
+ * estado da conexao e as estatisticas; a autorizacao acontece no servidor.
+ */
+export const analyticsApi = {
+  status: (tenantId: string) => api.get<AnalyticsStatus>(`${tenantBase(tenantId)}/analytics`),
+  /** Devolve a URL do Google para onde o navegador deve ir. */
+  start: (tenantId: string) =>
+    api.post<{ authorizationUrl: string }>(`${tenantBase(tenantId)}/analytics/connect/start`),
+  properties: (tenantId: string) =>
+    api.get<{ items: AnalyticsPropertyOption[] }>(`${tenantBase(tenantId)}/analytics/properties`),
+  selectProperty: (tenantId: string, propertyId: string) =>
+    api.put<{ connection: AnalyticsConnectionView | null }>(`${tenantBase(tenantId)}/analytics/property`, {
+      propertyId,
+    }),
+  report: (tenantId: string, range: AnalyticsRange, signal?: AbortSignal) =>
+    api.get<AnalyticsReport>(`${tenantBase(tenantId)}/analytics/report${query({ range })}`, signal ? { signal } : {}),
+  disconnect: (tenantId: string) => api.delete<void>(`${tenantBase(tenantId)}/analytics`),
 };

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import {
+  BarChart3,
   Building2,
   ChevronDown,
   CreditCard,
@@ -187,7 +188,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     title: 'Relacionamento',
-    items: [{ to: '/painel/interessados', label: 'Interessados', icon: Users, capability: 'leads:read' }],
+    items: [
+      { to: '/painel/interessados', label: 'Interessados', icon: Users, capability: 'leads:read' },
+      { to: '/painel/estatisticas', label: 'Estatísticas do site', icon: BarChart3, capability: 'analytics:read' },
+    ],
   },
   {
     title: 'Configurações',
