@@ -18,7 +18,7 @@ import { claimFirstPlatformAdmin } from '../lib/bootstrap.js';
 import { createCompanyForUser, loadTrialPlan, nextTenantSlug } from '../lib/company.js';
 import { startLoginChallenge } from '../lib/login-challenge.js';
 import { clearSessionCookies, setSessionCookies } from '../lib/cookies.js';
-import { assertSameOrigin } from '../lib/csrf.js';
+import { assertSameOrigin, isStateChanging } from '../lib/csrf.js';
 import { clientIp, created, noContent, ok, parseJsonBody, userAgent } from '../lib/http.js';
 import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ratelimit.js';
 import { createSession, resolveSession, revokeAllUserSessions, revokeSession, serializeSession } from '../lib/session.js';
@@ -46,6 +46,16 @@ const LOCK_MINUTES = 15;
 export function authRoutes() {
   const app = new Hono<AppBindings>();
   app.use('*', sessionMiddleware());
+  // Toda escrita autenticada em /auth (logout, perfil, senha, sessoes, empresa)
+  // descarta o que esta instancia guarda sobre o usuario: a sessao encerrada nao
+  // pode continuar valendo por causa do cache.
+  app.use('*', async (c, next) => {
+    const session = c.get('session');
+    await next();
+    if (session && isStateChanging(c.req.method) && c.res.status < 400) {
+      c.get('ctx').caches.invalidateUser(session.user.id);
+    }
+  });
 
   // Login com Google e cadastro da primeira empresa de quem entrou por ele.
   app.route('/google', googleAuthRoutes());
@@ -332,6 +342,7 @@ export function authRoutes() {
       .set({ emailVerifiedAt: ctx.now(), updatedAt: ctx.now() })
       .where(eq(schema.users.id, consumed.userId))
       .returning({ id: schema.users.id, email: schema.users.email });
+    ctx.caches.invalidateUser(consumed.userId);
 
     await recordAudit(ctx.db, ctx.env, {
       actorUserId: user?.id ?? null,
@@ -442,6 +453,7 @@ export function authRoutes() {
 
     // Redefinir a senha encerra todas as sessoes existentes.
     await revokeAllUserSessions(ctx.db, consumed.userId, { now: ctx.now() });
+    ctx.caches.invalidateUser(consumed.userId);
     clearSessionCookies(c, ctx.env);
 
     await recordAudit(ctx.db, ctx.env, {
@@ -501,6 +513,9 @@ export function authRoutes() {
           eq(schema.memberships.userId, user.id),
         ),
       );
+
+    ctx.caches.invalidateTenant(consumed.tenantId);
+    ctx.caches.invalidateUser(user.id);
 
     const issued = await createSession(ctx.db, ctx.env, {
       userId: user.id,

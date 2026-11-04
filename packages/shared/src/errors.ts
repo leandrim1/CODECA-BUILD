@@ -19,6 +19,7 @@ export type AppErrorCode =
   | 'unsupported_media_type'
   | 'integration_not_configured'
   | 'upstream_error'
+  | 'service_unavailable'
   | 'internal_error';
 
 const STATUS_BY_CODE: Record<AppErrorCode, number> = {
@@ -38,6 +39,7 @@ const STATUS_BY_CODE: Record<AppErrorCode, number> = {
   unsupported_media_type: 415,
   integration_not_configured: 501,
   upstream_error: 502,
+  service_unavailable: 503,
   internal_error: 500,
 };
 
@@ -126,6 +128,17 @@ export class AppError extends Error {
   }
   static notConfigured(message: string): AppError {
     return new AppError('integration_not_configured', message);
+  }
+  /**
+   * Dependencia ou capacidade momentaneamente indisponivel (banco fora, funcao
+   * saturada). 503 + `Retry-After` diz ao cliente que repetir e correto -- ao
+   * contrario do 500, que sugere defeito.
+   */
+  static unavailable(
+    message = 'O serviço está momentaneamente sobrecarregado. Tente novamente em instantes.',
+    retryAfterSeconds = 2,
+  ): AppError {
+    return new AppError('service_unavailable', message, { retryAfterSeconds });
   }
   static internal(message = 'Erro interno. Tente novamente.'): AppError {
     return new AppError('internal_error', message);

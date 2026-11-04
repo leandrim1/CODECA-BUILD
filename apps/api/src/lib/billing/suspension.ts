@@ -79,3 +79,33 @@ export async function loadSuspensionPolicy(
     panel: guardado.panel ?? DEFAULT_SUSPENSION_POLICY.panel,
   };
 }
+
+/**
+ * `resolveSiteBilling` com a validade curta dos caches de autorizacao.
+ *
+ * Usado pelas DUAS camadas que perguntam "este site pode responder/gravar?": o
+ * painel e a API publica. A decisao depende do relogio (a tolerancia vence com o
+ * tempo), e ate 10 s de atraso numa decisao que tem dias de granularidade nao
+ * muda o resultado para ninguem.
+ */
+export async function resolveSiteBillingCached(
+  ctx: {
+    db: Database;
+    now: () => Date;
+    caches: {
+      billing: {
+        getOrLoad: (
+          key: string,
+          loader: () => Promise<SiteBillingSituation & { tenantId: string }>,
+        ) => Promise<SiteBillingSituation & { tenantId: string }>;
+      };
+    };
+  },
+  siteId: string,
+  tenantId: string,
+): Promise<SiteBillingSituation> {
+  return ctx.caches.billing.getOrLoad(siteId, async () => ({
+    ...(await resolveSiteBilling(ctx.db, siteId, ctx.now())),
+    tenantId,
+  }));
+}

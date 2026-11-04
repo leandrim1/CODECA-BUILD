@@ -1,3 +1,4 @@
+import { pruneExpiredRecords } from '../lib/housekeeping.js';
 import { AppError } from '@codeca/shared';
 import { timingSafeEqual } from 'node:crypto';
 import { Hono, type Context } from 'hono';
@@ -64,6 +65,8 @@ async function executarJob(c: Context<AppBindings>) {
   // 2. Reconciliacao propriamente dita.
   const report = await reconcileBilling(billingCtx, { limit });
   report.pendingEventsReplayed = replayed;
+  // Assinaturas e suspensoes podem ter mudado em varias empresas.
+  ctx.caches.invalidateAll();
 
   // 3. Avisos de publicacao que o site do cliente nao recebeu. A primeira
   //    tentativa acontece na propria publicacao; aqui ficam as repeticoes.
@@ -88,6 +91,13 @@ async function executarJob(c: Context<AppBindings>) {
     );
   }
 
+  // 5. Limpeza de sessoes, codigos e contadores vencidos. Falha aqui nao pode
+  //    impedir a resposta do resto do job.
+  const housekeeping = await pruneExpiredRecords(ctx.db, ctx.now()).catch((error: unknown) => {
+    console.error('[housekeeping] falha:', error instanceof Error ? error.message : error);
+    return null;
+  });
+
   if (report.failures.length > 0 || report.divergences.length > 0) {
     // Alerta operacional no log: a origem fica visivel no painel mestre.
     console.warn(
@@ -100,7 +110,7 @@ async function executarJob(c: Context<AppBindings>) {
     console.warn(`[webhook] ${deliveries.exhausted} entrega(s) esgotaram as tentativas.`);
   }
 
-  return ok(c, { ...report, deliveries, domains });
+  return ok(c, { ...report, deliveries, domains, housekeeping });
 }
 
 /**

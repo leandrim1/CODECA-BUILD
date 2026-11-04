@@ -106,6 +106,33 @@ export const envSchema = z.object({
     // Tolerante de proposito: variavel vazia ou com outro texto vale "nao exigido".
     .transform((value) => value?.trim().toLowerCase() === 'true'),
 
+  /**
+   * Validade, em segundos, dos caches de autenticacao e autorizacao (sessao,
+   * vinculo com a empresa, plano, assinatura, chave de integracao). `0`
+   * desliga. Padrao 10 s; em teste, 0. Veja `lib/caches.ts`.
+   */
+  AUTH_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(300).optional(),
+  /** Validade, em segundos, do cache das respostas da API publica. `0` desliga. Padrao 5 s; em teste, 0. */
+  PUBLIC_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(300).optional(),
+  /**
+   * Maximo de requisicoes em andamento por instancia antes de recusar com 503
+   * (protecao contra sobrecarga). `0` desliga. Padrao 0 -- ver `middleware/load-shedding.ts`.
+   */
+  MAX_CONCURRENT_REQUESTS: z.coerce.number().int().min(0).max(10_000).default(0),
+  /** Requisicoes mais lentas que isto (ms) vao para o log como `slow_request`. */
+  SLOW_REQUEST_MS: z.coerce.number().int().min(50).max(60_000).default(1000),
+  /** `true` registra TODA requisicao no log (diagnostico; em producao custa I/O). */
+  LOG_ALL_REQUESTS: z
+    .string()
+    .optional()
+    .transform((value) => value?.trim().toLowerCase() === 'true'),
+  /** Segredo do endpoint `/api/metrics`. Sem ele, a rota responde 404. */
+  METRICS_SECRET: z.string().min(16).optional(),
+  /** Consultas acima deste tempo (ms) vao para o log como `slow_query`. */
+  SLOW_QUERY_MS: z.coerce.number().int().min(10).max(60_000).default(500),
+  /** Maximo de conexoes WebSocket (transacoes) por instancia ao Neon. */
+  DB_POOL_MAX: z.coerce.number().int().min(1).max(50).default(5),
+
   /** Segredo exigido pelo job de reconciliacao. */
   BILLING_RECONCILIATION_SECRET: z.string().optional(),
   /** Dias de tolerancia entre o vencimento e a suspensao do site. */
@@ -184,6 +211,16 @@ export function googleRedirectUri(env: Env): string {
   const explicit = env.GOOGLE_REDIRECT_URI?.trim();
   if (explicit) return explicit;
   return `${env.APP_URL.replace(/\/$/, '')}/api/auth/google/callback`;
+}
+
+/** Validade efetiva do cache de autenticacao: 10 s, e 0 em teste a menos que se diga o contrario. */
+export function authCacheTtl(env: Env): number {
+  return env.AUTH_CACHE_TTL_SECONDS ?? (env.NODE_ENV === 'test' ? 0 : 10);
+}
+
+/** Validade efetiva do cache de respostas publicas: 5 s, e 0 em teste a menos que se diga o contrario. */
+export function publicCacheTtl(env: Env): number {
+  return env.PUBLIC_CACHE_TTL_SECONDS ?? (env.NODE_ENV === 'test' ? 0 : 5);
 }
 
 export function isProduction(env: Env): boolean {

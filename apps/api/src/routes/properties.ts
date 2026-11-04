@@ -19,6 +19,7 @@ import {
   ok,
   parseJsonBody,
   parseJsonBodyWithRaw,
+  parseJsonPatchWithRaw,
   parseParams,
   parseQuery,
 } from '../lib/http.js';
@@ -262,7 +263,7 @@ export function propertyRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const { propertyId } = parseParams(c, propertyParams);
-    const { data: input, raw } = await parseJsonBodyWithRaw(c, propertyUpdateSchema);
+    const { data: input, raw } = await parseJsonPatchWithRaw(c, propertyUpdateSchema);
 
     const [current] = await ctx.db
       .select()

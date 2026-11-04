@@ -4,6 +4,8 @@ import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT, PgTransaction } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import * as schema from './schema.js';
+import { instrumentQueryable } from './instrument.js';
+import { backoffDelayMs, isSafeToRetry } from './resilience.js';
 
 /**
  * Acesso ao Neon PostgreSQL.
@@ -53,6 +55,34 @@ function withDeadline(signal: AbortSignal | null | undefined, ms: number): Abort
   return signal ? AbortSignal.any([signal, deadline]) : deadline;
 }
 
+/** Status do gateway HTTP do Neon que recusam ANTES de executar a consulta. */
+const GATEWAY_REFUSED = new Set([429, 503]);
+const FETCH_RETRIES = 2;
+
+/**
+ * `fetch` com prazo e repeticao segura.
+ *
+ * So repete quando a consulta comprovadamente nao foi executada (conexao
+ * recusada, DNS, 429/503 do gateway). Uma escrita nunca e duplicada: ver
+ * `resilience.ts`. A espera tem backoff exponencial com jitter.
+ */
+async function resilientFetch(input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const response = await fetch(input, { ...init, signal: withDeadline(init?.signal, QUERY_TIMEOUT_MS) });
+      if (GATEWAY_REFUSED.has(response.status) && attempt < FETCH_RETRIES) {
+        await response.body?.cancel().catch(() => undefined);
+        await new Promise((r) => setTimeout(r, backoffDelayMs(attempt)));
+        continue;
+      }
+      return response;
+    } catch (error) {
+      if (attempt >= FETCH_RETRIES || !isSafeToRetry(error)) throw error;
+      await new Promise((r) => setTimeout(r, backoffDelayMs(attempt)));
+    }
+  }
+}
+
 function configureNeon(): void {
   // O driver do Neon abre uma conexao WebSocket para tudo que precisa de
   // transacao. O Node so passou a ter WebSocket global na versao 22, e quando
@@ -66,13 +96,39 @@ function configureNeon(): void {
   // dependem do construtor acima.
   neonConfig.poolQueryViaFetch = true;
 
-  neonConfig.fetchFunction ??= (input: Parameters<typeof fetch>[0], init?: RequestInit) =>
-    fetch(input, { ...init, signal: withDeadline(init?.signal, QUERY_TIMEOUT_MS) });
+  neonConfig.fetchFunction ??= resilientFetch;
 }
 
-export function createNeonDatabase(connectionString: string): DatabaseHandle {
+export interface NeonDatabaseOptions {
+  /**
+   * Maximo de conexoes WebSocket (transacoes) POR INSTANCIA da funcao.
+   *
+   * Cada instancia serverless tem o proprio pool: com N instancias, o banco ve
+   * ate N x max conexoes. Por isso o padrao e baixo (5) e a string de conexao
+   * deve ser a **pooled** (`-pooler`, PgBouncer do Neon), que multiplexa.
+   * Consultas simples nao usam o pool: saem por HTTP.
+   */
+  poolMax?: number;
+}
+
+export function createNeonDatabase(connectionString: string, options: NeonDatabaseOptions = {}): DatabaseHandle {
   configureNeon();
-  const pool = new Pool({ connectionString, connectionTimeoutMillis: CONNECTION_TIMEOUT_MS });
+  const pool = new Pool({
+    connectionString,
+    connectionTimeoutMillis: CONNECTION_TIMEOUT_MS,
+    max: options.poolMax ?? 5,
+    // Devolve conexoes ociosas depressa: funcao serverless congelada nao deve
+    // segurar conexao no banco.
+    idleTimeoutMillis: 10_000,
+    // Reabre a conexao depois de N usos, evitando acumulo de estado no servidor.
+    maxUses: 5_000,
+  });
+  // Erro em conexao ociosa (o Neon derrubou-a) sem ouvinte derrubaria o
+  // processo. O pool descarta a conexao e abre outra na proxima necessidade.
+  pool.on('error', (error: Error) => {
+    console.warn(JSON.stringify({ level: 'warn', event: 'db_pool_error', message: error.message }));
+  });
+  instrumentQueryable(pool);
   const db = drizzle(pool, { schema, casing: 'snake_case' }) as unknown as Database;
   return { db, close: () => pool.end() };
 }
@@ -81,7 +137,7 @@ export function createNeonDatabase(connectionString: string): DatabaseHandle {
  * Retorna a conexao compartilhada do processo. Em funcoes serverless a mesma
  * instancia e reaproveitada entre invocacoes do mesmo container.
  */
-export function getDatabase(connectionString?: string): Database {
+export function getDatabase(connectionString?: string, options: NeonDatabaseOptions = {}): Database {
   const url = connectionString ?? process.env.DATABASE_URL;
   if (!url) {
     throw new Error(
@@ -89,7 +145,7 @@ export function getDatabase(connectionString?: string): Database {
     );
   }
   if (cached && cachedUrl === url) return cached.db;
-  cached = createNeonDatabase(url);
+  cached = createNeonDatabase(url, options);
   cachedUrl = url;
   return cached.db;
 }

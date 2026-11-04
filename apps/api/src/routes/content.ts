@@ -23,6 +23,7 @@ import {
   ok,
   parseJsonBody,
   parseJsonBodyWithRaw,
+  parseJsonPatchWithRaw,
   parseParams,
   parseQuery,
 } from '../lib/http.js';
@@ -159,7 +160,7 @@ export function contentRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const { serviceId } = parseParams(c, z.object({ tenantId: uuidSchema, serviceId: uuidSchema }));
-    const { data: input, raw } = await parseJsonBodyWithRaw(c, serviceUpdateSchema);
+    const { data: input, raw } = await parseJsonPatchWithRaw(c, serviceUpdateSchema);
 
     const [atual] = await ctx.db
       .select()

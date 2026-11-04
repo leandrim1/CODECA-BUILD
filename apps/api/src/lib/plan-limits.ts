@@ -56,6 +56,20 @@ export async function loadEffectivePlan(db: Database, tenantId: string): Promise
   };
 }
 
+/**
+ * O plano efetivo, com a validade curta dos caches de autorizacao.
+ *
+ * So para LEITURA de decisao de acesso (o plano inclui o painel?). Os limites que
+ * barram uma ESCRITA (`assertWithinLimit` e companhia) continuam lendo direto do
+ * banco: uma criacao nunca decide por um plano com ate 10 s de idade.
+ */
+export async function loadEffectivePlanCached(
+  ctx: { db: Database; caches: { plan: { getOrLoad: (key: string, loader: () => Promise<EffectivePlan>) => Promise<EffectivePlan> } } },
+  tenantId: string,
+): Promise<EffectivePlan> {
+  return ctx.caches.plan.getOrLoad(tenantId, () => loadEffectivePlan(ctx.db, tenantId));
+}
+
 export async function loadUsage(db: Database, tenantId: string): Promise<UsageSnapshot> {
   const countOf = sql<number>`cast(count(*) as int)`;
 

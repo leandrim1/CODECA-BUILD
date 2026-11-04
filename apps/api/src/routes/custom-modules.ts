@@ -18,6 +18,7 @@ import {
   noContent,
   ok,
   parseJsonBodyWithRaw,
+  parseJsonPatchWithRaw,
   parseParams,
   parseQuery,
 } from '../lib/http.js';
@@ -349,7 +350,7 @@ export function customModuleRoutes() {
       const ctx = c.get('ctx');
       const tenant = c.get('tenant');
       const { moduleKey, recordId } = parseParams(c, paramsRegistro);
-      const { data: input, raw } = await parseJsonBodyWithRaw(c, customRecordUpdateSchema);
+      const { data: input, raw } = await parseJsonPatchWithRaw(c, customRecordUpdateSchema);
 
       const state = await loadCustomModules(ctx.db, tenant.siteId);
       const modulo = state.modules.find((m) => m.key === moduleKey && m.enabled);

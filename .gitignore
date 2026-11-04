@@ -21,3 +21,6 @@ coverage/
 *.tar
 *.tar.gz
 *.tgz
+
+# Dependencias so do teste de carga (scripts/loadtest/setup.sh)
+scripts/loadtest/node_modules/

@@ -131,6 +131,8 @@ export function webhookRoutes() {
       { db: ctx.db, now: ctx.now, source: 'webhook' },
       stored.row,
     );
+    // O evento pode ter alterado assinatura/suspensao de qualquer empresa.
+    ctx.caches.invalidateAll();
 
     return c.json(
       {

@@ -1,9 +1,14 @@
+import { queryTotals } from '@codeca/database';
+import { timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
 import { createContext, type AppContext, type CreateContextOptions } from './context.js';
 import { probeDatabase } from './lib/db-probe.js';
 import { deploymentInfo } from './lib/deployment.js';
 import { ok } from './lib/http.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
+import { loadShedding } from './middleware/load-shedding.js';
+import { requestLog } from './middleware/request-log.js';
+import { snapshotMetrics } from './lib/runtime-metrics.js';
 import { cors, securityHeaders } from './middleware/security.js';
 import { authRoutes } from './routes/auth.js';
 import { bannerRoutes } from './routes/banners.js';
@@ -27,7 +32,7 @@ import { propertyRoutes } from './routes/properties.js';
 import { publicPlanRoutes } from './routes/public-plans.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { webhookRoutes } from './routes/webhooks.js';
-import { sessionMiddleware, tenantMiddleware } from './middleware/auth.js';
+import { invalidateCachesOnWrite, sessionMiddleware, tenantMiddleware } from './middleware/auth.js';
 import { requirePanelPlan } from './middleware/plan-panel.js';
 import { enforceSuspension } from './middleware/suspension.js';
 import type { AppBindings } from './types.js';
@@ -58,6 +63,8 @@ export function createApp(options: CreateAppOptions = {}) {
     c.set('requestId', crypto.randomUUID());
     await next();
   });
+  app.use('*', requestLog({ slowMs: ctx.env.SLOW_REQUEST_MS, all: ctx.env.LOG_ALL_REQUESTS }));
+  app.use('*', loadShedding(ctx.env.MAX_CONCURRENT_REQUESTS));
   app.use('*', securityHeaders(ctx.env));
   app.use('*', cors(ctx.env));
 
@@ -99,6 +106,19 @@ export function createApp(options: CreateAppOptions = {}) {
     );
   });
 
+  /**
+   * Metricas desta instancia (latencia, requisicoes em andamento, recusas,
+   * memoria, caches). Protegido por `METRICS_SECRET`; sem ele, a rota nao existe.
+   */
+  app.get('/metrics', (c) => {
+    const secret = ctx.env.METRICS_SECRET;
+    const received = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+    if (!secret || received.length !== secret.length || !timingSafeEqual(Buffer.from(received), Buffer.from(secret))) {
+      return c.json({ error: { code: 'not_found', message: 'Endpoint não encontrado.' } }, 404);
+    }
+    return ok(c, { ...snapshotMetrics(), caches: ctx.caches.stats(), queries: { ...queryTotals } });
+  });
+
   app.route('/auth', authRoutes());
 
   // Webhooks do provedor de pagamento: publicos, autenticados por assinatura
@@ -126,6 +146,9 @@ export function createApp(options: CreateAppOptions = {}) {
   const tenantScoped = new Hono<AppBindings>();
   tenantScoped.use('*', sessionMiddleware());
   tenantScoped.use('/:tenantId/*', tenantMiddleware());
+  // Depois de QUALQUER escrita bem-sucedida, descarta o que esta instancia guarda
+  // sobre a empresa (ver `lib/caches.ts`).
+  tenantScoped.use('/:tenantId/*', invalidateCachesOnWrite('tenant'));
   /**
    * Duas camadas, na ordem em que as perguntas se fazem.
    *
@@ -160,6 +183,7 @@ export function createApp(options: CreateAppOptions = {}) {
   // Painel mestre da plataforma.
   const platformScoped = new Hono<AppBindings>();
   platformScoped.use('*', sessionMiddleware());
+  platformScoped.use('*', invalidateCachesOnWrite('platform'));
   platformScoped.route('/', platformRoutes());
   platformScoped.route('/', platformSiteRoutes());
   platformScoped.route('/', platformSegmentRoutes());

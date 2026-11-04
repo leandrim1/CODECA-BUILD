@@ -171,7 +171,15 @@ export function useMutation<TInput, TOutput>(
   const actionRef = useRef(action);
   actionRef.current = action;
 
+  // Trava sincrona contra clique duplo: `loading` so muda no proximo render, e
+  // dois cliques no mesmo tick enviariam a operacao duas vezes (duas empresas,
+  // dois lancamentos...). Enquanto uma execucao esta em andamento, a seguinte
+  // devolve `null` sem chamar a API.
+  const inFlight = useRef(false);
+
   const run = useCallback(async (input: TInput) => {
+    if (inFlight.current) return null;
+    inFlight.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -185,6 +193,7 @@ export function useMutation<TInput, TOutput>(
       optionsRef.current.onError?.(apiError, input);
       return null;
     } finally {
+      inFlight.current = false;
       setLoading(false);
     }
   }, []);

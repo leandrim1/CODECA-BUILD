@@ -1,0 +1,213 @@
+{
+  "label": "antes-i-150",
+  "vus": 150,
+  "seconds": 39.423,
+  "totalRequests": 8918,
+  "rps": 226.21312431829134,
+  "errRate": 0,
+  "serverErrors": 0,
+  "networkErrors": 0,
+  "unexpected4xx": 3,
+  "shed503": 0,
+  "retriedReads": 0,
+  "finalFailures": 0,
+  "rateLimited429": 0,
+  "p50": 168.00475800000095,
+  "p95": 437.9549589999988,
+  "p99": 662.9617209999997,
+  "ops": {
+    "PUB site": {
+      "n": 816,
+      "avg": 146.03698873284316,
+      "p95": 293.2124879999992,
+      "p99": 352.2869419999988
+    },
+    "PUB imoveis (lista)": {
+      "n": 816,
+      "avg": 159.46378703308824,
+      "p95": 309.5966750000007,
+      "p99": 353.3403690000014
+    },
+    "GET sessao": {
+      "n": 816,
+      "avg": 65.13751556617659,
+      "p95": 131.15804099999878,
+      "p99": 171.28791199999978
+    },
+    "PUB imovel (detalhe)": {
+      "n": 816,
+      "avg": 159.7003651421567,
+      "p95": 306.03331400000025,
+      "p99": 346.8047809999989
+    },
+    "PUB banners": {
+      "n": 816,
+      "avg": 140.7879988321077,
+      "p95": 272.4967209999995,
+      "p99": 312.4408259999982
+    },
+    "GET visao-geral": {
+      "n": 816,
+      "avg": 383.4458945514702,
+      "p95": 727.017742,
+      "p99": 806.5072450000007
+    },
+    "GET imoveis (lista)": {
+      "n": 816,
+      "avg": 208.16293346078427,
+      "p95": 410.6658099999986,
+      "p99": 491.85396799999944
+    },
+    "GET imovel (detalhe)": {
+      "n": 816,
+      "avg": 196.95519581004905,
+      "p95": 375.5466740000011,
+      "p99": 459.42479300000196
+    },
+    "GET modulos": {
+      "n": 816,
+      "avg": 209.99988410539217,
+      "p95": 410.77348699999857,
+      "p99": 492.3653400000003
+    },
+    "GET interessados": {
+      "n": 816,
+      "avg": 185.46624966666687,
+      "p95": 379.3723469999968,
+      "p99": 437.9549589999988
+    },
+    "PATCH imovel (salvar)": {
+      "n": 379,
+      "avg": 243.90017521108186,
+      "p95": 490.680851000001,
+      "p99": 558.9003909999992
+    },
+    "POST imovel (criar)": {
+      "n": 169,
+      "avg": 289.98884882248507,
+      "p95": 601.8288479999974,
+      "p99": 655.9724549999992
+    },
+    "login": {
+      "n": 105,
+      "avg": 135.61342860952377,
+      "p95": 304.0570710000002,
+      "p99": 321.07139000000006
+    },
+    "POST midia (upload)": {
+      "n": 105,
+      "avg": 197.33073033333324,
+      "p95": 392.5871450000013,
+      "p99": 461.18074999999953
+    }
+  },
+  "stats": {
+    "requests": 8918,
+    "queries": 124785,
+    "queryMs": 7105,
+    "pool": {
+      "total": 10,
+      "idle": 10,
+      "waiting": 0,
+      "max": 10,
+      "peakTotal": 10,
+      "peakWaiting": 101
+    },
+    "memoryMb": {
+      "rss": 357,
+      "peakRss": 357
+    },
+    "eventLoopMs": {
+      "p50": 10.616831,
+      "p99": 15.745023,
+      "max": 29.163519
+    },
+    "routes": [
+      {
+        "route": "POST /api/auth/login",
+        "n": 105,
+        "queriesPerReq": 5.4,
+        "dbMsPerReq": 0.7
+      },
+      {
+        "route": "POST /api/tenants/:id/properties",
+        "n": 169,
+        "queriesPerReq": 4.7,
+        "dbMsPerReq": 0.3
+      },
+      {
+        "route": "GET /api/tenants/:id/overview",
+        "n": 816,
+        "queriesPerReq": 2.5,
+        "dbMsPerReq": 0.2
+      },
+      {
+        "route": "PATCH /api/tenants/:id/properties/:id",
+        "n": 379,
+        "queriesPerReq": 2.1,
+        "dbMsPerReq": 0.1
+      },
+      {
+        "route": "GET /api/tenants/:id/modules",
+        "n": 816,
+        "queriesPerReq": 1.9,
+        "dbMsPerReq": 0.1
+      },
+      {
+        "route": "GET /api/tenants/:id/leads",
+        "n": 816,
+        "queriesPerReq": 1.8,
+        "dbMsPerReq": 0.1
+      },
+      {
+        "route": "GET /api/tenants/:id/properties",
+        "n": 816,
+        "queriesPerReq": 1.5,
+        "dbMsPerReq": 0.1
+      },
+      {
+        "route": "GET /api/tenants/:id/properties/:id",
+        "n": 816,
+        "queriesPerReq": 1.4,
+        "dbMsPerReq": 0.1
+      },
+      {
+        "route": "GET /api/v1/site",
+        "n": 816,
+        "queriesPerReq": 1.1,
+        "dbMsPerReq": 0.1
+      },
+      {
+        "route": "GET /api/v1/properties",
+        "n": 816,
+        "queriesPerReq": 1,
+        "dbMsPerReq": 0.1
+      },
+      {
+        "route": "GET /api/v1/properties/:slug",
+        "n": 816,
+        "queriesPerReq": 1,
+        "dbMsPerReq": 0.1
+      },
+      {
+        "route": "GET /api/v1/banners",
+        "n": 816,
+        "queriesPerReq": 0.9,
+        "dbMsPerReq": 0.1
+      },
+      {
+        "route": "GET /api/auth/session",
+        "n": 816,
+        "queriesPerReq": 0.5,
+        "dbMsPerReq": 0.1
+      },
+      {
+        "route": "POST /api/tenants/:id/media",
+        "n": 105,
+        "queriesPerReq": 0.3,
+        "dbMsPerReq": 0
+      }
+    ]
+  },
+  "integrity": []
+}

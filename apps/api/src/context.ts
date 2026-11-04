@@ -1,5 +1,6 @@
-import { getDatabase, type Database } from '@codeca/database';
-import { featureFlags, parseEnv, type Env, type FeatureFlags } from './env.js';
+import { getDatabase, setSlowQueryThreshold, type Database } from '@codeca/database';
+import { authCacheTtl, featureFlags, parseEnv, publicCacheTtl, type Env, type FeatureFlags } from './env.js';
+import { createCaches, type Caches } from './lib/caches.js';
 import { createBlobStorage, type BlobStorage } from './lib/blob.js';
 import { createDomainProvider, type DomainProvider } from './lib/vercel-domains.js';
 import { createMailer, type Mailer } from './lib/mailer.js';
@@ -23,6 +24,8 @@ export interface AppContext {
   billing: BillingProvider;
   /** Fonte de tempo, substituivel nos testes. */
   now: () => Date;
+  /** Caches de memoria desta instancia. Ver `lib/caches.ts`. */
+  caches: Caches;
   /**
    * Cliente HTTP para os webhooks de saida.
    *
@@ -46,15 +49,21 @@ export interface CreateContextOptions {
 
 export function createContext(options: CreateContextOptions = {}): AppContext {
   const env = options.env ?? parseEnv();
+  setSlowQueryThreshold(env.SLOW_QUERY_MS);
+  const now = options.now ?? (() => new Date());
   return {
     env,
     features: featureFlags(env),
-    db: options.db ?? getDatabase(env.DATABASE_URL),
+    caches: createCaches(
+      { authTtlSeconds: authCacheTtl(env), publicTtlSeconds: publicCacheTtl(env) },
+      () => now().getTime(),
+    ),
+    db: options.db ?? getDatabase(env.DATABASE_URL, { poolMax: env.DB_POOL_MAX }),
     blob: options.blob ?? createBlobStorage(env),
     domains: options.domains ?? createDomainProvider(env),
     mailer: options.mailer ?? createMailer(env),
     billing: options.billing ?? createBillingProvider(env),
-    now: options.now ?? (() => new Date()),
+    now,
     fetch: options.fetch ?? ((...args) => globalThis.fetch(...args)),
   };
 }

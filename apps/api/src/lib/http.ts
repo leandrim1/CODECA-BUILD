@@ -65,6 +65,38 @@ export async function parseJsonBodyWithRaw<T extends z.ZodType>(
   };
 }
 
+/**
+ * Atualizacao parcial (PATCH): so vale o que o cliente ENVIOU.
+ *
+ * `schema.partial()` do zod torna os campos opcionais, mas **continua aplicando
+ * os `.default()`**: um PATCH `{ "title": "x" }` chegava ao codigo com
+ * `publicationStatus: 'draft'`, `commercialStatus: 'disponivel'` etc. e
+ * despublicava o imovel em silencio. Foi encontrado pelo teste de carga (404 na
+ * API publica de um imovel que ninguem despublicou).
+ *
+ * Aqui o corpo e validado pelo schema e, depois, so ficam as chaves presentes no
+ * corpo original. Campos ausentes nao sao tocados.
+ */
+export function onlySentKeys<T extends Record<string, unknown>>(data: T, raw: Record<string, unknown>): T {
+  const sent = {} as Record<string, unknown>;
+  for (const key of Object.keys(data)) {
+    if (Object.prototype.hasOwnProperty.call(raw, key)) sent[key] = data[key];
+  }
+  return sent as T;
+}
+
+export async function parseJsonPatchWithRaw<T extends z.ZodType>(
+  c: Context,
+  schema: T,
+): Promise<{ data: z.output<T>; raw: Record<string, unknown> }> {
+  const { data, raw } = await parseJsonBodyWithRaw(c, schema);
+  return { data: onlySentKeys(data as Record<string, unknown>, raw) as z.output<T>, raw };
+}
+
+export async function parseJsonPatch<T extends z.ZodType>(c: Context, schema: T): Promise<z.output<T>> {
+  return (await parseJsonPatchWithRaw(c, schema)).data;
+}
+
 export function parseQuery<T extends z.ZodType>(c: Context, schema: T): z.output<T> {
   const result = schema.safeParse(c.req.query());
   if (!result.success) throw validationError(result.error);

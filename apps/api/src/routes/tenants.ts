@@ -91,119 +91,120 @@ export function tenantRoutes() {
     const countOf = sql<number>`cast(count(*) as int)`;
     const since30d = new Date(ctx.now().getTime() - 30 * 24 * 3600 * 1000);
 
-    const [propertyStats] = await ctx.db
-      .select({
-        total: countOf,
-        published: sql<number>`cast(count(*) filter (where ${schema.properties.publicationStatus} = 'published') as int)`,
-        drafts: sql<number>`cast(count(*) filter (where ${schema.properties.publicationStatus} = 'draft') as int)`,
-        available: sql<number>`cast(count(*) filter (where ${schema.properties.publicationStatus} = 'published' and ${schema.properties.commercialStatus} = 'disponivel') as int)`,
-        sold: sql<number>`cast(count(*) filter (where ${schema.properties.commercialStatus} = 'vendido') as int)`,
-      })
-      .from(schema.properties)
-      .where(eq(schema.properties.tenantId, tenantId));
-
-    const [projectStats] = await ctx.db
-      .select({
-        total: countOf,
-        published: sql<number>`cast(count(*) filter (where ${schema.projects.publicationStatus} = 'published') as int)`,
-        inProgress: sql<number>`cast(count(*) filter (where ${schema.projects.status} = 'em_andamento') as int)`,
-        completed: sql<number>`cast(count(*) filter (where ${schema.projects.status} = 'concluida') as int)`,
-      })
-      .from(schema.projects)
-      .where(eq(schema.projects.tenantId, tenantId));
-
-    const [serviceStats] = await ctx.db
-      .select({
-        total: countOf,
-        published: sql<number>`cast(count(*) filter (where ${schema.services.publicationStatus} = 'published') as int)`,
-      })
-      .from(schema.services)
-      .where(eq(schema.services.tenantId, tenantId));
-
-    const [bannerStats] = await ctx.db
-      .select({
-        total: countOf,
-        active: sql<number>`cast(count(*) filter (where ${schema.banners.isActive}) as int)`,
-      })
-      .from(schema.banners)
-      .where(eq(schema.banners.siteId, tenant.siteId));
-
-    const [leadStats] = await ctx.db
-      .select({
-        total: countOf,
-        novos: sql<number>`cast(count(*) filter (where ${schema.leads.status} = 'novo') as int)`,
-        emAtendimento: sql<number>`cast(count(*) filter (where ${schema.leads.status} = 'em_atendimento') as int)`,
-        convertidos: sql<number>`cast(count(*) filter (where ${schema.leads.status} = 'convertido') as int)`,
-      })
-      .from(schema.leads)
-      .where(eq(schema.leads.tenantId, tenantId));
-
-    const [leads30d] = await ctx.db
-      .select({ total: countOf })
-      .from(schema.leads)
-      .where(and(eq(schema.leads.tenantId, tenantId), gte(schema.leads.createdAt, since30d)));
-
-    const [mediaStats] = await ctx.db
-      .select({ total: countOf, bytes: sql<number>`cast(coalesce(sum(${schema.mediaAssets.sizeBytes}), 0) as bigint)` })
-      .from(schema.mediaAssets)
-      .where(eq(schema.mediaAssets.tenantId, tenantId));
-
-    const recentLeads = await ctx.db
-      .select({
-        id: schema.leads.id,
-        name: schema.leads.name,
-        interestType: schema.leads.interestType,
-        status: schema.leads.status,
-        createdAt: schema.leads.createdAt,
-      })
-      .from(schema.leads)
-      .where(eq(schema.leads.tenantId, tenantId))
-      .orderBy(desc(schema.leads.createdAt))
-      .limit(5);
-
-    const domains = await ctx.db
-      .select({
-        id: schema.domains.id,
-        hostname: schema.domains.hostname,
-        status: schema.domains.status,
-        isPrimary: schema.domains.isPrimary,
-        sslStatus: schema.domains.sslStatus,
-      })
-      .from(schema.domains)
-      .where(eq(schema.domains.tenantId, tenantId))
-      .orderBy(desc(schema.domains.isPrimary));
-
-    const [site] = await ctx.db
-      .select({
-        id: schema.sites.id,
-        name: schema.sites.name,
-        status: schema.sites.status,
-      })
-      .from(schema.sites)
-      .where(eq(schema.sites.id, tenant.siteId));
+    // As consultas sao independentes: em serie, o painel pagava a soma das
+    // idas ao banco; em paralelo paga so a mais lenta. O pool limita o total.
+    const [
+      [propertyStats],
+      [projectStats],
+      [serviceStats],
+      [bannerStats],
+      [leadStats],
+      [leads30d],
+      [mediaStats],
+      recentLeads,
+      domains,
+      [site],
+      [acesso],
+      planStatus,
+    ] = await Promise.all([
+      ctx.db
+        .select({
+          total: countOf,
+          published: sql<number>`cast(count(*) filter (where ${schema.properties.publicationStatus} = 'published') as int)`,
+          drafts: sql<number>`cast(count(*) filter (where ${schema.properties.publicationStatus} = 'draft') as int)`,
+          available: sql<number>`cast(count(*) filter (where ${schema.properties.publicationStatus} = 'published' and ${schema.properties.commercialStatus} = 'disponivel') as int)`,
+          sold: sql<number>`cast(count(*) filter (where ${schema.properties.commercialStatus} = 'vendido') as int)`,
+        })
+        .from(schema.properties)
+        .where(eq(schema.properties.tenantId, tenantId)),
+      ctx.db
+        .select({
+          total: countOf,
+          published: sql<number>`cast(count(*) filter (where ${schema.projects.publicationStatus} = 'published') as int)`,
+          inProgress: sql<number>`cast(count(*) filter (where ${schema.projects.status} = 'em_andamento') as int)`,
+          completed: sql<number>`cast(count(*) filter (where ${schema.projects.status} = 'concluida') as int)`,
+        })
+        .from(schema.projects)
+        .where(eq(schema.projects.tenantId, tenantId)),
+      ctx.db
+        .select({
+          total: countOf,
+          published: sql<number>`cast(count(*) filter (where ${schema.services.publicationStatus} = 'published') as int)`,
+        })
+        .from(schema.services)
+        .where(eq(schema.services.tenantId, tenantId)),
+      ctx.db
+        .select({
+          total: countOf,
+          active: sql<number>`cast(count(*) filter (where ${schema.banners.isActive}) as int)`,
+        })
+        .from(schema.banners)
+        .where(eq(schema.banners.siteId, tenant.siteId)),
+      ctx.db
+        .select({
+          total: countOf,
+          novos: sql<number>`cast(count(*) filter (where ${schema.leads.status} = 'novo') as int)`,
+          emAtendimento: sql<number>`cast(count(*) filter (where ${schema.leads.status} = 'em_atendimento') as int)`,
+          convertidos: sql<number>`cast(count(*) filter (where ${schema.leads.status} = 'convertido') as int)`,
+        })
+        .from(schema.leads)
+        .where(eq(schema.leads.tenantId, tenantId)),
+      ctx.db
+        .select({ total: countOf })
+        .from(schema.leads)
+        .where(and(eq(schema.leads.tenantId, tenantId), gte(schema.leads.createdAt, since30d))),
+      ctx.db
+        .select({
+          total: countOf,
+          bytes: sql<number>`cast(coalesce(sum(${schema.mediaAssets.sizeBytes}), 0) as bigint)`,
+        })
+        .from(schema.mediaAssets)
+        .where(eq(schema.mediaAssets.tenantId, tenantId)),
+      ctx.db
+        .select({
+          id: schema.leads.id,
+          name: schema.leads.name,
+          interestType: schema.leads.interestType,
+          status: schema.leads.status,
+          createdAt: schema.leads.createdAt,
+        })
+        .from(schema.leads)
+        .where(eq(schema.leads.tenantId, tenantId))
+        .orderBy(desc(schema.leads.createdAt))
+        .limit(5),
+      ctx.db
+        .select({
+          id: schema.domains.id,
+          hostname: schema.domains.hostname,
+          status: schema.domains.status,
+          isPrimary: schema.domains.isPrimary,
+          sslStatus: schema.domains.sslStatus,
+        })
+        .from(schema.domains)
+        .where(eq(schema.domains.tenantId, tenantId))
+        .orderBy(desc(schema.domains.isPrimary)),
+      ctx.db
+        .select({
+          id: schema.sites.id,
+          name: schema.sites.name,
+          status: schema.sites.status,
+        })
+        .from(schema.sites)
+        .where(eq(schema.sites.id, tenant.siteId)),
+      // Ultimo acesso do site a API: a unica evidencia honesta de que a
+      // integracao esta de pe (a plataforma nao publica o site). Nulo
+      // significa cadastrado e nunca integrado -- o que o cliente precisa ver
+      // no primeiro dia, com o aviso de que a CODECA IA ainda vai conectar.
+      ctx.db
+        .select({ lastUsedAt: sql<Date | null>`max(${schema.siteApiKeys.lastUsedAt})` })
+        .from(schema.siteApiKeys)
+        .where(
+          and(eq(schema.siteApiKeys.siteId, tenant.siteId), isNull(schema.siteApiKeys.revokedAt)),
+        ),
+      loadPlanStatus(ctx.db, tenantId),
+    ]);
 
     if (!site) throw AppError.notFound('Site não encontrado.');
-
-    /**
-     * Ultimo acesso do site a API.
-     *
-     * E a unica evidencia honesta de que a integracao esta de pe: a
-     * plataforma nao publica o site e nao tem como saber se ele esta no ar,
-     * mas sabe se ele veio buscar conteudo. Nulo significa cadastrado e nunca
-     * integrado -- que e exatamente o que o cliente precisa ver no primeiro
-     * dia, com o aviso de que a CODECA IA ainda vai conectar.
-     */
-    const [acesso] = await ctx.db
-      .select({ lastUsedAt: sql<Date | null>`max(${schema.siteApiKeys.lastUsedAt})` })
-      .from(schema.siteApiKeys)
-      .where(
-        and(
-          eq(schema.siteApiKeys.siteId, tenant.siteId),
-          isNull(schema.siteApiKeys.revokedAt),
-        ),
-      );
-
-    const planStatus = await loadPlanStatus(ctx.db, tenantId);
 
     // Tipado pelo contrato compartilhado: deixar de enviar um campo que o
     // painel le passa a ser erro de compilacao, nao surpresa em producao.

@@ -87,6 +87,32 @@ export interface RequestOptions {
   raw?: boolean;
 }
 
+/** Leituras repetidas quando a API esta sobrecarregada ou a rede falhou. */
+const GET_RETRIES = 2;
+const RETRYABLE_STATUS = new Set([502, 503, 504]);
+
+/**
+ * Quanto esperar antes de repetir uma leitura.
+ *
+ * Respeita `Retry-After` (segundos) quando o servidor o manda, limitado a 5 s, e
+ * soma um sorteio: sem ele, todos os navegadores recusados voltariam no mesmo
+ * instante e recriariam a sobrecarga que provocou a recusa.
+ */
+export function retryDelayMs(attempt: number, retryAfter: string | null, random = Math.random): number {
+  const asked = retryAfter && /^\d+$/.test(retryAfter) ? Math.min(5, Number(retryAfter)) * 1000 : 0;
+  const exponential = 250 * 2 ** attempt;
+  return Math.round(Math.max(asked, exponential) + random() * 400);
+}
+
+const wait = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    });
+  });
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = options.method ?? 'GET';
   const headers: Record<string, string> = {};
@@ -104,19 +130,34 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     body = JSON.stringify(options.body);
   }
 
-  let response: Response;
-  try {
-    response = await fetch(path, {
-      method,
-      headers,
-      body,
-      // Necessario para que o cookie de sessao acompanhe a requisicao.
-      credentials: 'include',
-      ...(options.signal ? { signal: options.signal } : {}),
-    });
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error;
-    throw new ApiError(0, 'network_error', 'Falha de conexão. Verifique sua internet e tente novamente.');
+  // So leituras sao repetidas: repetir uma escrita pode grava-la duas vezes.
+  const retries = method === 'GET' ? GET_RETRIES : 0;
+  let response: Response | undefined;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      response = await fetch(path, {
+        method,
+        headers,
+        body,
+        // Necessario para que o cookie de sessao acompanhe a requisicao.
+        credentials: 'include',
+        ...(options.signal ? { signal: options.signal } : {}),
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') throw error;
+      if (attempt < retries) {
+        await wait(retryDelayMs(attempt, null), options.signal);
+        continue;
+      }
+      throw new ApiError(0, 'network_error', 'Falha de conexão. Verifique sua internet e tente novamente.');
+    }
+    if (attempt < retries && RETRYABLE_STATUS.has(response.status)) {
+      const delay = retryDelayMs(attempt, response.headers.get('retry-after'));
+      await response.body?.cancel().catch(() => undefined);
+      await wait(delay, options.signal);
+      continue;
+    }
+    break;
   }
 
   if (response.ok && method !== 'GET') for (const listener of writeListeners) listener();

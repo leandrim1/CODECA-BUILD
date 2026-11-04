@@ -3,6 +3,7 @@ import { ImagePlus, Trash2, Upload, X } from 'lucide-react';
 import { MAX_UPLOAD_BYTES, formatBytes } from '@codeca/shared';
 import { Alert, Badge, Button, Modal, Spinner, TextInput, cx, useToast } from '@codeca/ui';
 import { useTenantId } from '../hooks/useAuth.js';
+import { prepareImage } from '../lib/image-optimize';
 import { useDebounced, useResource } from '../hooks/useResource.js';
 import { mediaApi } from '../services/endpoints.js';
 import type { MediaAssetRecord, MediaRef } from '../types/index.js';
@@ -58,22 +59,34 @@ export function UploadButton({
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  // Trava sincrona: `uploading` (estado) so muda no proximo render, e dois
+  // cliques/solturas seguidos entram antes disso e enviariam tudo em duplicidade.
+  const busyRef = useRef(false);
 
   async function handleFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || busyRef.current) return;
+    busyRef.current = true;
     setUploading(true);
 
-    for (const file of Array.from(files)) {
-      // Checagem local apenas para dar retorno rapido; o servidor decide.
+    // Em sequencia, de proposito: enviar N arquivos de uma vez multiplica
+    // memoria no navegador e na funcao e tende a estourar o limite de
+    // requisicoes simultaneas. Um por vez, com progresso visivel, e mais
+    // previsivel e permite retomar do arquivo seguinte se um falhar.
+    for (const original of Array.from(files)) {
+      // Reduz a imagem no navegador (redimensiona e converte para WebP) antes de
+      // checar o limite: uma foto de celular de 8 MB costuma caber em 400 KB.
+      const prepared = await prepareImage(original);
+      const file = prepared.file;
       if (file.size > MAX_UPLOAD_BYTES) {
         toast.error(
-          `${file.name} e grande demais`,
+          `${original.name} e grande demais`,
           `O limite por arquivo e ${formatBytes(MAX_UPLOAD_BYTES)}.`,
         );
         continue;
       }
 
-      const dimensions = await readImageSize(file);
+      const dimensions =
+        prepared.width && prepared.height ? { width: prepared.width, height: prepared.height } : await readImageSize(file);
       const form = new FormData();
       form.set('file', file);
       if (tag) form.set('tag', tag);
@@ -90,6 +103,7 @@ export function UploadButton({
       }
     }
 
+    busyRef.current = false;
     setUploading(false);
     if (inputRef.current) inputRef.current.value = '';
   }
@@ -115,7 +129,7 @@ export function UploadButton({
       <Button
         variant="outline"
         loading={uploading}
-        disabled={disabled}
+        disabled={disabled || uploading}
         icon={<Upload aria-hidden="true" className="size-4" />}
         onClick={() => inputRef.current?.click()}
       >

@@ -131,7 +131,7 @@ const CREDENCIAL_INVALIDA = 'Credencial de integração inválida.';
 export async function authenticateApiKey(
   db: Database,
   input: AuthenticateApiKeyInput,
-): Promise<ApiKeyContext & { origins: string[] }> {
+): Promise<ApiKeyContext & { origins: string[]; expiresAt: number | null }> {
   const now = input.now ?? new Date();
   const parsed = input.token ? parseApiKey(input.token) : null;
   if (!parsed) throw AppError.unauthenticated(CREDENCIAL_INVALIDA);
@@ -169,6 +169,7 @@ export async function authenticateApiKey(
     siteId: row.siteId,
     scopes: row.scopes as ApiKeyScope[],
     origins: origins.map((o) => o.origin),
+    expiresAt: row.expiresAt ? row.expiresAt.getTime() : null,
   };
 }
 

@@ -304,7 +304,15 @@ Limites conhecidos da suite, para nao haver ilusao de cobertura:
 
 | Item | Status | Observacao |
 | --- | --- | --- |
-| Rate limiting persistido | Pronto | funciona em ambiente serverless |
+| Rate limiting persistido | Pronto | funciona em ambiente serverless; a API publica usa contador em memoria por chave (sem ida ao banco) |
+| Desempenho e escala | Pronto, medido | 14 -> 5 consultas por requisicao; uma instancia cumpre p95 < 500 ms ate 200 usuarios simultaneos (local, nao Neon). Capacidade acima disso **nao provada**; ver [performance.md](performance.md) |
+| Caches de autenticacao e da API publica | Pronto | em memoria por instancia, invalidados na escrita; `AUTH_CACHE_TTL_SECONDS`, `PUBLIC_CACHE_TTL_SECONDS` |
+| Protecao contra sobrecarga | Pronto, desligada por padrao | `MAX_CONCURRENT_REQUESTS`; 503 + `Retry-After`; so ligar com valor medido |
+| Banco fora do ar | Pronto | 503 + `Retry-After` (nao 500); repeticao so do que nao chegou ao banco; disjuntor no Resend |
+| Metricas e logs estruturados | Pronto | `GET /api/metrics` (com `METRICS_SECRET`); logs JSON `slow_query`, `slow_request`, `request_error`, `db_unavailable` |
+| Limpeza de registros vencidos | Pronto | sessoes, contadores, codigos e tokens, no job diario |
+| Upload direto ao Blob (sem passar pela funcao) | Nao implementado | a imagem e reduzida/convertida para WebP no navegador; limite de 4 MB por arquivo |
+| Bloqueio otimista de edicao | Nao implementado | dois usuarios no mesmo registro: o ultimo a salvar vence |
 | Auditoria das acoes sensiveis | Pronto | sem dados pessoais nos metadados |
 | Erros padronizados | Pronto | `integration_not_configured` quando falta configuracao externa |
 | Backup / restauracao | Pronto como procedimento | historico do Neon + `pg_dump`; ver [neon.md](neon.md) |

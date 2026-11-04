@@ -38,6 +38,8 @@ export interface AuthenticatedSession {
   memberships: SessionMembership[];
   csrfTokenHash: string;
   expiresAt: Date;
+  /** Ultimo uso gravado. A gravacao e espacada (ver `touchSession`). */
+  lastUsedAt: Date;
 }
 
 export interface IssuedSession {
@@ -96,9 +98,17 @@ export async function resolveSession(
       platformRole: schema.users.platformRole,
       emailVerifiedAt: schema.users.emailVerifiedAt,
       passwordHash: schema.users.passwordHash,
+      lastUsedAt: schema.sessions.lastUsedAt,
+      // Conta Google vinculada, na MESMA consulta: era uma ida ao banco a mais em
+      // toda requisicao autenticada.
+      googleEmail: schema.userIdentities.email,
     })
     .from(schema.sessions)
     .innerJoin(schema.users, eq(schema.users.id, schema.sessions.userId))
+    .leftJoin(
+      schema.userIdentities,
+      and(eq(schema.userIdentities.userId, schema.users.id), eq(schema.userIdentities.provider, 'google')),
+    )
     .where(
       and(
         eq(schema.sessions.tokenHash, tokenHash),
@@ -108,11 +118,6 @@ export async function resolveSession(
     );
 
   if (!row) return null;
-
-  const [googleIdentity] = await db
-    .select({ email: schema.userIdentities.email })
-    .from(schema.userIdentities)
-    .where(and(eq(schema.userIdentities.userId, row.userId), eq(schema.userIdentities.provider, 'google')));
 
   const memberships = await db
     .select({
@@ -130,6 +135,7 @@ export async function resolveSession(
     sessionId: row.sessionId,
     csrfTokenHash: row.csrfTokenHash,
     expiresAt: row.expiresAt,
+    lastUsedAt: row.lastUsedAt,
     user: {
       id: row.userId,
       email: row.email,
@@ -138,7 +144,7 @@ export async function resolveSession(
       platformRole: row.platformRole as PlatformRole,
       emailVerified: row.emailVerifiedAt !== null,
       hasPassword: row.passwordHash !== null,
-      google: googleIdentity ? { email: googleIdentity.email } : null,
+      google: row.googleEmail !== null ? { email: row.googleEmail } : null,
     },
     memberships: memberships.map((m) => ({
       tenantId: m.tenantId,
@@ -148,6 +154,20 @@ export async function resolveSession(
       role: m.role as TenantRole,
     })),
   };
+}
+
+/**
+ * Quanto tempo o "ultimo uso" da sessao pode ficar sem ser regravado.
+ *
+ * Gravar a cada requisicao era uma ESCRITA por clique de cada usuario logado --
+ * a forma mais cara de consulta, so para alimentar a lista de "sessoes ativas".
+ * Cinco minutos bastam para essa lista, e a expiracao nao depende deste campo
+ * (ela usa `expires_at`).
+ */
+export const SESSION_TOUCH_INTERVAL_MS = 5 * 60_000;
+
+export function sessionNeedsTouch(session: Pick<AuthenticatedSession, 'lastUsedAt'>, now: Date): boolean {
+  return now.getTime() - session.lastUsedAt.getTime() >= SESSION_TOUCH_INTERVAL_MS;
 }
 
 export async function touchSession(db: Database, sessionId: string, now = new Date()): Promise<void> {

@@ -1,3 +1,4 @@
+import { nextTenantSlug } from '../lib/company.js';
 import {
   createPrimarySite,
   and,
@@ -22,16 +23,14 @@ import {
   platformTenantQuerySchema,
   platformUpdateTenantSchema,
   setPlatformRoleSchema,
-  slugify,
   supportGrantSchema,
-  uniqueSlug,
   uuidSchema,
 } from '@codeca/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { AUDIT_ACTIONS, listAuditLogs } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
-import { created, noContent, ok, parseJsonBody, parseParams, parseQuery } from '../lib/http.js';
+import { created, noContent, ok, parseJsonBody, parseJsonPatch, parseParams, parseQuery } from '../lib/http.js';
 import { loadPlanStatus } from '../lib/plan-limits.js';
 import { buildActionUrl, issueUserToken } from '../lib/tokens.js';
 import { requireAuth, requirePlatform, sessionOf } from '../middleware/auth.js';
@@ -235,11 +234,7 @@ export function platformRoutes() {
     const [plan] = await ctx.db.select().from(schema.plans).where(eq(schema.plans.code, input.planCode));
     if (!plan) throw AppError.badRequest('Plano informado não existe.');
 
-    const existingSlugs = await ctx.db.select({ slug: schema.tenants.slug }).from(schema.tenants);
-    const slug = uniqueSlug(
-      slugify(input.slug ?? input.displayName),
-      existingSlugs.map((row) => row.slug),
-    );
+    const slug = await nextTenantSlug(ctx.db, input.slug ?? input.displayName);
 
     const result = await ctx.db.transaction(async (tx) => {
       let [owner] = await tx.select().from(schema.users).where(eq(schema.users.email, input.ownerEmail));
@@ -429,7 +424,7 @@ export function platformRoutes() {
   app.patch('/plans/:planId', requirePlatform('platform:plans:write'), async (c) => {
     const ctx = c.get('ctx');
     const { planId } = parseParams(c, z.object({ planId: uuidSchema }));
-    const input = await parseJsonBody(c, planUpdateSchema);
+    const input = await parseJsonPatch(c, planUpdateSchema);
 
     const [current] = await ctx.db.select().from(schema.plans).where(eq(schema.plans.id, planId));
     if (!current) throw AppError.notFound('Plano não encontrado.');

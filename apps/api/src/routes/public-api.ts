@@ -37,6 +37,7 @@ import {
 import { loadGallery, loadGalleryIds } from '../lib/media-refs.js';
 import { enabledModuleKeys, loadSiteModules } from '../lib/modules.js';
 import { enabledCustomModules, loadCustomModulePublico, loadCustomModules } from '../lib/custom-modules.js';
+import { publicResponseCache } from '../middleware/public-cache.js';
 import { apiKeyMiddleware } from '../middleware/api-key.js';
 import { enforcePublicSuspension } from '../middleware/suspension.js';
 import type { AppBindings } from '../types.js';
@@ -146,6 +147,8 @@ export function publicApiRoutes() {
   app.use('/*', apiKeyMiddleware());
   // A politica de suspensao do plano decide se este site continua respondendo.
   app.use('/*', enforcePublicSuspension());
+  // Depois da autenticacao e da suspensao: um acerto no cache nunca pula nenhuma das duas.
+  app.use('/*', publicResponseCache());
 
   /** Identidade do site e modulos disponiveis. E o `getSite()` do SDK. */
   app.get('/site', async (c) => {

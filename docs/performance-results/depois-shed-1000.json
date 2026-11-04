@@ -1,0 +1,201 @@
+{
+  "label": "depois-shed-1000",
+  "vus": 1000,
+  "seconds": 47.521,
+  "totalRequests": 31141,
+  "rps": 655.3102838744976,
+  "errRate": 0,
+  "serverErrors": 0,
+  "networkErrors": 0,
+  "unexpected4xx": 0,
+  "shed503": 16490,
+  "retriedReads": 13138,
+  "finalFailures": 3352,
+  "rateLimited429": 0,
+  "p50": 13.319450999995752,
+  "p95": 761.6954930000011,
+  "p99": 1222.0552329999996,
+  "ops": {
+    "PUB site": {
+      "n": 4012,
+      "avg": 103.71325129137595,
+      "p95": 458.96097400000144,
+      "p99": 1119.263461
+    },
+    "PUB imovel (detalhe)": {
+      "n": 3718,
+      "avg": 118.06347136605716,
+      "p95": 461.78079699999944,
+      "p99": 683.9846599999983
+    },
+    "PUB imoveis (lista)": {
+      "n": 3715,
+      "avg": 120.7338758756391,
+      "p95": 463.8661659999998,
+      "p99": 670.0952839999991
+    },
+    "PUB banners": {
+      "n": 3704,
+      "avg": 91.72570750971913,
+      "p95": 353.96259999999893,
+      "p99": 556.1391969999968
+    },
+    "GET imoveis (lista)": {
+      "n": 2572,
+      "avg": 260.8438105128302,
+      "p95": 872.3225550000025,
+      "p99": 1126.4621810000026
+    },
+    "GET visao-geral": {
+      "n": 2561,
+      "avg": 308.5438320835619,
+      "p95": 1084.0708809999996,
+      "p99": 1440.5672270000005
+    },
+    "GET sessao": {
+      "n": 2491,
+      "avg": 59.8129559417903,
+      "p95": 304.16939600000114,
+      "p99": 352.64827300000024
+    },
+    "GET interessados": {
+      "n": 2389,
+      "avg": 209.55411187107592,
+      "p95": 716.2722979999999,
+      "p99": 936.2031809999971
+    },
+    "GET modulos": {
+      "n": 2357,
+      "avg": 301.050534924904,
+      "p95": 870.0513549999996,
+      "p99": 1053.361171000004
+    },
+    "GET imovel (detalhe)": {
+      "n": 2047,
+      "avg": 195.80086356521772,
+      "p95": 642.0888740000009,
+      "p99": 874.1923719999977
+    },
+    "login": {
+      "n": 700,
+      "avg": 632.3115136499999,
+      "p95": 1395.543166,
+      "p99": 1474.0268899999999
+    },
+    "PATCH imovel (salvar)": {
+      "n": 622,
+      "avg": 363.7789774646307,
+      "p95": 986.4443090000022,
+      "p99": 1166.0874159999985
+    },
+    "POST imovel (criar)": {
+      "n": 253,
+      "avg": 471.7000313992095,
+      "p95": 994.4032069999957,
+      "p99": 1170.2529589999976
+    }
+  },
+  "stats": {
+    "requests": 31141,
+    "queries": 87285,
+    "queryMs": 7725,
+    "pool": {
+      "total": 10,
+      "idle": 10,
+      "waiting": 0,
+      "max": 10,
+      "peakTotal": 10,
+      "peakWaiting": 303
+    },
+    "memoryMb": {
+      "rss": 463,
+      "peakRss": 463
+    },
+    "eventLoopMs": {
+      "p50": 11.911167,
+      "p99": 24.084479,
+      "max": 159.645695
+    },
+    "routes": [
+      {
+        "route": "POST /api/tenants/:id/properties",
+        "n": 253,
+        "queriesPerReq": 1,
+        "dbMsPerReq": 0.1
+      },
+      {
+        "route": "PATCH /api/tenants/:id/properties/:id",
+        "n": 622,
+        "queriesPerReq": 0.2,
+        "dbMsPerReq": 0
+      },
+      {
+        "route": "POST /api/auth/login",
+        "n": 700,
+        "queriesPerReq": 0.1,
+        "dbMsPerReq": 0.1
+      },
+      {
+        "route": "GET /api/v1/site",
+        "n": 4012,
+        "queriesPerReq": 0,
+        "dbMsPerReq": 0
+      },
+      {
+        "route": "GET /api/v1/properties",
+        "n": 3715,
+        "queriesPerReq": 0,
+        "dbMsPerReq": 0
+      },
+      {
+        "route": "GET /api/auth/session",
+        "n": 2491,
+        "queriesPerReq": 0,
+        "dbMsPerReq": 0
+      },
+      {
+        "route": "GET /api/v1/properties/:slug",
+        "n": 3718,
+        "queriesPerReq": 0,
+        "dbMsPerReq": 0
+      },
+      {
+        "route": "GET /api/v1/banners",
+        "n": 3704,
+        "queriesPerReq": 0,
+        "dbMsPerReq": 0
+      },
+      {
+        "route": "GET /api/tenants/:id/overview",
+        "n": 2561,
+        "queriesPerReq": 0,
+        "dbMsPerReq": 0
+      },
+      {
+        "route": "GET /api/tenants/:id/properties",
+        "n": 2572,
+        "queriesPerReq": 0,
+        "dbMsPerReq": 0
+      },
+      {
+        "route": "GET /api/tenants/:id/properties/:id",
+        "n": 2047,
+        "queriesPerReq": 0,
+        "dbMsPerReq": 0
+      },
+      {
+        "route": "GET /api/tenants/:id/modules",
+        "n": 2357,
+        "queriesPerReq": 0,
+        "dbMsPerReq": 0
+      },
+      {
+        "route": "GET /api/tenants/:id/leads",
+        "n": 2389,
+        "queriesPerReq": 0,
+        "dbMsPerReq": 0
+      }
+    ]
+  },
+  "integrity": []
+}

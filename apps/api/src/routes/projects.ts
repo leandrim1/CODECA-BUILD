@@ -20,6 +20,7 @@ import {
   ok,
   parseJsonBody,
   parseJsonBodyWithRaw,
+  parseJsonPatchWithRaw,
   parseParams,
   parseQuery,
 } from '../lib/http.js';
@@ -227,7 +228,7 @@ export function projectRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const { projectId } = parseParams(c, projectParams);
-    const { data: input, raw } = await parseJsonBodyWithRaw(c, projectUpdateSchema);
+    const { data: input, raw } = await parseJsonPatchWithRaw(c, projectUpdateSchema);
 
     const [current] = await ctx.db
       .select()

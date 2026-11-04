@@ -25,6 +25,8 @@ import {
   ok,
   parseJsonBody,
   parseJsonBodyWithRaw,
+  parseJsonPatch,
+  parseJsonPatchWithRaw,
   parseParams,
   parseQuery,
 } from '../lib/http.js';
@@ -246,7 +248,7 @@ export function catalogRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const { productId } = parseParams(c, produtoParams);
-    const { data: input, raw } = await parseJsonBodyWithRaw(c, productUpdateSchema);
+    const { data: input, raw } = await parseJsonPatchWithRaw(c, productUpdateSchema);
 
     const atual = await carregarProduto(ctx.db, tenant.siteId, productId);
     const personalizados = await lerAlteracao(
@@ -440,7 +442,7 @@ export function catalogRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const { categoryId } = parseParams(c, categoriaParams);
-    const input = await parseJsonBody(c, categoryUpdateSchema);
+    const input = await parseJsonPatch(c, categoryUpdateSchema);
 
     const [atual] = await ctx.db
       .select()
@@ -587,7 +589,7 @@ export function catalogRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const { galleryId } = parseParams(c, galeriaParams);
-    const input = await parseJsonBody(c, galleryUpdateSchema);
+    const input = await parseJsonPatch(c, galleryUpdateSchema);
 
     const [atual] = await ctx.db
       .select()

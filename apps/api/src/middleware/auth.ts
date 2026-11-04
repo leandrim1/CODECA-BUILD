@@ -2,7 +2,8 @@ import { AppError, type PlatformCapability, type TenantCapability } from '@codec
 import type { MiddlewareHandler } from 'hono';
 import { readSessionToken } from '../lib/cookies.js';
 import { assertCsrfToken, assertSameOrigin, isStateChanging } from '../lib/csrf.js';
-import { resolveSession, touchSession } from '../lib/session.js';
+import { hashToken } from '@codeca/shared/server';
+import { resolveSession, sessionNeedsTouch, touchSession } from '../lib/session.js';
 import {
   assertPlatformCapability,
   assertTenantCapability,
@@ -28,7 +29,16 @@ export function sessionMiddleware(): MiddlewareHandler<AppBindings> {
     let session = null;
 
     if (token) {
-      session = await resolveSession(ctx.db, ctx.env, token, ctx.now());
+      const tokenHash = hashToken(token, ctx.env.AUTH_SECRET);
+      const now = ctx.now();
+      // Uma consulta por sessao a cada `AUTH_CACHE_TTL`, e uma so mesmo com muitas
+      // requisicoes simultaneas (o cache deduplica). Ver `lib/caches.ts`.
+      session = await ctx.caches.session.getOrLoad(tokenHash, () => resolveSession(ctx.db, ctx.env, token, now));
+      // Uma sessao guardada que venceu nao pode continuar valendo.
+      if (session && session.expiresAt.getTime() <= now.getTime()) {
+        ctx.caches.invalidateSession(tokenHash);
+        session = null;
+      }
     }
     c.set('session', session);
 
@@ -39,10 +49,38 @@ export function sessionMiddleware(): MiddlewareHandler<AppBindings> {
 
     await next();
 
-    // Atualiza o ultimo uso somente em requisicoes bem-sucedidas.
-    if (session && c.res.status < 400) {
-      await touchSession(ctx.db, session.sessionId, ctx.now());
+    // O "ultimo uso" e regravado so de tempos em tempos, nao a cada requisicao.
+    if (session && c.res.status < 400 && sessionNeedsTouch(session, ctx.now())) {
+      const now = ctx.now();
+      await touchSession(ctx.db, session.sessionId, now);
+      session.lastUsedAt = now;
     }
+  };
+}
+
+/**
+ * Descarta, ao fim de uma escrita bem-sucedida, o que os caches desta instancia
+ * guardam sobre a empresa afetada.
+ *
+ * Fica num middleware unico, e nao em cada rota, para que **nenhuma** escrita
+ * possa esquecer: nova rota, novo cache, mesma garantia. Escrita no painel mestre
+ * (plano, segmento, chave, papel) pode afetar qualquer empresa, entao esvazia tudo.
+ *
+ * So alcanca esta instancia; as outras convergem em ate a validade dos caches.
+ */
+export function invalidateCachesOnWrite(scope: 'tenant' | 'platform'): MiddlewareHandler<AppBindings> {
+  return async (c, next) => {
+    await next();
+    // 4xx = recusada antes de gravar, nada mudou. 5xx pode ter gravado parte
+    // antes de falhar: invalidar e o lado seguro.
+    if (!isStateChanging(c.req.method) || (c.res.status >= 400 && c.res.status < 500)) return;
+    const { caches } = c.get('ctx');
+    if (scope === 'platform') {
+      caches.invalidateAll();
+      return;
+    }
+    const tenant = c.get('tenant');
+    if (tenant) caches.invalidateTenant(tenant.tenantId, tenant.siteId);
   };
 }
 
@@ -81,7 +119,10 @@ export function tenantMiddleware(): MiddlewareHandler<AppBindings> {
     if (!session) throw AppError.unauthenticated('Faca login para continuar.');
 
     const { tenantId } = parseParams(c, tenantIdParamSchema);
-    const tenant = await resolveTenantContext(ctx.db, session, tenantId, ctx.now());
+    // Chave = empresa + usuario: um usuario nunca recebe o vinculo de outro.
+    const tenant = await ctx.caches.tenant.getOrLoad(`${tenantId}:${session.user.id}`, () =>
+      resolveTenantContext(ctx.db, session, tenantId, ctx.now()),
+    );
     c.set('tenant', tenant);
     await next();
   };

@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from 'hono';
 import { AppError, planHasFeature } from '@codeca/shared';
-import { loadEffectivePlan } from '../lib/plan-limits.js';
+import { loadEffectivePlanCached } from '../lib/plan-limits.js';
 import { subPathAllowed, tenantSubPath } from './tenant-path.js';
 import type { AppBindings } from '../types.js';
 
@@ -56,7 +56,7 @@ export function requirePanelPlan(options: PanelPlanOptions): MiddlewareHandler<A
 
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
-    const plano = await loadEffectivePlan(ctx.db, tenant.tenantId);
+    const plano = await loadEffectivePlanCached(ctx, tenant.tenantId);
 
     if (!planHasFeature(plano.limits, 'cms_panel')) {
       throw AppError.planWithoutPanel(

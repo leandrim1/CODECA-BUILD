@@ -1,5 +1,7 @@
 export * from './schema.js';
 export * from './client.js';
+export * from './instrument.js';
+export * from './resilience.js';
 export * from './migrator.js';
 export * from './seed.js';
 export * from './baseline.js';

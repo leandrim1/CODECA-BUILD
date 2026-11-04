@@ -6,7 +6,7 @@ import {
   panelFullyBlocked,
   panelWritesBlocked,
 } from '@codeca/shared';
-import { resolveSiteBilling } from '../lib/billing/suspension.js';
+import { resolveSiteBillingCached } from '../lib/billing/suspension.js';
 import { subPathAllowed, tenantSubPath } from './tenant-path.js';
 import type { AppBindings } from '../types.js';
 
@@ -47,7 +47,7 @@ export function enforceSuspension(options: SuspensionOptions): MiddlewareHandler
 
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
-    const situacao = await resolveSiteBilling(ctx.db, tenant.siteId, ctx.now());
+    const situacao = await resolveSiteBillingCached(ctx, tenant.siteId, tenant.tenantId);
 
     if (situacao.effect.current) {
       await next();
@@ -92,7 +92,7 @@ export function enforcePublicSuspension(): MiddlewareHandler<AppBindings> {
   return async (c, next) => {
     const ctx = c.get('ctx');
     const credencial = c.get('apiKey');
-    const situacao = await resolveSiteBilling(ctx.db, credencial.siteId, ctx.now());
+    const situacao = await resolveSiteBillingCached(ctx, credencial.siteId, credencial.tenantId);
 
     if (situacao.effect.publicSite === 'stop' && !situacao.effect.current) {
       // 402 e nao 403: a diferenca importa para quem integra. 403 e

@@ -124,6 +124,7 @@ export function codeAuthRoutes() {
     const patch: { lastLoginAt: Date; updatedAt: Date; emailVerifiedAt?: Date } = { lastLoginAt: now, updatedAt: now };
     if (!user.emailVerifiedAt) patch.emailVerifiedAt = now;
     await ctx.db.update(schema.users).set(patch).where(eq(schema.users.id, user.id));
+    ctx.caches.invalidateUser(user.id);
     if (!user.emailVerifiedAt) {
       await recordAudit(ctx.db, ctx.env, {
         actorUserId: user.id,

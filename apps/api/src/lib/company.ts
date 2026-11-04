@@ -1,4 +1,4 @@
-import { and, createPrimarySite, eq, schema, type Database } from '@codeca/database';
+import { and, createPrimarySite, eq, like, or, schema, type Database } from '@codeca/database';
 import { AppError, DEFAULT_GRACE_PERIOD_DAYS, TRIAL_PERIOD_DAYS, slugify, uniqueSlug } from '@codeca/shared';
 
 /**
@@ -23,7 +23,14 @@ export async function loadTrialPlan(db: Database): Promise<{ id: string }> {
 
 export async function nextTenantSlug(db: Database, desired: string): Promise<string> {
   const base = slugify(desired) || 'empresa';
-  const rows = await db.select({ slug: schema.tenants.slug }).from(schema.tenants);
+  // Le so os slugs que podem colidir (`base` e `base-N`), nao a tabela inteira:
+  // com milhares de empresas, a leitura total custava mais a cada cadastro. O
+  // indice unico de `slug` ainda e a garantia final contra corrida.
+  const escaped = base.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+  const rows = await db
+    .select({ slug: schema.tenants.slug })
+    .from(schema.tenants)
+    .where(or(eq(schema.tenants.slug, base), like(schema.tenants.slug, `${escaped}-%`)));
   return uniqueSlug(base, rows.map((row) => row.slug));
 }
 

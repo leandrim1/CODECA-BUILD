@@ -23,7 +23,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
-import { created, noContent, ok, parseJsonBody, parseParams } from '../lib/http.js';
+import { created, noContent, ok, parseJsonBody, parseJsonPatch, parseParams } from '../lib/http.js';
 import { issueApiKey, revokeApiKeyById, rotateApiKey } from '../lib/integration/keys.js';
 import { generateWebhookSecret } from '@codeca/shared/server';
 import { customFieldsOf, loadSiteModules } from '../lib/modules.js';
@@ -578,7 +578,7 @@ export function platformSiteRoutes() {
         z.object({ siteId: uuidSchema, moduleKey: z.string().trim().min(1) }),
       );
       const site = await loadSite(ctx.db, siteId);
-      const input = await parseJsonBody(c, customModuleUpdateSchema);
+      const input = await parseJsonPatch(c, customModuleUpdateSchema);
 
       const [atual] = await ctx.db
         .select()
