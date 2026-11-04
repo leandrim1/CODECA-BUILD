@@ -306,7 +306,7 @@ Limites conhecidos da suite, para nao haver ilusao de cobertura:
 | Auditoria das acoes sensiveis | Pronto | sem dados pessoais nos metadados |
 | Erros padronizados | Pronto | `integration_not_configured` quando falta configuracao externa |
 | Backup / restauracao | Pronto como procedimento | historico do Neon + `pg_dump`; ver [neon.md](neon.md) |
-| Reverificacao periodica de dominios | Nao implementado | a reverificacao e manual, pelo botao no painel ou pelo painel mestre |
+| Reverificacao periodica de dominios | Pronto | dentro do job diario (`/api/billing/reconcile`), so dominios gerenciados; falha da Vercel nao rebaixa dominio. O botao manual continua. Ver `docs/dominios.md` 6.1 |
 | Reconciliacao periodica de cobranca | Pronto, depende de segredo | Vercel Cron; relatorio com divergencias e falhas |
 | Alerta ativo de evento com falha | Pronto, parcial | aparece no painel mestre e no log; nao ha envio de e-mail ou push |
 | Versionamento dos arquivos no Blob | Nao implementado | arquivo removido precisa ser reenviado |

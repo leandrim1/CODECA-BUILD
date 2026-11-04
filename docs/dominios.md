@@ -201,6 +201,29 @@ A traducao dos estados da Vercel esta em `mapProviderStatus`
 cadastrado, e no modo registro nunca fica ativo, porque a plataforma nao tem
 como saber.
 
+## 6.1 Reverificacao automatica
+
+O estado "Ativo" so diz que o dominio estava certo **quando foi verificado**.
+Por isso o job diario (`/api/billing/reconcile`, o mesmo cron da cobranca e dos
+avisos de publicacao -- o plano Hobby da Vercel permite um so) reconsulta a
+Vercel dos dominios e grava o estado novo pelas mesmas regras do botao "Verificar
+novamente" (`apps/api/src/lib/domain-status.ts`).
+
+| Situacao | O que acontece |
+| --- | --- |
+| Dominio aguardando DNS ou propriedade, e o cliente ja ajustou | vira **Ativo** sem ninguem voltar ao painel; auditoria `domain.verified` com `source: recheck` |
+| Dominio ativo cujo DNS deixou de apontar | vira **Configuracao incorreta**, com o motivo em "ultimo erro"; auditoria `domain.verification_lost` e aviso no log (`[domains] ... deixaram de funcionar`) |
+| Dominio que continua como estava | so `lastCheckedAt` anda; nada na auditoria |
+| A Vercel falha (rede, 5xx, limite) | **o estado nao muda**; so `lastCheckedAt` anda, para o dominio que falha sempre nao ficar na frente da fila |
+| Dominio em modo registro (hospedagem fora) ou desvinculado | nunca consultado |
+| Sem `VERCEL_API_TOKEN` | nada consultado: sem provedor tudo viraria "aguardando DNS" e rebaixaria dominio ativo por falta de configuracao **nossa** |
+
+Cada execucao verifica no maximo `limit` dominios (padrao 50, maximo 200), do
+verificado ha mais tempo para o mais recente; o que sobra fica para a proxima
+passagem. O resultado vem no campo `domains` da resposta do job. A frequencia
+e a do cron em `vercel.json` (diaria no Hobby); num plano pago basta aumentar,
+sem mudar codigo.
+
 ## 7. Dominio principal
 
 Um dominio por empresa pode ser o principal, e so se estiver **ativo** -- o que,

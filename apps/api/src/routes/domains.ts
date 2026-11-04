@@ -19,6 +19,7 @@ import { assertFeature, assertWithinLimit, loadEffectivePlan } from '../lib/plan
 import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ratelimit.js';
 import { platformHosts } from '../env.js';
 import { EXTERNAL_HOSTING_MESSAGE, loadHosting, type HostingMode } from '../lib/hosting.js';
+import { mapProviderStatus, verificationPatch } from '../lib/domain-status.js';
 import type { DomainProviderStatus } from '../lib/vercel-domains.js';
 import { requireCapability, requireVerifiedEmail } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
@@ -223,19 +224,7 @@ export function domainRoutes() {
 
     const [row] = await ctx.db
       .update(schema.domains)
-      .set({
-        status: mapped.status,
-        dnsConfigured: providerStatus.dnsConfigured,
-        ownershipVerified: providerStatus.ownershipVerified,
-        sslStatus: providerStatus.sslActive ? 'active' : 'pending',
-        vercelDomainId: providerStatus.providerDomainId ?? domain.vercelDomainId,
-        verificationRecordName: providerStatus.challenges[0]?.domain ?? '',
-        verificationRecordValue: providerStatus.challenges[0]?.value ?? '',
-        lastError: mapped.status === 'misconfigured' ? providerStatus.message : '',
-        lastCheckedAt: ctx.now(),
-        verifiedAt: mapped.status === 'active' ? (domain.verifiedAt ?? ctx.now()) : null,
-        updatedAt: ctx.now(),
-      })
+      .set(verificationPatch(domain, providerStatus, mapped.status, ctx.now()))
       .where(and(eq(schema.domains.id, domainId), eq(schema.domains.tenantId, tenant.tenantId)))
       .returning();
 
@@ -341,20 +330,7 @@ export function domainRoutes() {
   return app;
 }
 
-/**
- * Traduz o estado do provedor para o estado exibido no painel.
- * Sem provedor configurado, o dominio nunca passa de "aguardando DNS".
- */
-export function mapProviderStatus(
-  status: DomainProviderStatus,
-  providerConfigured: boolean,
-): { status: DomainStatus } {
-  if (!providerConfigured) return { status: 'awaiting_dns' };
-  if (status.ownershipVerified && status.dnsConfigured) return { status: 'active' };
-  if (status.ownershipVerified && !status.dnsConfigured) return { status: 'misconfigured' };
-  if (status.challenges.length > 0) return { status: 'verifying_ownership' };
-  return { status: 'awaiting_dns' };
-}
+export { mapProviderStatus } from '../lib/domain-status.js';
 
 async function setPrimary(
   db: Database,

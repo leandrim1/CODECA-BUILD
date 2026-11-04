@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { Hono, type Context } from 'hono';
 import { pendingWebhookEvents, processWebhookEvent } from '../lib/billing/webhook-store.js';
 import { reconcileBilling } from '../lib/billing/reconcile.js';
+import { recheckDomains } from '../lib/domain-recheck.js';
 import { flushPendingDeliveries } from '../lib/integration/outbound.js';
 import { ok } from '../lib/http.js';
 import type { AppBindings } from '../types.js';
@@ -18,10 +19,11 @@ import type { AppBindings } from '../types.js';
  * O trabalho de cada execucao e limitado (`limit`), para caber no tempo da
  * funcao: o que sobrar fica para a proxima passagem, sem perder nada.
  *
- * Faz duas coisas que nao tem a ver uma com a outra -- reconciliar cobranca e
- * reenviar webhook que falhou -- e isso e deliberado: o plano Hobby da Vercel
- * permite **um** cron, diario. Separar em duas rotas exigiria um plano pago
- * para nada, ja que as duas tarefas sao curtas e independentes entre si.
+ * Faz tres coisas que nao tem a ver umas com as outras -- reconciliar cobranca,
+ * reenviar webhook que falhou e reverificar dominios -- e isso e deliberado:
+ * o plano Hobby da Vercel permite **um** cron, diario. Separar em tres rotas
+ * exigiria um plano pago para nada, ja que as tarefas sao curtas e independentes
+ * entre si.
  */
 
 export function billingJobRoutes() {
@@ -70,6 +72,22 @@ async function executarJob(c: Context<AppBindings>) {
     { limit },
   );
 
+  // 4. Dominios gerenciados: quem passou a funcionar e quem deixou de funcionar.
+  //    Falha aqui nao pode impedir a resposta do resto do job.
+  const domains = await recheckDomains(
+    { db: ctx.db, env: ctx.env, domains: ctx.domains, now: ctx.now },
+    { limit },
+  ).catch((error: unknown) => {
+    console.error('[domains] falha na reverificação:', error instanceof Error ? error.message : error);
+    return null;
+  });
+  if (domains && domains.lostActive.length > 0) {
+    console.warn(
+      `[domains] ${domains.lostActive.length} domínio(s) deixaram de funcionar: `
+        + domains.lostActive.map((d) => d.hostname).join(', '),
+    );
+  }
+
   if (report.failures.length > 0 || report.divergences.length > 0) {
     // Alerta operacional no log: a origem fica visivel no painel mestre.
     console.warn(
@@ -82,7 +100,7 @@ async function executarJob(c: Context<AppBindings>) {
     console.warn(`[webhook] ${deliveries.exhausted} entrega(s) esgotaram as tentativas.`);
   }
 
-  return ok(c, { ...report, deliveries });
+  return ok(c, { ...report, deliveries, domains });
 }
 
 /**

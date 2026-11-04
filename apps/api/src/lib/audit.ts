@@ -41,6 +41,8 @@ export const AUDIT_ACTIONS = {
   mediaDeleted: 'media.deleted',
   domainAdded: 'domain.added',
   domainVerified: 'domain.verified',
+  /** A reverificacao periodica viu um dominio ativo deixar de funcionar. */
+  domainVerificationLost: 'domain.verification_lost',
   domainRemoved: 'domain.removed',
   domainPrimaryChanged: 'domain.primary_changed',
   leadReceived: 'lead.received',
