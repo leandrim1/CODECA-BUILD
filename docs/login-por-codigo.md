@@ -1,165 +1,160 @@
-# Login por codigo de verificacao (e-mail)
+# Verificacao por e-mail em duas etapas
 
-"Entrar com e-mail" em `/entrar` e "Continuar com e-mail" em `/criar-conta`: a
-pessoa informa o e-mail, recebe um codigo de 6 digitos e entra **sem senha** e
-**sem Google**. Funciona de forma independente dos outros dois jeitos de entrar
-(senha e Google) e usa a mesma sessao.
+Todo login tem **duas etapas**: primeiro **e-mail e senha** (ou o **Google**) e,
+so depois, um **codigo de 6 digitos enviado ao e-mail da conta**. A sessao so
+nasce quando o codigo e digitado. Nao existe entrada so por codigo.
+
+```
+1a etapa                              2a etapa
+e-mail + senha  ----\                 codigo de 6 digitos
+                     >--> e-mail ---> (digitado na tela) ---> sessao
+Google          ----/
+```
 
 ## 1. Rotas da API
 
-Todas sob `/api/auth/code`, `POST`, com verificacao de origem:
-
-| Rota | O que faz | Resposta |
+| Rota | Quem chama | O que faz |
 | --- | --- | --- |
-| `/request` | gera, guarda (so o hash) e **envia** o codigo | `{ sent, resendAfterSeconds: 60, expiresInSeconds: 600 }`. **Nunca** o codigo. Igual para e-mail com e sem conta |
-| `/verify` | confere o codigo | e-mail com conta: `{ status: "authenticated", session, csrfToken, notice }` e cookie de sessao. E-mail novo: `{ status: "registration_required" }` e um comprovante em cookie HttpOnly |
-| `/register` | conclui o cadastro de e-mail **novo** (nome, empresa, telefone, termos) | `201 { status: "authenticated", session, csrfToken, tenantId }` |
+| `POST /api/auth/login` | tela `/entrar` | confere e-mail e senha. Certo: **envia o codigo** e responde `{ status: "code_required", email, resendAfterSeconds, expiresInSeconds }`, **sem sessao**. Errado: `401` generico, nada e enviado |
+| `GET /api/auth/google/callback` | o Google | autorizado: envia o codigo e redireciona a `/entrar?etapa=codigo`, **sem sessao** |
+| `POST /api/auth/code/verify` | tela do codigo | `{ code }` -> `{ status: "authenticated", session, csrfToken, next }` e cookie de sessao |
+| `POST /api/auth/code/resend` | tela do codigo | reenvia (60 s de intervalo, 5/hora) |
+| `GET /api/auth/code/pending` | tela vinda do Google | e-mail e segundos para o reenvio |
+| `POST /api/auth/code/cancel` | "Entrar com outra conta" | descarta a 1a etapa |
 
-`GET /api/auth/session` informa `features.emailCodeAuth` (a tela so mostra a opcao
-quando e `true`).
+As rotas `/api/auth/code/request` e `/api/auth/code/register` (codigo **sem**
+senha), da versao anterior, **foram removidas** (respondem 404). O cadastro de
+conta (`POST /api/auth/register`) **nao mudou**: continua devolvendo a sessao no
+ato, com o e-mail confirmado pelo link de sempre.
 
-## 2. Como cada exigencia esta atendida
+## 2. O codigo nao e uma porta de entrada
+
+As rotas `/code/*` exigem o **comprovante da 1a etapa**: um cookie `HttpOnly`
+assinado (`codeca_login_pending`, `Path=/api/auth/code`, 15 min), emitido **so
+depois** da senha correta (ou do Google). Dele saem o e-mail, o usuario, o
+"manter conectado" e o destino -- **nunca do corpo** da requisicao.
+
+Consequencias, todas com teste:
+
+- Saber o e-mail (ate o codigo) nao basta: sem o comprovante, `verify`, `resend`
+  e `pending` respondem `401` e **nada e enviado**.
+- Nao existe rota publica para "pedir codigo para este e-mail". Isso tambem fecha
+  dois abusos: encher a caixa de entrada de qualquer pessoa e descobrir quais
+  e-mails tem conta.
+- Senha errada, e-mail inexistente e conta sem senha respondem a **mesma**
+  mensagem, e nenhum e-mail sai.
+
+## 3. O codigo
 
 | Exigencia | Como |
 | --- | --- |
-| 6 digitos aleatorios | `crypto.randomInt` (fonte criptografica), com zeros a esquerda preservados |
-| Validade de 10 minutos | `expires_at`; conferido no servidor com o relogio do servidor |
-| Uso unico | `UPDATE ... WHERE used_at IS NULL RETURNING` -- de varias validacoes simultaneas, so uma passa (teste com 6 em paralelo) |
-| Guardado em hash | `code_hash = HMAC-SHA256(AUTH_SECRET, "login-code:<email>:<codigo>")`. Com so 1.000.000 de possibilidades, um hash simples seria quebrado em milissegundos por quem lesse o banco; com o segredo, nao |
-| Limite de tentativas | **5 por codigo**; a tentativa e contada **antes** de conferir, de forma atomica (tentativas simultaneas tambem contam). Errou a 5a, o codigo morre, mesmo o certo |
-| Limite de pedidos | por e-mail **5/hora** e por IP **15/hora** |
-| Intervalo entre reenvios | **60 s** por e-mail; antes disso `429` com quantos segundos faltam |
-| Forca bruta | alem das 5 tentativas: validacoes por e-mail **15/hora** e por IP **30/15 min**. Pedir codigo novo nao zera nada |
-| Anti-enumeracao | `/request` faz o mesmo trabalho e responde igual para qualquer e-mail; toda falha de `/verify` (errado, vencido, usado, inexistente, esgotado) devolve **a mesma mensagem**. A tabela nao tem `user_id`: existir uma linha nao revela se ha conta |
-| Codigo anterior invalidado | pedir um novo marca os anteriores como usados; so o ultimo emitido vale |
-| Codigo fora do log | o mailer de console **omite** o corpo dos e-mails `login_code`; o adaptador da Resend so loga o status HTTP; a auditoria nao carrega o codigo. Teste varre `console.*` em um fluxo completo |
-| Codigo fora da resposta | a resposta de `/request` tem 3 campos fixos; teste confere o corpo e os cabecalhos |
-| So o e-mail nunca autentica | `/verify` exige o codigo (422 sem ele); `/register` exige o comprovante do codigo |
-| E-mail "verificado" so depois do codigo | `email_verified_at` passa a valer na primeira prova |
-| Sessao | `createSession`, o mesmo caminho da senha e do Google: cookie `codeca_session` HttpOnly, `SameSite=Lax`, `Secure` em producao; nada em `localStorage`; logout e expiracao iguais |
-| Limpeza | cada pedido apaga os codigos vencidos ha mais de 1 dia (sem depender de tarefa agendada) |
+| 6 digitos aleatorios | `crypto.randomInt`, zeros a esquerda preservados |
+| 10 minutos | `expires_at`, conferido no servidor |
+| Uso unico | `UPDATE ... WHERE used_at IS NULL RETURNING` (de 6 validacoes simultaneas, so 1 passa) |
+| Hash | `HMAC-SHA256(AUTH_SECRET, "login-code:<email>:<codigo>")`. Sem o segredo no calculo, 1.000.000 de possibilidades seriam quebradas em milissegundos por quem lesse o banco |
+| Tentativas | **5 por codigo**, contadas **antes** de conferir (tentativas simultaneas tambem contam). Errou a 5a: o codigo morre |
+| Forca bruta | alem disso, validacoes por e-mail **15/hora** e por IP **30/15 min** (pedir codigo novo nao zera) |
+| Pedidos | por e-mail **5/hora**, por IP **15/hora**, **60 s** entre reenvios |
+| Codigo novo | invalida os anteriores |
+| Fora do log | o mailer de console omite o corpo dos e-mails de codigo; o adaptador da Resend so loga status HTTP; a auditoria nao o carrega |
+| Fora da resposta | nenhuma resposta traz o codigo |
+| E-mail verificado | `email_verified_at` passa a valer na primeira prova de codigo |
 
-## 3. Cliente que ja tem conta x cliente novo
+## 4. Google
 
-- **Conta existente:** entra nela. Empresas, vinculos, papeis, site e assinatura
-  ficam **intactos** (testes comparam as tabelas antes e depois). Quem pertence a
-  varias empresas ve todas, com os papeis de sempre. Nada concede painel mestre.
-- **Convite pendente:** o codigo prova o e-mail e abre a sessao, **mas nao ativa
-  o vinculo**: o convite continua valido pelo link dele.
-- **E-mail novo:** provar o codigo **nao cria conta**. A tela pede nome, empresa,
-  telefone e aceite dos termos; so entao nascem usuario (sem senha, e-mail ja
-  verificado), empresa, vinculo de proprietario, site e avaliacao -- o **mesmo
-  cadastro de empresa** do e-mail e senha (`createCompanyForUser`).
-  - O e-mail do cadastro **sai do comprovante** (cookie HttpOnly assinado, 20 min,
-    `Path=/api/auth/code`), nunca do corpo: ninguem cadastra um endereco que nao
-    provou.
-  - Uso unico: repetir o cadastro nao duplica conta nem empresa.
-  - **Nenhum papel de plataforma** e concedido, nem o de "primeira conta da
-    instalacao" (que vale so para o cadastro por senha).
+O Google e a 1a etapa. Autorizado, o servidor **nao** abre sessao: envia o codigo
+e leva a `/entrar?etapa=codigo`. Vale tambem para quem acabou de criar a conta
+pelo Google (depois do codigo, segue para cadastrar a empresa). Se o e-mail nao
+sai, o Google nao entra: volta a `/entrar?google=code_send_failed`.
 
-### Conta que nunca teve o e-mail verificado ("pre-sequestro")
+## 5. Sem provedor de e-mail: duas politicas
 
-Alguem poderia abrir uma conta com o e-mail de outra pessoa e uma senha, e nunca
-confirmar. Se a dona do e-mail entrasse depois por codigo, a senha plantada
-continuaria abrindo a conta. Por isso, **na primeira prova de e-mail** de uma
-conta ainda nao verificada: o e-mail passa a verificado, a **senha antiga e
-removida** e as **sessoes antigas sao encerradas**. Dados, empresas e vinculos
-ficam como estao; a tela mostra um aviso, e a pessoa pode definir nova senha por
-"Esqueci minha senha".
+A 2a etapa depende de enviar e-mail (`RESEND_API_KEY`). Sem ele:
 
-## 4. Banco de dados
+| Config | Comportamento |
+| --- | --- |
+| padrao | o login por **senha** segue entrando direto, **sem** a 2a etapa -- senao uma instalacao sem e-mail ficaria trancada para fora. `features.emailCodeAuth` aparece `false` |
+| `LOGIN_CODE_REQUIRED=true` | **ninguem** entra: o login responde `501` e o Google volta com `not_configured`. Use em producao para nunca cair, sem perceber, num login sem a 2a etapa |
 
-Migracao `0021_codigos_de_acesso_por_email.sql` (so **acrescenta**; nenhuma linha
-existente e tocada). Tabela `login_codes`: `id`, `email`, `code_hash`,
-`expires_at`, `attempts`, `used_at`, `request_ip_hash` (so hash), `created_at`.
-Indices `(email, created_at)` e `(expires_at)`. Sem `user_id`, de proposito
-(anti-enumeracao).
+> **Recomendado em producao:** defina `RESEND_API_KEY`, `MAIL_FROM` **e**
+> `LOGIN_CODE_REQUIRED=true`. Sem a ultima, uma chave de e-mail removida ou
+> invalida por engano desliga a 2a etapa em silencio (o provedor recusando um
+> envio, ao contrario, **bloqueia** o login com `502` -- nao o libera).
 
-## 5. E-mail: configuracao (o que falta para o envio real)
+Se o provedor recusar ou nao responder (prazo de 8 s), o login responde `502`, o
+codigo recem-criado e **apagado** e a pessoa e avisada.
 
-O recurso reutiliza o servico de e-mail que ja existe (**Resend**, em
-`apps/api/src/lib/mailer.ts`). Variaveis, no ambiente do **servidor** (nunca em
-`VITE_*`):
+## 6. Banco de dados
+
+Tabela `login_codes` (migracao `0021_codigos_de_acesso_por_email.sql`, so
+acrescenta): `id`, `email`, `code_hash`, `expires_at`, `attempts`, `used_at`,
+`request_ip_hash` (so hash), `created_at`. Indices `(email, created_at)` e
+`(expires_at)`. Sem `user_id`, de proposito. Cada novo envio apaga os codigos
+vencidos ha mais de 1 dia.
+
+## 7. E-mail: configuracao
+
+Reutiliza o servico existente (**Resend**, `apps/api/src/lib/mailer.ts`). No
+**servidor** (nunca em `VITE_*`):
 
 | Variavel | Valor |
 | --- | --- |
-| `RESEND_API_KEY` | chave de API criada em <https://resend.com/api-keys> (permissao de envio) |
+| `RESEND_API_KEY` | chave de envio de resend.com/api-keys |
 | `MAIL_FROM` | `CODECA Build <acesso@seu-dominio-verificado>` |
+| `LOGIN_CODE_REQUIRED` | `true` (recomendado em producao) |
 
-Passos na Resend:
-
-1. **Domains > Add Domain** e cadastre o dominio de envio.
-2. Publique no DNS os registros que a Resend mostrar (**SPF** e **DKIM**; o
-   **DMARC** e recomendado) e aguarde a verificacao.
-3. **API Keys > Create API Key** (acesso de envio) e coloque em `RESEND_API_KEY`.
-4. Defina `MAIL_FROM` com um endereco **desse dominio verificado**. A Resend recusa
-   remetente de dominio nao verificado (`403`), e a tela mostra "Nao foi possivel
-   enviar o e-mail agora".
-
-Para um teste rapido sem dominio, a Resend permite `onboarding@resend.dev`, mas so
+Na Resend: **Domains > Add Domain**, publique SPF e DKIM no DNS, aguarde a
+verificacao, crie a chave. A Resend recusa remetente de dominio nao verificado
+(`403`). Para um teste rapido sem dominio ha `onboarding@resend.dev`, que so
 entrega ao e-mail da propria conta dela.
-
-Sem `RESEND_API_KEY`: a opcao **nao aparece** em `/entrar` e `/criar-conta`
-(restam senha e Google), `POST /api/auth/code/request` responde **501** com
-`integration_not_configured`, e **nada** e escrito no log. Nao ha modo de
-desenvolvimento que mostre o codigo: um codigo no log abriria a conta de qualquer
-um que lesse o log. Em desenvolvimento, use a chave de teste da Resend.
-
-Se o provedor recusar ou nao responder (prazo de 8 s), o pedido responde `502`, o
-codigo recem-criado e **apagado** (ninguem o recebeu) e a pessoa e avisada.
 
 ### Como conferir o envio real (a fazer com a chave)
 
-1. Defina as duas variaveis e faca um novo deploy.
-2. `GET /api/health` -> `features.transactionalEmail: true` (e `emailCodeAuth`
-   em `GET /api/auth/session`).
-3. Em `/entrar` > **Entrar com e-mail**, informe um endereco seu. O e-mail deve
-   chegar com o assunto **Seu codigo de acesso ao CODECA Build** em poucos
-   segundos; olhe tambem o spam na primeira vez.
-4. Digite o codigo: deve entrar no painel (conta existente) ou pedir o cadastro
-   (e-mail novo).
-5. Se nao chegar: painel da Resend > **Logs** mostra o motivo (dominio nao
-   verificado, destinatario recusado...), e o log do servidor traz
+1. Defina as variaveis e faca um novo deploy.
+2. `GET /api/auth/session` -> `features.emailCodeAuth: true`.
+3. Em `/entrar`, informe e-mail e senha de uma conta sua e clique **Continuar**.
+   O e-mail **Seu codigo de acesso ao CODECA Build** deve chegar em segundos
+   (olhe o spam na primeira vez).
+4. Digite o codigo: deve entrar no painel.
+5. Nao chegou? Painel da Resend > **Logs**; e no log do servidor,
    `[mailer:resend] falha <status>`.
 
-## 6. Tela
+## 8. Tela
 
-Entrada: **Bem-vindo ao CODECA Build** / *Acesse sua conta para gerenciar seu
-site.* / [Continuar com Google] / ou / [Entrar com e-mail], com um link discreto
-para entrar com senha (o formulario de senha continua existindo e funcionando).
+`/entrar`: **Bem-vindo ao CODECA Build** / *Acesse sua conta para gerenciar seu
+site.* / [Continuar com Google] / ou / e-mail, senha, **Continuar**.
 
-Fluxo por e-mail:
+2a etapa: seis campos com avanco automatico, colar os seis numeros de uma vez
+(de qualquer campo), Backspace volta, autopreenchimento do navegador
+(`autocomplete="one-time-code"`), **Verificar e entrar**, **Reenviar codigo** com
+contador (`1:00`) e **Entrar com outra conta**. Errou: campos limpos, foco no
+primeiro, mensagem generica. Clique repetido nao gasta tentativa.
 
-1. **E-mail** (validacao de formato, "Voltar ao login", botao *Enviar codigo de
-   verificacao*).
-2. **Codigo**: seis campos com avanco automatico, colar os seis numeros de uma
-   vez (de qualquer campo), Backspace volta, autopreenchimento do navegador
-   (`autocomplete="one-time-code"`), *Verificar e entrar*, *Reenviar codigo* com
-   contador (`1:00`) e *Alterar e-mail*. Errou: campos limpos, foco no primeiro e
-   mensagem generica. Clique repetido nao gasta tentativa (uma conferencia por vez).
-3. **Cadastro** (so e-mail novo): nome, empresa, telefone, termos.
+## 9. Testes
 
-## 7. Testes
-
-- `tests/integration/login-code.test.ts` (54): envio e texto, resposta sem o
-  codigo, hash no banco, igualdade de resposta com e sem conta, e-mail invalido,
-  reenvio (60 s) e limites (e-mail, IP, janela), codigo errado/expirado/usado,
-  uso unico sob concorrencia, 5 tentativas (inclusive simultaneas), cota de
-  validacoes, cliente existente (sem duplicar nada, varias empresas, papeis,
-  assinatura, painel mestre), pre-sequestro, convite pendente, cliente novo
-  (comprovante, termos, e-mail do corpo ignorado, comprovante falso/vencido/
-  adulterado, uso unico, corrida), sessao (recarregar, logout, expirar, CSRF),
-  coexistencia com Google e senha, nada em log/auditoria, sem provedor e
-  provedor que falha.
-- `tests/unit/login-code-mail.test.ts`: geracao, hash, texto do e-mail, log de
-  console sem o codigo, **adaptador da Resend** (URL, cabecalho, remetente,
-  destino, assunto e texto).
+- `tests/integration/login-code.test.ts` (45): senha sem sessao, e-mail e texto,
+  senha errada sem e-mail e sem diferenca de mensagem, "e-mail + codigo" sem o
+  comprovante, comprovante falso/vencido/adulterado, e-mail do corpo ignorado,
+  rotas antigas removidas, codigo errado/expirado/usado, uso unico sob
+  concorrencia, 5 tentativas (inclusive simultaneas), cotas, reenvio (60 s),
+  varias empresas, papeis, assinatura, administrador da plataforma, sessao
+  (recarregar, logout, expirar, CSRF), "manter conectado", Google + codigo, sem
+  provedor, `LOGIN_CODE_REQUIRED`, provedor que falha, nada em log/auditoria.
+- `tests/unit/login-code-mail.test.ts`: geracao, hash, texto, log sem o codigo e
+  **adaptador da Resend** (URL, cabecalho, remetente, destino, assunto, texto).
 - `tests/integration/migrations.test.ts`: migracao `0021`.
-- Verificado no navegador contra a API real (banco em memoria, e-mail em
-  memoria): fluxo completo, colar, erro, reenvio com a espera real de 60 s,
-  cadastro de cliente novo, recarregar a pagina, celular.
+- No navegador, contra a API real (banco e caixa de e-mail em memoria): senha
+  errada, senha certa -> codigo, painel barrado sem o codigo, erro, colar,
+  entrar, recarregar, retorno do Google, celular.
 
-> **O que nao foi exercitado:** a entrega real pela Resend (precisa da chave e de
-> um dominio verificado, que este ambiente nao tem). O que sai pela rede e
-> conferido por teste (URL, autenticacao, corpo), mas a caixa de entrada de
-> verdade so se confirma com o roteiro da secao 5.
+> **Nao exercitado:** a entrega real pela Resend (precisa de chave e dominio
+> verificado). O que sai pela rede e conferido por teste; a caixa de entrada de
+> verdade so se confirma com o roteiro da secao 7.
+
+## 10. Limites conhecidos
+
+- O **cadastro** de conta nao passa pela 2a etapa: nasce com sessao, como antes.
+  So o **login** passa.
+- O convite (`/aceitar-convite`) e a redefinicao de senha usam o proprio link
+  enviado ao e-mail como prova da caixa de entrada e nao pedem o codigo.
+- O comprovante da 1a etapa vale 15 minutos; vencido, volta-se ao login.

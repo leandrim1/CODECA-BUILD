@@ -42,7 +42,7 @@ Legenda:
 | Acesso de suporte explicito, temporario e auditado | Pronto | `support_access_grants`, somente leitura |
 | Autenticacao em dois fatores | Nao implementado | — |
 | Login com Google ("Continuar com Google") | Pronto, depende de credencial | OAuth 2.0 com PKCE, `state` amarrado ao navegador e `id_token` validado no servidor (RS256, emissor, audiencia, expiracao, nonce). Usuario novo cria so a conta e cadastra a empresa pelo fluxo normal; **e-mail ja cadastrado nunca e vinculado so por ser igual** -- vincular exige a senha. Ver [google-oauth.md](google-oauth.md) |
-| Login por codigo de verificacao enviado por e-mail | Pronto, depende de credencial | codigo de 6 digitos, 10 min, uso unico, 5 tentativas, hash com segredo, 60 s entre reenvios; resposta igual para e-mail com e sem conta; cadastro de e-mail novo pelo mesmo fluxo da empresa. **Precisa de `RESEND_API_KEY` com dominio verificado: o envio real nao foi exercitado sem a chave.** Ver [login-por-codigo.md](login-por-codigo.md) |
+| Verificacao por e-mail em duas etapas (senha ou Google, depois codigo) | Pronto, depende de credencial | todo login termina com codigo de 6 digitos enviado ao e-mail: 10 min, uso unico, 5 tentativas, hash com segredo, 60 s entre reenvios; o codigo so e aceito de quem venceu a 1a etapa. Nao ha entrada so por codigo. **Precisa de `RESEND_API_KEY` com dominio verificado; em producao use `LOGIN_CODE_REQUIRED=true`. O envio real nao foi exercitado sem a chave.** Ver [login-por-codigo.md](login-por-codigo.md) |
 
 ## Página inicial
 

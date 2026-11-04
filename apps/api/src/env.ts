@@ -90,6 +90,22 @@ export const envSchema = z.object({
    */
   GOOGLE_REDIRECT_URI: z.string().optional(),
 
+  /**
+   * Exige a verificacao por e-mail em todo login.
+   *
+   * Com `RESEND_API_KEY` a verificacao e sempre aplicada (senha, depois codigo).
+   * Sem ela nao ha como enviar o codigo; por padrao o login por senha segue
+   * funcionando sem a segunda etapa -- senao uma instalacao sem e-mail
+   * configurado ficaria trancada para fora. Com `LOGIN_CODE_REQUIRED=true` o
+   * comportamento e outro: sem provedor de e-mail, **ninguem** entra (o login
+   * responde 501), em vez de entrar sem a segunda etapa.
+   */
+  LOGIN_CODE_REQUIRED: z
+    .string()
+    .optional()
+    // Tolerante de proposito: variavel vazia ou com outro texto vale "nao exigido".
+    .transform((value) => value?.trim().toLowerCase() === 'true'),
+
   /** Segredo exigido pelo job de reconciliacao. */
   BILLING_RECONCILIATION_SECRET: z.string().optional(),
   /** Dias de tolerancia entre o vencimento e a suspensao do site. */
@@ -138,8 +154,8 @@ export interface FeatureFlags {
   /** Login com Google configurado (ID e segredo presentes). */
   googleAuth: boolean;
   /**
-   * Login por codigo enviado por e-mail. Depende do provedor de e-mail: sem ele
-   * o codigo nunca chegaria, e o recurso fica desligado em vez de fingir.
+   * Verificacao por codigo enviado por e-mail (2a etapa de todo login). Depende
+   * do provedor de e-mail: sem ele o codigo nunca chegaria.
    */
   emailCodeAuth: boolean;
 }

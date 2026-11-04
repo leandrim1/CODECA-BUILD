@@ -51,3 +51,14 @@ describe('destino depois do login', () => {
     }
   });
 });
+
+describe('LOGIN_CODE_REQUIRED', () => {
+  it('so "true" exige; vazio, ausente ou outro texto nao derrubam o servidor', () => {
+    const base = { DATABASE_URL: 'postgres://x/y', AUTH_SECRET: 'segredo-de-teste-com-mais-de-32-caracteres' };
+    expect(parseEnv({ ...base, LOGIN_CODE_REQUIRED: 'true' }).LOGIN_CODE_REQUIRED).toBe(true);
+    expect(parseEnv({ ...base, LOGIN_CODE_REQUIRED: ' TRUE ' }).LOGIN_CODE_REQUIRED).toBe(true);
+    for (const value of [undefined, '', 'false', 'talvez']) {
+      expect(parseEnv({ ...base, LOGIN_CODE_REQUIRED: value }).LOGIN_CODE_REQUIRED, String(value)).toBe(false);
+    }
+  });
+});

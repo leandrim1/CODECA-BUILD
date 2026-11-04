@@ -74,8 +74,15 @@ export const authApi = {
       '/api/auth/register',
       body,
     ),
+  /**
+   * Com a verificacao por e-mail ativa, a senha correta responde `code_required`
+   * (sem sessao) e o codigo e a 2a etapa; sem ela, entra direto.
+   */
   login: (body: unknown) =>
-    api.post<{ session: SessionPayload | null; csrfToken: string }>('/api/auth/login', body),
+    api.post<
+      | { status: 'authenticated'; session: SessionPayload | null; csrfToken: string }
+      | { status: 'code_required'; email: string; resendAfterSeconds: number; expiresInSeconds: number }
+    >('/api/auth/login', body),
   logout: () => api.post<void>('/api/auth/logout'),
   /**
    * Login com Google. O servidor monta a URL (state, PKCE, nonce); o navegador
@@ -84,25 +91,20 @@ export const authApi = {
   googleStart: (body: { intent: 'continue'; next?: string } | { intent: 'link'; password: string }) =>
     api.post<{ authorizationUrl: string }>('/api/auth/google/start', body),
   /**
-   * Login por codigo enviado por e-mail. A resposta de `codeRequest` nunca traz o
-   * codigo e e igual para e-mail com e sem conta.
+   * 2a etapa do login: o codigo enviado por e-mail. Todas estas rotas exigem o
+   * comprovante da 1a etapa (cookie HttpOnly) e nenhuma resposta traz o codigo.
    */
-  codeRequest: (email: string) =>
-    api.post<{ sent: boolean; resendAfterSeconds: number; expiresInSeconds: number }>(
-      '/api/auth/code/request',
-      { email },
-    ),
-  codeVerify: (body: { email: string; code: string }) =>
-    api.post<
-      | { status: 'authenticated'; session: SessionPayload | null; csrfToken: string; notice: string | null }
-      | { status: 'registration_required'; email: string }
-    >('/api/auth/code/verify', body),
-  /** O e-mail do cadastro e o provado no passo anterior (cookie HttpOnly), nao o do corpo. */
-  codeRegister: (body: { name: string; companyName: string; phone: string; acceptedTerms: boolean }) =>
-    api.post<{ status: 'authenticated'; session: SessionPayload | null; csrfToken: string; tenantId: string }>(
-      '/api/auth/code/register',
+  codeVerify: (body: { code: string }) =>
+    api.post<{ status: 'authenticated'; session: SessionPayload | null; csrfToken: string; next: string }>(
+      '/api/auth/code/verify',
       body,
     ),
+  codeResend: () =>
+    api.post<{ sent: boolean; resendAfterSeconds: number; expiresInSeconds: number }>('/api/auth/code/resend'),
+  /** Para a tela que chega do Google, sem o e-mail na mao. */
+  codePending: () =>
+    api.get<{ email: string; resendAfterSeconds: number; expiresInSeconds: number }>('/api/auth/code/pending'),
+  codeCancel: () => api.post<void>('/api/auth/code/cancel'),
   googleUnlink: (password: string) => api.post<void>('/api/auth/google/unlink', { password }),
   /** Primeira empresa de quem entrou pelo Google. */
   createCompany: (body: { companyName: string; phone: string; acceptedTerms: boolean }) =>

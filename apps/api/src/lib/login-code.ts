@@ -156,38 +156,62 @@ export async function verifyLoginCode(
   return consumed ? { ok: true } : { ok: false, reason: 'invalid' };
 }
 
-// ------------------------------------------------- comprovante de e-mail
+// -------------------------------------------- comprovante da 1a etapa
 
 /**
- * Comprovante de que um e-mail NOVO acertou o codigo, para concluir o cadastro.
+ * Comprovante de que a PRIMEIRA etapa do login (senha correta, ou Google
+ * autorizado) foi vencida e falta so o codigo.
  *
- * Vai num cookie HttpOnly assinado (nada em `localStorage`, nada que o
- * JavaScript da pagina consiga ler). O e-mail do cadastro sai DAQUI, nunca do
- * corpo da requisicao: ninguem cadastra um endereco que nao provou.
+ * E o que impede "e-mail + codigo" de ser um jeito de entrar: o codigo so e
+ * aceito de quem apresenta este comprovante, e ele so e emitido depois da
+ * senha. Vai em cookie HttpOnly assinado (nada em `localStorage`, nada que o
+ * JavaScript da pagina leia). O e-mail, o usuario e o destino saem DAQUI, nunca
+ * do corpo da requisicao.
  */
-export const SIGNUP_PROOF_COOKIE = 'codeca_signup_proof';
-export const SIGNUP_PROOF_COOKIE_PATH = '/api/auth/code';
-export const SIGNUP_PROOF_TTL_MINUTES = 20;
+export const LOGIN_PENDING_COOKIE = 'codeca_login_pending';
+export const LOGIN_PENDING_COOKIE_PATH = '/api/auth/code';
+export const LOGIN_PENDING_TTL_MINUTES = 15;
+
+export interface PendingLogin {
+  email: string;
+  userId: string;
+  /** Como a primeira etapa foi vencida; so informativo (auditoria). */
+  method: 'password' | 'google';
+  /** "Manter conectado" marcado na primeira etapa. */
+  rememberMe: boolean;
+  /** Destino depois de entrar (ja validado como caminho interno). */
+  next: string;
+}
 
 const sign = (env: Env, payload: string) =>
-  createHmac('sha256', env.AUTH_SECRET).update(`signup-proof:${payload}`).digest('base64url');
+  createHmac('sha256', env.AUTH_SECRET).update(`login-pending:${payload}`).digest('base64url');
 
-export function createSignupProof(env: Env, email: string, now: Date): string {
+export function createPendingLogin(env: Env, pending: PendingLogin, now: Date): string {
   const payload = Buffer.from(
-    JSON.stringify({ e: email, x: now.getTime() + SIGNUP_PROOF_TTL_MINUTES * 60_000 }),
+    JSON.stringify({ ...pending, x: now.getTime() + LOGIN_PENDING_TTL_MINUTES * 60_000 }),
   ).toString('base64url');
   return `${payload}.${sign(env, payload)}`;
 }
 
-/** O e-mail provado, ou `null` se o comprovante e falso, adulterado ou venceu. */
-export function readSignupProof(env: Env, value: string | null | undefined, now: Date): string | null {
+/** O comprovante, ou `null` se e falso, adulterado ou venceu. */
+export function readPendingLogin(env: Env, value: string | null | undefined, now: Date): PendingLogin | null {
   if (!value) return null;
   const [payload, signature] = value.split('.');
   if (!payload || !signature || !constantTimeEquals(signature, sign(env, payload))) return null;
   try {
-    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { e?: unknown; x?: unknown };
-    if (typeof parsed.e !== 'string' || typeof parsed.x !== 'number' || parsed.x < now.getTime()) return null;
-    return parsed.e;
+    const p = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Record<string, unknown>;
+    if (
+      typeof p.email !== 'string' ||
+      typeof p.userId !== 'string' ||
+      (p.method !== 'password' && p.method !== 'google') ||
+      typeof p.rememberMe !== 'boolean' ||
+      typeof p.next !== 'string' ||
+      typeof p.x !== 'number' ||
+      p.x < now.getTime()
+    ) {
+      return null;
+    }
+    return { email: p.email, userId: p.userId, method: p.method, rememberMe: p.rememberMe, next: p.next };
   } catch {
     return null;
   }

@@ -62,6 +62,12 @@ navegador                    API                               Google
 | Auditoria | `user.google_registered`, `user.google_logged_in`, `user.google_login_blocked` (com o motivo), `user.google_linked`, `user.google_unlinked` |
 | Rate limit | por IP, no inicio (20 / 5 min) e no retorno (30 / 5 min) |
 
+> **Atencao:** com a verificacao por e-mail ativa (`RESEND_API_KEY`), o Google e so a
+> **1a etapa**: depois dele o servidor envia um codigo ao e-mail da conta e a sessao
+> so nasce quando o codigo e digitado (retorno em `/entrar?etapa=codigo`). Veja
+> [login-por-codigo.md](login-por-codigo.md). Onde este documento diz "abre a
+> sessao", leia "abre a sessao depois do codigo".
+
 ## 3. Quem entra, quem e criado, quem e barrado
 
 A chave que identifica a pessoa e o **`sub`** do Google (estavel), nunca o

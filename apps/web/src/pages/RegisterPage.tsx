@@ -1,23 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail } from 'lucide-react';
-import { Alert, Button, Checkbox, Skeleton, TextInput, useToast } from '@codeca/ui';
+import { Alert, Button, Checkbox, TextInput, useToast } from '@codeca/ui';
 import { slugify } from '@codeca/shared';
-import { BackLink, EmailCodeLogin } from '../components/EmailCodeLogin.js';
 import { GoogleResultAlert, GoogleSignIn, useGoogleResult } from '../components/GoogleAuth.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useMutation } from '../hooks/useResource.js';
 import { authApi } from '../services/endpoints.js';
 import { useForm } from '../utils/forms.js';
 
-/** Mesmas tres opcoes da entrada: Google, codigo por e-mail e o formulario com senha. */
-type View = 'choose' | 'email' | 'password';
-
 export function RegisterPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const { applySession, refresh, features, loading } = useAuth();
-  const [view, setView] = useState<View>('choose');
+  const { applySession, refresh } = useAuth();
   const [generalError, setGeneralError] = useState<string | null>(null);
   const google = useGoogleResult();
 
@@ -53,74 +47,6 @@ export function RegisterPage() {
 
   const previewSlug = slugify(values.companyName);
 
-  const hasAlternatives = features.googleAuth || features.emailCodeAuth;
-  const current: View = !loading && !hasAlternatives ? 'password' : view;
-
-  if (current === 'email') {
-    return (
-      <div>
-        <EmailCodeLogin mode="signup" onBack={() => setView('choose')} />
-      </div>
-    );
-  }
-
-  if (current === 'choose') {
-    return (
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Criar a conta da empresa</h1>
-        <p className="mt-1.5 text-sm text-slate-600">
-          Já tem conta?{' '}
-          <Link to="/entrar" className="link">
-            Entrar
-          </Link>
-        </p>
-
-        <div className="mt-8 grid gap-4">
-          <GoogleResultAlert code={google.code} onDismiss={google.dismiss} />
-          {generalError ? <Alert tone="danger">{generalError}</Alert> : null}
-          {loading ? (
-            <>
-              <Skeleton className="h-12 w-full rounded-xl" />
-              <Skeleton className="h-12 w-full rounded-xl" />
-            </>
-          ) : (
-            <>
-              <GoogleSignIn onError={(message) => setGeneralError(message)} showDivider={features.emailCodeAuth} />
-              {features.emailCodeAuth ? (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full justify-center"
-                  icon={<Mail aria-hidden="true" className="size-5 text-slate-500" />}
-                  onClick={() => setView('email')}
-                >
-                  Continuar com e-mail
-                </Button>
-              ) : null}
-            </>
-          )}
-        </div>
-
-        <div className="mt-8 grid gap-3 text-sm text-slate-600">
-          <button type="button" className="link justify-self-start" onClick={() => setView('password')}>
-            Prefiro criar a conta com senha
-          </button>
-          <p className="text-xs text-slate-500">
-            Ao continuar, você aceita os{' '}
-            <Link to="/termos" className="link">
-              termos de uso
-            </Link>{' '}
-            e a{' '}
-            <Link to="/privacidade" className="link">
-              política de privacidade
-            </Link>
-            . A empresa é cadastrada no passo seguinte.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div>
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Criar a conta da empresa</h1>
@@ -131,8 +57,18 @@ export function RegisterPage() {
         </Link>
       </p>
 
+      <div className="mt-8 grid gap-4">
+        <GoogleResultAlert code={google.code} onDismiss={google.dismiss} />
+        <GoogleSignIn onError={(message) => setGeneralError(message)} />
+        <p className="-mt-1 text-xs text-slate-500">
+          Ao continuar com o Google você cadastra a empresa no passo seguinte e aceita os{' '}
+          <Link to="/termos" className="link">termos de uso</Link> e a{' '}
+          <Link to="/privacidade" className="link">política de privacidade</Link>.
+        </p>
+      </div>
+
       <form
-        className="mt-8 grid gap-4"
+        className="mt-4 grid gap-4"
         onSubmit={(event) => {
           event.preventDefault();
           setGeneralError(null);
@@ -211,12 +147,6 @@ export function RegisterPage() {
           Criar conta
         </Button>
       </form>
-
-      {hasAlternatives ? (
-        <div className="mt-6">
-          <BackLink onClick={() => setView('choose')}>Outras formas de criar a conta</BackLink>
-        </div>
-      ) : null}
     </div>
   );
 }

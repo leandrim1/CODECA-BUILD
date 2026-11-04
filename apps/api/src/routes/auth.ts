@@ -16,6 +16,7 @@ import { Hono } from 'hono';
 import { AUDIT_ACTIONS, recordAudit } from '../lib/audit.js';
 import { claimFirstPlatformAdmin } from '../lib/bootstrap.js';
 import { createCompanyForUser, loadTrialPlan, nextTenantSlug } from '../lib/company.js';
+import { startLoginChallenge } from '../lib/login-challenge.js';
 import { clearSessionCookies, setSessionCookies } from '../lib/cookies.js';
 import { assertSameOrigin } from '../lib/csrf.js';
 import { clientIp, created, noContent, ok, parseJsonBody, userAgent } from '../lib/http.js';
@@ -175,6 +176,13 @@ export function authRoutes() {
     const ip = clientIp(c);
     assertSameOrigin(c, ctx.env);
     await enforceRateLimit(ctx.db, RATE_LIMITS.login, rateLimitSubjectFromIp(ip, ctx.env.AUTH_SECRET), ctx.now());
+    // Com a verificacao por e-mail obrigatoria e sem como envia-la, ninguem entra:
+    // melhor recusar do que entrar sem a segunda etapa.
+    if (ctx.env.LOGIN_CODE_REQUIRED && !ctx.features.emailCodeAuth) {
+      throw AppError.notConfigured(
+        'A verificação por e-mail é obrigatória, mas o envio não está configurado. Defina RESEND_API_KEY e MAIL_FROM.',
+      );
+    }
 
     const input = await parseJsonBody(c, loginSchema);
     const now = ctx.now();
@@ -225,10 +233,32 @@ export function authRoutes() {
       throw invalid;
     }
 
+    // Senha correta: zera as tentativas erradas. O contador e da SENHA; o codigo
+    // da segunda etapa tem os seus proprios limites.
     await ctx.db
       .update(schema.users)
-      .set({ failedLoginCount: 0, lockedUntil: null, lastLoginAt: now, updatedAt: now })
+      .set({ failedLoginCount: 0, lockedUntil: null, updatedAt: now })
       .where(eq(schema.users.id, user.id));
+
+    // Segunda etapa: com e-mail configurado, a senha SOZINHA nao abre a conta. A
+    // sessao so nasce quando o codigo enviado ao e-mail for digitado.
+    if (ctx.features.emailCodeAuth) {
+      const challenge = await startLoginChallenge(
+        c,
+        {
+          email: user.email,
+          userId: user.id,
+          method: 'password',
+          rememberMe: input.rememberMe,
+          next: '',
+        },
+        { reuseRecentCode: true },
+      );
+      c.header('cache-control', 'no-store');
+      return ok(c, { status: 'code_required' as const, email: user.email, ...challenge });
+    }
+
+    await ctx.db.update(schema.users).set({ lastLoginAt: now }).where(eq(schema.users.id, user.id));
 
     const issued = await createSession(ctx.db, ctx.env, {
       userId: user.id,
@@ -251,6 +281,7 @@ export function authRoutes() {
 
     const session = await resolveSession(ctx.db, ctx.env, issued.sessionToken, now);
     return ok(c, {
+      status: 'authenticated' as const,
       session: session ? serializeSession(session) : null,
       csrfToken: issued.csrfToken,
     });

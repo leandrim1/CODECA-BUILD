@@ -13,6 +13,7 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { cookieSecure, googleRedirectUri } from '../env.js';
 import { AUDIT_ACTIONS, recordAudit } from '../lib/audit.js';
 import { createCompanyForUser, loadTrialPlan, nextTenantSlug } from '../lib/company.js';
+import { startLoginChallenge } from '../lib/login-challenge.js';
 import { readSessionToken, setSessionCookies } from '../lib/cookies.js';
 import { assertSameOrigin } from '../lib/csrf.js';
 import {
@@ -157,6 +158,9 @@ export function googleAuthRoutes() {
     }
 
     if (!ctx.features.googleAuth) return c.redirect(failureUrl('continue', 'not_configured'), 302);
+    if (ctx.env.LOGIN_CODE_REQUIRED && !ctx.features.emailCodeAuth) {
+      return c.redirect(failureUrl('continue', 'not_configured'), 302);
+    }
 
     const query = c.req.query();
     const state = query.state ?? '';
@@ -262,6 +266,10 @@ async function continueWithGoogle(c: Context<AppBindings>, row: OAuthStateRow, c
       .update(schema.userIdentities)
       .set({ email: claims.email, emailVerified: claims.emailVerified, lastLoginAt: now })
       .where(eq(schema.userIdentities.id, identity.id));
+    // Verificacao por e-mail ativa: o Google e a primeira etapa; a sessao so
+    // nasce depois do codigo enviado ao e-mail da conta.
+    if (ctx.features.emailCodeAuth) return challengeAfterGoogle(c, user, row);
+
     await ctx.db.update(schema.users).set({ lastLoginAt: now, updatedAt: now }).where(eq(schema.users.id, user.id));
 
     await openSession(c, user.id);
@@ -329,7 +337,6 @@ async function continueWithGoogle(c: Context<AppBindings>, row: OAuthStateRow, c
     throw error;
   }
 
-  await openSession(c, userId);
   await recordAudit(ctx.db, ctx.env, {
     actorUserId: userId,
     actorEmail: claims.email,
@@ -339,7 +346,33 @@ async function continueWithGoogle(c: Context<AppBindings>, row: OAuthStateRow, c
     ip: clientIp(c),
     userAgent: userAgent(c),
   });
+  if (ctx.features.emailCodeAuth) {
+    return challengeAfterGoogle(c, { id: userId, email: claims.email }, row);
+  }
+  await openSession(c, userId);
   return c.redirect('/criar-empresa', 302);
+}
+
+/**
+ * Google autorizado, falta o codigo: envia o e-mail, abre o comprovante e leva a
+ * tela do codigo. Nenhuma sessao existe ainda.
+ */
+async function challengeAfterGoogle(
+  c: Context<AppBindings>,
+  user: { id: string; email: string },
+  row: OAuthStateRow,
+): Promise<Response> {
+  try {
+    await startLoginChallenge(
+      c,
+      { email: user.email, userId: user.id, method: 'google', rememberMe: false, next: safeNextPath(row.nextPath) },
+      { reuseRecentCode: true },
+    );
+  } catch (error) {
+    console.warn(`[auth:google] não foi possível enviar o código: ${error instanceof Error ? error.message : error}`);
+    return c.redirect(failureUrl('continue', 'code_send_failed'), 302);
+  }
+  return c.redirect('/entrar?etapa=codigo', 302);
 }
 
 async function linkGoogle(c: Context<AppBindings>, row: OAuthStateRow, claims: GoogleClaims): Promise<Response> {

@@ -1,203 +1,54 @@
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail } from 'lucide-react';
-import { Alert, Button, Checkbox, TextInput, cx, useToast } from '@codeca/ui';
-import {
-  LOGIN_CODE_LENGTH,
-  LOGIN_CODE_RESEND_SECONDS,
-  LOGIN_CODE_TTL_MINUTES,
-  emailSchema,
-  slugify,
-} from '@codeca/shared';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { Alert, Button, cx, useToast } from '@codeca/ui';
+import { LOGIN_CODE_LENGTH, LOGIN_CODE_TTL_MINUTES } from '@codeca/shared';
 import { useAuth } from '../hooks/useAuth.js';
 import { ApiError } from '../services/api.js';
 import { authApi } from '../services/endpoints.js';
-import { useForm } from '../utils/forms.js';
 
 /**
- * Entrar por e-mail com codigo de 6 digitos.
+ * Segunda etapa do login: o codigo de 6 digitos enviado por e-mail.
  *
- * Tres passos: informar o e-mail -> digitar o codigo -> (so para e-mail novo)
- * concluir o cadastro. A tela nao sabe, e nao tenta descobrir, se o e-mail tem
- * conta: o pedido de codigo responde igual nos dois casos, e quem decide entre
- * "entrar" e "cadastrar" e o servidor, depois do codigo provado.
+ * Aparece DEPOIS da senha correta (ou do Google). Nao existe entrada por aqui sem
+ * a primeira etapa: o servidor so aceita o codigo de quem apresenta o comprovante
+ * (cookie HttpOnly) emitido por ela, e esta tela nem sabe pedir um codigo para
+ * um e-mail qualquer -- so reenviar o da etapa em andamento.
  *
- * Nada de sensivel fica no navegador: o codigo vive so no estado desta tela, e
- * a sessao e o cookie HttpOnly de sempre.
+ * Nada de sensivel fica no navegador: o codigo vive so no estado desta tela, e a
+ * sessao e o cookie HttpOnly de sempre.
  */
-
-type Step = 'email' | 'code' | 'register';
-
-export function EmailCodeLogin({
-  mode,
+export function LoginCodeStep({
+  email,
+  initialResendSeconds,
   from,
   onBack,
 }: {
-  mode: 'login' | 'signup';
-  /** Destino depois de entrar, quando a pessoa foi barrada em uma tela protegida. */
+  email: string;
+  /** Segundos ate liberar o reenvio, como o servidor informou. */
+  initialResendSeconds: number;
+  /** Destino de quem foi barrado em uma tela protegida (so vale se o servidor nao trouxer outro). */
   from?: string | undefined;
+  /** Descarta a primeira etapa e volta ao login. */
   onBack: () => void;
 }) {
   const navigate = useNavigate();
   const toast = useToast();
   const { applySession, refresh } = useAuth();
-  const [step, setStep] = useState<Step>('email');
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState<string | undefined>();
-  const [sending, setSending] = useState(false);
-  const [generalError, setGeneralError] = useState<string | null>(null);
-  /** Instante (ms) a partir do qual o reenvio e liberado. */
-  const [resendAt, setResendAt] = useState(0);
-
-  const finish = useCallback(
-    async (session: Parameters<typeof applySession>[0], notice?: string | null) => {
-      applySession(session);
-      await refresh();
-      if (notice) toast.push({ tone: 'warning', title: 'Atenção', description: notice });
-      const semEmpresa = (session?.memberships.length ?? 0) === 0 && session?.user.platformRole !== 'platform_admin';
-      navigate(semEmpresa ? '/criar-empresa' : from && from.startsWith('/painel') ? from : '/painel', {
-        replace: true,
-      });
-    },
-    [applySession, refresh, toast, navigate, from],
-  );
-
-  /**
-   * `sent`: saiu um codigo novo. `waiting`: ja saiu um ha menos de 60 segundos
-   * (a pessoa voltou e pediu de novo): ele continua valendo, entao segue para
-   * digita-lo. `failed`: nada saiu, e a mensagem do servidor fica na tela.
-   */
-  const sendCode = async (address: string): Promise<'sent' | 'waiting' | 'failed'> => {
-    setSending(true);
-    setGeneralError(null);
-    try {
-      const result = await authApi.codeRequest(address);
-      setResendAt(Date.now() + result.resendAfterSeconds * 1000);
-      return 'sent';
-    } catch (error) {
-      if (error instanceof ApiError && error.code === 'rate_limited') {
-        const wait = (error.details as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds;
-        if (wait && wait <= LOGIN_CODE_RESEND_SECONDS) {
-          setResendAt(Date.now() + wait * 1000);
-          return 'waiting';
-        }
-      }
-      setGeneralError(error instanceof ApiError ? error.message : 'Não foi possível enviar o código agora.');
-      return 'failed';
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const submitEmail = async () => {
-    const parsed = emailSchema.safeParse(email);
-    if (!parsed.success) {
-      setEmailError('Informe um e-mail válido.');
-      return;
-    }
-    setEmailError(undefined);
-    setEmail(parsed.data);
-    if ((await sendCode(parsed.data)) !== 'failed') setStep('code');
-  };
-
-  if (step === 'email') {
-    return (
-      <div className="grid gap-5">
-        <Header
-          title={mode === 'login' ? 'Entrar com e-mail' : 'Criar conta com e-mail'}
-          text="Enviaremos um código de verificação para o seu e-mail. Sem senha."
-        />
-        {generalError ? <Alert tone="danger">{generalError}</Alert> : null}
-        <form
-          className="grid gap-4"
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submitEmail();
-          }}
-        >
-          <TextInput
-            label="E-mail"
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            autoFocus
-            required
-            value={email}
-            error={emailError}
-            onChange={(event) => {
-              setEmail(event.target.value);
-              setEmailError(undefined);
-            }}
-          />
-          <Button type="submit" size="lg" loading={sending} icon={<Mail aria-hidden="true" className="size-4" />}>
-            Enviar código de verificação
-          </Button>
-        </form>
-        <BackLink onClick={onBack}>Voltar ao {mode === 'login' ? 'login' : 'cadastro'}</BackLink>
-      </div>
-    );
-  }
-
-  if (step === 'code') {
-    return (
-      <CodeStep
-        email={email}
-        resendAt={resendAt}
-        sending={sending}
-        generalError={generalError}
-        onResend={() => sendCode(email)}
-        onChangeEmail={() => {
-          setGeneralError(null);
-          setStep('email');
-        }}
-        onVerified={(result) => {
-          if (result.status === 'registration_required') setStep('register');
-          else void finish(result.session, result.notice);
-        }}
-      />
-    );
-  }
-
-  return (
-    <RegisterStep
-      email={email}
-      onDone={(session) => void finish(session)}
-      onRestart={() => {
-        setStep('email');
-        setGeneralError(null);
-      }}
-    />
-  );
-}
-
-// ------------------------------------------------------------------ passo 2
-
-function CodeStep({
-  email,
-  resendAt,
-  sending,
-  generalError,
-  onResend,
-  onChangeEmail,
-  onVerified,
-}: {
-  email: string;
-  resendAt: number;
-  sending: boolean;
-  generalError: string | null;
-  onResend: () => Promise<'sent' | 'waiting' | 'failed'>;
-  onChangeEmail: () => void;
-  onVerified: (result: Awaited<ReturnType<typeof authApi.codeVerify>>) => void;
-}) {
   const [digits, setDigits] = useState<string[]>(() => Array(LOGIN_CODE_LENGTH).fill(''));
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [sending, setSending] = useState(false);
   const [info, setInfo] = useState<string | null>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [resendAt, setResendAt] = useState(() => Date.now() + initialResendSeconds * 1000);
   const seconds = useSecondsUntil(resendAt);
   const verifyingRef = useRef(false);
   const focusFirst = useRef<() => void>(() => undefined);
   const refocus = useRef(false);
+
+  const code = digits.join('');
+  const complete = code.length === LOGIN_CODE_LENGTH;
 
   // Os campos ficam desabilitados durante a conferencia, e um campo desabilitado
   // nao recebe foco: o foco volta ao primeiro so depois de a conferencia acabar.
@@ -208,8 +59,19 @@ function CodeStep({
     }
   }, [verifying]);
 
-  const code = digits.join('');
-  const complete = code.length === LOGIN_CODE_LENGTH;
+  const finish = useCallback(
+    async (result: Extract<Awaited<ReturnType<typeof authApi.codeVerify>>, { status: 'authenticated' }>) => {
+      applySession(result.session);
+      await refresh();
+      const session = result.session;
+      const semEmpresa = (session?.memberships.length ?? 0) === 0 && session?.user.platformRole !== 'platform_admin';
+      const destino = result.next && result.next.startsWith('/') ? result.next : from;
+      navigate(semEmpresa ? '/criar-empresa' : destino && destino.startsWith('/painel') ? destino : '/painel', {
+        replace: true,
+      });
+    },
+    [applySession, refresh, navigate, from],
+  );
 
   const verify = async () => {
     // Clique ou Enter repetidos: so uma conferencia por vez (cada uma gasta uma tentativa).
@@ -217,9 +79,16 @@ function CodeStep({
     verifyingRef.current = true;
     setVerifying(true);
     setError(null);
+    setGeneralError(null);
     try {
-      onVerified(await authApi.codeVerify({ email, code }));
+      await finish(await authApi.codeVerify({ code }));
     } catch (caught) {
+      // Comprovante vencido (15 min): nao ha o que tentar aqui, volta ao login.
+      if (caught instanceof ApiError && caught.status === 401 && /verificação expirou/i.test(caught.message)) {
+        toast.error('Verificação expirada', caught.message);
+        onBack();
+        return;
+      }
       setError(caught instanceof ApiError ? caught.message : 'Não foi possível verificar o código agora.');
       setDigits(Array(LOGIN_CODE_LENGTH).fill(''));
       refocus.current = true;
@@ -229,17 +98,37 @@ function CodeStep({
     }
   };
 
+  const resend = async () => {
+    setSending(true);
+    setGeneralError(null);
+    setInfo(null);
+    try {
+      const result = await authApi.codeResend();
+      setResendAt(Date.now() + result.resendAfterSeconds * 1000);
+      setInfo('Enviamos um novo código. O anterior deixou de valer.');
+      setDigits(Array(LOGIN_CODE_LENGTH).fill(''));
+      setError(null);
+      focusFirst.current();
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === 'rate_limited') {
+        const wait = (caught.details as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds;
+        if (wait && wait <= 60) setResendAt(Date.now() + wait * 1000);
+      }
+      setGeneralError(caught instanceof ApiError ? caught.message : 'Não foi possível reenviar o código agora.');
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="grid gap-5">
-      <Header
-        title="Confirme o código"
-        text={
-          <>
-            Enviamos um código de {LOGIN_CODE_LENGTH} dígitos para <strong className="break-words">{email}</strong>. Ele
-            expira em {LOGIN_CODE_TTL_MINUTES} minutos.
-          </>
-        }
-      />
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight text-slate-900">Confirme o código</h2>
+        <p className="mt-1.5 text-sm text-slate-600">
+          Enviamos um código de {LOGIN_CODE_LENGTH} dígitos para <strong className="break-words">{email}</strong>. Ele
+          expira em {LOGIN_CODE_TTL_MINUTES} minutos.
+        </p>
+      </div>
       {generalError ? <Alert tone="danger">{generalError}</Alert> : null}
       {info ? <Alert tone="success">{info}</Alert> : null}
 
@@ -277,21 +166,12 @@ function CodeStep({
           type="button"
           className="link disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
           disabled={seconds > 0 || sending}
-          onClick={() =>
-            void onResend().then((result) => {
-              if (result === 'sent') {
-                setInfo('Enviamos um novo código. O anterior deixou de valer.');
-                setDigits(Array(LOGIN_CODE_LENGTH).fill(''));
-                setError(null);
-                focusFirst.current();
-              }
-            })
-          }
+          onClick={() => void resend()}
         >
           {seconds > 0 ? `Reenviar código em ${formatClock(seconds)}` : sending ? 'Enviando...' : 'Reenviar código'}
         </button>
-        <button type="button" className="link" onClick={onChangeEmail}>
-          Alterar e-mail
+        <button type="button" className="link" onClick={onBack}>
+          Entrar com outra conta
         </button>
       </div>
       <p className="text-xs text-slate-500">
@@ -406,134 +286,7 @@ function CodeInput({
   );
 }
 
-// ------------------------------------------------------------------ passo 3
-
-function RegisterStep({
-  email,
-  onDone,
-  onRestart,
-}: {
-  email: string;
-  onDone: (session: Awaited<ReturnType<typeof authApi.codeRegister>>['session']) => void;
-  onRestart: () => void;
-}) {
-  const [saving, setSaving] = useState(false);
-  const [generalError, setGeneralError] = useState<string | null>(null);
-  const { values, errors, setField, applyApiError } = useForm({
-    name: '',
-    companyName: '',
-    phone: '',
-    acceptedTerms: false,
-  });
-  const previewSlug = slugify(values.companyName);
-
-  const submit = async () => {
-    if (saving) return;
-    setSaving(true);
-    setGeneralError(null);
-    try {
-      const result = await authApi.codeRegister(values);
-      onDone(result.session);
-    } catch (error) {
-      if (error instanceof ApiError) {
-        applyApiError(error);
-        setGeneralError(Object.keys(error.fieldErrors).length > 0 ? null : error.message);
-      } else {
-        setGeneralError('Não foi possível concluir o cadastro agora.');
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="grid gap-5">
-      <Header
-        title="Falta pouco"
-        text={
-          <>
-            E-mail confirmado: <strong className="break-words">{email}</strong>. Conte-nos sobre você e a sua empresa para
-            abrir o painel.
-          </>
-        }
-      />
-      {generalError ? (
-        <Alert tone="danger">
-          {generalError}{' '}
-          <button type="button" className="link" onClick={onRestart}>
-            Pedir novo código
-          </button>
-        </Alert>
-      ) : null}
-      <form
-        className="grid gap-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
-        }}
-      >
-        <TextInput
-          label="Seu nome"
-          required
-          autoComplete="name"
-          autoFocus
-          value={values.name}
-          error={errors.name}
-          onChange={(event) => setField('name', event.target.value)}
-        />
-        <TextInput
-          label="Nome da empresa"
-          required
-          autoComplete="organization"
-          placeholder="Nome da sua empresa"
-          value={values.companyName}
-          error={errors.companyName}
-          hint={previewSlug ? `Endereço interno: ${previewSlug}` : undefined}
-          onChange={(event) => setField('companyName', event.target.value)}
-        />
-        <TextInput
-          label="Telefone"
-          autoComplete="tel"
-          placeholder="(19) 99999-0000"
-          value={values.phone}
-          error={errors.phone}
-          onChange={(event) => setField('phone', event.target.value)}
-        />
-        <Checkbox
-          label={
-            <>
-              Aceito os{' '}
-              <Link to="/termos" className="link" target="_blank" rel="noreferrer">
-                termos de uso
-              </Link>{' '}
-              e a{' '}
-              <Link to="/privacidade" className="link" target="_blank" rel="noreferrer">
-                política de privacidade
-              </Link>
-            </>
-          }
-          checked={values.acceptedTerms}
-          onChange={(checked) => setField('acceptedTerms', checked)}
-        />
-        {errors.acceptedTerms ? <p className="-mt-2 text-xs font-medium text-rose-600">{errors.acceptedTerms}</p> : null}
-        <Button type="submit" size="lg" loading={saving}>
-          Criar conta e entrar
-        </Button>
-      </form>
-    </div>
-  );
-}
-
 // ------------------------------------------------------------------- apoio
-
-function Header({ title, text }: { title: string; text: React.ReactNode }) {
-  return (
-    <div>
-      <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
-      <p className="mt-1.5 text-sm text-slate-600">{text}</p>
-    </div>
-  );
-}
 
 export function BackLink({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
