@@ -1,0 +1,108 @@
+/**
+ * Estilos da apresentacao das telas de acesso (`AuthShowcase`).
+ *
+ * Moram aqui, junto do componente, para nao inflar o `index.css` do painel.
+ * So transform e opacity animam -- nada que force recalculo de layout.
+ */
+
+/* Malha fina, esmaecida e mascarada: da textura sem competir com o texto. */
+.as-grid {
+  background-image:
+    linear-gradient(to right, rgb(148 180 255 / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(148 180 255 / 0.07) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 60% at 70% 25%, #000 5%, transparent 75%);
+  mask-image: radial-gradient(ellipse 75% 60% at 70% 25%, #000 5%, transparent 75%);
+}
+
+/* Entrada gradual: sobe 14px e aparece, em escada (`--d` define o atraso). */
+@keyframes as-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.as-in {
+  animation: as-in 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+/* Cartoes flutuantes: sobem e descem poucos pixels, cada um no seu ritmo. */
+@keyframes as-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -7px, 0);
+  }
+}
+.as-float {
+  animation: as-float var(--dur, 7s) ease-in-out infinite;
+  animation-delay: var(--d, 0ms);
+}
+
+/* Indicador "online": um anel que se abre e some. */
+@keyframes as-ping {
+  75%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+.as-ping {
+  animation: as-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Linhas de conexao: o tracejado corre devagar entre os cartoes. */
+@keyframes as-dash {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+.as-dash {
+  stroke-dasharray: 4 6;
+  animation: as-dash 3.2s linear infinite;
+}
+
+/* Luz ambiente que respira. */
+@keyframes as-glow {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.as-glow {
+  animation: as-glow 9s ease-in-out infinite;
+}
+
+/* Janela principal levemente inclinada: profundidade sem exagero. */
+.as-stage {
+  perspective: 1200px;
+}
+.as-tilt {
+  transform: rotateY(-9deg) rotateX(4deg);
+  transform-origin: 30% 50%;
+}
+
+/* Quem prefere menos movimento ve tudo no lugar, parado. */
+@media (prefers-reduced-motion: reduce) {
+  .as-in,
+  .as-float,
+  .as-ping,
+  .as-dash,
+  .as-glow {
+    animation: none !important;
+  }
+  .as-in {
+    opacity: 1;
+    transform: none;
+  }
+}
