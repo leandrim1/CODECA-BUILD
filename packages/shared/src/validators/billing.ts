@@ -54,6 +54,39 @@ export const changePlanSchema = z.object({
 });
 export type ChangePlanInput = z.infer<typeof changePlanSchema>;
 
+/**
+ * Formas de pagamento que a empresa troca sozinha, sem informar cartao.
+ *
+ * Fora daqui ficam `creditcard` -- trocar PARA cartao pede um token gerado no
+ * navegador, e o cartao so e informado na pagina hospedada da ValidaPay -- e
+ * `pix_automatico`, que depende de uma autorizacao do pagador no banco.
+ */
+export const SELF_SERVICE_PAYMENT_METHODS = ['pix', 'boleto'] as const;
+export type SelfServicePaymentMethod = (typeof SELF_SERVICE_PAYMENT_METHODS)[number];
+
+export const changePaymentMethodSchema = z.object({
+  paymentMethod: z.enum(SELF_SERVICE_PAYMENT_METHODS),
+});
+export type ChangePaymentMethodInput = z.infer<typeof changePaymentMethodSchema>;
+
+/**
+ * Dias de vencimento oferecidos: 1 a 28.
+ *
+ * 29, 30 e 31 nao existem em todo mes, e o cliente que escolhe "31" nao espera
+ * ser cobrado no dia 28 de fevereiro. Com 1 a 28 o dia escolhido e o dia cobrado.
+ */
+export const DUE_DAY_MIN = 1;
+export const DUE_DAY_MAX = 28;
+
+export const changeDueDaySchema = z.object({
+  billingDay: z.number().int().min(DUE_DAY_MIN).max(DUE_DAY_MAX),
+  /** Cobra (ao adiar) ou desconta (ao antecipar) os dias de diferenca. */
+  prorata: z.boolean().default(true),
+  /** Quando true, so simula: devolve datas e valores e nao altera nada. */
+  preview: z.boolean().default(false),
+});
+export type ChangeDueDayInput = z.infer<typeof changeDueDaySchema>;
+
 export const chargeQuerySchema = paginationSchema.extend({
   status: z.enum(CHARGE_STATES).optional(),
   from: z.string().trim().max(32).optional(),

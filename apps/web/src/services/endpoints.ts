@@ -484,6 +484,32 @@ export const billingApi = {
       chargeId?: string | null;
       message?: string;
     }>(`${tenantBase(tenantId)}/billing/change-plan`, body),
+  changePaymentMethod: (tenantId: string, body: { paymentMethod: 'pix' | 'boleto' }) =>
+    api.post<{
+      changed: boolean;
+      paymentMethod: 'pix' | 'boleto';
+      paymentMethodLabel: string;
+      automaticRenewal: boolean;
+      message: string;
+    }>(`${tenantBase(tenantId)}/billing/payment-method`, body),
+  /** Com `preview: true` so simula: o servidor nao altera nada. */
+  changeDueDay: (tenantId: string, body: { billingDay: number; prorata: boolean; preview: boolean }) =>
+    api.post<{
+      preview: boolean;
+      changed: boolean;
+      currentBillingDay: number | null;
+      newBillingDay: number;
+      currentNextDueDate: string | null;
+      newNextDueDate: string | null;
+      deltaDays: number;
+      /** Positivo: pago a mais na proxima cobranca. Negativo: desconto. */
+      prorataAmountCents: number;
+      prorataApplied: boolean;
+      recurringAmountCents: number;
+      issuesImmediately: boolean;
+      warnings: string[];
+      message?: string;
+    }>(`${tenantBase(tenantId)}/billing/due-day`, body),
   cancel: (tenantId: string, body: { reason: string; mode: 'period_end' | 'immediate' }) =>
     api.post<{
       immediate: boolean;

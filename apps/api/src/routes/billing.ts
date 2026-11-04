@@ -7,18 +7,21 @@ import {
   PUBLICATION_STATE_LABELS,
   PUBLICATION_STATE_MESSAGES,
   cancelSubscriptionSchema,
+  changeDueDaySchema,
+  changePaymentMethodSchema,
   changePlanSchema,
   chargeIdParamSchema,
   chargeQuerySchema,
   decidePublication,
   formatCents,
   paginate,
+  reaisToCents,
   planBillingSchema,
   startSubscriptionSchema,
   uuidSchema,
   type PaymentMethodCode,
 } from '@codeca/shared';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { auditFromContext } from '../lib/audit-context.js';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
@@ -495,6 +498,137 @@ export function billingRoutes() {
     },
   );
 
+  // ------------------------------------- forma de pagamento (sem cartao)
+  app.post(
+    '/:tenantId/billing/payment-method',
+    requireVerifiedEmail(),
+    requireCapability('billing:manage'),
+    async (c) => {
+      const ctx = c.get('ctx');
+      const tenant = c.get('tenant');
+      const session = sessionOf(c);
+      const input = await parseJsonBody(c, changePaymentMethodSchema);
+      const subscription = await requireChangeableSubscription(ctx.db, tenant.siteId);
+
+      if (subscription.paymentMethod === input.paymentMethod) {
+        throw AppError.conflict(
+          `A assinatura já está em ${PAYMENT_METHOD_OPTIONS[input.paymentMethod].label}.`,
+        );
+      }
+
+      const response = await ctx.billing.changePaymentMethod({
+        subscriptionId: subscription.externalSubscriptionId!,
+        paymentMethod: input.paymentMethod,
+      });
+
+      await syncAfterChange(c, subscription, session.user.id);
+
+      await recordBillingAudit(ctx.db, {
+        tenantId: subscription.tenantId,
+        subscriptionId: subscription.id,
+        action: BILLING_ACTIONS.paymentMethodChanged,
+        source: 'checkout',
+        actorUserId: session.user.id,
+        reason: 'Forma de pagamento trocada pela empresa.',
+        metadata: {
+          from: subscription.paymentMethod,
+          to: input.paymentMethod,
+          result: response.type ?? null,
+        },
+      });
+      await auditFromContext(c, {
+        action: BILLING_ACTIONS.paymentMethodChanged,
+        entityType: 'subscription',
+        entityId: subscription.id,
+        metadata: { from: subscription.paymentMethod, to: input.paymentMethod },
+      });
+
+      const option = PAYMENT_METHOD_OPTIONS[input.paymentMethod];
+      return ok(c, {
+        changed: response.type !== 'NO_CHANGE',
+        paymentMethod: input.paymentMethod,
+        paymentMethodLabel: option.label,
+        automaticRenewal: option.automatic,
+        message:
+          `Forma de pagamento trocada para ${option.label}. `
+          + 'Vale a partir da próxima cobrança; a cobrança em aberto não muda. '
+          + 'Neste formato a renovação é manual: você recebe a cobrança a cada ciclo e precisa pagá-la.',
+      });
+    },
+  );
+
+  // ------------------------------------------------ dia de vencimento
+  app.post(
+    '/:tenantId/billing/due-day',
+    requireVerifiedEmail(),
+    requireCapability('billing:manage'),
+    async (c) => {
+      const ctx = c.get('ctx');
+      const tenant = c.get('tenant');
+      const session = sessionOf(c);
+      const input = await parseJsonBody(c, changeDueDaySchema);
+      const subscription = await requireChangeableSubscription(ctx.db, tenant.siteId);
+
+      const response = await ctx.billing.changeDueDay({
+        subscriptionId: subscription.externalSubscriptionId!,
+        billingDay: input.billingDay,
+        prorata: input.prorata,
+        dryRun: input.preview,
+        reason: 'Pedido da empresa pelo painel.',
+      });
+
+      const view = {
+        preview: input.preview,
+        changed: response.type === 'DUE_DATE_CHANGED',
+        currentBillingDay: response.currentBillingDay ?? null,
+        newBillingDay: response.newBillingDay ?? input.billingDay,
+        currentNextDueDate: response.currentNextDueDate ?? null,
+        newNextDueDate: response.newNextDueDate ?? null,
+        deltaDays: response.deltaDays ?? 0,
+        /** Positivo: a empresa paga a mais na proxima cobranca. Negativo: desconto. */
+        prorataAmountCents: reaisToCents(response.prorataAmount ?? 0),
+        prorataApplied: response.prorataApplied ?? false,
+        recurringAmountCents: reaisToCents(response.recurringAmount ?? 0),
+        issuesImmediately: response.issuesImmediately ?? false,
+        warnings: response.warnings ?? [],
+      };
+
+      // Simulacao nao altera nada: nem o banco, nem a trilha de auditoria.
+      if (input.preview) return ok(c, view);
+
+      await syncAfterChange(c, subscription, session.user.id);
+
+      await recordBillingAudit(ctx.db, {
+        tenantId: subscription.tenantId,
+        subscriptionId: subscription.id,
+        action: BILLING_ACTIONS.dueDayChanged,
+        source: 'checkout',
+        actorUserId: session.user.id,
+        reason: 'Dia de vencimento trocado pela empresa.',
+        metadata: {
+          from: view.currentBillingDay,
+          to: view.newBillingDay,
+          prorata: input.prorata,
+          prorataAmountCents: view.prorataAmountCents,
+          result: response.type ?? null,
+        },
+      });
+      await auditFromContext(c, {
+        action: BILLING_ACTIONS.dueDayChanged,
+        entityType: 'subscription',
+        entityId: subscription.id,
+        metadata: { from: view.currentBillingDay, to: view.newBillingDay },
+      });
+
+      return ok(c, {
+        ...view,
+        message: view.changed
+          ? `Vencimento alterado para o dia ${view.newBillingDay}. A cobrança em aberto não muda.`
+          : `O vencimento já era o dia ${view.newBillingDay}. Nada foi alterado.`,
+      });
+    },
+  );
+
   // ------------------------------------------------------ cancelamento
   app.post(
     '/:tenantId/billing/cancel',
@@ -608,6 +742,54 @@ export function billingRoutes() {
   );
 
   return app;
+}
+
+/**
+ * Assinatura sobre a qual a empresa pode mexer em pagamento e vencimento.
+ *
+ * So as que existem na ValidaPay e estao vivas: `active` e `past_due`. Em
+ * cancelamento agendado, cancelada, encerrada ou suspensa nao ha o que
+ * ajustar -- e uma troca de vencimento numa assinatura que vai acabar so
+ * geraria cobranca de diferenca para nada.
+ */
+async function requireChangeableSubscription(db: Parameters<typeof requireSubscription>[0], siteId: string) {
+  const subscription = await requireSubscription(db, siteId);
+  if (!subscription.externalSubscriptionId) {
+    throw AppError.conflict('Não há assinatura contratada. Contrate um plano primeiro.');
+  }
+  if (subscription.status !== 'active' && subscription.status !== 'past_due') {
+    throw AppError.conflict(
+      'Só é possível mudar a forma de pagamento e o vencimento de uma assinatura ativa ou em atraso.',
+    );
+  }
+  return subscription;
+}
+
+/**
+ * Traz de volta o que a ValidaPay passou a ter (forma de pagamento, proxima
+ * cobranca). Nao ha webhook para estas duas trocas, entao sem isto o painel
+ * mostraria o dado antigo ate a reconciliacao do dia seguinte.
+ *
+ * Falhar aqui nao desfaz a troca, que ja aconteceu no provedor: a reconciliacao
+ * diaria faz o mesmo e corrige.
+ */
+async function syncAfterChange(
+  c: Context<AppBindings>,
+  subscription: typeof schema.subscriptions.$inferSelect,
+  actorUserId: string,
+): Promise<void> {
+  const ctx = c.get('ctx');
+  try {
+    await reconcileSubscription(
+      { db: ctx.db, now: ctx.now, source: 'checkout', actorUserId, provider: ctx.billing },
+      subscription,
+    );
+  } catch (error) {
+    console.warn(
+      '[billing] troca feita, mas a sincronização falhou; a reconciliação diária corrige:',
+      error instanceof Error ? error.message : error,
+    );
+  }
 }
 
 /** Converte a cobranca para o formato exibido no painel. */

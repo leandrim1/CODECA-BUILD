@@ -33,6 +33,7 @@ import {
   type Column,
 } from '@codeca/ui';
 import { ResourcePanel } from '../components/ResourcePanel.js';
+import { PaymentSettings } from './PaymentSettings.js';
 import { useTenantId } from '../hooks/useAuth.js';
 import { useResource } from '../hooks/useResource.js';
 import { billingApi } from '../services/endpoints.js';
@@ -553,6 +554,15 @@ export function BillingPage() {
                   </CardBody>
                 </Card>
 
+                {view.subscription?.externalSubscriptionId
+                && (view.subscription.state === 'active' || view.subscription.state === 'past_due') ? (
+                  <PaymentSettings
+                    tenantId={tenantId}
+                    subscription={view.subscription}
+                    onChanged={billing.reload}
+                  />
+                ) : null}
+
                 {view.subscription?.externalSubscriptionId ? (
                   <Card>
                     <CardHeader title="Cancelamento" />
@@ -652,13 +662,13 @@ export function BillingPage() {
             {method && !checkoutPlan.paymentMethods.find((o) => o.code === method)?.automatic ? (
               <p className="flex gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
                 <AlertTriangle aria-hidden="true" className="size-4 flex-none" />
-                Esta forma de pagamento não tem débito automático: a cada ciclo e emitida uma nova
+                Esta forma de pagamento não tem débito automático: a cada ciclo é emitida uma nova
                 cobrança para pagamento manual.
               </p>
             ) : null}
 
             <p className="text-xs text-slate-500">
-              O pagamento acontece na página da ValidaPay. A publicação do site e liberada quando o
+              O pagamento acontece na página da ValidaPay. A publicação do site é liberada quando o
               pagamento for confirmado.
             </p>
           </div>

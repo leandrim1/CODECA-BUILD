@@ -30,6 +30,8 @@ export const BILLING_ACTIONS = {
   expired: 'billing.expired',
   planChangeRequested: 'billing.plan_change_requested',
   planChanged: 'billing.plan_changed',
+  paymentMethodChanged: 'billing.payment_method_changed',
+  dueDayChanged: 'billing.due_day_changed',
   downgradeScheduled: 'billing.downgrade_scheduled',
   reconciled: 'billing.reconciled',
   reconciliationDivergence: 'billing.reconciliation_divergence',

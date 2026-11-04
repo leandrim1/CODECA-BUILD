@@ -393,3 +393,49 @@ Cada item e verificavel no painel e no banco.
 | Evento `unresolved` no painel | Assinatura criada fora do nosso checkout; vincule pela reconciliacao |
 | Pix Automatico recusado | Conta PF (`PIX_AUTOMATICO_PJ_ONLY`) ou valor abaixo de R$ 4,99 |
 | Site fora do ar com assinatura ativa | Suspensao administrativa ou estorno em revisao; veja o painel mestre |
+
+## 12. Trocar forma de pagamento e dia de vencimento
+
+Rotas da empresa, em `apps/api/src/routes/billing.ts`, para quem tem
+`billing:manage` (so o proprietario) e e-mail verificado:
+
+| Rota | O que faz | ValidaPay |
+| --- | --- | --- |
+| `POST /api/tenants/:id/billing/payment-method` | troca para **Pix** ou **boleto** | `PUT /v1/subscriptions/:id/payment-method` com `applyTo: NEXT_CYCLE` |
+| `POST /api/tenants/:id/billing/due-day` | muda o dia (1 a 28); `preview: true` so simula | `PUT /v1/subscriptions/:id/due-date` com `applyFrom: NEXT_CYCLE` e `dryRun` |
+
+Regras, todas no servidor:
+
+- **So assinatura `active` ou `past_due`** e com `sub_...` na ValidaPay. Em
+  cancelamento agendado, cancelada, encerrada ou suspensa a rota responde 409:
+  mudar vencimento de uma assinatura que vai acabar so geraria diferenca a cobrar.
+- **A cobranca em aberto nunca e reemitida** (`NEXT_CYCLE` fixo). Nenhum boleto
+  antigo fica solto e nada e cobrado por causa da troca de forma de pagamento.
+- **A simulacao do vencimento nao altera nada**: nem a ValidaPay (`dryRun`), nem
+  o banco, nem a trilha. A tela so mostra o botao de confirmar depois de exibir
+  datas e valor. Valores voltam em centavos (a API da ValidaPay fala em reais).
+- **Dias 1 a 28**: 29, 30 e 31 nao existem em todo mes, e quem escolhe "31" nao
+  espera ser cobrado no dia 28 de fevereiro.
+- Apos a troca, a assinatura e **reconciliada na hora**
+  (`reconcileSubscription`): a ValidaPay nao tem webhook para estas duas trocas,
+  e sem isso o painel mostraria a forma e a data antigas ate o job do dia
+  seguinte. Se a sincronizacao falhar, a troca vale mesmo assim (ja aconteceu no
+  provedor) e o job diario corrige.
+- Historico de cobranca: `billing.payment_method_changed` e
+  `billing.due_day_changed`, mais a trilha de auditoria da empresa.
+
+### O que **nao** esta aqui, e por que
+
+- **Trocar PARA cartao de credito.** A ValidaPay exige um `cardToken` gerado no
+  navegador pelo SDK `@validapay/tokenize` (mais `deviceId` e, conforme a conta,
+  3DS). Hoje o cartao so e informado na pagina hospedada, e nenhum dado de cartao
+  toca esta aplicacao. Colocar o SDK no painel muda o escopo de seguranca (PCI) e
+  e uma decisao a tomar, nao um detalhe. O tipo `ManualPaymentMethod` nem tem
+  `creditcard`, de modo que o compilador impede a porta de abrir por engano.
+- **Trocar PARA Pix Automatico.** Depende de o pagador autorizar o debito no
+  proprio banco; a resposta traz um link para isso, mas a documentacao nao
+  nomeia o campo. Nao se oferece o que nao da para concluir.
+- **Regularizar fatura vencida com cartao novo** (mesma rota, outro uso).
+
+Ambos seguem pela equipe da CODECA IA, e a tela diz isso.
+

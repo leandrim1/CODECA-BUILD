@@ -2,7 +2,9 @@ import { AppError, centsToReais } from '@codeca/shared';
 import type { BillingProvider, SyncPlanInput, SyncPlanResult } from './provider.js';
 import type {
   CancelSubscriptionResponse,
+  ChangeDueDateResponse,
   ChangeItemResponse,
+  ChangePaymentMethodResponse,
   ChargeResponse,
   ChargeStatusResponse,
   CheckoutSessionResponse,
@@ -211,6 +213,66 @@ export function createMemoryBillingProvider(
         status: 'ACTIVE',
         chargeId: null,
         mode: 'PRORATA_NOW',
+      };
+      return response;
+    },
+
+    async changePaymentMethod({ subscriptionId, paymentMethod }) {
+      track('changePaymentMethod');
+      const subscription = subscriptions.get(subscriptionId);
+      if (!subscription) throw AppError.notFound('Assinatura não encontrada.');
+      const paymentType = paymentMethod === 'pix' ? 'PIX' : 'BOLETO';
+      const unchanged = subscription.paymentType === paymentType;
+      subscription.paymentType = paymentType;
+      const response: ChangePaymentMethodResponse = {
+        success: true,
+        type: unchanged ? 'NO_CHANGE' : 'PAYMENT_METHOD_CHANGED',
+        subscriptionId,
+        paymentType,
+        appliedTo: 'NEXT_CYCLE',
+        updatedCycles: unchanged ? [] : [(subscription.currentCycleNumber ?? 1) + 1],
+      };
+      return response;
+    },
+
+    async changeDueDay({ subscriptionId, billingDay, prorata, dryRun }) {
+      track(dryRun ? 'previewDueDay' : 'changeDueDay');
+      const subscription = subscriptions.get(subscriptionId);
+      if (!subscription) throw AppError.notFound('Assinatura não encontrada.');
+
+      const current = subscription.nextCycleChargeDate
+        ? new Date(subscription.nextCycleChargeDate)
+        : now();
+      const next = new Date(current);
+      next.setUTCDate(billingDay);
+      // Se o dia novo ja passou neste mes, o proximo vencimento e no mes seguinte.
+      if (next.getTime() <= now().getTime()) next.setUTCMonth(next.getUTCMonth() + 1);
+
+      const recurring = subscription.nextCycleAmount ?? subscription.currentCycleAmount ?? 0;
+      const deltaDays = Math.round((next.getTime() - current.getTime()) / (24 * 3600 * 1000));
+      const prorataAmount = prorata ? Math.round((recurring / 30) * deltaDays * 100) / 100 : 0;
+      const currentBillingDay = subscription.billingDay ?? current.getUTCDate();
+
+      if (!dryRun) {
+        subscription.billingDay = billingDay;
+        subscription.nextCycleChargeDate = next.toISOString();
+      }
+
+      const response: ChangeDueDateResponse = {
+        success: true,
+        type: dryRun ? 'PREVIEW' : currentBillingDay === billingDay ? 'NO_CHANGE' : 'DUE_DATE_CHANGED',
+        subscriptionId,
+        currentBillingDay,
+        newBillingDay: billingDay,
+        currentNextDueDate: current.toISOString().slice(0, 10),
+        newNextDueDate: next.toISOString().slice(0, 10),
+        deltaDays,
+        recurringAmount: recurring,
+        prorataAmount,
+        prorataApplied: prorata && prorataAmount !== 0,
+        adjustmentTarget: prorata && prorataAmount !== 0 ? 'NEXT_CYCLE' : 'NONE',
+        issuesImmediately: false,
+        warnings: [],
       };
       return response;
     },

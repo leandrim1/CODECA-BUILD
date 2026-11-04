@@ -189,8 +189,8 @@ substituem as que descreviam o modelo antigo.
 | Emissao de nota fiscal pela ValidaPay | Nao implementado | a API oferece (`emitirNf`, `nfConfigId`); exige configuracao fiscal da conta |
 | Cupons e descontos | Nao implementado | a API oferece (`POST /subscriptions/{id}/coupons`) |
 | Itens adicionais (add-ons) na assinatura | Nao implementado | a API oferece (`POST /subscriptions/{id}/items`); os eventos ja sao tratados |
-| Troca da forma de pagamento de uma assinatura em vigor | Nao implementado | a API oferece (`PUT /subscriptions/{id}/payment-method`) |
-| Troca do dia de vencimento | Nao implementado | a API oferece (`PUT /subscriptions/{id}/due-date`) |
+| Troca da forma de pagamento de uma assinatura em vigor | Pronto, parcial | so para Pix e boleto (`POST /billing/payment-method`). **Para cartao e Pix Automatico nao**: cartao exigiria coletar o cartao no painel (hoje so passa pela pagina da ValidaPay) e o Pix Automatico depende de autorizacao no banco. Ver `docs/validapay.md` 12 |
+| Troca do dia de vencimento | Pronto | `POST /billing/due-day`, dias 1 a 28, com simulacao antes de confirmar e diferenca de dias (pro-rata) opcional na proxima cobranca. Ver `docs/validapay.md` 12 |
 | Split de pagamento e subcontas | Nao implementado | fora do escopo desta plataforma |
 
 ## Integracoes externas: o que configurar

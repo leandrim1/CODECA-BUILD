@@ -3,7 +3,9 @@ import type { Env } from '../../env.js';
 import { ValidaPayClient, resolveAuthUrl, VALIDAPAY_HOSTS } from './client.js';
 import type {
   CancelSubscriptionResponse,
+  ChangeDueDateResponse,
   ChangeItemResponse,
+  ChangePaymentMethodResponse,
   ChargeResponse,
   ChargeStatusResponse,
   CheckoutSessionResponse,
@@ -47,6 +49,18 @@ export interface BillingProvider {
   previewPlanChange: (input: PlanChangeInput) => Promise<ProrataPreviewResponse>;
   changePlan: (input: PlanChangeInput) => Promise<ChangeItemResponse>;
 
+  /**
+   * Troca a forma de pagamento para uma que **nao** exige dados de cartao.
+   *
+   * Trocar PARA cartao exigiria um `cardToken` gerado no navegador pelo SDK da
+   * ValidaPay, o que traria a coleta de cartao para dentro do painel. Hoje o
+   * cartao so e informado na pagina hospedada, e esta interface nao abre essa
+   * porta: o tipo `ManualPaymentMethod` nao tem `creditcard`.
+   */
+  changePaymentMethod: (input: ChangePaymentMethodInput) => Promise<ChangePaymentMethodResponse>;
+  /** Muda o dia de vencimento. Com `dryRun`, so simula e nada e alterado. */
+  changeDueDay: (input: ChangeDueDayInput) => Promise<ChangeDueDateResponse>;
+
   getChargeStatus: (chargeId: string) => Promise<ChargeStatusResponse>;
   getCharge: (chargeId: string) => Promise<ChargeResponse>;
 }
@@ -68,6 +82,23 @@ export interface SyncPlanResult {
   productId: string;
   priceId: string;
   checkoutUrl: string | null;
+}
+
+/** Formas que a empresa pode escolher sem informar cartao: as de pagamento manual. */
+export type ManualPaymentMethod = 'pix' | 'boleto';
+
+export interface ChangePaymentMethodInput {
+  subscriptionId: string;
+  paymentMethod: ManualPaymentMethod;
+}
+
+export interface ChangeDueDayInput {
+  subscriptionId: string;
+  billingDay: number;
+  /** Cobra ou desconta a diferenca de dias na proxima cobranca. */
+  prorata: boolean;
+  dryRun: boolean;
+  reason: string;
 }
 
 export interface PlanChangeInput {
@@ -215,6 +246,34 @@ export function createValidaPayProvider(env: Env): BillingProvider {
         attempts: 1,
       }),
 
+    // `NEXT_CYCLE` sempre: a cobranca em aberto nao e reemitida, entao nenhum
+    // boleto antigo fica solto e nenhum valor e cobrado por causa da troca.
+    changePaymentMethod: ({ subscriptionId, paymentMethod }) =>
+      client.request<ChangePaymentMethodResponse>({
+        method: 'PUT',
+        path: `/v1/subscriptions/${encodeURIComponent(subscriptionId)}/payment-method`,
+        scope: 'subscriptions/write',
+        body: { paymentMethod, applyTo: 'NEXT_CYCLE' },
+        attempts: 1,
+      }),
+
+    // Simulacao (`dryRun`) nao altera nada e pode ser repetida; a troca de
+    // verdade nao: repetir um pro-rata poderia lancar o ajuste duas vezes.
+    changeDueDay: ({ subscriptionId, billingDay, prorata, dryRun, reason }) =>
+      client.request<ChangeDueDateResponse>({
+        method: 'PUT',
+        path: `/v1/subscriptions/${encodeURIComponent(subscriptionId)}/due-date`,
+        scope: 'subscriptions/write',
+        body: {
+          billingDay,
+          applyFrom: 'NEXT_CYCLE',
+          prorata,
+          reason: reason || undefined,
+          dryRun,
+        },
+        attempts: dryRun ? undefined : 1,
+      }),
+
     getChargeStatus: (chargeId) =>
       client.request<ChargeStatusResponse>({
         method: 'GET',
@@ -274,6 +333,8 @@ export function createUnconfiguredBillingProvider(): BillingProvider {
     undoScheduledCancellation: async () => fail(),
     previewPlanChange: async () => fail(),
     changePlan: async () => fail(),
+    changePaymentMethod: async () => fail(),
+    changeDueDay: async () => fail(),
     getChargeStatus: async () => fail(),
     getCharge: async () => fail(),
   };

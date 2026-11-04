@@ -193,3 +193,39 @@ export interface ChangeItemResponse {
   chargeId?: string | null;
   mode?: string;
 }
+
+/** `PUT /v1/subscriptions/:id/payment-method` -- so os campos que usamos. */
+export interface ChangePaymentMethodResponse {
+  success?: boolean;
+  /** `PAYMENT_METHOD_CHANGED`, ou `NO_CHANGE` quando a forma pedida ja era a atual. */
+  type?: string;
+  subscriptionId?: string;
+  /** Forma de pagamento depois da troca (`PIX`, `BOLETO`, ...). */
+  paymentType?: string;
+  appliedTo?: string;
+  /** Ciclos ja agendados que passaram para a forma nova. */
+  updatedCycles?: number[];
+}
+
+/** `PUT /v1/subscriptions/:id/due-date` -- valores monetarios em reais. */
+export interface ChangeDueDateResponse {
+  success?: boolean;
+  /** `DUE_DATE_CHANGED`, `NO_CHANGE` ou `PREVIEW` (simulacao). */
+  type?: string;
+  subscriptionId?: string;
+  currentBillingDay?: number;
+  newBillingDay?: number;
+  currentNextDueDate?: string | null;
+  newNextDueDate?: string | null;
+  /** Dias a mais (adiar) ou a menos (antecipar). */
+  deltaDays?: number;
+  recurringAmount?: number;
+  /** Diferenca cobrada (positiva) ou descontada (negativa), em reais. */
+  prorataAmount?: number;
+  prorataApplied?: boolean;
+  /** Onde a diferenca entra: `CURRENT_CYCLE`, `NEXT_CYCLE` ou `NONE`. */
+  adjustmentTarget?: string;
+  /** True quando a proxima cobranca ja sai agora. */
+  issuesImmediately?: boolean;
+  warnings?: string[];
+}
