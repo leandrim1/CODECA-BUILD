@@ -230,8 +230,12 @@ dicas de formulario) passa a sair com acentuacao correta em portugues.
   acentua o nome do plano Avaliacao e os nomes/descricoes dos segmentos de
   fabrica, **somente onde o texto ainda e o de fabrica**; o que o painel mestre
   editou nao e tocado. Segura de reaplicar.
-- **Nao tocado:** os dados de demonstracao do seed (`packages/database/src/seed.ts`)
-  e as mensagens de linha de comando (`db:deploy`, diagnostico).
+- **Dados de demonstracao e linha de comando:** o seed
+  (`packages/database/src/seed.ts`) e as mensagens de `db:deploy`/diagnostico
+  tambem saem acentuados. So vale para demonstracoes **novas**: uma demo ja
+  criada no banco mantem o texto antigo (o seed nunca sobrescreve). Valores de
+  enumeracao do seed (`lancamento`, `instalacoes`, `construcao`...) seguem sem
+  acento, porque sao gravados no banco.
 - **Guarda:** `tests/unit/acentos.test.ts` falha se um plano, segmento ou modulo
   de fabrica voltar a trazer palavra comum sem acento.
 

@@ -36,7 +36,7 @@ describe('diagnostico de falha do banco', () => {
       pgError('relation "tenants" already exists', '42P07'),
     );
     expect(failure.cause).toMatch(/__codeca_migrations/);
-    expect(failure.cause).toMatch(/a mao/);
+    expect(failure.cause).toMatch(/a mão/);
     expect(failure.remedy).toMatch(/drop schema public cascade/);
   });
 
@@ -44,7 +44,7 @@ describe('diagnostico de falha do banco', () => {
     const failure = describeDatabaseFailure(
       pgError('getaddrinfo ENOTFOUND ep-exemplo.neon.tech', 'ENOTFOUND'),
     );
-    expect(failure.cause).toMatch(/nao respondeu/i);
+    expect(failure.cause).toMatch(/não respondeu/i);
     expect(failure.remedy).toMatch(/host/i);
   });
 
@@ -69,7 +69,7 @@ describe('diagnostico de falha do banco', () => {
       pgError('password authentication failed for user "neondb_owner"', '28P01'),
     );
     expect(texto).toMatch(/\[deploy\] falha ao preparar o banco:/);
-    expect(texto).toMatch(/\[deploy\] codigo: 28P01/);
+    expect(texto).toMatch(/\[deploy\] código: 28P01/);
     expect(texto).toMatch(/\[deploy\] causa provavel:/);
     expect(texto).toMatch(/\[deploy\] o que fazer:/);
   });

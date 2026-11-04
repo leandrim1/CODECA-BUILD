@@ -28,19 +28,19 @@ import { runMigrations } from '../migrator.js';
 async function main(): Promise<void> {
   const ambiente = process.env.VERCEL_ENV;
   if (ambiente && ambiente !== 'production') {
-    console.log(`[deploy] ambiente "${ambiente}": preparacao do banco pulada.`);
+    console.log(`[deploy] ambiente "${ambiente}": preparação do banco pulada.`);
     return;
   }
   if (!ambiente) {
-    console.log('[deploy] fora da Vercel: use "pnpm db:migrate" para aplicar as migracoes.');
+    console.log('[deploy] fora da Vercel: use "pnpm db:migrate" para aplicar as migrações.');
     return;
   }
 
   const url = process.env.DATABASE_URL;
   if (!url) {
     console.warn(
-      '[deploy] DATABASE_URL ausente: migracoes nao aplicadas. '
-        + 'A aplicacao vai indicar a configuracao que falta em /api/health.',
+      '[deploy] DATABASE_URL ausente: migrações não aplicadas. '
+        + 'A aplicação vai indicar a configuração que falta em /api/health.',
     );
     return;
   }
@@ -50,20 +50,20 @@ async function main(): Promise<void> {
     const { applied, skipped } = await runMigrations(handle.db);
     console.log(
       applied.length > 0
-        ? `[deploy] migracoes aplicadas: ${applied.join(', ')}`
-        : `[deploy] banco ja atualizado (${skipped.length} migracao(oes) ja aplicadas).`,
+        ? `[deploy] migrações aplicadas: ${applied.join(', ')}`
+        : `[deploy] banco já atualizado (${skipped.length} migração(oes) já aplicadas).`,
     );
 
     const segmentos = await ensureBaselineSegments(handle.db);
     if (!segmentos.skipped) {
-      console.log(`[deploy] segmentos padrao criados: ${segmentos.segmentsCreated}.`);
+      console.log(`[deploy] segmentos padrão criados: ${segmentos.segmentsCreated}.`);
     }
 
     const baseline = await ensureBaselinePlans(handle.db);
     console.log(
       baseline.skipped
-        ? '[deploy] planos ja existem: nada alterado.'
-        : `[deploy] planos padrao criados: ${baseline.plansCreated}.`,
+        ? '[deploy] planos já existem: nada alterado.'
+        : `[deploy] planos padrão criados: ${baseline.plansCreated}.`,
     );
   } finally {
     await handle.close();

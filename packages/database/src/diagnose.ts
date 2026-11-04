@@ -82,8 +82,8 @@ export function describeDatabaseFailure(error: unknown): DatabaseFailure {
       hint,
       cause: 'o banco recusou as credenciais da DATABASE_URL.',
       remedy:
-        'Copie a string de conexao atual no painel do Neon e atualize DATABASE_URL na Vercel, '
-        + 'nos tres ambientes. Trocar a senha do papel no Neon invalida a string antiga.',
+        'Copie a string de conexão atual no painel do Neon e atualize DATABASE_URL na Vercel, '
+        + 'nos três ambientes. Trocar a senha do papel no Neon invalida a string antiga.',
     };
   }
 
@@ -92,8 +92,8 @@ export function describeDatabaseFailure(error: unknown): DatabaseFailure {
       code,
       message,
       hint,
-      cause: 'a DATABASE_URL aponta para um banco que nao existe nesse servidor.',
-      remedy: 'Confira o nome do banco no fim da string de conexao do Neon.',
+      cause: 'a DATABASE_URL aponta para um banco que não existe nesse servidor.',
+      remedy: 'Confira o nome do banco no fim da string de conexão do Neon.',
     };
   }
 
@@ -103,12 +103,12 @@ export function describeDatabaseFailure(error: unknown): DatabaseFailure {
       message,
       hint,
       cause:
-        `o banco ja tem as tabelas, mas a tabela ${MIGRATIONS_TABLE} nao registra nenhuma `
-        + 'migracao: o schema foi criado por fora, com SQL rodado a mao.',
+        `o banco já tem as tabelas, mas a tabela ${MIGRATIONS_TABLE} não registra nenhuma `
+        + 'migração: o schema foi criado por fora, com SQL rodado a mão.',
       remedy:
         'Sem dados a preservar, recrie o schema no console do Neon ("drop schema public cascade; '
         + 'create schema public;") e implante de novo -- o build refaz tudo. Havendo dados, '
-        + `registre em ${MIGRATIONS_TABLE} os nomes dos arquivos ja aplicados antes de implantar.`,
+        + `registre em ${MIGRATIONS_TABLE} os nomes dos arquivos já aplicados antes de implantar.`,
     };
   }
 
@@ -123,9 +123,9 @@ export function describeDatabaseFailure(error: unknown): DatabaseFailure {
       code,
       message,
       hint,
-      cause: 'o servidor do banco nao respondeu no endereco da DATABASE_URL.',
+      cause: 'o servidor do banco não respondeu no endereço da DATABASE_URL.',
       remedy:
-        'Confira o host na string de conexao e se o projeto do Neon continua ativo. '
+        'Confira o host na string de conexão e se o projeto do Neon continua ativo. '
         + 'Um projeto removido ou suspenso falha exatamente assim.',
     };
   }
@@ -135,9 +135,9 @@ export function describeDatabaseFailure(error: unknown): DatabaseFailure {
       code,
       message,
       hint,
-      cause: 'o driver do Neon nao conseguiu abrir a conexao WebSocket.',
+      cause: 'o driver do Neon não conseguiu abrir a conexão WebSocket.',
       remedy:
-        'Verifique a versao do Node usada no build: o driver precisa de WebSocket global '
+        'Verifique a versão do Node usada no build: o driver precisa de WebSocket global '
         + '(Node 22+) ou de um construtor configurado.',
     };
   }
@@ -149,7 +149,7 @@ export function describeDatabaseFailure(error: unknown): DatabaseFailure {
 export function formatDatabaseFailure(error: unknown): string {
   const { code, message, cause, remedy, hint } = describeDatabaseFailure(error);
   const lines = [`[deploy] falha ao preparar o banco: ${message}`];
-  if (code) lines.push(`[deploy] codigo: ${code}`);
+  if (code) lines.push(`[deploy] código: ${code}`);
   if (cause) lines.push(`[deploy] causa provavel: ${cause}`);
   if (remedy) lines.push(`[deploy] o que fazer: ${remedy}`);
   // Vem depois do nosso diagnostico, nao antes: quando a propria instrucao

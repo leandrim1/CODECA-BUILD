@@ -50,7 +50,7 @@ export async function createPrimarySite(
     })
     .returning({ id: sites.id });
 
-  if (!created) throw new Error('Nao foi possivel criar o site da empresa.');
+  if (!created) throw new Error('Não foi possível criar o site da empresa.');
 
   await provisionSiteModules(db, {
     tenantId: input.tenantId,

@@ -12,14 +12,14 @@ import { seedDatabase } from '../seed.js';
 async function main(): Promise<void> {
   const url = process.env.DATABASE_URL;
   if (!url) {
-    console.error('DATABASE_URL nao configurada.');
+    console.error('DATABASE_URL não configurada.');
     process.exit(1);
   }
 
   const adminEmail = process.env.PLATFORM_ADMIN_EMAIL;
   const adminPassword = process.env.PLATFORM_ADMIN_PASSWORD;
   if (adminEmail && !adminPassword) {
-    console.error('PLATFORM_ADMIN_PASSWORD e obrigatoria quando PLATFORM_ADMIN_EMAIL esta definida.');
+    console.error('PLATFORM_ADMIN_PASSWORD é obrigatória quando PLATFORM_ADMIN_EMAIL está definida.');
     process.exit(1);
   }
 
@@ -27,7 +27,7 @@ async function main(): Promise<void> {
   const demoEmail = process.env.SEED_DEMO_EMAIL ?? 'demo@construtorahorizonte.com.br';
   const demoPassword = process.env.SEED_DEMO_PASSWORD;
   if (demoEnabled && !demoPassword) {
-    console.error('SEED_DEMO_PASSWORD e obrigatoria quando SEED_DEMO=true.');
+    console.error('SEED_DEMO_PASSWORD é obrigatória quando SEED_DEMO=true.');
     process.exit(1);
   }
 
@@ -39,8 +39,8 @@ async function main(): Promise<void> {
       log: (message) => console.log(message),
     });
     console.log(
-      `Seed concluido. Planos: ${result.plans}; admin: ${result.platformAdminId ? 'sim' : 'nao'}; `
-        + `demo: ${result.demoTenantId ? 'sim' : 'nao'}.`,
+      `Seed concluído. Planos: ${result.plans}; admin: ${result.platformAdminId ? 'sim' : 'não'}; `
+        + `demo: ${result.demoTenantId ? 'sim' : 'não'}.`,
     );
   } finally {
     await handle.close();

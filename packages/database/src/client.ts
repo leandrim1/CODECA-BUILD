@@ -85,7 +85,7 @@ export function getDatabase(connectionString?: string): Database {
   const url = connectionString ?? process.env.DATABASE_URL;
   if (!url) {
     throw new Error(
-      'DATABASE_URL nao configurada. Defina a string de conexao do Neon PostgreSQL no ambiente.',
+      'DATABASE_URL não configurada. Defina a string de conexão do Neon PostgreSQL no ambiente.',
     );
   }
   if (cached && cachedUrl === url) return cached.db;

@@ -28,7 +28,7 @@ export async function readMigrations(directory = migrationsDirectory()): Promise
   try {
     entries = await readdir(directory);
   } catch {
-    throw new Error(`Diretorio de migracoes nao encontrado: ${directory}. Rode "pnpm db:generate".`);
+    throw new Error(`Diretorio de migrações não encontrado: ${directory}. Rode "pnpm db:generate".`);
   }
   const files = entries.filter((name) => name.endsWith('.sql')).sort();
   const migrations: MigrationFile[] = [];

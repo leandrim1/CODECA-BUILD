@@ -98,7 +98,7 @@ export async function seedDatabase(db: Database, options: SeedOptions = {}): Pro
         .set({ platformRole: 'platform_admin', updatedAt: new Date() })
         .where(eq(users.id, existing.id));
       platformAdminId = existing.id;
-      log(`Administrador da plataforma ja existia: ${email} (papel confirmado)`);
+      log(`Administrador da plataforma já existia: ${email} (papel confirmado)`);
     } else {
       const [created] = await db
         .insert(users)
@@ -133,12 +133,12 @@ async function seedDemoTenant(
 ): Promise<string> {
   const [existingTenant] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.slug, DEMO_SLUG));
   if (existingTenant) {
-    log(`Construtora de demonstracao ja existe (${DEMO_SLUG}); nada a fazer.`);
+    log(`Construtora de demonstração já existe (${DEMO_SLUG}); nada a fazer.`);
     return existingTenant.id;
   }
 
   const [plan] = await db.select().from(plans).where(eq(plans.code, 'profissional'));
-  if (!plan) throw new Error('Plano "profissional" nao encontrado. Rode o seed de planos primeiro.');
+  if (!plan) throw new Error('Plano "profissional" não encontrado. Rode o seed de planos primeiro.');
 
   const email = credentials.email.toLowerCase();
   let [owner] = await db.select().from(users).where(eq(users.email, email));
@@ -154,17 +154,17 @@ async function seedDemoTenant(
       })
       .returning();
   }
-  if (!owner) throw new Error('Nao foi possivel criar o usuario de demonstracao.');
+  if (!owner) throw new Error('Não foi possível criar o usuário de demonstração.');
 
   const [tenant] = await db
     .insert(tenants)
     .values({
       slug: DEMO_SLUG,
-      legalName: 'Horizonte Engenharia e Construcoes Ltda',
+      legalName: 'Horizonte Engenharia e Construções Ltda',
       displayName: DEMO_NAME,
       taxId: '12.345.678/0001-90',
       description:
-        'Construtora e incorporadora com 18 anos de atuacao em Campinas e regiao, especializada em '
+        'Construtora e incorporadora com 18 anos de atuação em Campinas e região, especializada em '
         + 'empreendimentos residenciais de medio porte, obras comerciais e reformas estruturais.',
       foundedYear: 2007,
       creaNumber: 'CREA-SP 1234567',
@@ -184,7 +184,7 @@ async function seedDemoTenant(
         postalCode: '13020-431',
         showFullAddress: true,
       }),
-      serviceArea: 'Campinas, Valinhos, Vinhedo, Paulinia e Indaiatuba',
+      serviceArea: 'Campinas, Valinhos, Vinhedo, Paulínia e Indaiatuba',
       businessHours: 'Segunda a sexta, das 8h as 18h',
       social: {
         instagram: 'https://www.instagram.com/construtorahorizonte',
@@ -192,7 +192,7 @@ async function seedDemoTenant(
       },
     })
     .returning();
-  if (!tenant) throw new Error('Nao foi possivel criar a construtora de demonstracao.');
+  if (!tenant) throw new Error('Não foi possível criar a construtora de demonstracao.');
 
   // Todo conteudo pertence a um site, nao so a empresa.
   const site = await createPrimarySite(db, { tenantId: tenant.id, name: DEMO_NAME });
@@ -222,40 +222,40 @@ async function seedDemoTenant(
   // ------------------------------------------------------------- servicos
   const serviceSeed = [
     {
-      title: 'Construcao de residencias',
+      title: 'Construção de residências',
       icon: 'home' as const,
-      summary: 'Projeto, execucao e acabamento de casas e sobrados sob medida.',
-      highlights: ['Projeto arquitetonico e estrutural', 'Cronograma com medicoes mensais', 'Garantia de 5 anos na estrutura'],
+      summary: 'Projeto, execução e acabamento de casas e sobrados sob medida.',
+      highlights: ['Projeto arquitetônico e estrutural', 'Cronograma com medições mensais', 'Garantia de 5 anos na estrutura'],
     },
     {
       title: 'Obras comerciais',
       icon: 'building-2' as const,
       summary: 'Lojas, clinicas e escritorios entregues prontos para operar.',
-      highlights: ['Adequacao a normas de acessibilidade', 'Instalacoes eletricas e hidraulicas', 'Aprovacoes junto a prefeitura'],
+      highlights: ['Adequação a normas de acessibilidade', 'Instalações elétricas e hidráulicas', 'Aprovações junto a prefeitura'],
     },
     {
       title: 'Reformas estruturais',
       icon: 'hammer' as const,
-      summary: 'Reforcos, ampliacoes e recuperacao estrutural com laudo tecnico.',
-      highlights: ['Laudo de engenheiro responsavel', 'Reforco de fundacao e lajes', 'Recuperacao de concreto armado'],
+      summary: 'Reforços, ampliações e recuperação estrutural com laudo técnico.',
+      highlights: ['Laudo de engenheiro responsável', 'Reforço de fundação e lajes', 'Recuperação de concreto armado'],
     },
     {
       title: 'Acabamentos e interiores',
       icon: 'paint-roller' as const,
-      summary: 'Revestimentos, marcenaria planejada, pintura e iluminacao.',
-      highlights: ['Selecao de materiais com o cliente', 'Marcenaria sob medida', 'Entrega com checklist de qualidade'],
+      summary: 'Revestimentos, marcenaria planejada, pintura e iluminação.',
+      highlights: ['Seleção de materiais com o cliente', 'Marcenaria sob medida', 'Entrega com checklist de qualidade'],
     },
     {
       title: 'Gerenciamento de obras',
       icon: 'hard-hat' as const,
-      summary: 'Acompanhamento tecnico e financeiro de obras de terceiros.',
-      highlights: ['Controle de cronograma fisico-financeiro', 'Medicao e conferencia de notas', 'Relatorio mensal fotografico'],
+      summary: 'Acompanhamento técnico e financeiro de obras de terceiros.',
+      highlights: ['Controle de cronograma físico-financeiro', 'Medição e conferência de notas', 'Relatório mensal fotográfico'],
     },
     {
-      title: 'Regularizacao e documentacao',
+      title: 'Regularização e documentação',
       icon: 'file-check' as const,
-      summary: 'Averbacao, habite-se e regularizacao de imoveis.',
-      highlights: ['Levantamento documental', 'Protocolo em orgaos publicos', 'Acompanhamento ate a conclusao'],
+      summary: 'Averbação, habite-se e regularização de imóveis.',
+      highlights: ['Levantamento documental', 'Protocolo em órgãos públicos', 'Acompanhamento até a conclusão'],
     },
   ];
   await db.insert(services).values(
@@ -265,7 +265,7 @@ async function seedDemoTenant(
       slug: slugify(service.title),
       title: service.title,
       summary: service.summary,
-      description: `${service.summary} Nossa equipe acompanha cada etapa com responsavel tecnico dedicado e relatorios periodicos.`,
+      description: `${service.summary} Nossa equipe acompanha cada etapa com responsável técnico dedicado e relatórios periódicos.`,
       icon: service.icon,
       highlights: service.highlights,
       publicationStatus: 'published' as const,
@@ -276,7 +276,7 @@ async function seedDemoTenant(
   // -------------------------------------------------------------- imoveis
   const propertySeed = [
     {
-      title: 'Residencial Aurora - Apartamento 3 dormitorios',
+      title: 'Residencial Aurora - Apartamento 3 dormitórios',
       type: 'apartamento' as const,
       purpose: 'venda' as const,
       price: 780_000,
@@ -292,7 +292,7 @@ async function seedDemoTenant(
       features: ['Varanda gourmet', 'Lazer completo', 'Portaria 24 horas', 'Elevador privativo'],
     },
     {
-      title: 'Casa Vila Verde - 4 dormitorios com piscina',
+      title: 'Casa Vila Verde - 4 dormitórios com piscina',
       type: 'casa_condominio' as const,
       purpose: 'venda' as const,
       price: 1_450_000,
@@ -306,7 +306,7 @@ async function seedDemoTenant(
       land: 450,
       neighborhood: 'Alphaville',
       featured: true,
-      features: ['Piscina aquecida', 'Churrasqueira', 'Automacao residencial', 'Energia solar'],
+      features: ['Piscina aquecida', 'Churrasqueira', 'Automação residencial', 'Energia solar'],
     },
     {
       title: 'Edificio Mirante - Studio mobiliado',
@@ -331,7 +331,7 @@ async function seedDemoTenant(
       publication: 'published' as const,
       land: 520,
       neighborhood: 'Jardim Botanico',
-      features: ['Topografia plana', 'Documentacao regularizada'],
+      features: ['Topografia plana', 'Documentação regularizada'],
     },
     {
       title: 'Sala comercial Horizonte Office',
@@ -344,7 +344,7 @@ async function seedDemoTenant(
       parking: 2,
       built: 62,
       neighborhood: 'Botafogo',
-      features: ['Ar-condicionado central', 'Recepcao compartilhada'],
+      features: ['Ar-condicionado central', 'Recepção compartilhada'],
     },
     {
       title: 'Residencial Jatoba - Lancamento',
@@ -373,8 +373,8 @@ async function seedDemoTenant(
       reference: `HZT-${String(index + 1).padStart(3, '0')}`,
       shortDescription: `${item.neighborhood}, Campinas - ${item.built ? `${item.built} m2` : `${item.land ?? 0} m2 de terreno`}.`,
       description:
-        'Imovel entregue pela Construtora Horizonte, com acabamento conferido item por item antes da entrega. '
-        + 'Agende uma visita para conhecer a planta e as opcoes de personalizacao.',
+        'Imóvel entregue pela Construtora Horizonte, com acabamento conferido item por item antes da entrega. '
+        + 'Agende uma visita para conhecer a planta e as opções de personalização.',
       type: item.type,
       purpose: item.purpose,
       price: item.price,
@@ -412,23 +412,23 @@ async function seedDemoTenant(
       start: '2024-03-11',
       expected: '2026-02-27',
       updates: [
-        { title: 'Inicio dos acabamentos internos', stage: 'acabamentos' as const, progress: 78, at: '2025-09-15' },
-        { title: 'Conclusao das instalacoes eletricas', stage: 'instalacoes' as const, progress: 64, at: '2025-06-02' },
-        { title: 'Alvenaria do ultimo pavimento', stage: 'alvenaria' as const, progress: 45, at: '2025-02-10' },
+        { title: 'Início dos acabamentos internos', stage: 'acabamentos' as const, progress: 78, at: '2025-09-15' },
+        { title: 'Conclusão das instalações elétricas', stage: 'instalacoes' as const, progress: 64, at: '2025-06-02' },
+        { title: 'Alvenaria do último pavimento', stage: 'alvenaria' as const, progress: 45, at: '2025-02-10' },
       ],
     },
     {
-      title: 'Clinica Bem Viver',
+      title: 'Clínica Bem Viver',
       category: 'comercial' as const,
       status: 'em_andamento' as const,
       stage: 'instalacoes' as const,
       progress: null,
       start: '2025-01-20',
       expected: '2026-05-29',
-      updates: [{ title: 'Instalacoes hidraulicas concluidas', stage: 'instalacoes' as const, progress: null, at: '2025-10-01' }],
+      updates: [{ title: 'Instalações hidráulicas concluídas', stage: 'instalacoes' as const, progress: null, at: '2025-10-01' }],
     },
     {
-      title: 'Galpao Logistico Paulinia',
+      title: 'Galpão Logístico Paulínia',
       category: 'industrial' as const,
       status: 'concluida' as const,
       stage: 'concluida' as const,
@@ -458,10 +458,10 @@ async function seedDemoTenant(
         siteId: site.id,
         slug: slugify(item.title),
         title: item.title,
-        shortDescription: `Obra ${item.category} acompanhada pela equipe tecnica da Construtora Horizonte.`,
+        shortDescription: `Obra ${item.category} acompanhada pela equipe técnica da Construtora Horizonte.`,
         description:
-          'Projeto executado com cronograma fisico-financeiro acompanhado mensalmente e relatorio fotografico '
-          + 'disponibilizado ao cliente em cada medicao.',
+          'Projeto executado com cronograma físico-financeiro acompanhado mensalmente e relatório fotográfico '
+          + 'disponibilizado ao cliente em cada medição.',
         category: item.category,
         status: item.status,
         stage: item.stage,
@@ -487,7 +487,7 @@ async function seedDemoTenant(
           siteId: site.id,
           projectId: project.id,
           title: update.title,
-          note: 'Registro de evolucao publicado pela equipe tecnica.',
+          note: 'Registro de evolução publicado pela equipe técnica.',
           stage: update.stage,
           progressPercent: update.progress,
           recordedAt: update.at,
@@ -502,13 +502,13 @@ async function seedDemoTenant(
       tenantId: tenant.id,
       siteId: site.id,
       authorName: 'Ana Beatriz Correia',
-      authorRole: 'Proprietaria - Casa Vila Verde',
+      authorRole: 'Proprietária - Casa Vila Verde',
       content:
-        'Acompanhei a obra do inicio ao fim com relatorios mensais. O prazo foi cumprido e o acabamento ficou '
+        'Acompanhei a obra do início ao fim com relatórios mensais. O prazo foi cumprido e o acabamento ficou '
         + 'exatamente como combinamos em projeto.',
       rating: 5,
       authorizationConfirmed: true,
-      authorizationNote: 'Autorizacao por escrito recebida em 12/03/2025.',
+      authorizationNote: 'Autorização por escrito recebida em 12/03/2025.',
       publicationStatus: 'published',
       sortOrder: 0,
     },
@@ -516,25 +516,25 @@ async function seedDemoTenant(
       tenantId: tenant.id,
       siteId: site.id,
       authorName: 'Dr. Rogerio Lemos',
-      authorRole: 'Clinica Bem Viver',
+      authorRole: 'Clínica Bem Viver',
       content:
-        'A equipe resolveu as adequacoes de acessibilidade sem atrasar o cronograma. Recomendo para obras '
+        'A equipe resolveu as adequações de acessibilidade sem atrasar o cronograma. Recomendo para obras '
         + 'comerciais que precisam abrir em data definida.',
       rating: 5,
       authorizationConfirmed: true,
-      authorizationNote: 'Autorizacao registrada em contrato de obra.',
+      authorizationNote: 'Autorização registrada em contrato de obra.',
       publicationStatus: 'published',
       sortOrder: 1,
     },
     {
       tenantId: tenant.id,
       siteId: site.id,
-      authorName: 'Cooperativa Agro Paulinia',
-      authorRole: 'Galpao Logistico',
-      content: 'Entrega antecipada em duas semanas e documentacao de habite-se resolvida pela propria construtora.',
+      authorName: 'Cooperativa Agro Paulínia',
+      authorRole: 'Galpão Logístico',
+      content: 'Entrega antecipada em duas semanas e documentação de habite-se resolvida pela própria construtora.',
       rating: 4,
       authorizationConfirmed: false,
-      authorizationNote: 'Aguardando retorno do cliente para autorizar a publicacao.',
+      authorizationNote: 'Aguardando retorno do cliente para autorizar a publicação.',
       publicationStatus: 'draft',
       sortOrder: 2,
     },
@@ -545,8 +545,8 @@ async function seedDemoTenant(
       tenantId: tenant.id,
       siteId: site.id,
       name: 'Marina Prado',
-      role: 'Engenheira civil responsavel - CREA-SP 1234567',
-      bio: 'Responsavel tecnica pelos empreendimentos residenciais, com 18 anos de experiencia em obras verticais.',
+      role: 'Engenheira civil responsável - CREA-SP 1234567',
+      bio: 'Responsável técnica pelos empreendimentos residenciais, com 18 anos de experiência em obras verticais.',
       publicationStatus: 'published',
       sortOrder: 0,
     },
@@ -555,7 +555,7 @@ async function seedDemoTenant(
       siteId: site.id,
       name: 'Caio Ferreira',
       role: 'Arquiteto - CAU A12345-6',
-      bio: 'Coordena projetos arquitetonicos e a compatibilizacao com as disciplinas complementares.',
+      bio: 'Coordena projetos arquitetônicos e a compatibilização com as disciplinas complementares.',
       publicationStatus: 'published',
       sortOrder: 1,
     },
@@ -564,7 +564,7 @@ async function seedDemoTenant(
       siteId: site.id,
       name: 'Juliana Sato',
       role: 'Coordenadora de obras',
-      bio: 'Acompanha cronogramas, medicoes e a qualidade da execucao em campo.',
+      bio: 'Acompanha cronogramas, medições e a qualidade da execução em campo.',
       publicationStatus: 'published',
       sortOrder: 2,
     },
@@ -574,8 +574,8 @@ async function seedDemoTenant(
     {
       tenantId: tenant.id,
       siteId: site.id,
-      question: 'Voces fazem apenas a execucao ou tambem o projeto?',
-      answer: 'Atuamos nas duas frentes. Podemos desenvolver o projeto completo ou executar um projeto ja aprovado.',
+      question: 'Vocês fazem apenas a execução ou também o projeto?',
+      answer: 'Atuamos nas duas frentes. Podemos desenvolver o projeto completo ou executar um projeto já aprovado.',
       publicationStatus: 'published',
       sortOrder: 0,
     },
@@ -584,24 +584,24 @@ async function seedDemoTenant(
       siteId: site.id,
       question: 'Como funciona o acompanhamento da obra?',
       answer:
-        'Cada obra tem um responsavel tecnico e medicoes mensais. O cliente recebe relatorio fotografico e '
-        + 'planilha de cronograma fisico-financeiro.',
+        'Cada obra tem um responsável técnico e medições mensais. O cliente recebe relatório fotográfico e '
+        + 'planilha de cronograma físico-financeiro.',
       publicationStatus: 'published',
       sortOrder: 1,
     },
     {
       tenantId: tenant.id,
       siteId: site.id,
-      question: 'Qual o prazo medio de uma residencia?',
-      answer: 'Depende da area e do padrao de acabamento. Casas de 200 a 300 m2 levam de 12 a 18 meses.',
+      question: 'Qual o prazo médio de uma residência?',
+      answer: 'Depende da área e do padrão de acabamento. Casas de 200 a 300 m2 levam de 12 a 18 meses.',
       publicationStatus: 'published',
       sortOrder: 2,
     },
     {
       tenantId: tenant.id,
       siteId: site.id,
-      question: 'Voces atendem fora de Campinas?',
-      answer: 'Atendemos Campinas, Valinhos, Vinhedo, Paulinia e Indaiatuba. Outras cidades sao avaliadas caso a caso.',
+      question: 'Vocês atendem fora de Campinas?',
+      answer: 'Atendemos Campinas, Valinhos, Vinhedo, Paulínia e Indaiatuba. Outras cidades são avaliadas caso a caso.',
       publicationStatus: 'published',
       sortOrder: 3,
     },
@@ -625,25 +625,25 @@ async function seedDemoTenant(
       name: 'Eduardo Machado',
       phone: '(19) 98222-4455',
       interestType: 'construcao',
-      message: 'Tenho um terreno em Valinhos e quero orcamento para uma casa de 220 m2.',
+      message: 'Tenho um terreno em Valinhos e quero orçamento para uma casa de 220 m2.',
       status: 'em_atendimento',
       sourcePath: '/contato',
     },
     {
       tenantId: tenant.id,
       siteId: site.id,
-      name: 'Condominio Jardim das Palmeiras',
+      name: 'Condomínio Jardim das Palmeiras',
       phone: '(19) 3777-8899',
       email: 'sindico@jardimdaspalmeiras.com.br',
       interestType: 'reforma',
-      message: 'Precisamos de laudo e orcamento para recuperacao estrutural da garagem.',
+      message: 'Precisamos de laudo e orçamento para recuperação estrutural da garagem.',
       status: 'qualificado',
       sourcePath: '/servicos',
     },
   ]);
 
-  log(`Construtora de demonstracao criada: ${DEMO_NAME}`);
-  log(`Acesso de demonstracao: ${email}`);
+  log(`Construtora de demonstração criada: ${DEMO_NAME}`);
+  log(`Acesso de demonstração: ${email}`);
   return tenant.id;
 }
 
