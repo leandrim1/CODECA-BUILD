@@ -507,6 +507,13 @@ export const users = pgTable(
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     failedLoginCount: integer('failed_login_count').notNull().default(0),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    /**
+     * Aceite dos termos de uso e da politica de privacidade: quando e qual
+     * versao do texto (`LEGAL_VERSION`). Nulo em contas anteriores ao registro
+     * do aceite e em quem ainda nao cadastrou empresa (entrada pelo Google).
+     */
+    termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }),
+    termsVersion: text('terms_version'),
     createdAt,
     updatedAt,
   },

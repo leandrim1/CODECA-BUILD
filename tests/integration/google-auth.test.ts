@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq, schema } from '@codeca/database';
+import { LEGAL_VERSION } from '@codeca/shared';
 import {
   createTestApi,
   extractToken,
@@ -202,6 +203,18 @@ describe('usuario novo', () => {
     expect(session?.memberships).toHaveLength(1);
     expect(session?.memberships[0]).toMatchObject({ role: 'owner' });
     expect(session?.user.platformRole).toBe('none');
+  });
+
+  it('registra o aceite dos termos (data e versao) ao criar a empresa', async () => {
+    const client = await googleUser();
+    const [antes] = await api.db.select().from(schema.users);
+    expect(antes!.termsAcceptedAt).toBeNull();
+
+    const response = await client.post('/api/auth/company', { companyName: 'Empresa Um', acceptedTerms: true });
+    expect(response.status).toBe(201);
+    const [depois] = await api.db.select().from(schema.users);
+    expect(depois!.termsAcceptedAt).not.toBeNull();
+    expect(depois!.termsVersion).toBe(LEGAL_VERSION);
   });
 
   it('exige aceitar os termos e nao cria uma segunda empresa', async () => {

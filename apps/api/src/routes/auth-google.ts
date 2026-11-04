@@ -2,6 +2,7 @@ import { and, eq, schema, type Database } from '@codeca/database';
 import {
   AppError,
   GOOGLE_AUTH_ERRORS,
+  LEGAL_VERSION,
   createCompanySchema,
   googleStartSchema,
   unlinkGoogleSchema,
@@ -461,6 +462,12 @@ export async function createCompanyHandler(c: Context<AppBindings>): Promise<Res
       now,
     }),
   );
+
+  // Quem entrou pelo Google aceita os termos aqui (o schema exige `acceptedTerms: true`).
+  await ctx.db
+    .update(schema.users)
+    .set({ termsAcceptedAt: now, termsVersion: LEGAL_VERSION, updatedAt: now })
+    .where(eq(schema.users.id, session.user.id));
 
   if (input.phone && !session.user.phone) {
     await ctx.db.update(schema.users).set({ phone: input.phone, updatedAt: now }).where(eq(schema.users.id, session.user.id));

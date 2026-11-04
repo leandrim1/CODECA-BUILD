@@ -7,6 +7,7 @@ export * from './whatsapp.js';
 export * from './plans.js';
 export * from './overview.js';
 export * from './analytics.js';
+export * from './legal.js';
 export * from './segments.js';
 export * from './modules/index.js';
 export * from './integration/index.js';

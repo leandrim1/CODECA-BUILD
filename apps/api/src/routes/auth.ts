@@ -1,6 +1,7 @@
 import { and, eq, isNull, schema, type Database } from '@codeca/database';
 import {
   AppError,
+  LEGAL_VERSION,
   acceptInviteSchema,
   changePasswordSchema,
   loginSchema,
@@ -88,7 +89,15 @@ export function authRoutes() {
     const result = await ctx.db.transaction(async (tx) => {
       const [user] = await tx
         .insert(schema.users)
-        .values({ email: input.email, name: input.name, passwordHash, phone: input.phone })
+        .values({
+          email: input.email,
+          name: input.name,
+          passwordHash,
+          phone: input.phone,
+          // O formulario so envia com o aceite marcado (`acceptedTerms: true`).
+          termsAcceptedAt: ctx.now(),
+          termsVersion: LEGAL_VERSION,
+        })
         .returning({ id: schema.users.id, email: schema.users.email });
       if (!user) throw AppError.internal('Não foi possível criar a conta.');
 

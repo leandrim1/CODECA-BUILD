@@ -108,15 +108,12 @@ acima para voltarem a combinar com ele (e com `og-image.jpg`).
 
 ## 5. Termos de uso e política de privacidade
 
-**Os textos não existem no projeto.** `/termos` e `/privacidade` existem como
-páginas, linkadas no rodapé, e dizem exatamente isso ("documento ainda não
-publicado"). Redigir termos e política não cabe a quem programa: eles obrigam a
-empresa. Quando o texto estiver pronto, preencha `DOCUMENTOS` em
-`pages/LegalPage.tsx`; a página passa a exibi-lo no lugar do aviso.
+`/termos` e `/privacidade` exibem os textos de `apps/web/src/legal/termos.ts` e
+`legal/privacidade.ts`, desenhados por `pages/LegalPage.tsx`. Como foram
+redigidos, o que mudar e o que ainda falta estão em [legal.md](legal.md).
 
-O cadastro já pede "Aceito os termos de uso e a política de privacidade" sem
-linkar nada -- lacuna anterior a esta página, que continua aberta até o texto
-existir.
+O cadastro grava o aceite (data e versão) em `users.terms_accepted_at` /
+`users.terms_version`.
 
 ## 6. Acessibilidade e desempenho
 
