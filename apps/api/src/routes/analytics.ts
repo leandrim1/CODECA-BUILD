@@ -44,7 +44,8 @@ import {
   consumeAnalyticsState,
   createAnalyticsState,
 } from '../lib/analytics/oauth-state.js';
-import { decryptSecret } from '../lib/secret-box.js';
+import type { AppContext } from '../context.js';
+import { decryptSecret, parseEncryptionKey } from '../lib/secret-box.js';
 import { requireCapability, requireVerifiedEmail, sessionMiddleware, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
@@ -83,6 +84,7 @@ export function analyticsRoutes() {
 
     const status: AnalyticsStatus = {
       available: ctx.features.googleAnalytics,
+      missingConfig: canManage ? missingConfig(ctx.env) : [],
       canManage,
       redirectUri: canManage && ctx.features.googleAnalytics ? analyticsRedirectUri(ctx.env) : null,
       connection: row ? connectionView(row) : null,
@@ -277,6 +279,21 @@ export function analyticsRoutes() {
   );
 
   return app;
+}
+
+/** Nomes (nunca valores) do que falta para a integracao ligar. */
+function missingConfig(env: AppContext['env']): string[] {
+  const missing: string[] = [];
+  if (!env.GOOGLE_CLIENT_ID) missing.push('GOOGLE_CLIENT_ID');
+  if (!env.GOOGLE_CLIENT_SECRET) missing.push('GOOGLE_CLIENT_SECRET');
+  if (!parseEncryptionKey(env.INTEGRATIONS_ENCRYPTION_KEY)) {
+    missing.push(
+      env.INTEGRATIONS_ENCRYPTION_KEY?.trim()
+        ? 'INTEGRATIONS_ENCRYPTION_KEY (valor inválido: precisa ter 32 bytes em base64)'
+        : 'INTEGRATIONS_ENCRYPTION_KEY',
+    );
+  }
+  return missing;
 }
 
 // ------------------------------------------------------------ callback

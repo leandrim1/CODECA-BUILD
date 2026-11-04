@@ -77,6 +77,11 @@ export interface AnalyticsConnectionView {
 export interface AnalyticsStatus {
   /** Integracao configurada no servidor (credenciais Google e chave de cifra). */
   available: boolean;
+  /**
+   * Variaveis de ambiente que faltam (ou estao invalidas) para a integracao ligar.
+   * So nomes, nunca valores, e so para quem pode gerenciar; vazio quando disponivel.
+   */
+  missingConfig: string[];
   /** Papel atual pode conectar/desconectar/escolher propriedade. */
   canManage: boolean;
   /**

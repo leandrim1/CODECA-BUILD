@@ -93,6 +93,7 @@ describe('configuracao e autorizacao', () => {
     expect(status.body.available).toBe(true);
     expect(status.body.canManage).toBe(true);
     expect(status.body.connection).toBeNull();
+    expect(status.body.missingConfig).toEqual([]);
     expect(status.body.redirectUri).toBe(`${TEST_APP_ORIGIN}${CALLBACK}`);
     expect(status.body.redirectUri).not.toContain('/auth/google');
   });
@@ -450,6 +451,7 @@ describe('integracao nao configurada', () => {
       const status = await conta.client.get(`/api/tenants/${conta.tenantId}/analytics`);
       expect(status.body.available).toBe(false);
       expect(status.body.redirectUri).toBeNull();
+      expect(status.body.missingConfig).toEqual(['INTEGRATIONS_ENCRYPTION_KEY']);
       const start = await conta.client.post(`/api/tenants/${conta.tenantId}/analytics/connect/start`);
       expect(start.status).toBe(501);
       // E o login com Google segue funcionando com as mesmas credenciais.

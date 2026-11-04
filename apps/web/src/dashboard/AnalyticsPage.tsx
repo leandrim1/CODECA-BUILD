@@ -121,8 +121,22 @@ function AnalyticsBody({
   if (!status.available) {
     return (
       <Alert tone="info" title="Integração não disponível">
-        A conexão com o Google Analytics ainda não foi habilitada nesta instalação da plataforma. Fale com a
-        CODECA IA para habilitá-la.
+        A conexão com o Google Analytics ainda não foi habilitada nesta instalação da plataforma.
+        {status.missingConfig.length > 0 ? (
+          <>
+            {' '}
+            Falta configurar no servidor (Vercel › Environment Variables, seguido de um novo deploy):
+            <ul className="mt-2 list-disc pl-5">
+              {status.missingConfig.map((name) => (
+                <li key={name}>
+                  <code>{name}</code>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          ' Fale com a CODECA IA para habilitá-la.'
+        )}
       </Alert>
     );
   }
