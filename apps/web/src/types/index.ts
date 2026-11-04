@@ -73,6 +73,8 @@ export interface FeatureFlags {
   transactionalEmail: boolean;
   /** Login com Google configurado no servidor. */
   googleAuth: boolean;
+  /** Login por codigo enviado por e-mail (depende do provedor de e-mail). */
+  emailCodeAuth: boolean;
 }
 
 export interface SessionResponse {

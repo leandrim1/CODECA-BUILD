@@ -152,7 +152,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     );
     // Consultar a sessao e entrar respondem "sem sessao" de forma esperada; em
     // qualquer outra rota isso significa que a sessao acabou no meio do uso.
-    const expected = path === '/api/auth/session' || path === '/api/auth/login';
+    // Erro de codigo e senha errada tambem chegam como 401, e nao significam sessao expirada.
+    const expected =
+      path === '/api/auth/session' || path === '/api/auth/login' || path.startsWith('/api/auth/code/');
     if (failure.isUnauthenticated && !expected) unauthenticatedHandler?.();
     throw failure;
   }

@@ -20,6 +20,16 @@ export const RATE_LIMITS = {
   login: { action: 'login', limit: 10, windowSeconds: 300 },
   register: { action: 'register', limit: 5, windowSeconds: 3600 },
   /** Inicio e retorno do login com Google, por IP. */
+  /**
+   * Codigo de acesso por e-mail. Quatro cotas, cada uma contra um abuso:
+   * pedidos por IP (inundar a plataforma), pedidos por e-mail (encher a caixa
+   * de uma pessoa), validacoes por IP e validacoes por e-mail (forca bruta do
+   * codigo, que alem disso tem o limite de tentativas por codigo).
+   */
+  loginCodeRequestIp: { action: 'login_code_request_ip', limit: 15, windowSeconds: 3600 },
+  loginCodeRequestEmail: { action: 'login_code_request_email', limit: 5, windowSeconds: 3600 },
+  loginCodeVerifyIp: { action: 'login_code_verify_ip', limit: 30, windowSeconds: 900 },
+  loginCodeVerifyEmail: { action: 'login_code_verify_email', limit: 15, windowSeconds: 3600 },
   oauthStart: { action: 'oauth_start', limit: 20, windowSeconds: 300 },
   oauthCallback: { action: 'oauth_callback', limit: 30, windowSeconds: 300 },
   passwordReset: { action: 'password_reset', limit: 5, windowSeconds: 3600 },

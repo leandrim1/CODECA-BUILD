@@ -13,7 +13,7 @@ export interface MailMessage {
   subject: string;
   text: string;
   /** Rotulo usado nos logs; nunca inclui o token em claro. */
-  kind: 'verify_email' | 'reset_password' | 'invitation' | 'lead_notification';
+  kind: 'verify_email' | 'reset_password' | 'invitation' | 'lead_notification' | 'login_code';
 }
 
 export interface Mailer {
@@ -25,9 +25,11 @@ export function createConsoleMailer(): Mailer {
   return {
     configured: false,
     async send(message) {
+      // O codigo de acesso NUNCA vai para o log: quem lesse o log entraria na conta.
+      const body = message.kind === 'login_code' ? '(conteúdo omitido: contém o código de acesso)' : message.text;
       console.info(
         `[mailer:console] ${message.kind} -> ${message.to}\n`
-          + `assunto: ${message.subject}\n${message.text}`,
+          + `assunto: ${message.subject}\n${body}`,
       );
       return { delivered: false, reason: 'RESEND_API_KEY não configurada; mensagem registrada no log.' };
     },

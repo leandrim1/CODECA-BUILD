@@ -611,6 +611,40 @@ export const oauthStates = pgTable(
   ],
 );
 
+/**
+ * Codigos de acesso por e-mail (login sem senha).
+ *
+ * Guarda so o HASH do codigo (HMAC com o segredo do servidor): como o codigo
+ * tem 6 digitos, um hash simples seria quebrado por forca bruta em
+ * milissegundos por quem lesse o banco; com o segredo, nao.
+ *
+ * Nao tem `user_id` de proposito. O codigo e pedido para um ENDERECO, exista
+ * conta ou nao -- ter (ou nao) uma linha aqui nao pode revelar se o e-mail esta
+ * cadastrado. Quem decide entrar ou cadastrar e a verificacao, depois.
+ *
+ * - `attempts`: tentativas de validacao deste codigo; no limite, ele morre.
+ * - `used_at`: usado, OU invalidado por um pedido mais novo. Nos dois casos o
+ *   codigo nao vale mais.
+ * - `request_ip_hash`: so o hash, para investigar abuso sem guardar o IP.
+ */
+export const loginCodes = pgTable(
+  'login_codes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull(),
+    codeHash: text('code_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    attempts: smallint('attempts').notNull().default(0),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    requestIpHash: text('request_ip_hash').notNull().default(''),
+    createdAt,
+  },
+  (table) => [
+    index('login_codes_email_created_idx').on(table.email, table.createdAt),
+    index('login_codes_expires_idx').on(table.expiresAt),
+  ],
+);
+
 export const sessions = pgTable(
   'sessions',
   {

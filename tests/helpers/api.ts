@@ -7,6 +7,7 @@ import {
   createUnconfiguredDomainProvider,
   parseEnv,
   type DomainProvider,
+  type Mailer,
   type MailMessage,
   type MemoryBillingProvider,
 } from '@codeca/api';
@@ -31,6 +32,8 @@ export interface TestApiOptions {
   env?: Record<string, string>;
   /** Cliente HTTP da API (por exemplo, um Google falso). */
   fetch?: typeof globalThis.fetch;
+  /** E-mail alternativo (por exemplo, um que falha). Sem ele, a caixa de saida em memoria. */
+  mailer?: Mailer;
 }
 
 /** Uma requisicao que a plataforma enviou ao site do cliente. */
@@ -98,7 +101,7 @@ export interface TestApi {
 
 export async function createTestApi(options: TestApiOptions = {}): Promise<TestApi> {
   const database = await createTestDatabase();
-  const mailer = createMemoryMailer();
+  const mailer = options.mailer ?? createMemoryMailer();
   const blob = createMemoryBlobStorage();
   const webhooks = createWebhookSink();
   const billing = options.billing ?? createMemoryBillingProvider(
@@ -143,14 +146,14 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     database,
     webhooks,
     app,
-    outbox: mailer.outbox,
+    outbox: 'outbox' in mailer ? (mailer as { outbox: MailMessage[] }).outbox : [],
     blobFiles: blob.files,
     billing,
     client: () => new TestClient(app),
     reset: async () => {
       await database.reset();
       webhooks.reset();
-      mailer.outbox.length = 0;
+      if ('outbox' in mailer) (mailer as { outbox: MailMessage[] }).outbox.length = 0;
       blob.files.clear();
       billing.sessions.clear();
       billing.subscriptions.clear();

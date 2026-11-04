@@ -50,6 +50,7 @@ const DEFAULT_FEATURES: FeatureFlags = {
   vercelDomains: false,
   transactionalEmail: false,
   googleAuth: false,
+  emailCodeAuth: false,
 };
 
 function readStoredTenant(): string | null {

@@ -16,6 +16,10 @@ export const AUDIT_ACTIONS = {
   userLoginFailed: 'user.login_failed',
   userLoggedOut: 'user.logged_out',
   /** Login com Google: entrada, cadastro, bloqueio, vinculo e desvinculo. */
+  /** Login por codigo de e-mail. Nenhuma destas linhas carrega o codigo. */
+  userCodeLoggedIn: 'user.code_logged_in',
+  userCodeRegistered: 'user.code_registered',
+  userCodeBlocked: 'user.code_blocked',
   userGoogleLoggedIn: 'user.google_logged_in',
   userGoogleRegistered: 'user.google_registered',
   userGoogleLoginBlocked: 'user.google_login_blocked',

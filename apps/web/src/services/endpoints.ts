@@ -83,6 +83,26 @@ export const authApi = {
    */
   googleStart: (body: { intent: 'continue'; next?: string } | { intent: 'link'; password: string }) =>
     api.post<{ authorizationUrl: string }>('/api/auth/google/start', body),
+  /**
+   * Login por codigo enviado por e-mail. A resposta de `codeRequest` nunca traz o
+   * codigo e e igual para e-mail com e sem conta.
+   */
+  codeRequest: (email: string) =>
+    api.post<{ sent: boolean; resendAfterSeconds: number; expiresInSeconds: number }>(
+      '/api/auth/code/request',
+      { email },
+    ),
+  codeVerify: (body: { email: string; code: string }) =>
+    api.post<
+      | { status: 'authenticated'; session: SessionPayload | null; csrfToken: string; notice: string | null }
+      | { status: 'registration_required'; email: string }
+    >('/api/auth/code/verify', body),
+  /** O e-mail do cadastro e o provado no passo anterior (cookie HttpOnly), nao o do corpo. */
+  codeRegister: (body: { name: string; companyName: string; phone: string; acceptedTerms: boolean }) =>
+    api.post<{ status: 'authenticated'; session: SessionPayload | null; csrfToken: string; tenantId: string }>(
+      '/api/auth/code/register',
+      body,
+    ),
   googleUnlink: (password: string) => api.post<void>('/api/auth/google/unlink', { password }),
   /** Primeira empresa de quem entrou pelo Google. */
   createCompany: (body: { companyName: string; phone: string; acceptedTerms: boolean }) =>

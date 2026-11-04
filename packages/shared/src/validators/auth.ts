@@ -122,3 +122,43 @@ export const GOOGLE_AUTH_ERRORS = {
   linked: 'Conta Google vinculada.',
 } as const;
 export type GoogleAuthResult = keyof typeof GOOGLE_AUTH_ERRORS;
+
+// ---------------------------------------------------------- codigo por e-mail
+
+/** Regras do codigo de acesso por e-mail. Servidor e tela leem os mesmos numeros. */
+export const LOGIN_CODE_LENGTH = 6;
+export const LOGIN_CODE_TTL_MINUTES = 10;
+/** Tentativas de validacao por codigo; ao errar a ultima, o codigo morre. */
+export const LOGIN_CODE_MAX_ATTEMPTS = 5;
+/** Intervalo minimo entre dois pedidos de codigo para o mesmo e-mail. */
+export const LOGIN_CODE_RESEND_SECONDS = 60;
+
+export const requestLoginCodeSchema = z.object({ email: emailSchema });
+export type RequestLoginCodeInput = z.infer<typeof requestLoginCodeSchema>;
+
+export const verifyLoginCodeSchema = z.object({
+  email: emailSchema,
+  code: z
+    .string()
+    .trim()
+    .regex(new RegExp(`^\\d{${LOGIN_CODE_LENGTH}}$`), `Informe os ${LOGIN_CODE_LENGTH} dígitos do código.`),
+});
+export type VerifyLoginCodeInput = z.infer<typeof verifyLoginCodeSchema>;
+
+/**
+ * Cadastro de quem acabou de provar o e-mail com o codigo.
+ *
+ * O e-mail NAO vem no corpo: o servidor o le do comprovante guardado em cookie
+ * HttpOnly na verificacao, para ninguem cadastrar um e-mail que nao provou.
+ */
+export const registerWithCodeSchema = z.object({
+  name: personNameSchema,
+  companyName: z.string().trim().min(2, 'Informe o nome da empresa.').max(160),
+  companySlug: slugSchema.optional(),
+  phone: phoneSchema.default(''),
+  acceptedTerms: z.literal(true, { message: 'É necessário aceitar os termos de uso.' }),
+});
+export type RegisterWithCodeInput = z.infer<typeof registerWithCodeSchema>;
+
+/** Mensagem unica para qualquer falha de validacao: nao diz se o e-mail existe. */
+export const LOGIN_CODE_INVALID_MESSAGE = 'Código incorreto ou expirado. Confira os números ou peça um novo código.';

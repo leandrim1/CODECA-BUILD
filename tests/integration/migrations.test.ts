@@ -57,6 +57,7 @@ const DOMINIOS_SEM_HOSPEDAGEM = '0017_dominios_sem_hospedagem.sql';
 const LIMITE_GERAL = '0018_limite_geral_de_conteudos.sql';
 const ACENTOS = '0019_acentos_nos_textos_de_fabrica.sql';
 const LOGIN_EXTERNO = '0020_login_com_provedores_externos.sql';
+const CODIGOS_DE_ACESSO = '0021_codigos_de_acesso_por_email.sql';
 const REMOVIDAS = ['pages', 'page_versions', 'navigation_menus', 'redirects', 'site_settings'];
 
 /**
@@ -1178,6 +1179,67 @@ describe('login com provedores externos', () => {
       await banco.aplicar();
       await banco.aplicar();
       expect(await banco.db.select().from(schema.userIdentities)).toHaveLength(0);
+    } finally {
+      await banco.close();
+    }
+  });
+});
+
+describe('codigos de acesso por e-mail', () => {
+  it('so acrescenta a tabela: usuarios e senhas existentes ficam como estavam', async () => {
+    const banco = await bancoAntesDe(CODIGOS_DE_ACESSO);
+    try {
+      await seedDatabase(banco.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' } });
+      const antes = await banco.db.select({ id: schema.users.id, hash: schema.users.passwordHash }).from(schema.users);
+
+      await banco.aplicar();
+
+      expect(await banco.db.select({ id: schema.users.id, hash: schema.users.passwordHash }).from(schema.users)).toEqual(antes);
+      expect(await banco.db.select().from(schema.loginCodes)).toHaveLength(0);
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('guarda hash (nao o codigo), conta tentativas e aceita o ciclo completo de uso', async () => {
+    const banco = await bancoAntesDe(CODIGOS_DE_ACESSO);
+    try {
+      await banco.aplicar();
+      const [linha] = await banco.db
+        .insert(schema.loginCodes)
+        .values({ email: 'a@x.com', codeHash: 'h'.repeat(64), expiresAt: new Date(Date.now() + 600_000) })
+        .returning();
+      expect(linha).toMatchObject({ attempts: 0, usedAt: null, requestIpHash: '' });
+
+      await banco.db.update(schema.loginCodes).set({ attempts: 3, usedAt: new Date() }).where(eq(schema.loginCodes.id, linha!.id));
+      const [depois] = await banco.db.select().from(schema.loginCodes);
+      expect(depois?.attempts).toBe(3);
+      expect(depois?.usedAt).not.toBeNull();
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('nao depende de usuario: um endereco sem conta tem codigo igual a um com conta', async () => {
+    const banco = await bancoAntesDe(CODIGOS_DE_ACESSO);
+    try {
+      await banco.aplicar();
+      await banco.db
+        .insert(schema.loginCodes)
+        .values({ email: 'ninguem@sem-conta.com', codeHash: 'x', expiresAt: new Date(Date.now() + 1000) });
+      expect(await banco.db.select().from(schema.users)).toHaveLength(0);
+      expect(await banco.db.select().from(schema.loginCodes)).toHaveLength(1);
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('e segura de reaplicar', async () => {
+    const banco = await bancoAntesDe(CODIGOS_DE_ACESSO);
+    try {
+      await banco.aplicar();
+      await banco.aplicar();
+      expect(await banco.db.select().from(schema.loginCodes)).toHaveLength(0);
     } finally {
       await banco.close();
     }

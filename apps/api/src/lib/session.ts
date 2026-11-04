@@ -171,3 +171,25 @@ export async function revokeAllUserSessions(
   }
   await db.update(schema.sessions).set({ revokedAt: now }).where(and(...conditions));
 }
+
+/** Forma da sessao que a API devolve ao painel. */
+export function serializeSession(session: {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    phone: string;
+    platformRole: string;
+    emailVerified: boolean;
+    hasPassword: boolean;
+    google: { email: string } | null;
+  };
+  memberships: Array<{ tenantId: string; tenantSlug: string; tenantName: string; tenantStatus: string; role: string }>;
+  expiresAt: Date;
+}) {
+  return {
+    user: session.user,
+    memberships: session.memberships,
+    expiresAt: session.expiresAt.toISOString(),
+  };
+}

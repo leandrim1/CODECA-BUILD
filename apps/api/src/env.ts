@@ -137,6 +137,11 @@ export interface FeatureFlags {
   billingReconciliation: boolean;
   /** Login com Google configurado (ID e segredo presentes). */
   googleAuth: boolean;
+  /**
+   * Login por codigo enviado por e-mail. Depende do provedor de e-mail: sem ele
+   * o codigo nunca chegaria, e o recurso fica desligado em vez de fingir.
+   */
+  emailCodeAuth: boolean;
 }
 
 export function featureFlags(env: Env): FeatureFlags {
@@ -148,6 +153,7 @@ export function featureFlags(env: Env): FeatureFlags {
     billingWebhooks: Boolean(env.VALIDAPAY_WEBHOOK_SECRET),
     billingReconciliation: Boolean(env.BILLING_RECONCILIATION_SECRET),
     googleAuth: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
+    emailCodeAuth: Boolean(env.RESEND_API_KEY),
   };
 }
 

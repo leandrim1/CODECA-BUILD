@@ -20,9 +20,10 @@ import { clearSessionCookies, setSessionCookies } from '../lib/cookies.js';
 import { assertSameOrigin } from '../lib/csrf.js';
 import { clientIp, created, noContent, ok, parseJsonBody, userAgent } from '../lib/http.js';
 import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ratelimit.js';
-import { createSession, resolveSession, revokeAllUserSessions, revokeSession } from '../lib/session.js';
+import { createSession, resolveSession, revokeAllUserSessions, revokeSession, serializeSession } from '../lib/session.js';
 import { buildActionUrl, consumeUserToken, issueUserToken } from '../lib/tokens.js';
 import { requireAuth, sessionMiddleware, sessionOf } from '../middleware/auth.js';
+import { codeAuthRoutes } from './auth-code.js';
 import { createCompanyHandler, googleAuthRoutes } from './auth-google.js';
 import type { AppBindings } from '../types.js';
 
@@ -47,6 +48,8 @@ export function authRoutes() {
 
   // Login com Google e cadastro da primeira empresa de quem entrou por ele.
   app.route('/google', googleAuthRoutes());
+  // Login por codigo enviado por e-mail.
+  app.route('/code', codeAuthRoutes());
   app.post('/company', requireAuth(), createCompanyHandler);
 
   // ------------------------------------------------------------- cadastro
@@ -588,23 +591,3 @@ export function authRoutes() {
   return app;
 }
 
-export function serializeSession(session: {
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    phone: string;
-    platformRole: string;
-    emailVerified: boolean;
-    hasPassword: boolean;
-    google: { email: string } | null;
-  };
-  memberships: Array<{ tenantId: string; tenantSlug: string; tenantName: string; tenantStatus: string; role: string }>;
-  expiresAt: Date;
-}) {
-  return {
-    user: session.user,
-    memberships: session.memberships,
-    expiresAt: session.expiresAt.toISOString(),
-  };
-}

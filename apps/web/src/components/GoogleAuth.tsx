@@ -55,7 +55,16 @@ export function OrDivider() {
  * Enquanto a sessao ainda esta sendo conferida o espaco ja fica reservado (mesma
  * altura do botao): decidir so depois empurraria o formulario para baixo.
  */
-export function GoogleSignIn({ next, onError }: { next?: string; onError: (message: string) => void }) {
+export function GoogleSignIn({
+  next,
+  onError,
+  showDivider = true,
+}: {
+  next?: string;
+  onError: (message: string) => void;
+  /** O "ou" depois do botao. Falso quando nao ha outra opcao abaixo dele. */
+  showDivider?: boolean;
+}) {
   const { features, loading } = useAuth();
   const [starting, setStarting] = useState(false);
   const startingRef = useRef(false);
@@ -107,7 +116,7 @@ export function GoogleSignIn({ next, onError }: { next?: string; onError: (messa
       >
         {starting ? 'Abrindo o Google...' : 'Continuar com Google'}
       </Button>
-      <OrDivider />
+      {showDivider ? <OrDivider /> : null}
     </div>
   );
 }
