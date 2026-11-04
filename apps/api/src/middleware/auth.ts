@@ -66,7 +66,7 @@ export function requireVerifiedEmail(): MiddlewareHandler<AppBindings> {
     if (!session.user.emailVerified) {
       throw new AppError(
         'email_not_verified',
-        'Confirme o seu e-mail para liberar esta operacao. Reenvie a confirmacao pelo painel.',
+        'Confirme o seu e-mail para liberar esta operação. Reenvie a confirmação pelo painel.',
       );
     }
     await next();

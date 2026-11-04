@@ -49,7 +49,7 @@ export function CategoriesPage() {
       setRemovendo(null);
       categorias.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel remover', error.message),
+    onError: (error) => toast.error('Não foi possível remover', error.message),
   });
 
   return (
@@ -76,7 +76,7 @@ export function CategoriesPage() {
           data.items.length === 0 ? (
             <EmptyState
               title="Nenhuma categoria cadastrada"
-              description="Sem categorias os produtos aparecem em uma lista unica. Ex.: Entradas, Pratos, Sobremesas."
+              description="Sem categorias os produtos aparecem em uma lista única. Ex.: Entradas, Pratos, Sobremesas."
               action={
                 <Can capability="content:write">
                   <Button onClick={() => setEditando('nova')}>Criar a primeira</Button>
@@ -140,7 +140,7 @@ export function CategoriesPage() {
         title="Remover esta categoria?"
         message={
           removendo && removendo.productCount > 0
-            ? `${removendo.productCount} produto(s) usam esta categoria. Nenhum sera apagado: eles ficam sem agrupamento, e voce pode escolher outra categoria depois.`
+            ? `${removendo.productCount} produto(s) usam esta categoria. Nenhum será apagado: eles ficam sem agrupamento, e você pode escolher outra categoria depois.`
             : 'Nenhum produto usa esta categoria.'
         }
         confirmLabel="Remover"
@@ -194,7 +194,7 @@ function FormularioCategoria({
       },
       onError: (error) => {
         applyApiError(error);
-        toast.error('Nao foi possivel salvar', error.message);
+        toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -217,8 +217,8 @@ function FormularioCategoria({
     >
       <div className="grid gap-4">
         {categoria ? (
-          <Alert tone="info" title="O endereco na URL nao muda">
-            Ele pode estar em links divulgados e na indexacao do Google. Para usar outro, crie uma
+          <Alert tone="info" title="O endereço na URL não muda">
+            Ele pode estar em links divulgados e na indexação do Google. Para usar outro, crie uma
             categoria nova.
           </Alert>
         ) : null}
@@ -233,7 +233,7 @@ function FormularioCategoria({
         />
 
         <TextArea
-          label="Descricao"
+          label="Descrição"
           rows={2}
           value={values.description}
           error={errors.description}
@@ -243,7 +243,7 @@ function FormularioCategoria({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
-            label="Publicacao"
+            label="Publicação"
             value={values.publicationStatus}
             onChange={(event) =>
               setField('publicationStatus', event.target.value as typeof values.publicationStatus)

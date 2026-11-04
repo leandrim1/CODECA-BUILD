@@ -19,7 +19,7 @@ import { paginationSchema, slugSchema, uuidSchema } from './common.js';
  */
 const money = z
   .number()
-  .min(0, 'O valor nao pode ser negativo.')
+  .min(0, 'O valor não pode ser negativo.')
   .max(1_000_000_000, 'Valor acima do limite permitido.')
   .refine((valor) => Number.isInteger(Math.round(valor * 100)) && Math.abs(valor * 100 - Math.round(valor * 100)) < 1e-6, {
     message: 'Use no maximo duas casas decimais.',

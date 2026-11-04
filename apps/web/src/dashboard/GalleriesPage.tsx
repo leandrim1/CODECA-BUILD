@@ -50,7 +50,7 @@ export function GalleriesPage() {
       setRemovendo(null);
       galerias.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel remover', error.message),
+    onError: (error) => toast.error('Não foi possível remover', error.message),
   });
 
   return (
@@ -162,7 +162,7 @@ export function GalleriesPage() {
       <ConfirmDialog
         open={removendo !== null}
         title="Remover esta galeria?"
-        message="O conjunto deixa de existir no site. As imagens continuam na Biblioteca de imagens, disponiveis para outros usos."
+        message="O conjunto deixa de existir no site. As imagens continuam na Biblioteca de imagens, disponíveis para outros usos."
         confirmLabel="Remover"
         tone="danger"
         loading={remover.loading}
@@ -216,7 +216,7 @@ function FormularioGaleria({
       },
       onError: (error) => {
         applyApiError(error);
-        toast.error('Nao foi possivel salvar', error.message);
+        toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -249,7 +249,7 @@ function FormularioGaleria({
         />
 
         <TextArea
-          label="Descricao"
+          label="Descrição"
           rows={2}
           value={values.description}
           error={errors.description}
@@ -259,7 +259,7 @@ function FormularioGaleria({
 
         <GalleryField
           label="Imagens"
-          hint="A primeira da ordem e a capa."
+          hint="A primeira da ordem é a capa."
           value={values.imageIds}
           previews={galeria?.images ?? []}
           onChange={(ids) => setField('imageIds', ids)}
@@ -267,7 +267,7 @@ function FormularioGaleria({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
-            label="Publicacao"
+            label="Publicação"
             value={values.publicationStatus}
             onChange={(event) =>
               setField('publicationStatus', event.target.value as typeof values.publicationStatus)

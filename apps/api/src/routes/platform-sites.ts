@@ -107,7 +107,7 @@ const webhookSchema = z.object({
   url: z
     .string()
     .trim()
-    .url('Informe o endereco completo, como https://exemplo.com.br/api/revalidar.')
+    .url('Informe o endereço completo, como https://exemplo.com.br/api/revalidar.')
     .max(500)
     .refine(
       (valor) => {
@@ -156,7 +156,7 @@ async function assertSegmentoExiste(db: Database, segmentId: string): Promise<vo
     .select({ id: schema.segments.id })
     .from(schema.segments)
     .where(eq(schema.segments.id, segmentId));
-  if (!row) throw AppError.notFound('Segmento nao encontrado.');
+  if (!row) throw AppError.notFound('Segmento não encontrado.');
 }
 
 /** Carrega o site garantindo que ele existe antes de qualquer escrita. */
@@ -175,7 +175,7 @@ async function loadSite(db: Parameters<typeof loadSiteModules>[0], siteId: strin
     })
     .from(schema.sites)
     .where(eq(schema.sites.id, siteId));
-  if (!site) throw AppError.notFound('Site nao encontrado.');
+  if (!site) throw AppError.notFound('Site não encontrado.');
   return site;
 }
 
@@ -245,7 +245,7 @@ export function platformSiteRoutes() {
       const plano = await loadEffectivePlan(ctx.db, site.tenantId);
       if (!plano.limits.features.includes('included_hosting')) {
         throw AppError.conflict(
-          `O plano ${plano.planName} desta empresa nao inclui hospedagem. `
+          `O plano ${plano.planName} desta empresa não inclui hospedagem. `
             + 'Troque o plano antes de configurar o projeto de hospedagem.',
         );
       }
@@ -272,8 +272,8 @@ export function platformSiteRoutes() {
         );
       if (emUso) {
         throw AppError.conflict(
-          `Este projeto de hospedagem ja esta vinculado ao site "${emUso.name}" (${emUso.tenantName}). `
-            + 'Dois sites no mesmo projeto fariam o dominio de uma empresa abrir o site da outra.',
+          `Este projeto de hospedagem já está vinculado ao site "${emUso.name}" (${emUso.tenantName}). `
+            + 'Dois sites no mesmo projeto fariam o domínio de uma empresa abrir o site da outra.',
         );
       }
     }
@@ -327,7 +327,7 @@ export function platformSiteRoutes() {
     const site = await loadSite(ctx.db, siteId);
 
     if (!site.segmentId) {
-      throw AppError.badRequest('Este site nao tem segmento. Escolha um antes de aplicar.');
+      throw AppError.badRequest('Este site não tem segmento. Escolha um antes de aplicar.');
     }
 
     const [segmento] = await ctx.db
@@ -338,12 +338,12 @@ export function platformSiteRoutes() {
       })
       .from(schema.segments)
       .where(eq(schema.segments.id, site.segmentId));
-    if (!segmento) throw AppError.notFound('Segmento nao encontrado.');
+    if (!segmento) throw AppError.notFound('Segmento não encontrado.');
 
     const doSegmento = (segmento.defaultModules ?? []).filter(isModuleKey);
     if (doSegmento.length === 0) {
       throw AppError.badRequest(
-        `O segmento ${segmento.name} nao tem nenhum modulo padrao definido.`,
+        `O segmento ${segmento.name} não tem nenhum módulo padrão definido.`,
       );
     }
 
@@ -427,7 +427,7 @@ export function platformSiteRoutes() {
     for (const politica of input.fieldPolicies) {
       if (padraoDoCampo(politica.moduleKey, politica.fieldKey) === undefined) {
         throw AppError.badRequest(
-          `O campo ${politica.fieldKey} nao existe no modulo ${MODULE_REGISTRY[politica.moduleKey].name}.`,
+          `O campo ${politica.fieldKey} não existe no módulo ${MODULE_REGISTRY[politica.moduleKey].name}.`,
         );
       }
     }
@@ -522,7 +522,7 @@ export function platformSiteRoutes() {
      */
     if (isReservedModuleKey(input.key)) {
       throw AppError.conflict(
-        `\`${input.key}\` e um modulo da plataforma. Escolha outra chave para o modulo deste site.`,
+        `\`${input.key}\` é um módulo da plataforma. Escolha outra chave para o módulo deste site.`,
       );
     }
 
@@ -532,11 +532,11 @@ export function platformSiteRoutes() {
       .where(eq(schema.siteCustomModules.siteId, siteId));
 
     if (existentes.some((linha) => linha.key === input.key)) {
-      throw AppError.conflict(`Este site ja tem um modulo \`${input.key}\`.`);
+      throw AppError.conflict(`Este site já tem um módulo \`${input.key}\`.`);
     }
     if (existentes.length >= MAX_CUSTOM_MODULES_PER_SITE) {
       throw AppError.badRequest(
-        `Um site pode ter no maximo ${MAX_CUSTOM_MODULES_PER_SITE} modulos proprios.`,
+        `Um site pode ter no maximo ${MAX_CUSTOM_MODULES_PER_SITE} módulos próprios.`,
       );
     }
 
@@ -544,7 +544,7 @@ export function platformSiteRoutes() {
       .insert(schema.siteCustomModules)
       .values({ tenantId: site.tenantId, siteId, ...input })
       .returning();
-    if (!row) throw AppError.internal('Nao foi possivel criar o modulo.');
+    if (!row) throw AppError.internal('Não foi possível criar o módulo.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.siteCustomModuleCreated,
@@ -589,11 +589,11 @@ export function platformSiteRoutes() {
             eq(schema.siteCustomModules.key, moduleKey),
           ),
         );
-      if (!atual) throw AppError.notFound('Modulo nao encontrado.');
+      if (!atual) throw AppError.notFound('Módulo não encontrado.');
 
       if (input.kind !== undefined && input.kind !== atual.kind) {
         throw AppError.badRequest(
-          'O tipo do modulo nao pode mudar depois de criado. Crie outro modulo e mova o conteudo.',
+          'O tipo do módulo não pode mudar depois de criado. Crie outro módulo e mova o conteúdo.',
         );
       }
 
@@ -614,7 +614,7 @@ export function platformSiteRoutes() {
           ),
         )
         .returning();
-      if (!row) throw AppError.notFound('Modulo nao encontrado.');
+      if (!row) throw AppError.notFound('Módulo não encontrado.');
 
       await auditFromContext(c, {
         action: AUDIT_ACTIONS.siteCustomModuleUpdated,
@@ -664,7 +664,7 @@ export function platformSiteRoutes() {
             eq(schema.siteCustomModules.key, moduleKey),
           ),
         );
-      if (!atual) throw AppError.notFound('Modulo nao encontrado.');
+      if (!atual) throw AppError.notFound('Módulo não encontrado.');
 
       const [contagem] = await ctx.db
         .select({ total: sql<number>`cast(count(*) as int)` })
@@ -678,8 +678,8 @@ export function platformSiteRoutes() {
       const total = contagem?.total ?? 0;
       if (total > 0) {
         throw AppError.conflict(
-          `O modulo ${atual.name} tem ${total} registro(s) do cliente. `
-            + 'Desabilite o modulo para tira-lo do ar sem apagar conteudo.',
+          `O módulo ${atual.name} tem ${total} registro(s) do cliente. `
+            + 'Desabilite o módulo para tira-lo do ar sem apagar conteúdo.',
         );
       }
 
@@ -779,7 +779,7 @@ export function platformSiteRoutes() {
       const personalizado = doSite.modules.find((m) => m.key === moduleKey);
 
       if (!personalizado && !isModuleKey(moduleKey)) {
-        throw AppError.notFound('Modulo nao encontrado.');
+        throw AppError.notFound('Módulo não encontrado.');
       }
 
       /**
@@ -800,7 +800,7 @@ export function platformSiteRoutes() {
         : MODULE_REGISTRY[moduleKey as ModuleKey].fields;
 
       if (!personalizado && MODULE_REGISTRY[moduleKey as ModuleKey].customFields !== true) {
-        throw AppError.badRequest(`O modulo ${nomeDoModulo} nao aceita campos personalizados.`);
+        throw AppError.badRequest(`O módulo ${nomeDoModulo} não aceita campos personalizados.`);
       }
 
       const input = await parseJsonBody(
@@ -821,7 +821,7 @@ export function platformSiteRoutes() {
       for (const campo of input.fields) {
         if (doRegistro.has(campo.fieldKey)) {
           throw AppError.conflict(
-            `O modulo ${nomeDoModulo} ja tem um campo \`${campo.fieldKey}\`. `
+            `O módulo ${nomeDoModulo} já tem um campo \`${campo.fieldKey}\`. `
               + 'Escolha outra chave para o campo personalizado.',
           );
         }
@@ -964,7 +964,7 @@ export function platformSiteRoutes() {
       .select({ id: schema.siteApiKeys.id })
       .from(schema.siteApiKeys)
       .where(and(eq(schema.siteApiKeys.id, keyId), eq(schema.siteApiKeys.siteId, siteId)));
-    if (!atual) throw AppError.notFound('Chave nao encontrada.');
+    if (!atual) throw AppError.notFound('Chave não encontrada.');
 
     const nova = await rotateApiKey(ctx.db, keyId, input.graceMinutes, ctx.now());
 
@@ -989,7 +989,7 @@ export function platformSiteRoutes() {
     const site = await loadSite(ctx.db, siteId);
 
     const revogada = await revokeApiKeyById(ctx.db, siteId, keyId, ctx.now());
-    if (!revogada) throw AppError.notFound('Chave nao encontrada.');
+    if (!revogada) throw AppError.notFound('Chave não encontrada.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.siteKeyRevoked,
@@ -1029,7 +1029,7 @@ export function platformSiteRoutes() {
       const origin = normalizeOrigin(entrada.origin);
       if (!origin) {
         throw AppError.badRequest(
-          `Endereco invalido: ${entrada.origin}. Informe o endereco completo do site, como https://exemplo.com.br.`,
+          `Endereço inválido: ${entrada.origin}. Informe o endereço completo do site, como https://exemplo.com.br.`,
         );
       }
       if (!normalizadas.some((o) => o.origin === origin)) {
@@ -1117,7 +1117,7 @@ export function platformSiteRoutes() {
       .onConflictDoNothing()
       .returning({ id: schema.siteWebhooks.id });
 
-    if (!row) throw AppError.conflict('Este endereco ja esta cadastrado para o site.');
+    if (!row) throw AppError.conflict('Este endereço já está cadastrado para o site.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.siteWebhookCreated,
@@ -1156,7 +1156,7 @@ export function platformSiteRoutes() {
         url: schema.siteWebhooks.url,
         isActive: schema.siteWebhooks.isActive,
       });
-    if (!row) throw AppError.notFound('Endereco nao encontrado.');
+    if (!row) throw AppError.notFound('Endereço não encontrado.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.siteWebhookUpdated,
@@ -1184,7 +1184,7 @@ export function platformSiteRoutes() {
         .set({ secret, updatedAt: ctx.now() })
         .where(and(eq(schema.siteWebhooks.id, webhookId), eq(schema.siteWebhooks.siteId, siteId)))
         .returning({ id: schema.siteWebhooks.id, url: schema.siteWebhooks.url });
-      if (!row) throw AppError.notFound('Endereco nao encontrado.');
+      if (!row) throw AppError.notFound('Endereço não encontrado.');
 
       await auditFromContext(c, {
         action: AUDIT_ACTIONS.siteWebhookSecretRotated,
@@ -1211,7 +1211,7 @@ export function platformSiteRoutes() {
       .delete(schema.siteWebhooks)
       .where(and(eq(schema.siteWebhooks.id, webhookId), eq(schema.siteWebhooks.siteId, siteId)))
       .returning({ id: schema.siteWebhooks.id });
-    if (removido.length === 0) throw AppError.notFound('Endereco nao encontrado.');
+    if (removido.length === 0) throw AppError.notFound('Endereço não encontrado.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.siteWebhookDeleted,

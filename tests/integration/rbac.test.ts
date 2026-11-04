@@ -96,7 +96,7 @@ describe('convites', () => {
       name: 'Tentativa',
     });
     expect(response.status).toBe(403);
-    expect(response.errorMessage).toMatch(/proprietario/i);
+    expect(response.errorMessage).toMatch(/proprietário/i);
   });
 
   it('nao remove o unico proprietario da empresa', async () => {
@@ -105,7 +105,7 @@ describe('convites', () => {
 
     const response = await owner.client.delete(`/api/tenants/${owner.tenantId}/members/${membershipId}`);
     expect(response.status).toBe(409);
-    expect(response.errorMessage).toMatch(/proprietario ativo/i);
+    expect(response.errorMessage).toMatch(/proprietário ativo/i);
   });
 });
 

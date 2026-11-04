@@ -143,9 +143,9 @@ export async function assertCustomModule(
 ): Promise<CustomModuleDefinition> {
   const state = await loadCustomModules(db, siteId);
   const modulo = state.modules.find((m) => m.key === moduleKey);
-  if (!modulo) throw AppError.notFound('Modulo nao encontrado.');
+  if (!modulo) throw AppError.notFound('Módulo não encontrado.');
   if (!modulo.enabled) {
-    throw AppError.forbidden(`O modulo ${modulo.name} nao esta habilitado para este site.`);
+    throw AppError.forbidden(`O módulo ${modulo.name} não está habilitado para este site.`);
   }
   return modulo;
 }
@@ -158,7 +158,7 @@ export async function loadCustomModulePublico(
 ): Promise<CustomModuleDefinition> {
   const state = await loadCustomModules(db, siteId);
   const modulo = state.modules.find((m) => m.key === moduleKey && m.enabled);
-  if (!modulo) throw AppError.notFound('Recurso nao disponivel para este site.');
+  if (!modulo) throw AppError.notFound('Recurso não disponível para este site.');
   return modulo;
 }
 
@@ -195,7 +195,7 @@ export function parseRecordData(input: {
   const desconhecidas = Object.keys(enviados).filter((chave) => !definidos.has(chave));
   if (desconhecidas.length > 0) {
     throw AppError.badRequest(
-      `Estes campos nao estao definidos no modulo ${input.modulo.name}: ${desconhecidas.join(', ')}.`,
+      `Estes campos não estão definidos no módulo ${input.modulo.name}: ${desconhecidas.join(', ')}.`,
     );
   }
 
@@ -207,7 +207,7 @@ export function parseRecordData(input: {
   if (travados.length > 0) {
     const rotulos = travados.map((chave) => definidos.get(chave)!.label);
     throw AppError.forbidden(
-      `Estes campos sao mantidos pela CODECA IA e nao podem ser definidos aqui: ${rotulos.join(', ')}.`,
+      `Estes campos são mantidos pela CODECA IA e não podem ser definidos aqui: ${rotulos.join(', ')}.`,
     );
   }
 
@@ -263,5 +263,5 @@ export async function uniqueRecordSlug(
     if (livre) return candidato;
   }
 
-  throw AppError.conflict('Nao foi possivel gerar um endereco unico para este registro.');
+  throw AppError.conflict('Não foi possível gerar um endereço único para este registro.');
 }

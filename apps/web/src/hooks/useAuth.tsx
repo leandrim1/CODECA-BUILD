@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUnauthenticatedHandler(() => {
       if (userIdRef.current === null) return;
       applySession(null);
-      toastRef.current.error('Sua sessao expirou', 'Entre novamente para continuar.');
+      toastRef.current.error('Sua sessão expirou', 'Entre novamente para continuar.');
     });
     return () => setUnauthenticatedHandler(null);
   }, [applySession]);
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setFeatures((atual) => replaceEqualDeep(atual, response.features));
       setPlatform((atual) => replaceEqualDeep(atual, response.platform));
       if (tinhaSessao && !response.session) {
-        toastRef.current.error('Sua sessao expirou', 'Entre novamente para continuar.');
+        toastRef.current.error('Sua sessão expirou', 'Entre novamente para continuar.');
       }
     } catch (error) {
       if (error instanceof ApiError && error.isUnauthenticated) {

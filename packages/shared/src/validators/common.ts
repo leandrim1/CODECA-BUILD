@@ -7,7 +7,7 @@ import { SLUG_PATTERN } from '../slug.js';
 const UUID =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-export const uuidSchema = z.string().trim().regex(UUID, 'Identificador invalido.');
+export const uuidSchema = z.string().trim().regex(UUID, 'Identificador inválido.');
 
 const EMAIL = /^[^\s@,;:<>()[\]\\"]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/;
 
@@ -17,13 +17,13 @@ export const emailSchema = z
   .toLowerCase()
   .min(5)
   .max(254)
-  .regex(EMAIL, 'Informe um e-mail valido.');
+  .regex(EMAIL, 'Informe um e-mail válido.');
 
 export const passwordSchema = z
   .string()
   .min(10, 'A senha deve ter ao menos 10 caracteres.')
   .max(200, 'A senha deve ter no maximo 200 caracteres.')
-  .refine((v) => /[A-Za-z]/.test(v) && /[0-9]/.test(v), 'Use ao menos uma letra e um numero.');
+  .refine((v) => /[A-Za-z]/.test(v) && /[0-9]/.test(v), 'Use ao menos uma letra e um número.');
 
 export const personNameSchema = z.string().trim().min(2, 'Informe o nome completo.').max(120);
 
@@ -46,7 +46,7 @@ export const slugSchema = z
   .toLowerCase()
   .min(1)
   .max(96)
-  .regex(SLUG_PATTERN, 'Use apenas letras minusculas, numeros e hifens.');
+  .regex(SLUG_PATTERN, 'Use apenas letras minúsculas, números e hifens.');
 
 export const httpsUrlSchema = z
   .string()

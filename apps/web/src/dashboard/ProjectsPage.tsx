@@ -69,11 +69,11 @@ export function ProjectsPage() {
 
   const remove = useMutation((id: string) => projectApi.remove(tenantId, id), {
     onSuccess: () => {
-      toast.success('Obra excluida');
+      toast.success('Obra excluída');
       setRemoving(null);
       list.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel excluir', error.message),
+    onError: (error) => toast.error('Não foi possível excluir', error.message),
   });
 
   const columns: Array<Column<ProjectRecord>> = [
@@ -102,18 +102,18 @@ export function ProjectsPage() {
     },
     {
       key: 'progress',
-      header: 'Evolucao',
+      header: 'Evolução',
       hideOnMobile: true,
       render: (project) =>
         project.progressPercent === null ? (
-          <span className="text-xs text-slate-400">Nao informada</span>
+          <span className="text-xs text-slate-400">Não informada</span>
         ) : (
           <span className="tabular-nums text-sm">{project.progressPercent}%</span>
         ),
     },
     {
       key: 'status',
-      header: 'Situacao',
+      header: 'Situação',
       render: (project) => (
         <div className="grid gap-1">
           <Badge tone={projectTone(project.status)}>{labels.projectStatus[project.status]}</Badge>
@@ -129,9 +129,9 @@ export function ProjectsPage() {
       hideOnMobile: true,
       render: (project) => (
         <span className="text-xs text-slate-600">
-          {project.startDate ? `Inicio ${formatIsoDate(project.startDate, 'month')}` : 'Inicio nao informado'}
+          {project.startDate ? `Início ${formatIsoDate(project.startDate, 'month')}` : 'Início não informado'}
           {project.expectedCompletionDate
-            ? ` - previsao ${formatIsoDate(project.expectedCompletionDate, 'month')}`
+            ? ` - previsão ${formatIsoDate(project.expectedCompletionDate, 'month')}`
             : ''}
         </span>
       ),
@@ -161,7 +161,7 @@ export function ProjectsPage() {
                 onClick={() => setUpdatesOf(project)}
                 icon={<CalendarPlus aria-hidden="true" className="size-3.5" />}
               >
-                Evolucao
+                Evolução
               </Button>
               <Button variant="ghost" size="icon" aria-label={`Editar ${project.title}`} onClick={() => setEditing(project)}>
                 <Pencil aria-hidden="true" className="size-3.5" />
@@ -182,7 +182,7 @@ export function ProjectsPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Obras e projetos"
-        description="Obras em andamento, concluidas e previstas. Cada obra publicada tem pagina propria com a evolucao registrada pela equipe."
+        description="Obras em andamento, concluídas e previstas. Cada obra publicada tem página própria com a evolução registrada pela equipe."
         actions={
           can('content:write') ? (
             <Button icon={<Plus aria-hidden="true" className="size-4" />} onClick={() => setEditing('new')}>
@@ -200,9 +200,9 @@ export function ProjectsPage() {
           actions={
             <div className="w-full sm:w-44">
               <Select
-                label="Situacao"
+                label="Situação"
                 className="[&>label]:sr-only"
-                placeholder="Todas as situacoes"
+                placeholder="Todas as situações"
                 value={status}
                 options={toOptions(labels.projectStatus, PROJECT_STATUSES)}
                 onChange={(event) => {
@@ -257,8 +257,8 @@ export function ProjectsPage() {
         title="Excluir obra"
         message={
           <>
-            A obra <strong>{removing?.title}</strong>, a pagina publica e os registros de evolucao serao
-            excluidos. As fotos permanecem na biblioteca.
+            A obra <strong>{removing?.title}</strong>, a página pública e os registros de evolução serão
+            excluídos. As fotos permanecem na biblioteca.
           </>
         }
         confirmLabel="Excluir obra"
@@ -387,8 +387,8 @@ function ProjectFormModal({
       },
       onError: (error) => {
         form.applyApiError(error);
-        if (error.isPlanLimit) toast.error('Limite do plano alcancado', error.message);
-        else if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel salvar', error.message);
+        if (error.isPlanLimit) toast.error('Limite do plano alcançado', error.message);
+        else if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -407,16 +407,16 @@ function ProjectFormModal({
             Cancelar
           </Button>
           <Button loading={save.loading} onClick={() => void save.run(undefined)}>
-            {projectId ? 'Salvar alteracoes' : 'Cadastrar obra'}
+            {projectId ? 'Salvar alterações' : 'Cadastrar obra'}
           </Button>
         </>
       }
     >
       <div className="grid gap-6">
         <section className="grid gap-4">
-          <h3 className="text-sm font-semibold text-slate-800">Identificacao</h3>
+          <h3 className="text-sm font-semibold text-slate-800">Identificação</h3>
           <TextInput
-            label="Titulo"
+            label="Título"
             required
             value={values.title}
             error={errors.title}
@@ -424,7 +424,7 @@ function ProjectFormModal({
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <TextInput
-              label="Endereco da pagina"
+              label="Endereço da página"
               value={values.slug}
               error={errors.slug}
               placeholder={slugify(values.title)}
@@ -449,7 +449,7 @@ function ProjectFormModal({
             onChange={(event) => setField('shortDescription', event.target.value)}
           />
           <TextArea
-            label="Descricao"
+            label="Descrição"
             rows={4}
             value={values.description}
             onChange={(event) => setField('description', event.target.value)}
@@ -460,7 +460,7 @@ function ProjectFormModal({
           <h3 className="text-sm font-semibold text-slate-800">Andamento</h3>
           <div className="grid gap-4 sm:grid-cols-3">
             <Select
-              label="Situacao"
+              label="Situação"
               value={values.status}
               options={toOptions(labels.projectStatus, PROJECT_STATUSES)}
               onChange={(event) => setField('status', event.target.value)}
@@ -472,29 +472,29 @@ function ProjectFormModal({
               onChange={(event) => setField('stage', event.target.value)}
             />
             <TextInput
-              label="Percentual de evolucao"
+              label="Percentual de evolução"
               inputMode="numeric"
               value={values.progressPercent}
               error={errors.progressPercent}
-              hint="Deixe vazio se a empresa nao divulga o percentual: o site nao exibe barra de progresso."
+              hint="Deixe vazio se a empresa não divulga o percentual: o site não exibe barra de progresso."
               onChange={(event) => setField('progressPercent', event.target.value)}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <TextInput
-              label="Inicio da obra"
+              label="Início da obra"
               type="date"
               value={values.startDate}
               onChange={(event) => setField('startDate', event.target.value)}
             />
             <TextInput
-              label="Previsao de conclusao"
+              label="Previsão de conclusão"
               type="date"
               value={values.expectedCompletionDate}
               onChange={(event) => setField('expectedCompletionDate', event.target.value)}
             />
             <TextInput
-              label="Conclusao efetiva"
+              label="Conclusão efetiva"
               type="date"
               value={values.completedDate}
               onChange={(event) => setField('completedDate', event.target.value)}
@@ -503,9 +503,9 @@ function ProjectFormModal({
         </section>
 
         <section className="grid gap-4">
-          <h3 className="text-sm font-semibold text-slate-800">Localizacao</h3>
+          <h3 className="text-sm font-semibold text-slate-800">Localização</h3>
           <Switch
-            label="Exibir localizacao no site"
+            label="Exibir localização no site"
             checked={values.showLocation}
             onChange={(checked) => setField('showLocation', checked)}
           />
@@ -564,9 +564,9 @@ function ProjectFormModal({
         </section>
 
         <section className="grid gap-4">
-          <h3 className="text-sm font-semibold text-slate-800">Publicacao e SEO</h3>
+          <h3 className="text-sm font-semibold text-slate-800">Publicação e SEO</h3>
           <Select
-            label="Situacao no site"
+            label="Situação no site"
             value={values.publicationStatus}
             options={toOptions(labels.publication, PUBLICATION_STATUSES)}
             onChange={(event) => setField('publicationStatus', event.target.value)}
@@ -577,12 +577,12 @@ function ProjectFormModal({
             onChange={(checked) => setField('featured', checked)}
           />
           <TextInput
-            label="Titulo para buscadores"
+            label="Título para buscadores"
             value={values.seoTitle}
             onChange={(event) => setField('seoTitle', event.target.value)}
           />
           <TextArea
-            label="Descricao para buscadores"
+            label="Descrição para buscadores"
             rows={2}
             value={values.seoDescription}
             onChange={(event) => setField('seoDescription', event.target.value)}
@@ -636,7 +636,7 @@ function ProjectUpdatesModal({
       }),
     {
       onSuccess: () => {
-        toast.success('Evolucao registrada');
+        toast.success('Evolução registrada');
         form.reset();
         setImages([]);
         detail.reload();
@@ -644,7 +644,7 @@ function ProjectUpdatesModal({
       },
       onError: (error) => {
         form.applyApiError(error);
-        if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel registrar', error.message);
+        if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível registrar', error.message);
       },
     },
   );
@@ -661,8 +661,8 @@ function ProjectUpdatesModal({
     <Modal
       open
       onClose={onClose}
-      title={`Evolucao de ${project.title}`}
-      description="Os registros aparecem na pagina publica da obra, em ordem cronologica."
+      title={`Evolução de ${project.title}`}
+      description="Os registros aparecem na página pública da obra, em ordem cronológica."
       size="lg"
       footer={<Button onClick={onClose}>Fechar</Button>}
     >
@@ -671,7 +671,7 @@ function ProjectUpdatesModal({
           <section className="grid gap-4 rounded-lg border border-slate-200 p-4">
             <h3 className="text-sm font-semibold text-slate-800">Novo registro</h3>
             <TextInput
-              label="Titulo"
+              label="Título"
               required
               value={form.values.title}
               error={form.errors.title}
@@ -679,7 +679,7 @@ function ProjectUpdatesModal({
               onChange={(event) => form.setField('title', event.target.value)}
             />
             <TextArea
-              label="Observacao"
+              label="Observação"
               rows={3}
               value={form.values.note}
               onChange={(event) => form.setField('note', event.target.value)}
@@ -726,17 +726,17 @@ function ProjectUpdatesModal({
               }}
             />
             <Button loading={create.loading} onClick={() => void create.run(undefined)}>
-              Registrar evolucao
+              Registrar evolução
             </Button>
           </section>
         ) : null}
 
         <section className="grid gap-3">
-          <h3 className="text-sm font-semibold text-slate-800">Historico</h3>
+          <h3 className="text-sm font-semibold text-slate-800">Histórico</h3>
           <ResourcePanel resource={detail}>
             {(data) =>
               data.updates.length === 0 ? (
-                <Alert tone="info">Nenhum registro de evolucao ainda.</Alert>
+                <Alert tone="info">Nenhum registro de evolução ainda.</Alert>
               ) : (
                 <ul className="grid gap-2">
                   {data.updates.map((update) => (

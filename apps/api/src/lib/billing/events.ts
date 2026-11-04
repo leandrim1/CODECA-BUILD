@@ -83,7 +83,7 @@ export async function applyBillingEvent(
     tenantId: null,
     subscriptionId: null,
     chargeId: null,
-    detail: `Evento ${event} nao e tratado por esta integracao.`,
+    detail: `Evento ${event} não é tratado por esta integração.`,
   };
 }
 
@@ -115,7 +115,7 @@ async function resolveSubscription(
   const metadata = readMetadata(payload);
   if (metadata.intentToken) {
     const byIntent = await findSubscriptionByIntent(db, metadata.intentToken);
-    if (byIntent) return { subscription: byIntent, detail: 'Resolvido pelo token da contratacao.' };
+    if (byIntent) return { subscription: byIntent, detail: 'Resolvido pelo token da contratação.' };
   }
 
   const chargeId = readString(payload, 'chargeId');
@@ -126,15 +126,15 @@ async function resolveSubscription(
         .select()
         .from(schema.subscriptions)
         .where(eq(schema.subscriptions.id, charge.subscriptionId));
-      if (row) return { subscription: row, detail: 'Resolvido pela cobranca ja registrada.' };
+      if (row) return { subscription: row, detail: 'Resolvido pela cobrança já registrada.' };
     }
   }
 
   return {
     subscription: null,
     detail: externalSubscriptionId
-      ? `Assinatura ${externalSubscriptionId} nao esta vinculada a nenhuma empresa.`
-      : 'O evento nao traz identificadores que permitam localizar a empresa.',
+      ? `Assinatura ${externalSubscriptionId} não está vinculada a nenhuma empresa.`
+      : 'O evento não traz identificadores que permitam localizar a empresa.',
   };
 }
 
@@ -293,7 +293,7 @@ async function applySubscriptionEvent(
 
     case 'subscription.cancel_scheduled':
       action = BILLING_ACTIONS.cancelScheduled;
-      reason = 'Cancelamento agendado para o fim do periodo contratado.';
+      reason = 'Cancelamento agendado para o fim do período contratado.';
       if (!stale) {
         patch.cancelAtPeriodEnd = true;
         patch.status = 'cancel_at_period_end';
@@ -354,7 +354,7 @@ async function applySubscriptionEvent(
 
   const updated = await applySubscriptionPatch(ctx, subscription, patch, {
     action,
-    reason: stale ? `${reason} (evento anterior ao ultimo aplicado: estado preservado)` : reason,
+    reason: stale ? `${reason} (evento anterior ao último aplicado: estado preservado)` : reason,
     metadata: {
       event,
       account: readAccount(payload),
@@ -549,7 +549,7 @@ async function applyChargeOnlyEvent(
       tenantId: null,
       subscriptionId: null,
       chargeId: null,
-      detail: 'Evento de cobranca sem chargeId.',
+      detail: 'Evento de cobrança sem chargeId.',
     };
   }
 
@@ -564,7 +564,7 @@ async function applyChargeOnlyEvent(
         chargeId,
         detail: readString(payload, 'subscriptionId')
           ? detail
-          : 'Cobranca avulsa: nao pertence a nenhuma assinatura da plataforma.',
+          : 'Cobrança avulsa: não pertence a nenhuma assinatura da plataforma.',
       };
     }
   }
@@ -594,7 +594,7 @@ async function applyChargeOnlyEvent(
       { lastEventAt: occurredAt },
       {
         action: BILLING_ACTIONS.chargeRecorded,
-        reason: `Evento ${event} da cobranca ${chargeId}.`,
+        reason: `Evento ${event} da cobrança ${chargeId}.`,
         metadata: { event, chargeState: result.charge.status },
       },
     );
@@ -606,8 +606,8 @@ async function applyChargeOnlyEvent(
     subscriptionId: base.subscriptionId,
     chargeId: result.charge.id,
     detail: result.applied
-      ? `Cobranca em ${result.charge.status}.`
-      : 'Evento anterior ao estado atual da cobranca: descartado.',
+      ? `Cobrança em ${result.charge.status}.`
+      : 'Evento anterior ao estado atual da cobrança: descartado.',
   };
 }
 
@@ -632,7 +632,7 @@ async function applyRefundEvent(
       tenantId: null,
       subscriptionId: null,
       chargeId: null,
-      detail: 'Evento de devolucao sem chargeId.',
+      detail: 'Evento de devolução sem chargeId.',
     };
   }
 
@@ -643,7 +643,7 @@ async function applyRefundEvent(
       tenantId: null,
       subscriptionId: null,
       chargeId,
-      detail: `Cobranca ${chargeId} nao esta registrada na plataforma.`,
+      detail: `Cobrança ${chargeId} não está registrada na plataforma.`,
     };
   }
 
@@ -662,7 +662,7 @@ async function applyRefundEvent(
       webhookEventId: ctx.webhookEventId ?? null,
       previousState: charge.status,
       newState: charge.status,
-      reason: 'Devolucao recusada pelo provedor: a cobranca segue paga.',
+      reason: 'Devolucao recusada pelo provedor: a cobrança segue paga.',
       metadata: { event, refundId: readString(payload, 'refundId') },
     });
     return {
@@ -712,14 +712,14 @@ async function applyRefundEvent(
           ...(hold
             ? {
                 disputeHold: true,
-                disputeReason: `Estorno confirmado da cobranca ${chargeId}.`,
+                disputeReason: `Estorno confirmado da cobrança ${chargeId}.`,
               }
             : {}),
         },
         {
           action: confirmed ? BILLING_ACTIONS.refundConfirmed : BILLING_ACTIONS.refundOpened,
           reason: hold
-            ? 'Estorno total confirmado: publicacao suspensa para revisao.'
+            ? 'Estorno total confirmado: publicação suspensa para revisão.'
             : detail,
           metadata: {
             event,
@@ -728,7 +728,7 @@ async function applyRefundEvent(
           },
         },
       );
-      if (hold) detail = 'Estorno total confirmado: site suspenso para revisao.';
+      if (hold) detail = 'Estorno total confirmado: site suspenso para revisão.';
       await syncTenantStatus(ctx, updated);
     }
   }

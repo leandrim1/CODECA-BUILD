@@ -152,7 +152,7 @@ describe('verificacao da assinatura', () => {
     });
 
     expect(response.status).toBe(401);
-    expect(response.body.error?.message).toMatch(/tolerancia/i);
+    expect(response.body.error?.message).toMatch(/tolerância/i);
     expect(await loadEventRows(api)).toHaveLength(0);
   });
 

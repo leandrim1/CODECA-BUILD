@@ -55,6 +55,7 @@ const SEGMENTOS = '0015_segmentos_por_ramo.sql';
 const HOSPEDAGEM = '0016_projeto_de_hospedagem_por_site.sql';
 const DOMINIOS_SEM_HOSPEDAGEM = '0017_dominios_sem_hospedagem.sql';
 const LIMITE_GERAL = '0018_limite_geral_de_conteudos.sql';
+const ACENTOS = '0019_acentos_nos_textos_de_fabrica.sql';
 const REMOVIDAS = ['pages', 'page_versions', 'navigation_menus', 'redirects', 'site_settings'];
 
 /**
@@ -999,5 +1000,80 @@ describe('limite geral de conteudos', () => {
         await banco.close();
       }
     });
+  });
+});
+
+describe('acentos nos textos de fabrica', () => {
+  /** Banco como ele estava: o seed gravou os textos sem acento. */
+  async function bancoLegado() {
+    const banco = await bancoAntesDe(ACENTOS);
+    await seedDatabase(banco.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' } });
+    await banco.db.execute(sql`update plans set name = 'Avaliacao' where code = 'trial'`);
+    await banco.db.execute(sql`
+      update segments
+      set name = 'Clinica ou consultorio',
+          description = 'Especialidades, corpo clinico e agendamento por contato.'
+      where code = 'clinica'
+    `);
+    await banco.db.execute(sql`
+      update segments set name = 'Imobiliaria', description = 'Carteira de imoveis e servicos.' where code = 'imobiliaria'
+    `);
+    return banco;
+  }
+
+  const planoDe = async (db: Database, codigo: string) => {
+    const [linha] = await db.select({ n: schema.plans.name }).from(schema.plans).where(eq(schema.plans.code, codigo));
+    return linha!.n;
+  };
+  const segmentoDe = async (db: Database, codigo: string) => {
+    const [linha] = await db
+      .select({ n: schema.segments.name, d: schema.segments.description })
+      .from(schema.segments)
+      .where(eq(schema.segments.code, codigo));
+    return linha!;
+  };
+
+  it('acentua o que ainda esta como a fabrica gravou', async () => {
+    const banco = await bancoLegado();
+    try {
+      await banco.aplicar();
+      expect(await planoDe(banco.db, 'trial')).toBe('Avaliação');
+      expect(await segmentoDe(banco.db, 'clinica')).toEqual({
+        n: 'Clínica ou consultório',
+        d: 'Especialidades, corpo clínico e agendamento por contato.',
+      });
+      expect(await segmentoDe(banco.db, 'imobiliaria')).toEqual({
+        n: 'Imobiliária',
+        d: 'Carteira de imóveis e serviços.',
+      });
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('nao desfaz um nome ou uma descricao que o painel mestre ja editou', async () => {
+    const banco = await bancoLegado();
+    try {
+      await banco.db.execute(sql`update plans set name = 'Teste gratis' where code = 'trial'`);
+      await banco.db.execute(sql`
+        update segments set name = 'Clinica da familia', description = 'Texto proprio.' where code = 'clinica'
+      `);
+      await banco.aplicar();
+      expect(await planoDe(banco.db, 'trial')).toBe('Teste gratis');
+      expect(await segmentoDe(banco.db, 'clinica')).toEqual({ n: 'Clinica da familia', d: 'Texto proprio.' });
+    } finally {
+      await banco.close();
+    }
+  });
+
+  it('e segura de reaplicar', async () => {
+    const banco = await bancoLegado();
+    try {
+      await banco.aplicar();
+      await banco.aplicar();
+      expect(await planoDe(banco.db, 'trial')).toBe('Avaliação');
+    } finally {
+      await banco.close();
+    }
   });
 });

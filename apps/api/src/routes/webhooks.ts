@@ -47,9 +47,9 @@ export function webhookRoutes() {
     if (!ctx.env.VALIDAPAY_WEBHOOK_SECRET) {
       // Sem segredo configurado nao ha como provar a origem: recusamos em vez
       // de aceitar um corpo nao verificado.
-      console.error('[webhook] VALIDAPAY_WEBHOOK_SECRET nao configurado: evento recusado.');
+      console.error('[webhook] VALIDAPAY_WEBHOOK_SECRET não configurado: evento recusado.');
       throw AppError.notConfigured(
-        'O recebimento de webhooks nao esta configurado. Defina VALIDAPAY_WEBHOOK_SECRET.',
+        'O recebimento de webhooks não está configurado. Defina VALIDAPAY_WEBHOOK_SECRET.',
       );
     }
 
@@ -84,7 +84,7 @@ export function webhookRoutes() {
       payload = asRecord(JSON.parse(rawBody)) ?? {};
     } catch {
       return c.json(
-        { error: { code: 'bad_request', message: 'Corpo do webhook nao e um JSON valido.' } },
+        { error: { code: 'bad_request', message: 'Corpo do webhook não é um JSON válido.' } },
         400,
       );
     }
@@ -92,7 +92,7 @@ export function webhookRoutes() {
     const event = c.req.header(WEBHOOK_EVENT_HEADER) ?? readString(payload, 'event');
     if (!event) {
       return c.json(
-        { error: { code: 'bad_request', message: 'Evento nao identificado no webhook.' } },
+        { error: { code: 'bad_request', message: 'Evento não identificado no webhook.' } },
         400,
       );
     }

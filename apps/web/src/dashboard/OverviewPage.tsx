@@ -83,12 +83,12 @@ type Indicador = {
 const INDICADORES: Indicador[] = [
   {
     icon: Building2,
-    label: 'Imoveis publicados',
+    label: 'Imóveis publicados',
     to: '/painel/imoveis',
     module: 'imoveis',
     capability: 'content:read',
     value: (d) => d.properties.published,
-    detail: (d) => `${d.properties.available} disponiveis - ${d.properties.drafts} em rascunho`,
+    detail: (d) => `${d.properties.available} disponíveis - ${d.properties.drafts} em rascunho`,
   },
   {
     icon: HardHat,
@@ -101,7 +101,7 @@ const INDICADORES: Indicador[] = [
   },
   {
     icon: Wrench,
-    label: 'Servicos publicados',
+    label: 'Serviços publicados',
     to: '/painel/servicos',
     module: 'servicos',
     capability: 'content:read',
@@ -123,7 +123,7 @@ const INDICADORES: Indicador[] = [
     to: '/painel/interessados',
     capability: 'leads:read',
     value: (d) => d.leads.total,
-    detail: (d) => `${d.leads.novos} novos - ${d.leads.last30Days} nos ultimos 30 dias`,
+    detail: (d) => `${d.leads.novos} novos - ${d.leads.last30Days} nos últimos 30 dias`,
   },
   {
     icon: Image,
@@ -147,7 +147,7 @@ export function OverviewPage() {
     staleTime: 0,
   });
 
-  const saudacao = `Ola, ${user?.name.split(' ')[0] ?? 'tudo bem'}`;
+  const saudacao = `Olá, ${user?.name.split(' ')[0] ?? 'tudo bem'}`;
 
   if (!panelIncluded) {
     return (
@@ -156,17 +156,17 @@ export function OverviewPage() {
         <Card>
           <CardBody className="grid gap-3">
             <h2 className="text-lg font-semibold text-slate-900">
-              O conteudo do seu site e mantido pela CODECA IA
+              O conteúdo do seu site é mantido pela CODECA IA
             </h2>
             <p className="text-sm text-slate-600">
               {planName
-                ? `O plano ${planName} inclui o site personalizado e o dominio proprio. Para`
-                : 'Seu plano inclui o site personalizado e o dominio proprio. Para'}{' '}
-              alterar textos, imagens e produtos por conta propria, sem depender de pedido,
+                ? `O plano ${planName} inclui o site personalizado e o domínio próprio. Para`
+                : 'Seu plano inclui o site personalizado e o domínio próprio. Para'}{' '}
+              alterar textos, imagens e produtos por conta própria, sem depender de pedido,
               contrate o plano Profissional.
             </p>
             <p className="text-sm text-slate-600">
-              Precisa de uma alteracao agora? Fale com a equipe que desenvolveu o seu site.
+              Precisa de uma alteração agora? Fale com a equipe que desenvolveu o seu site.
             </p>
             {can('billing:read') ? (
               <div>
@@ -185,7 +185,7 @@ export function OverviewPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title={saudacao}
-        description={`Resumo do conteudo do site de ${tenant?.tenantName ?? 'sua empresa'}.`}
+        description={`Resumo do conteúdo do site de ${tenant?.tenantName ?? 'sua empresa'}.`}
       />
 
       {user && !user.emailVerified ? (
@@ -195,12 +195,12 @@ export function OverviewPage() {
           action={
             <Link to="/confirmar-email">
               <Button variant="outline" size="sm">
-                Reenviar confirmacao
+                Reenviar confirmação
               </Button>
             </Link>
           }
         >
-          Os convites de equipe e a conexao de dominio ficam liberados apos a confirmacao do
+          Os convites de equipe e a conexão de domínio ficam liberados após a confirmação do
           e-mail.
         </Alert>
       ) : null}
@@ -286,14 +286,14 @@ export function OverviewPage() {
               <div className="grid items-start gap-6 lg:grid-cols-[1.5fr_1fr]">
                 <div className="grid gap-6">
                   <Card>
-                    <CardHeader title="Situacao do site" description={data.site.name} />
+                    <CardHeader title="Situação do site" description={data.site.name} />
                     <CardBody className="grid gap-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge tone={siteTone(data.site.status)}>
                           {labels.siteStatus[data.site.status]}
                         </Badge>
                         {primaryDomain?.status === 'active' ? (
-                          <Badge tone="success">Dominio respondendo</Badge>
+                          <Badge tone="success">Domínio respondendo</Badge>
                         ) : null}
                       </div>
 
@@ -307,20 +307,20 @@ export function OverviewPage() {
                         <div className="min-w-0 text-sm">
                           {data.site.lastApiAccessAt ? (
                             <>
-                              <p className="font-medium text-slate-800">Integracao funcionando</p>
+                              <p className="font-medium text-slate-800">Integração funcionando</p>
                               <p className="mt-0.5 text-slate-500">
-                                O site buscou conteudo {relativeTime(data.site.lastApiAccessAt)}. O
-                                que voce salva aqui aparece no site sem publicar nada.
+                                O site buscou conteúdo {relativeTime(data.site.lastApiAccessAt)}. O
+                                que você salva aqui aparece no site sem publicar nada.
                               </p>
                             </>
                           ) : (
                             <>
                               <p className="font-medium text-slate-800">
-                                O site ainda nao buscou conteudo
+                                O site ainda não buscou conteúdo
                               </p>
                               <p className="mt-0.5 text-slate-500">
-                                A CODECA IA conclui a conexao do projeto. Voce pode cadastrar o
-                                conteudo desde ja: ele fica salvo e aparece quando a ligacao
+                                A CODECA IA conclui a conexão do projeto. Você pode cadastrar o
+                                conteúdo desde já: ele fica salvo e aparece quando a ligação
                                 estiver pronta.
                               </p>
                             </>
@@ -369,10 +369,10 @@ export function OverviewPage() {
                           </div>
                         </div>
                       ) : can('domains:read') ? (
-                        <Alert tone="info" title="Nenhum dominio conectado">
-                          Conecte o dominio da empresa para o site responder no endereco proprio.{' '}
+                        <Alert tone="info" title="Nenhum domínio conectado">
+                          Conecte o domínio da empresa para o site responder no endereço próprio.{' '}
                           <Link to="/painel/dominio" className="link">
-                            Configurar dominio
+                            Configurar domínio
                           </Link>
                         </Alert>
                       ) : null}
@@ -382,7 +382,7 @@ export function OverviewPage() {
                   {can('leads:read') ? (
                     <Card>
                       <CardHeader
-                        title="Ultimos interessados"
+                        title="Últimos interessados"
                         actions={
                           <Link to="/painel/interessados">
                             <Button variant="outline" size="sm">
@@ -395,7 +395,7 @@ export function OverviewPage() {
                         {data.recentLeads.length === 0 ? (
                           <EmptyState
                             title="Nenhum contato recebido ainda"
-                            description="Quando alguem preencher o formulario do site, o contato aparece aqui."
+                            description="Quando alguém preencher o formulário do site, o contato aparece aqui."
                           />
                         ) : (
                           <ul className="grid divide-y divide-slate-100">
@@ -438,11 +438,11 @@ export function OverviewPage() {
                       aparece sempre, e nao so para quem tem imoveis ou obras.
                     */}
                     <Meter
-                      label="Conteudos cadastrados"
+                      label="Conteúdos cadastrados"
                       current={data.usage.contentRecords}
                       limit={data.plan.limits.maxContentRecords}
                     />
-                    <Meter label="Usuarios" current={data.usage.users} limit={data.plan.limits.maxUsers} />
+                    <Meter label="Usuários" current={data.usage.users} limit={data.plan.limits.maxUsers} />
                     <Meter
                       label="Armazenamento"
                       current={data.usage.storageBytes}

@@ -67,7 +67,7 @@ export async function issueApiKey(db: Database, input: IssueApiKeyInput): Promis
     })
     .returning({ id: schema.siteApiKeys.id });
 
-  if (!row) throw new Error('Nao foi possivel emitir a chave de integracao.');
+  if (!row) throw new Error('Não foi possível emitir a chave de integração.');
   return { id: row.id, kind: input.kind, lookup, scopes, token };
 }
 
@@ -88,7 +88,7 @@ export async function rotateApiKey(
     .select()
     .from(schema.siteApiKeys)
     .where(eq(schema.siteApiKeys.id, keyId));
-  if (!antiga) throw AppError.notFound('Chave nao encontrada.');
+  if (!antiga) throw AppError.notFound('Chave não encontrada.');
 
   const nova = await issueApiKey(db, {
     tenantId: antiga.tenantId,
@@ -126,7 +126,7 @@ export interface AuthenticateApiKeyInput {
 }
 
 /** Mensagem unica para toda falha de credencial: nao entregamos um oraculo. */
-const CREDENCIAL_INVALIDA = 'Credencial de integracao invalida.';
+const CREDENCIAL_INVALIDA = 'Credencial de integração inválida.';
 
 export async function authenticateApiKey(
   db: Database,
@@ -224,6 +224,6 @@ export function hasScope(context: Pick<ApiKeyContext, 'scopes'>, scope: ApiKeySc
 
 export function assertScope(context: Pick<ApiKeyContext, 'scopes'>, scope: ApiKeyScope): void {
   if (!hasScope(context, scope)) {
-    throw AppError.forbidden('Esta credencial nao tem permissao para esta operacao.');
+    throw AppError.forbidden('Esta credencial não tem permissão para esta operação.');
   }
 }

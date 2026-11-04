@@ -92,11 +92,11 @@ interface NavGroup {
  */
 const NAV_GROUPS: NavGroup[] = [
   {
-    title: 'Visao geral',
-    items: [{ to: '/painel', label: 'Visao geral', icon: LayoutDashboard, end: true, semPainel: true }],
+    title: 'Visão geral',
+    items: [{ to: '/painel', label: 'Visão geral', icon: LayoutDashboard, end: true, semPainel: true }],
   },
   {
-    title: 'Conteudo do site',
+    title: 'Conteúdo do site',
     items: [
       {
         to: '/painel/institucional',
@@ -121,7 +121,7 @@ const NAV_GROUPS: NavGroup[] = [
       },
       {
         to: '/painel/imoveis',
-        label: 'Imoveis',
+        label: 'Imóveis',
         icon: Building2,
         capability: 'content:read',
         module: 'imoveis',
@@ -135,7 +135,7 @@ const NAV_GROUPS: NavGroup[] = [
       },
       {
         to: '/painel/servicos',
-        label: 'Servicos',
+        label: 'Serviços',
         icon: Wrench,
         capability: 'content:read',
         module: 'servicos',
@@ -190,14 +190,14 @@ const NAV_GROUPS: NavGroup[] = [
     items: [{ to: '/painel/interessados', label: 'Interessados', icon: Users, capability: 'leads:read' }],
   },
   {
-    title: 'Configuracoes',
+    title: 'Configurações',
     items: [
-      { to: '/painel/dominio', label: 'Dominio proprio', icon: Globe, capability: 'domains:read' },
+      { to: '/painel/dominio', label: 'Domínio próprio', icon: Globe, capability: 'domains:read' },
       // "Usuarios", e nao "Equipe": isto e quem acessa o painel. A equipe
       // exibida no site e o modulo `equipe`, em Conteudo do site.
-      { to: '/painel/usuarios', label: 'Usuarios e permissoes', icon: ShieldCheck, capability: 'members:read' },
+      { to: '/painel/usuarios', label: 'Usuários e permissões', icon: ShieldCheck, capability: 'members:read' },
       { to: '/painel/plano', label: 'Plano e assinatura', icon: CreditCard, capability: 'billing:read', semPainel: true },
-      { to: '/painel/empresa', label: 'Configuracoes da empresa', icon: Settings, capability: 'tenant:read', semPainel: true },
+      { to: '/painel/empresa', label: 'Configurações da empresa', icon: Settings, capability: 'tenant:read', semPainel: true },
     ],
   },
 ];
@@ -234,7 +234,7 @@ export function DashboardLayout() {
       ...group,
       items: [
         ...group.items,
-        ...(group.title === 'Conteudo do site' ? itensProprios : []),
+        ...(group.title === 'Conteúdo do site' ? itensProprios : []),
       ].filter((item) => {
         if (item.capability && !can(item.capability)) return false;
         // O plano sem painel esconde conteudo inteiro; o que e conta permanece.
@@ -348,7 +348,7 @@ export function DashboardLayout() {
                 {group.title}
               </p>
               <ul className="grid gap-0.5">
-                {group.title === 'Conteudo do site' && modulesLoading && panelIncluded ? (
+                {group.title === 'Conteúdo do site' && modulesLoading && panelIncluded ? (
                   <MarcadoresDoMenu />
                 ) : null}
                 {group.items.map((item) => (
@@ -424,7 +424,7 @@ export function DashboardLayout() {
             <p className="truncate text-sm font-medium text-slate-900">{tenant.tenantName}</p>
             <p className="truncate text-xs text-slate-500">
               {user?.email}
-              {!user?.emailVerified ? ' - e-mail nao confirmado' : ''}
+              {!user?.emailVerified ? ' - e-mail não confirmado' : ''}
             </p>
           </div>
 
@@ -492,11 +492,11 @@ function AvisoDePlanoSemPainel({ planName }: { planName: string }) {
         <Sparkles aria-hidden="true" className="mt-0.5 size-5 flex-none text-brand-600" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-brand-900">
-            {planName ? `O plano ${planName} nao inclui o painel de conteudo` : 'Seu plano nao inclui o painel de conteudo'}
+            {planName ? `O plano ${planName} não inclui o painel de conteúdo` : 'Seu plano não inclui o painel de conteúdo'}
           </p>
           <p className="mt-0.5 text-sm text-brand-800">
-            O conteudo do seu site e mantido pela CODECA IA. Para editar textos, imagens e
-            produtos por conta propria, contrate o plano Profissional.
+            O conteúdo do seu site é mantido pela CODECA IA. Para editar textos, imagens e
+            produtos por conta própria, contrate o plano Profissional.
           </p>
         </div>
         <Link
@@ -527,11 +527,11 @@ function AvisoDeSuspensao({ bloqueado }: { bloqueado: boolean }) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-amber-900">
             {bloqueado
-              ? 'O painel esta indisponivel por pendencia da assinatura'
-              : 'O painel esta em somente leitura por pendencia da assinatura'}
+              ? 'O painel está indisponível por pendência da assinatura'
+              : 'O painel está em somente leitura por pendência da assinatura'}
           </p>
           <p className="mt-0.5 text-sm text-amber-800">
-            Nada foi apagado: imoveis, obras, imagens e configuracoes continuam salvos e voltam a
+            Nada foi apagado: imóveis, obras, imagens e configurações continuam salvos e voltam a
             aparecer assim que a assinatura for regularizada.
           </p>
         </div>

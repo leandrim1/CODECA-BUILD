@@ -31,7 +31,7 @@ export type PublicSiteOnSuspension = (typeof PUBLIC_SITE_ON_SUSPENSION)[number];
 
 export const PUBLIC_SITE_ON_SUSPENSION_LABELS: Record<PublicSiteOnSuspension, string> = {
   serve: 'Continua no ar, sem aviso',
-  serve_with_notice: 'Continua no ar, com aviso no conteudo',
+  serve_with_notice: 'Continua no ar, com aviso no conteúdo',
   stop: 'Para de responder',
 };
 
@@ -122,7 +122,7 @@ export function suspensionEffect(
  * internet.
  */
 export const SUSPENSION_PUBLIC_NOTICE =
-  'Este conteudo pode estar temporariamente desatualizado.';
+  'Este conteúdo pode estar temporariamente desatualizado.';
 
 /** `true` quando a escrita no painel deve ser recusada. */
 export function panelWritesBlocked(effect: SuspensionEffect): boolean {

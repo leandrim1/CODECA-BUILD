@@ -60,12 +60,12 @@ const STATUS_LABELS: Record<SiteStatus, string> = {
 
 const ABAS = [
   { id: 'identidade', label: 'Identidade' },
-  { id: 'proprios', label: 'Modulos do projeto' },
+  { id: 'proprios', label: 'Módulos do projeto' },
   { id: 'campos', label: 'Campos do projeto' },
-  { id: 'modulos', label: 'Modulos e campos' },
+  { id: 'modulos', label: 'Módulos e campos' },
   { id: 'origens', label: 'Origens' },
   { id: 'chaves', label: 'Chaves' },
-  { id: 'avisos', label: 'Avisos de publicacao' },
+  { id: 'avisos', label: 'Avisos de publicação' },
 ] as const;
 
 export function PlatformSitesPage() {
@@ -91,7 +91,7 @@ export function PlatformSitesPage() {
     },
     {
       key: 'status',
-      header: 'Situacao',
+      header: 'Situação',
       render: (row) => (
         <Badge tone={row.status === 'active' ? 'success' : row.status === 'suspended' ? 'danger' : 'neutral'}>
           {STATUS_LABELS[row.status]}
@@ -116,7 +116,7 @@ export function PlatformSitesPage() {
     <div className="panel-shell space-y-6">
       <PageHeader
         title="Sites"
-        description="Projetos integrados a plataforma. Configure modulos, campos editaveis, origens e credenciais."
+        description="Projetos integrados a plataforma. Configure módulos, campos editáveis, origens e credenciais."
       />
 
       <ResourcePanel resource={sites}>
@@ -144,8 +144,8 @@ function ConfiguracaoDoSite({ siteId, onClose }: { siteId: string; onClose: () =
   return (
     <Card>
       <CardHeader
-        title="Configuracao do site"
-        description="O cliente so enxerga o que estiver habilitado aqui."
+        title="Configuração do site"
+        description="O cliente só enxerga o que estiver habilitado aqui."
         actions={
           <Button variant="ghost" onClick={onClose}>
             Fechar
@@ -244,7 +244,7 @@ function AbaIdentidade({
         toast.success('Site atualizado');
         onSaved();
       },
-      onError: (error) => toast.error('Nao foi possivel salvar', error.message),
+      onError: (error) => toast.error('Não foi possível salvar', error.message),
     },
   );
 
@@ -260,12 +260,12 @@ function AbaIdentidade({
       const ligados = resultado.enabled;
       toast.success(
         ligados.length === 0
-          ? 'Nada a mudar: o site ja tem os modulos do segmento'
-          : `${ligados.length} modulo(s) habilitado(s)`,
+          ? 'Nada a mudar: o site já tem os módulos do segmento'
+          : `${ligados.length} módulo(s) habilitado(s)`,
       );
       onSaved();
     },
-    onError: (error) => toast.error('Nao foi possivel aplicar', error.message),
+    onError: (error) => toast.error('Não foi possível aplicar', error.message),
   });
 
   const atual = segmentos.data?.items.find((item) => item.id === segmentId) ?? null;
@@ -275,11 +275,11 @@ function AbaIdentidade({
     <div className="grid gap-4 md:max-w-2xl">
       <TextInput label="Nome do projeto" value={name} onChange={(e) => setName(e.target.value)} />
       <Select
-        label="Situacao"
+        label="Situação"
         value={status}
         onChange={(e) => setStatus(e.target.value as SiteStatus)}
         options={Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))}
-        hint="Em desenvolvimento ate a integracao do site ficar pronta."
+        hint="Em desenvolvimento até a integração do site ficar pronta."
       />
 
       <Select
@@ -297,7 +297,7 @@ function AbaIdentidade({
               label: item.isActive ? item.name : `${item.name} (inativo)`,
             })),
         ]}
-        hint="Classifica o projeto. Trocar aqui nao mexe nos modulos do site."
+        hint="Classifica o projeto. Trocar aqui não mexe nos módulos do site."
       />
 
       <div className="grid gap-2">
@@ -307,34 +307,34 @@ function AbaIdentidade({
           placeholder="prj_..."
           disabled={campoTravado}
           onChange={(e) => setHostingProjectId(e.target.value)}
-          hint="Onde o site deste cliente esta hospedado. Com ele, a plataforma gerencia o dominio na Vercel."
+          hint="Onde o site deste cliente está hospedado. Com ele, a plataforma gerencia o domínio na Vercel."
         />
         {/*
           Dizer o motivo, nao so desabilitar: "o plano nao inclui hospedagem" e
           uma informacao que se pode agir sobre; um campo cinza e um enigma.
         */}
         {campoTravado ? (
-          <Alert tone="info" title="O plano desta empresa nao inclui hospedagem">
-            Sem hospedagem incluida a plataforma so <strong>registra</strong> os dominios dela e nao
-            toca na Vercel. Para gerenciar o dominio aqui, troque para um plano que inclua
+          <Alert tone="info" title="O plano desta empresa não inclui hospedagem">
+            Sem hospedagem incluída a plataforma só <strong>registra</strong> os domínios dela e não
+            toca na Vercel. Para gerenciar o domínio aqui, troque para um plano que inclua
             hospedagem.
           </Alert>
         ) : hosting.managed ? (
           <p className="text-xs text-emerald-700">
-            Dominios deste site sao gerenciados pela plataforma.
+            Domínios deste site são gerenciados pela plataforma.
           </p>
         ) : (
           <p className="text-xs text-slate-500">
-            Sem projeto configurado, os dominios deste site ficam apenas registrados.
+            Sem projeto configurado, os domínios deste site ficam apenas registrados.
           </p>
         )}
       </div>
 
       <TextArea
-        label="Anotacoes internas"
+        label="Anotações internas"
         value={internalNotes}
         rows={3}
-        hint="Visivel apenas para a CODECA IA. O cliente nunca ve este campo."
+        hint="Visível apenas para a CODECA IA. O cliente nunca vê este campo."
         onChange={(e) => setInternalNotes(e.target.value)}
       />
       <div>
@@ -347,11 +347,11 @@ function AbaIdentidade({
       {atual ? (
         <div className="grid gap-2 rounded-lg border border-slate-200 p-4">
           <p className="text-sm font-medium text-slate-800">
-            Aplicar os modulos de {atual.name} a este site
+            Aplicar os módulos de {atual.name} a este site
           </p>
           <p className="text-sm text-slate-600">
-            Habilita o que o segmento traz e <strong>nao desliga nada</strong>. Desligar um modulo
-            em uso e decisao da aba Modulos, onde da para ver o que esta ligado.
+            Habilita o que o segmento traz e <strong>não desliga nada</strong>. Desligar um módulo
+            em uso e decisão da aba Módulos, onde dá para ver o que está ligado.
           </p>
           {atual.defaultModules.length > 0 ? (
             <ul className="flex flex-wrap gap-1.5">
@@ -363,7 +363,7 @@ function AbaIdentidade({
             </ul>
           ) : (
             <p className="text-sm text-amber-700">
-              Este segmento nao tem modulo padrao definido.
+              Este segmento não tem módulo padrão definido.
             </p>
           )}
           <div>
@@ -419,10 +419,10 @@ function AbaModulos({
       }),
     {
       onSuccess: () => {
-        toast.success('Modulos atualizados');
+        toast.success('Módulos atualizados');
         onSaved();
       },
-      onError: (error) => toast.error('Nao foi possivel salvar', error.message),
+      onError: (error) => toast.error('Não foi possível salvar', error.message),
     },
   );
 
@@ -442,9 +442,9 @@ function AbaModulos({
 
   return (
     <div className="space-y-4">
-      <Alert tone="info" title="Como o cliente ve isto">
-        Modulo desligado some do painel dele e da API do site. Campo desmarcado aparece, mas
-        bloqueado para edicao &mdash; o conteudo continua sendo entregue ao site.
+      <Alert tone="info" title="Como o cliente vê isto">
+        Módulo desligado some do painel dele e da API do site. Campo desmarcado aparece, mas
+        bloqueado para edição &mdash; o conteúdo continua sendo entregue ao site.
       </Alert>
 
       {estado.map((modulo) => (
@@ -483,7 +483,7 @@ function AbaModulos({
 
       <Button onClick={() => void salvar.run(undefined)} disabled={salvar.loading}>
         <Save aria-hidden="true" className="size-4" />
-        Salvar configuracao
+        Salvar configuração
       </Button>
     </div>
   );
@@ -509,21 +509,21 @@ function AbaOrigens({ siteId }: { siteId: string }) {
         toast.success('Origens atualizadas');
         void lista.reload();
       },
-      onError: (error) => toast.error('Endereco recusado', error.message),
+      onError: (error) => toast.error('Endereço recusado', error.message),
     },
   );
 
   return (
     <div className="space-y-4 md:max-w-2xl">
-      <Alert tone="warning" title="Sem origem cadastrada, a chave publicavel nao atende">
-        Cadastre o endereco do site em producao e, se usar, o da previa. A comparacao e exata:
-        <code className="mx-1">https://exemplo.com.br</code> nao autoriza
+      <Alert tone="warning" title="Sem origem cadastrada, a chave publicável não atende">
+        Cadastre o endereço do site em produção e, se usar, o da prévia. A comparação e exata:
+        <code className="mx-1">https://exemplo.com.br</code> não autoriza
         <code className="mx-1">https://www.exemplo.com.br</code>.
       </Alert>
 
       <div className="flex gap-2">
         <TextInput
-          label="Endereco do site"
+          label="Endereço do site"
           placeholder="https://empresa.com.br"
           value={nova}
           onChange={(e) => setNova(e.target.value)}
@@ -589,10 +589,10 @@ function AbaChaves({ siteId }: { siteId: string }) {
         // A secreta so existe aqui, nesta resposta. Guardamos em memoria para
         // mostrar uma vez e nada alem disso.
         if (resultado.showOnce) setEmitida(resultado.key);
-        else toast.success('Chave publicavel criada');
+        else toast.success('Chave publicável criada');
         void lista.reload();
       },
-      onError: (error) => toast.error('Nao foi possivel criar', error.message),
+      onError: (error) => toast.error('Não foi possível criar', error.message),
     },
   );
 
@@ -604,7 +604,7 @@ function AbaChaves({ siteId }: { siteId: string }) {
         toast.success('Chave rotacionada', 'A anterior ainda vale por 60 minutos.');
         void lista.reload();
       },
-      onError: (error) => toast.error('Nao foi possivel rotacionar', error.message),
+      onError: (error) => toast.error('Não foi possível rotacionar', error.message),
     },
   );
 
@@ -614,7 +614,7 @@ function AbaChaves({ siteId }: { siteId: string }) {
       setRevogar(null);
       void lista.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel revogar', error.message),
+    onError: (error) => toast.error('Não foi possível revogar', error.message),
   });
 
   async function copiar(valor: string) {
@@ -622,7 +622,7 @@ function AbaChaves({ siteId }: { siteId: string }) {
       await navigator.clipboard.writeText(valor);
       toast.success('Copiado');
     } catch {
-      toast.error('Nao foi possivel copiar', 'Selecione o texto e copie manualmente.');
+      toast.error('Não foi possível copiar', 'Selecione o texto e copie manualmente.');
     }
   }
 
@@ -631,7 +631,7 @@ function AbaChaves({ siteId }: { siteId: string }) {
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={() => void criar.run('publishable')} disabled={criar.loading}>
           <KeyRound aria-hidden="true" className="size-4" />
-          Nova chave publicavel
+          Nova chave publicável
         </Button>
         <Button variant="outline" onClick={() => void criar.run('secret')} disabled={criar.loading}>
           <KeyRound aria-hidden="true" className="size-4" />
@@ -661,7 +661,7 @@ function AbaChaves({ siteId }: { siteId: string }) {
                       <code className="mt-1 block truncate text-xs text-slate-600">{chave.token}</code>
                       <p className="mt-1 text-xs text-slate-500">
                         {chave.lastUsedAt
-                          ? `Usada por ultimo em ${formatDateTime(chave.lastUsedAt)}`
+                          ? `Usada por último em ${formatDateTime(chave.lastUsedAt)}`
                           : 'Nunca usada'}
                       </p>
                     </div>
@@ -703,7 +703,7 @@ function AbaChaves({ siteId }: { siteId: string }) {
       <ConfirmDialog
         open={revogar !== null}
         title="Revogar esta chave?"
-        message="Ela para de atender imediatamente, sem janela de transicao. Se o site do cliente ainda a estiver usando, ele sai do ar. Para trocar sem derrubar, use rotacionar."
+        message="Ela para de atender imediatamente, sem janela de transição. Se o site do cliente ainda a estiver usando, ele sai do ar. Para trocar sem derrubar, use rotacionar."
         confirmLabel="Revogar"
         tone="danger"
         onCancel={() => setRevogar(null)}
@@ -736,16 +736,16 @@ function ChaveEmitida({
       open={chave !== null}
       onClose={onClose}
       title="Copie a chave agora"
-      description="Esta e a unica vez que ela aparece. Guardamos apenas o hash; se perder, sera preciso rotacionar."
+      description="Esta é a única vez que ela aparece. Guardamos apenas o hash; se perder, será preciso rotacionar."
       footer={
-        <Button onClick={onClose}>Ja copiei</Button>
+        <Button onClick={onClose}>Já copiei</Button>
       }
     >
       {chave ? (
         <div className="space-y-3">
           <Alert tone="warning" title="Chave secreta: nunca no navegador">
-            Use somente no servidor do site. Nao coloque em variavel <code>VITE_*</code>, em
-            componente de cliente nem no repositorio.
+            Use somente no servidor do site. Não coloque em variável <code>VITE_*</code>, em
+            componente de cliente nem no repositório.
           </Alert>
           <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
             <code className="flex-1 break-all text-xs text-slate-800">{chave.token}</code>
@@ -788,7 +788,7 @@ function AbaAvisos({ siteId }: { siteId: string }) {
         setDescricao('');
         void lista.reload();
       },
-      onError: (error) => toast.error('Nao foi possivel cadastrar', error.message),
+      onError: (error) => toast.error('Não foi possível cadastrar', error.message),
     },
   );
 
@@ -799,7 +799,7 @@ function AbaAvisos({ siteId }: { siteId: string }) {
         setEmitido({ url: resultado.webhook.url, secret: resultado.secret });
         void lista.reload();
       },
-      onError: (error) => toast.error('Nao foi possivel rotacionar', error.message),
+      onError: (error) => toast.error('Não foi possível rotacionar', error.message),
     },
   );
 
@@ -808,40 +808,40 @@ function AbaAvisos({ siteId }: { siteId: string }) {
       platformSiteApi.updateWebhook(siteId, entrada.id, { isActive: entrada.isActive }),
     {
       onSuccess: () => void lista.reload(),
-      onError: (error) => toast.error('Nao foi possivel alterar', error.message),
+      onError: (error) => toast.error('Não foi possível alterar', error.message),
     },
   );
 
   const remover = useMutation((webhookId: string) => platformSiteApi.removeWebhook(siteId, webhookId), {
     onSuccess: () => {
-      toast.success('Endereco removido');
+      toast.success('Endereço removido');
       setRemovendo(null);
       void lista.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel remover', error.message),
+    onError: (error) => toast.error('Não foi possível remover', error.message),
   });
 
   return (
     <div className="space-y-4">
-      <Alert tone="info" title="A maioria dos sites nao precisa disto">
-        Um site Vite busca o conteudo a cada visita, entao a alteracao do cliente aparece sozinha.
-        Cadastre um endereco apenas quando o site renderiza no servidor e guarda cache -- ele
-        recebe <code>content.published</code> e invalida o proprio cache.
+      <Alert tone="info" title="A maioria dos sites não precisa disto">
+        Um site Vite busca o conteúdo a cada visita, então a alteração do cliente aparece sozinha.
+        Cadastre um endereço apenas quando o site renderiza no servidor e guarda cache -- ele
+        recebe <code>content.published</code> e inválida o próprio cache.
       </Alert>
 
       <Card>
-        <CardHeader title="Novo endereco" description="A plataforma envia um POST assinado a cada publicacao." />
+        <CardHeader title="Novo endereço" description="A plataforma envia um POST assinado a cada publicação." />
         <CardBody className="grid gap-3">
           <TextInput
-            label="Endereco"
+            label="Endereço"
             placeholder="https://site-do-cliente.com.br/api/revalidar"
             value={url}
-            hint="Https obrigatorio. Somente localhost pode usar http, para desenvolvimento."
+            hint="Https obrigatório. Somente localhost pode usar http, para desenvolvimento."
             onChange={(event) => setUrl(event.target.value)}
           />
           <TextInput
             label="Para que serve"
-            placeholder="Revalidacao do cache do Next"
+            placeholder="Revalidação do cache do Next"
             value={descricao}
             onChange={(event) => setDescricao(event.target.value)}
           />
@@ -861,7 +861,7 @@ function AbaAvisos({ siteId }: { siteId: string }) {
         {(data) => (
           <div className="space-y-4">
             {data.items.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhum endereco cadastrado.</p>
+              <p className="text-sm text-slate-500">Nenhum endereço cadastrado.</p>
             ) : (
               <ul className="space-y-2">
                 {data.items.map((item) => (
@@ -882,7 +882,7 @@ function AbaAvisos({ siteId }: { siteId: string }) {
                         ) : null}
                         <p className="mt-1 text-xs text-slate-500">
                           {item.lastAttemptAt
-                            ? `Ultima tentativa em ${formatDateTime(item.lastAttemptAt)}`
+                            ? `Última tentativa em ${formatDateTime(item.lastAttemptAt)}`
                               + (item.lastStatus ? ` (respondeu ${item.lastStatus})` : '')
                             : 'Nenhuma tentativa ainda'}
                         </p>
@@ -923,8 +923,8 @@ function AbaAvisos({ siteId }: { siteId: string }) {
             {data.deliveries.length > 0 ? (
               <Card>
                 <CardHeader
-                  title="Ultimas entregas"
-                  description="O que falhou e tentado de novo pelo job diario."
+                  title="Últimas entregas"
+                  description="O que falhou e tentado de novo pelo job diário."
                 />
                 <CardBody>
                   <ul className="grid gap-1.5 text-xs">
@@ -962,8 +962,8 @@ function AbaAvisos({ siteId }: { siteId: string }) {
 
       <ConfirmDialog
         open={removendo !== null}
-        title="Remover este endereco?"
-        message="O site do cliente para de receber avisos de publicacao. O conteudo continua sendo servido normalmente pela API."
+        title="Remover este endereço?"
+        message="O site do cliente para de receber avisos de publicação. O conteúdo continua sendo servido normalmente pela API."
         confirmLabel="Remover"
         tone="danger"
         loading={remover.loading}
@@ -997,7 +997,7 @@ function SegredoEmitido({
       await navigator.clipboard.writeText(valor);
       toast.success('Copiado');
     } catch {
-      toast.error('Nao foi possivel copiar', 'Selecione o texto e copie manualmente.');
+      toast.error('Não foi possível copiar', 'Selecione o texto e copie manualmente.');
     }
   }
 
@@ -1006,16 +1006,16 @@ function SegredoEmitido({
       open={emitido !== null}
       onClose={onClose}
       title="Copie o segredo agora"
-      description="Esta e a unica vez que ele aparece. Nao ha como consulta-lo depois; quem perder rotaciona."
-      footer={<Button onClick={onClose}>Ja copiei</Button>}
+      description="Esta é a única vez que ele aparece. Não há como consultá-lo depois; quem perder rotaciona."
+      footer={<Button onClick={onClose}>Já copiei</Button>}
     >
       {emitido ? (
         <div className="space-y-3">
           <Alert tone="warning" title="Segredo de assinatura: somente no servidor do site">
-            Guarde como variavel de ambiente do projeto do cliente. Nao vai em{' '}
-            <code>VITE_*</code>, nem em componente de cliente, nem no repositorio.
+            Guarde como variável de ambiente do projeto do cliente. Não vai em{' '}
+            <code>VITE_*</code>, nem em componente de cliente, nem no repositório.
           </Alert>
-          <p className="text-xs text-slate-500">Endereco: {emitido.url}</p>
+          <p className="text-xs text-slate-500">Endereço: {emitido.url}</p>
           <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
             <code className="flex-1 break-all text-xs text-slate-800">{emitido.secret}</code>
             <Button variant="outline" size="sm" onClick={() => void copiar(emitido.secret)}>
@@ -1105,7 +1105,7 @@ function AbaCampos({
         lista.reload();
         onSaved();
       },
-      onError: (error) => toast.error('Nao foi possivel salvar', error.message),
+      onError: (error) => toast.error('Não foi possível salvar', error.message),
     },
   );
 
@@ -1120,27 +1120,27 @@ function AbaCampos({
 
   if (aceitam.length === 0) {
     return (
-      <Alert tone="info" title="Nenhum modulo deste site aceita campo personalizado">
-        O recurso vale para institucional, contato, imoveis, obras, servicos, produtos, equipe e
-        depoimentos -- e para qualquer modulo criado na aba "Modulos do projeto".
+      <Alert tone="info" title="Nenhum módulo deste site aceita campo personalizado">
+        O recurso vale para institucional, contato, imóveis, obras, serviços, produtos, equipe e
+        depoimentos -- e para qualquer módulo criado na aba "Módulos do projeto".
       </Alert>
     );
   }
 
   return (
     <div className="grid gap-4">
-      <Alert tone="info" title="Campos que so existem neste site">
-        O cliente preenche no painel e o site le em <code>customFields</code>. A chave e o que o
-        projeto usa em codigo -- escolha-a com cuidado, porque muda-la depois nao traz os valores
-        ja gravados.
+      <Alert tone="info" title="Campos que só existem neste site">
+        O cliente preenche no painel e o site lê em <code>customFields</code>. A chave é o que o
+        projeto usa em código -- escolha-a com cuidado, porque mudá-la depois não traz os valores
+        já gravados.
       </Alert>
 
       <Select
-        label="Modulo"
+        label="Módulo"
         value={moduloAtivo}
         onChange={(event) => trocarModulo(event.target.value)}
         options={aceitam.map((modulo) => ({ value: modulo.key, label: modulo.name }))}
-        hint="Modulos da plataforma que aceitam campo extra, e os criados para este site."
+        hint="Módulos da plataforma que aceitam campo extra, e os criados para este site."
       />
 
       <ResourcePanel resource={lista}>
@@ -1148,7 +1148,7 @@ function AbaCampos({
           <div className="grid gap-3">
             {doModulo.length === 0 ? (
               <p className="text-sm text-slate-600">
-                Nenhum campo neste modulo. Acrescente abaixo.
+                Nenhum campo neste módulo. Acrescente abaixo.
               </p>
             ) : (
               doModulo.map((campo, indice) => (
@@ -1157,7 +1157,7 @@ function AbaCampos({
                     <TextInput
                       label="Chave"
                       value={campo.fieldKey}
-                      hint="Como o site le: customFields.creci"
+                      hint="Como o site lê: customFields.creci"
                       onChange={(event) =>
                         atualizar(indice, {
                           fieldKey: event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''),
@@ -1165,7 +1165,7 @@ function AbaCampos({
                       }
                     />
                     <TextInput
-                      label="Rotulo"
+                      label="Rótulo"
                       value={campo.label}
                       hint="Como aparece para o cliente."
                       onChange={(event) => atualizar(indice, { label: event.target.value })}
@@ -1192,9 +1192,9 @@ function AbaCampos({
                   </div>
                   {campo.type === 'select' ? (
                     <TextInput
-                      label="Opcoes"
+                      label="Opções"
                       value={campo.options.join(', ')}
-                      hint="Separe por virgula. Pelo menos duas."
+                      hint="Separe por vírgula. Pelo menos duas."
                       onChange={(event) =>
                         atualizar(indice, {
                           options: event.target.value
@@ -1219,17 +1219,17 @@ function AbaCampos({
                       que garante erro nao deve existir na tela.
                     */}
                     <Switch
-                      label="Obrigatorio"
+                      label="Obrigatório"
                       {...(campo.editable
                         ? {}
-                        : { hint: 'Indisponivel: o cliente nao edita este campo.' })}
+                        : { hint: 'Indisponível: o cliente não edita este campo.' })}
                       checked={campo.required && campo.editable}
                       disabled={!campo.editable}
                       onChange={(marcado) => atualizar(indice, { required: marcado })}
                     />
                     <Switch
                       label="O cliente pode editar"
-                      hint="Desmarque para a CODECA IA preencher e o cliente so consultar."
+                      hint="Desmarque para a CODECA IA preencher e o cliente só consultar."
                       checked={campo.editable}
                       onChange={(marcado) =>
                         atualizar(
@@ -1283,8 +1283,8 @@ function AbaCampos({
             </div>
 
             <p className="text-xs text-slate-500">
-              Remover um campo aqui tira ele do painel e da API publica, mas <strong>nao apaga</strong> o
-              que o cliente ja escreveu: redefinir com a mesma chave traz os valores de volta.
+              Remover um campo aqui tira ele do painel e da API pública, mas <strong>não apaga</strong> o
+              que o cliente já escreveu: redefinir com a mesma chave traz os valores de volta.
             </p>
           </div>
         )}
@@ -1330,13 +1330,13 @@ function AbaModulosProprios({
 
   const criar = useMutation(() => platformSiteApi.createCustomModule(siteId, novo), {
     onSuccess: () => {
-      toast.success('Modulo criado');
+      toast.success('Módulo criado');
       setCriando(false);
       setNovo({ key: '', name: '', description: '', kind: 'collection', icon: '' });
       lista.reload();
       onSaved();
     },
-    onError: (error) => toast.error('Nao foi possivel criar', error.message),
+    onError: (error) => toast.error('Não foi possível criar', error.message),
   });
 
   const alternar = useMutation(
@@ -1347,7 +1347,7 @@ function AbaModulosProprios({
         lista.reload();
         onSaved();
       },
-      onError: (error) => toast.error('Nao foi possivel salvar', error.message),
+      onError: (error) => toast.error('Não foi possível salvar', error.message),
     },
   );
 
@@ -1355,20 +1355,20 @@ function AbaModulosProprios({
     (key: string) => platformSiteApi.removeCustomModule(siteId, key),
     {
       onSuccess: () => {
-        toast.success('Modulo removido');
+        toast.success('Módulo removido');
         setRemovendo(null);
         lista.reload();
         onSaved();
       },
-      onError: (error) => toast.error('Nao foi possivel remover', error.message),
+      onError: (error) => toast.error('Não foi possível remover', error.message),
     },
   );
 
   return (
     <div className="grid gap-4">
-      <Alert tone="info" title="Modulos que existem somente neste site">
-        Um cardapio, uma lista de turmas, um catalogo de processos. O cliente edita o conteudo no
-        painel dele e o site le em <code>/api/v1/custom/&lt;chave&gt;</code>. A chave e o tipo nao
+      <Alert tone="info" title="Módulos que existem somente neste site">
+        Um cardápio, uma lista de turmas, um catálogo de processos. O cliente edita o conteúdo no
+        painel dele e o site lê em <code>/api/v1/custom/&lt;chave&gt;</code>. A chave e o tipo não
         mudam depois de criados, porque o site do cliente depende dos dois.
       </Alert>
 
@@ -1377,8 +1377,8 @@ function AbaModulosProprios({
           <div className="grid gap-3">
             {data.items.length === 0 ? (
               <p className="text-sm text-slate-600">
-                Nenhum modulo proprio. Acrescente abaixo quando o projeto pedir um tipo de conteudo
-                que a plataforma nao tem.
+                Nenhum módulo próprio. Acrescente abaixo quando o projeto pedir um tipo de conteúdo
+                que a plataforma não tem.
               </p>
             ) : (
               data.items.map((modulo) => (
@@ -1427,7 +1427,7 @@ function AbaModulosProprios({
                   <TextInput
                     label="Chave"
                     value={novo.key}
-                    hint="Como o site le: /api/v1/custom/cardapio. Nao muda depois."
+                    hint="Como o site lê: /api/v1/custom/cardapio. Não muda depois."
                     onChange={(event) =>
                       setNovo((atual) => ({
                         ...atual,
@@ -1446,10 +1446,10 @@ function AbaModulosProprios({
                   <Select
                     label="Tipo"
                     value={novo.kind}
-                    hint="Nao muda depois de criado."
+                    hint="Não muda depois de criado."
                     options={[
                       { value: 'collection', label: 'Lista de registros' },
-                      { value: 'document', label: 'Documento unico' },
+                      { value: 'document', label: 'Documento único' },
                     ]}
                     onChange={(event) =>
                       setNovo((atual) => ({
@@ -1459,17 +1459,17 @@ function AbaModulosProprios({
                     }
                   />
                   <Select
-                    label="Icone"
+                    label="Ícone"
                     value={novo.icon}
                     options={[
-                      { value: '', label: 'Sem icone' },
+                      { value: '', label: 'Sem ícone' },
                       ...SAFE_ICONS.map((nome) => ({ value: nome, label: nome })),
                     ]}
                     onChange={(event) => setNovo((atual) => ({ ...atual, icon: event.target.value }))}
                   />
                 </div>
                 <TextArea
-                  label="Descricao"
+                  label="Descrição"
                   rows={2}
                   value={novo.description}
                   hint="Texto curto no topo da tela do cliente."
@@ -1480,7 +1480,7 @@ function AbaModulosProprios({
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => void criar.run(undefined)} disabled={criar.loading}>
                     <Save aria-hidden="true" className="size-4" />
-                    Criar modulo
+                    Criar módulo
                   </Button>
                   <Button variant="outline" onClick={() => setCriando(false)}>
                     Cancelar
@@ -1494,7 +1494,7 @@ function AbaModulosProprios({
                   icon={<Plus aria-hidden="true" className="size-4" />}
                   onClick={() => setCriando(true)}
                 >
-                  Acrescentar modulo
+                  Acrescentar módulo
                 </Button>
               </div>
             )}
@@ -1504,11 +1504,11 @@ function AbaModulosProprios({
 
       <ConfirmDialog
         open={removendo !== null}
-        title="Remover modulo"
+        title="Remover módulo"
         message={
-          `O modulo ${removendo?.name ?? ''} e as definicoes de campo dele serao apagados. `
-          + 'Se o cliente ja cadastrou registros, a remocao e recusada -- nesse caso use o '
-          + '"No ar" para tirar do ar sem apagar conteudo.'
+          `O módulo ${removendo?.name ?? ''} e as definições de campo dele serão apagados. `
+          + 'Se o cliente já cadastrou registros, a remoção é recusada -- nesse caso use o '
+          + '"No ar" para tirar do ar sem apagar conteúdo.'
         }
         confirmLabel="Remover"
         tone="danger"

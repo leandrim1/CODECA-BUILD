@@ -61,7 +61,7 @@ export function authRoutes() {
       .from(schema.users)
       .where(eq(schema.users.email, input.email));
     if (existing) {
-      throw AppError.conflict('Ja existe uma conta com este e-mail. Faca login ou recupere a senha.');
+      throw AppError.conflict('Já existe uma conta com este e-mail. Faca login ou recupere a senha.');
     }
 
     const [trialPlan] = await ctx.db
@@ -80,7 +80,7 @@ export function authRoutes() {
         .insert(schema.users)
         .values({ email: input.email, name: input.name, passwordHash, phone: input.phone })
         .returning({ id: schema.users.id, email: schema.users.email });
-      if (!user) throw AppError.internal('Nao foi possivel criar a conta.');
+      if (!user) throw AppError.internal('Não foi possível criar a conta.');
 
       const [tenant] = await tx
         .insert(schema.tenants)
@@ -104,7 +104,7 @@ export function authRoutes() {
           },
         })
         .returning({ id: schema.tenants.id });
-      if (!tenant) throw AppError.internal('Nao foi possivel criar a empresa.');
+      if (!tenant) throw AppError.internal('Não foi possível criar a empresa.');
 
       await tx.insert(schema.memberships).values({
         tenantId: tenant.id,
@@ -164,7 +164,7 @@ export function authRoutes() {
       kind: 'verify_email',
       subject: `Confirme seu e-mail - ${ctx.env.PLATFORM_NAME}`,
       text:
-        `Ola, ${input.name}!\n\nConfirme seu e-mail para liberar a publicacao do site:\n`
+        `Olá, ${input.name}!\n\nConfirme seu e-mail para liberar a publicação do site:\n`
         + `${buildActionUrl(ctx.env, '/confirmar-email', verification.token)}\n\n`
         + 'O link expira em 48 horas.',
     });
@@ -197,12 +197,12 @@ export function authRoutes() {
         action: AUDIT_ACTIONS.platformRoleChanged,
         entityType: 'user',
         entityId: result.userId,
-        metadata: { platformRole: 'platform_admin', reason: 'primeira conta da instalacao' },
+        metadata: { platformRole: 'platform_admin', reason: 'primeira conta da instalação' },
         ip,
         userAgent: userAgent(c),
       });
       console.info(
-        `[bootstrap] ${result.email} assumiu o painel mestre por ser a primeira conta da instalacao.`,
+        `[bootstrap] ${result.email} assumiu o painel mestre por ser a primeira conta da instalação.`,
       );
     }
 
@@ -387,7 +387,7 @@ export function authRoutes() {
         to: input.email,
         kind: 'verify_email',
         subject: `Confirme seu e-mail - ${ctx.env.PLATFORM_NAME}`,
-        text: `Ola, ${user.name}!\n\nConfirme seu e-mail:\n${buildActionUrl(ctx.env, '/confirmar-email', token.token)}`,
+        text: `Olá, ${user.name}!\n\nConfirme seu e-mail:\n${buildActionUrl(ctx.env, '/confirmar-email', token.token)}`,
       });
     }
 
@@ -421,11 +421,11 @@ export function authRoutes() {
       await ctx.mailer.send({
         to: input.email,
         kind: 'reset_password',
-        subject: `Redefinicao de senha - ${ctx.env.PLATFORM_NAME}`,
+        subject: `Redefinição de senha - ${ctx.env.PLATFORM_NAME}`,
         text:
-          `Ola, ${user.name}!\n\nUse o link abaixo para definir uma nova senha:\n`
+          `Olá, ${user.name}!\n\nUse o link abaixo para definir uma nova senha:\n`
           + `${buildActionUrl(ctx.env, '/redefinir-senha', token.token)}\n\n`
-          + 'O link expira em 2 horas. Se nao foi voce, ignore esta mensagem.',
+          + 'O link expira em 2 horas. Se não foi você, ignore esta mensagem.',
       });
       await recordAudit(ctx.db, ctx.env, {
         actorUserId: user.id,
@@ -484,11 +484,11 @@ export function authRoutes() {
       now,
     });
     if (!consumed.tenantId) {
-      throw AppError.badRequest('Convite invalido: empresa nao identificada.');
+      throw AppError.badRequest('Convite inválido: empresa não identificada.');
     }
 
     const [user] = await ctx.db.select().from(schema.users).where(eq(schema.users.id, consumed.userId));
-    if (!user) throw AppError.badRequest('Convite invalido.');
+    if (!user) throw AppError.badRequest('Convite inválido.');
 
     // Usuario novo precisa definir nome e senha ao aceitar.
     if (!user.passwordHash) {

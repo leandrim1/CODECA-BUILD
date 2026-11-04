@@ -27,7 +27,7 @@ export function AuthLayout() {
             Plataforma para empresas
           </p>
           <h2 className="mt-4 text-3xl font-semibold leading-tight">
-            Site profissional, dominio proprio e o conteudo na sua mao.
+            Site profissional, domínio próprio e o conteúdo na sua mão.
           </h2>
           <ul className="mt-8 grid gap-3 text-slate-300">
             {/*
@@ -35,15 +35,15 @@ export function AuthLayout() {
               era "Editor visual por blocos", recurso removido na etapa 0 -- a
               tela de entrada vendia algo que nao existe mais.
             */}
-            <li>Conteudo do site editavel sem novo deploy</li>
-            <li>Modulos ligados conforme o ramo do seu projeto</li>
-            <li>Campos proprios do seu negocio, sem programar</li>
+            <li>Conteúdo do site editável sem novo deploy</li>
+            <li>Módulos ligados conforme o ramo do seu projeto</li>
+            <li>Campos próprios do seu negócio, sem programar</li>
             <li>Interessados organizados direto no painel</li>
-            <li>Dominio proprio com HTTPS</li>
+            <li>Domínio próprio com HTTPS</li>
           </ul>
         </div>
         <p className="text-sm text-slate-400">
-          Cada empresa tem seu site, seus dados e seus usuarios, isolados das demais.
+          Cada empresa tem seu site, seus dados e seus usuários, isolados das demais.
         </p>
       </aside>
     </div>

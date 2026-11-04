@@ -55,14 +55,14 @@ export function PlatformTenantsPage() {
 
   const create = useMutation(() => platformApi.createTenant(createForm.values), {
     onSuccess: () => {
-      toast.success('Empresa criada', 'O proprietario recebeu um convite por e-mail.');
+      toast.success('Empresa criada', 'O proprietário recebeu um convite por e-mail.');
       setCreating(false);
       createForm.reset();
       list.reload();
     },
     onError: (error) => {
       createForm.applyApiError(error);
-      if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel criar', error.message);
+      if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível criar', error.message);
     },
   });
 
@@ -87,7 +87,7 @@ export function PlatformTenantsPage() {
         </span>
       ),
     },
-    { key: 'status', header: 'Situacao', render: (row) => <Badge tone={tenantTone(row.status)}>{labels.tenantStatus[row.status]}</Badge> },
+    { key: 'status', header: 'Situação', render: (row) => <Badge tone={tenantTone(row.status)}>{labels.tenantStatus[row.status]}</Badge> },
     {
       key: 'created',
       header: 'Criada em',
@@ -110,7 +110,7 @@ export function PlatformTenantsPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Empresas"
-        description="Cadastro, plano, limites e situacao da conta de cada empresa."
+        description="Cadastro, plano, limites e situação da conta de cada empresa."
         actions={
           <Button icon={<Plus aria-hidden="true" className="size-4" />} onClick={() => setCreating(true)}>
             Nova empresa
@@ -137,7 +137,7 @@ export function PlatformTenantsPage() {
               </div>
               <div className="w-full sm:w-40">
                 <Select
-                  label="Situacao"
+                  label="Situação"
                   className="[&>label]:sr-only"
                   placeholder="Todas"
                   value={status}
@@ -165,7 +165,7 @@ export function PlatformTenantsPage() {
         open={creating}
         onClose={() => setCreating(false)}
         title="Nova empresa"
-        description="O proprietario recebe um convite para definir a senha."
+        description="O proprietário recebe um convite para definir a senha."
         footer={
           <>
             <Button variant="outline" onClick={() => setCreating(false)}>
@@ -179,14 +179,14 @@ export function PlatformTenantsPage() {
       >
         <div className="grid gap-4">
           <TextInput
-            label="Nome de exibicao"
+            label="Nome de exibição"
             required
             value={createForm.values.displayName}
             error={createForm.errors.displayName}
             onChange={(event) => createForm.setField('displayName', event.target.value)}
           />
           <TextInput
-            label="Razao social"
+            label="Razão social"
             required
             value={createForm.values.legalName}
             error={createForm.errors.legalName}
@@ -202,14 +202,14 @@ export function PlatformTenantsPage() {
             onChange={(event) => createForm.setField('planCode', event.target.value)}
           />
           <TextInput
-            label="Nome do proprietario"
+            label="Nome do proprietário"
             required
             value={createForm.values.ownerName}
             error={createForm.errors.ownerName}
             onChange={(event) => createForm.setField('ownerName', event.target.value)}
           />
           <TextInput
-            label="E-mail do proprietario"
+            label="E-mail do proprietário"
             type="email"
             required
             value={createForm.values.ownerEmail}
@@ -257,7 +257,7 @@ function TenantDetailModal({
         detail.reload();
         onChanged();
       },
-      onError: (error) => toast.error('Nao foi possivel atualizar', error.message),
+      onError: (error) => toast.error('Não foi possível atualizar', error.message),
     },
   );
 
@@ -271,11 +271,11 @@ function TenantDetailModal({
       }),
     {
       onSuccess: () => {
-        toast.success('Acesso de suporte concedido', 'Somente leitura, valido por 1 hora e registrado em auditoria.');
+        toast.success('Acesso de suporte concedido', 'Somente leitura, válido por 1 hora e registrado em auditoria.');
         setReason('');
         detail.reload();
       },
-      onError: (error) => toast.error('Nao foi possivel conceder', error.message),
+      onError: (error) => toast.error('Não foi possível conceder', error.message),
     },
   );
 
@@ -299,7 +299,7 @@ function TenantDetailModal({
             Fechar
           </Button>
           <Button loading={update.loading} onClick={() => void update.run(undefined)}>
-            Salvar alteracoes
+            Salvar alterações
           </Button>
         </>
       }
@@ -310,7 +310,7 @@ function TenantDetailModal({
             <section className="grid gap-4">
               <h3 className="text-sm font-semibold text-slate-800">Conta</h3>
               <Select
-                label="Situacao"
+                label="Situação"
                 value={status}
                 options={toOptions(labels.tenantStatus, TENANT_STATUSES)}
                 hint="Suspender deixa o painel em modo leitura e tira o site do ar."
@@ -323,10 +323,10 @@ function TenantDetailModal({
                 onChange={(event) => setPlanCode(event.target.value)}
               />
               <TextArea
-                label="Anotacoes internas"
+                label="Anotações internas"
                 rows={3}
                 value={notes}
-                placeholder={(data.tenant.internalNotes as string) || 'Observacoes visiveis apenas para a plataforma'}
+                placeholder={(data.tenant.internalNotes as string) || 'Observações visíveis apenas para a plataforma'}
                 onChange={(event) => setNotes(event.target.value)}
               />
             </section>
@@ -334,12 +334,12 @@ function TenantDetailModal({
             <section className="grid gap-3">
               <h3 className="text-sm font-semibold text-slate-800">Uso</h3>
               <Meter
-                label="Conteudos cadastrados"
+                label="Conteúdos cadastrados"
                 current={data.usage.contentRecords}
                 limit={data.plan.limits.maxContentRecords}
               />
               <ContentUsageBreakdown byModule={data.usage.contentByModule} />
-              <Meter label="Usuarios" current={data.usage.users} limit={data.plan.limits.maxUsers} />
+              <Meter label="Usuários" current={data.usage.users} limit={data.plan.limits.maxUsers} />
               <Meter
                 label="Armazenamento"
                 current={data.usage.storageBytes}
@@ -371,8 +371,8 @@ function TenantDetailModal({
                 Acesso de suporte
               </h3>
               <p className="text-xs text-amber-900">
-                Ser administrador da plataforma nao da acesso ao conteudo desta empresa. Para consultar os
-                dados e necessaria uma concessao explicita, somente leitura, com prazo e registro em
+                Ser administrador da plataforma não da acesso ao conteúdo desta empresa. Para consultar os
+                dados é necessária uma concessão explícita, somente leitura, com prazo e registro em
                 auditoria.
               </p>
 
@@ -396,7 +396,7 @@ function TenantDetailModal({
                     label="Motivo do acesso"
                     rows={2}
                     value={reason}
-                    hint="Minimo de 10 caracteres. Fica registrado na auditoria da empresa."
+                    hint="Mínimo de 10 caracteres. Fica registrado na auditoria da empresa."
                     onChange={(event) => setReason(event.target.value)}
                   />
                   <Button

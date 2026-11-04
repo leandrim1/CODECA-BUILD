@@ -155,7 +155,7 @@ export function propertyRoutes() {
       .select()
       .from(schema.properties)
       .where(and(eq(schema.properties.id, propertyId), eq(schema.properties.tenantId, tenant.tenantId)));
-    if (!row) throw AppError.notFound('Imovel nao encontrado.');
+    if (!row) throw AppError.notFound('Imóvel não encontrado.');
 
     const gallery = await loadGallery(ctx.db, 'property', {
       tenantId: tenant.tenantId,
@@ -228,7 +228,7 @@ export function propertyRoutes() {
       })
       .returning();
 
-    if (!row) throw AppError.internal('Nao foi possivel cadastrar o imovel.');
+    if (!row) throw AppError.internal('Não foi possível cadastrar o imóvel.');
 
     await syncGallery(ctx.db, 'property', {
       tenantId: tenant.tenantId,
@@ -268,7 +268,7 @@ export function propertyRoutes() {
       .select()
       .from(schema.properties)
       .where(and(eq(schema.properties.id, propertyId), eq(schema.properties.tenantId, tenant.tenantId)));
-    if (!current) throw AppError.notFound('Imovel nao encontrado.');
+    if (!current) throw AppError.notFound('Imóvel não encontrado.');
 
     const personalizados = await lerAlteracao(
       ctx.db,
@@ -368,7 +368,7 @@ export function propertyRoutes() {
       })
       .from(schema.properties)
       .where(and(eq(schema.properties.id, propertyId), eq(schema.properties.tenantId, tenant.tenantId)));
-    if (!current) throw AppError.notFound('Imovel nao encontrado.');
+    if (!current) throw AppError.notFound('Imóvel não encontrado.');
 
     // `property_images` cai em cascata; os arquivos permanecem na biblioteca de
     // midia e podem ser removidos pela tela de biblioteca, que lista os arquivos
@@ -413,7 +413,7 @@ export function propertyRoutes() {
         and(eq(schema.properties.tenantId, tenant.tenantId), inArray(schema.properties.id, input.ids)),
       );
     if (rows.length !== input.ids.length) {
-      throw AppError.notFound('Um ou mais imoveis informados nao pertencem a esta empresa.');
+      throw AppError.notFound('Um ou mais imóveis informados não pertencem a esta empresa.');
     }
 
     await ctx.db.transaction(async (tx) => {

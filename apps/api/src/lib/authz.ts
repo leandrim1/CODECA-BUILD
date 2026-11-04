@@ -72,7 +72,7 @@ export async function resolveTenantContext(
     .from(schema.tenants)
     .where(eq(schema.tenants.id, tenantId));
 
-  if (!tenant) throw AppError.notFound('Empresa nao encontrada.');
+  if (!tenant) throw AppError.notFound('Empresa não encontrada.');
 
   const siteId = await findPrimarySiteId(db, tenantId);
   // Toda empresa nasce com um site, e a migracao criou um para as que ja
@@ -144,7 +144,7 @@ export async function resolveTenantContext(
     }
   }
 
-  throw AppError.notFound('Empresa nao encontrada.');
+  throw AppError.notFound('Empresa não encontrada.');
 }
 
 /** Garante uma capacidade no escopo da empresa. */
@@ -152,15 +152,15 @@ export function assertTenantCapability(context: TenantContext, capability: Tenan
   if (!context.capabilities.has(capability)) {
     throw AppError.forbidden(
       context.viaSupportGrant
-        ? 'O acesso de suporte e somente leitura e nao permite esta operacao.'
-        : `Seu papel (${context.role}) nao permite esta operacao.`,
+        ? 'O acesso de suporte é somente leitura e não permite esta operação.'
+        : `Seu papel (${context.role}) não permite esta operação.`,
     );
   }
   if (isWriteCapability(capability) && context.readOnly) {
     throw AppError.forbidden(
       context.viaSupportGrant
-        ? 'O acesso de suporte e somente leitura.'
-        : 'A conta desta empresa esta suspensa. Entre em contato com o suporte para reativar.',
+        ? 'O acesso de suporte é somente leitura.'
+        : 'A conta desta empresa está suspensa. Entre em contato com o suporte para reativar.',
     );
   }
 }
@@ -181,7 +181,7 @@ export function assertPlatformCapability(
   capability: PlatformCapability,
 ): void {
   if (!platformRoleCan(session.user.platformRole, capability)) {
-    throw AppError.forbidden('Esta area e restrita a administradores da plataforma.');
+    throw AppError.forbidden('Esta área e restrita a administradores da plataforma.');
   }
 }
 
@@ -195,10 +195,10 @@ export function isPlatformAdmin(session: AuthenticatedSession): boolean {
  */
 export function assertCanManageRole(context: TenantContext, targetRole: TenantRole): void {
   if (targetRole === 'owner' && context.role !== 'owner') {
-    throw AppError.forbidden('Apenas o proprietario pode conceder o papel de proprietario.');
+    throw AppError.forbidden('Apenas o proprietário pode conceder o papel de proprietário.');
   }
   if (!roleCan(context.role, 'members:update') && !roleCan(context.role, 'members:invite')) {
-    throw AppError.forbidden('Seu papel nao permite gerenciar a equipe.');
+    throw AppError.forbidden('Seu papel não permite gerenciar a equipe.');
   }
 }
 
@@ -216,7 +216,7 @@ export function assertBelongsToTenant(
   label = 'Registro',
 ): void {
   if (!row || row.tenantId !== context.tenantId) {
-    throw AppError.notFound(`${label} nao encontrado.`);
+    throw AppError.notFound(`${label} não encontrado.`);
   }
 }
 

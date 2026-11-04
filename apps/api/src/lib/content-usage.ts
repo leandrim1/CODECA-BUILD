@@ -148,8 +148,8 @@ export async function assertContentCapacity(
 
   if (total + increment > max) {
     throw AppError.planLimit(
-      `O plano ${plan.planName} permite ate ${max} conteudos cadastrados e voce ja utiliza ${total}. `
-        + 'Exclua conteudos que nao usa mais ou atualize o plano para cadastrar novos.',
+      `O plano ${plan.planName} permite até ${max} conteúdos cadastrados e você já utiliza ${total}. `
+        + 'Exclua conteúdos que não usa mais ou atualize o plano para cadastrar novos.',
       { limit: 'maxContentRecords', max, current: total, planCode: plan.planCode },
     );
   }

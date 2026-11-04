@@ -31,9 +31,9 @@ import type { MemberRecord } from '../types/index.js';
  * papel nao alcanca, mas quem decide e o servidor em cada requisicao.
  */
 const ROLE_DESCRIPTIONS: Record<string, string> = {
-  owner: 'Acesso total, incluindo plano, assinatura e exclusao da empresa.',
-  admin: 'Administra empresa, equipe, dominios e todo o conteudo.',
-  editor: 'Cria e publica conteudo e paginas; nao administra equipe nem dominios.',
+  owner: 'Acesso total, incluindo plano, assinatura e exclusão da empresa.',
+  admin: 'Administra empresa, equipe, domínios e todo o conteúdo.',
+  editor: 'Cria e publica conteúdo e páginas; não administra equipe nem domínios.',
   viewer: 'Apenas consulta, sem alterar nada.',
 };
 
@@ -53,12 +53,12 @@ export function UsersPage() {
     {
       onSuccess: (result) => {
         if (result.emailDelivery.delivered) {
-          toast.success('Convite enviado', 'A pessoa recebera um link para definir a senha.');
+          toast.success('Convite enviado', 'A pessoa receberá um link para definir a senha.');
         } else {
           toast.push({
             tone: 'warning',
-            title: 'Convite criado, mas o e-mail nao saiu',
-            description: result.emailDelivery.reason ?? 'Verifique a configuracao de e-mail do ambiente.',
+            title: 'Convite criado, mas o e-mail não saiu',
+            description: result.emailDelivery.reason ?? 'Verifique a configuração de e-mail do ambiente.',
           });
         }
         setInviting(false);
@@ -67,8 +67,8 @@ export function UsersPage() {
       },
       onError: (error) => {
         form.applyApiError(error);
-        if (error.isPlanLimit) toast.error('Limite de usuarios alcancado', error.message);
-        else if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel convidar', error.message);
+        if (error.isPlanLimit) toast.error('Limite de usuários alcançado', error.message);
+        else if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível convidar', error.message);
       },
     },
   );
@@ -81,7 +81,7 @@ export function UsersPage() {
         toast.success('Papel atualizado');
         list.reload();
       },
-      onError: (error) => toast.error('Nao foi possivel alterar', error.message),
+      onError: (error) => toast.error('Não foi possível alterar', error.message),
     },
   );
 
@@ -91,7 +91,7 @@ export function UsersPage() {
       setRemoving(null);
       list.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel remover', error.message),
+    onError: (error) => toast.error('Não foi possível remover', error.message),
   });
 
   const currentRole = tenant?.role ?? 'viewer';
@@ -104,7 +104,7 @@ export function UsersPage() {
         <div className="min-w-0">
           <p className="truncate font-medium text-slate-900">
             {member.name || member.email}
-            {member.userId === user?.id ? <span className="ml-1.5 text-xs text-slate-400">(voce)</span> : null}
+            {member.userId === user?.id ? <span className="ml-1.5 text-xs text-slate-400">(você)</span> : null}
           </p>
           <p className="truncate text-xs text-slate-500">{member.email}</p>
         </div>
@@ -131,19 +131,19 @@ export function UsersPage() {
     },
     {
       key: 'status',
-      header: 'Situacao',
+      header: 'Situação',
       render: (member) => (
         <div className="grid gap-1">
           <Badge tone={member.status === 'active' ? 'success' : member.status === 'invited' ? 'warning' : 'neutral'}>
             {member.status === 'active' ? 'Ativo' : member.status === 'invited' ? 'Convite pendente' : 'Desativado'}
           </Badge>
-          {member.emailVerifiedAt ? null : <span className="text-xs text-slate-400">E-mail nao confirmado</span>}
+          {member.emailVerifiedAt ? null : <span className="text-xs text-slate-400">E-mail não confirmado</span>}
         </div>
       ),
     },
     {
       key: 'access',
-      header: 'Ultimo acesso',
+      header: 'Último acesso',
       hideOnMobile: true,
       render: (member) =>
         member.lastLoginAt ? (
@@ -173,7 +173,7 @@ export function UsersPage() {
   return (
     <div className="panel-shell grid gap-6">
       <PageHeader
-        title="Equipe e usuarios"
+        title="Equipe e usuários"
         description="Quem tem acesso ao painel desta empresa e o que cada pessoa pode fazer."
         actions={
           can('members:invite') ? (
@@ -201,7 +201,7 @@ export function UsersPage() {
       <Card>
         <CardHeader
           title="O que cada papel pode fazer"
-          description="As permissoes sao verificadas no servidor em todas as operacoes."
+          description="As permissões são verificadas no servidor em todas as operações."
         />
         <CardBody>
           <ul className="grid gap-3 sm:grid-cols-2">
@@ -213,7 +213,7 @@ export function UsersPage() {
                 </p>
                 <p className="mt-1 text-sm text-slate-600">{ROLE_DESCRIPTIONS[role]}</p>
                 <p className="mt-1.5 text-xs text-slate-400">
-                  {tenantCapabilities(role).length} permissoes
+                  {tenantCapabilities(role).length} permissões
                 </p>
               </li>
             ))}
@@ -264,7 +264,7 @@ export function UsersPage() {
           />
           <Alert tone="info">
             <Mail aria-hidden="true" className="mr-1 inline size-3.5" />
-            O vinculo so passa a valer quando a pessoa aceitar o convite.
+            O vínculo só passa a valer quando a pessoa aceitar o convite.
           </Alert>
         </div>
       </Modal>
@@ -274,7 +274,7 @@ export function UsersPage() {
         title="Remover acesso"
         message={
           <>
-            <strong>{removing?.name || removing?.email}</strong> perdera o acesso ao painel desta empresa.
+            <strong>{removing?.name || removing?.email}</strong> perderá o acesso ao painel desta empresa.
             A conta da pessoa continua existindo na plataforma.
           </>
         }

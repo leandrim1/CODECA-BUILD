@@ -97,14 +97,14 @@ export class ValidaPayClient {
       throw new ValidaPayError(
         response.status,
         'AUTH_FAILED',
-        `Nao foi possivel autenticar na ValidaPay (HTTP ${response.status}). `
+        `Não foi possível autenticar na ValidaPay (HTTP ${response.status}). `
           + 'Confira VALIDAPAY_CLIENT_ID, VALIDAPAY_CLIENT_SECRET e os escopos da credencial.',
       );
     }
 
     const data = (await response.json()) as TokenResponse;
     if (!data.access_token) {
-      throw new ValidaPayError(502, 'AUTH_INVALID_RESPONSE', 'A ValidaPay nao devolveu um token.');
+      throw new ValidaPayError(502, 'AUTH_INVALID_RESPONSE', 'A ValidaPay não devolveu um token.');
     }
 
     const ttlMs = Math.max(0, (data.expires_in ?? 3600) * 1000 - TOKEN_EXPIRY_MARGIN_MS);
@@ -249,48 +249,48 @@ export function toAppError(error: unknown): AppError {
     switch (error.providerCode) {
       case 'PRICE_INACTIVE':
         return AppError.conflict(
-          'O plano escolhido esta inativo no provedor de pagamento. Sincronize o plano antes de contratar.',
+          'O plano escolhido está inativo no provedor de pagamento. Sincronize o plano antes de contratar.',
           { providerCode: error.providerCode },
         );
       case 'PRICE_NOT_FOUND':
         return AppError.conflict(
-          'O plano ainda nao foi sincronizado com o provedor de pagamento.',
+          'O plano ainda não foi sincronizado com o provedor de pagamento.',
           { providerCode: error.providerCode },
         );
       case 'PIX_AUTOMATICO_PJ_ONLY':
         return AppError.badRequest(
-          'O Pix Automatico exige que a conta ValidaPay da plataforma seja PJ (CNPJ). '
+          'O Pix Automático exige que a conta ValidaPay da plataforma seja PJ (CNPJ). '
             + 'Escolha outra forma de pagamento.',
           { providerCode: error.providerCode },
         );
       case 'PIX_AUTOMATICO_MIN_AMOUNT':
         return AppError.badRequest(
-          'O Pix Automatico exige valor minimo de R$ 4,99 por cobranca.',
+          'O Pix Automático exige valor mínimo de R$ 4,99 por cobrança.',
           { providerCode: error.providerCode },
         );
       case 'PIX_AUTOMATICO_FIXED_AMOUNT':
         return AppError.conflict(
-          'A autorizacao de Pix Automatico deste cliente e de valor fixo: a troca de plano exige uma '
-            + 'nova autorizacao. Troque a forma de pagamento para continuar.',
+          'A autorização de Pix Automático deste cliente e de valor fixo: a troca de plano exige uma '
+            + 'nova autorização. Troque a forma de pagamento para continuar.',
           { providerCode: error.providerCode },
         );
       case 'RECURRENCE_CHANGE_REQUIRES_NEW_ADHESION':
         return AppError.conflict(
-          'Mudar a periodicidade no Pix Automatico exige uma nova autorizacao do pagador.',
+          'Mudar a periodicidade no Pix Automático exige uma nova autorização do pagador.',
           { providerCode: error.providerCode },
         );
       case 'SUBSCRIPTION_ALREADY_CANCELED':
-        return AppError.conflict('Esta assinatura ja esta cancelada.', {
+        return AppError.conflict('Esta assinatura já está cancelada.', {
           providerCode: error.providerCode,
         });
       case 'SUBSCRIPTION_NOT_FOUND':
-        return AppError.notFound('Assinatura nao encontrada no provedor de pagamento.');
+        return AppError.notFound('Assinatura não encontrada no provedor de pagamento.');
       case 'CHARGE_NOT_FOUND':
-        return AppError.notFound('Cobranca nao encontrada no provedor de pagamento.');
+        return AppError.notFound('Cobrança não encontrada no provedor de pagamento.');
       case 'PAYMENT_DECLINED':
       case 'PAYMENT_FAILED':
         return AppError.badRequest(
-          'O pagamento foi recusado. Tente outra forma de pagamento ou outro cartao.',
+          'O pagamento foi recusado. Tente outra forma de pagamento ou outro cartão.',
           { providerCode: error.providerCode },
         );
       case 'AUTH_FAILED':
@@ -301,7 +301,7 @@ export function toAppError(error: unknown): AppError {
 
     if (error.status === 403) {
       return AppError.notConfigured(
-        'A credencial da ValidaPay nao tem permissao para esta operacao. Revise os escopos '
+        'A credencial da ValidaPay não tem permissão para esta operação. Revise os escopos '
           + '(products, checkouts, subscriptions e charges) na credencial configurada.',
       );
     }
@@ -310,7 +310,7 @@ export function toAppError(error: unknown): AppError {
     }
     return new AppError(
       'upstream_error',
-      'O provedor de pagamento esta indisponivel agora. Tente novamente em instantes.',
+      'O provedor de pagamento está indisponível agora. Tente novamente em instantes.',
       { providerCode: error.providerCode },
     );
   }
@@ -318,11 +318,11 @@ export function toAppError(error: unknown): AppError {
   if (error instanceof Error && error.name === 'AbortError') {
     return new AppError(
       'upstream_error',
-      'O provedor de pagamento nao respondeu no tempo esperado. Tente novamente.',
+      'O provedor de pagamento não respondeu no tempo esperado. Tente novamente.',
     );
   }
 
-  return new AppError('upstream_error', 'Falha de comunicacao com o provedor de pagamento.');
+  return new AppError('upstream_error', 'Falha de comunicação com o provedor de pagamento.');
 }
 
 /** Hosts padrao por ambiente, conforme a documentacao. */
@@ -343,6 +343,6 @@ export function resolveAuthUrl(env: Env): string {
   // Host personalizado: exige a variavel explicita, em vez de adivinhar.
   throw new AppError(
     'integration_not_configured',
-    `VALIDAPAY_BASE_URL aponta para ${base}: defina tambem VALIDAPAY_AUTH_URL com o host do OAuth2.`,
+    `VALIDAPAY_BASE_URL aponta para ${base}: defina também VALIDAPAY_AUTH_URL com o host do OAuth2.`,
   );
 }

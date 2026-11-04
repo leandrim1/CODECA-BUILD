@@ -71,7 +71,7 @@ export function MediaPage() {
         setEditing(null);
         list.reload();
       },
-      onError: (error) => toast.error('Nao foi possivel salvar', error.message),
+      onError: (error) => toast.error('Não foi possível salvar', error.message),
     },
   );
 
@@ -84,7 +84,7 @@ export function MediaPage() {
     },
     onError: (error) => {
       const description = (error.details as { usage?: unknown } | undefined) ? error.message : error.message;
-      toast.error('Nao foi possivel remover', description);
+      toast.error('Não foi possível remover', description);
       setRemoving(null);
     },
   });
@@ -103,7 +103,7 @@ export function MediaPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Biblioteca de imagens"
-        description="Arquivos enviados ficam no armazenamento da plataforma e podem ser usados em qualquer conteudo da empresa."
+        description="Arquivos enviados ficam no armazenamento da plataforma e podem ser usados em qualquer conteúdo da empresa."
         actions={
           can('media:upload') ? (
             <UploadButton
@@ -120,10 +120,10 @@ export function MediaPage() {
       />
 
       {usage.data && !usage.data.blobConfigured ? (
-        <Alert tone="warning" title="Armazenamento de arquivos nao configurado">
+        <Alert tone="warning" title="Armazenamento de arquivos não configurado">
           O envio de imagens depende de um Blob store conectado ao projeto na Vercel, em
           <strong> Storage</strong>. Conectar define <code>BLOB_STORE_ID</code> sozinho; nenhuma
-          variavel precisa ser criada a mao. Os demais recursos do painel seguem funcionando.
+          variável precisa ser criada a mão. Os demais recursos do painel seguem funcionando.
         </Alert>
       ) : null}
 
@@ -164,7 +164,7 @@ export function MediaPage() {
           <CardBody className="grid gap-4">
             <Switch
               label="Mostrar apenas arquivos sem uso"
-              hint="Arquivos que nenhum imovel, obra, servico ou pagina esta usando."
+              hint="Arquivos que nenhum imóvel, obra, serviço ou página está usando."
               checked={unusedOnly}
               onChange={(checked) => {
                 setUnusedOnly(checked);
@@ -180,8 +180,8 @@ export function MediaPage() {
                     title={unusedOnly ? 'Nenhum arquivo sem uso' : 'Nenhum arquivo ainda'}
                     description={
                       unusedOnly
-                        ? 'Todos os arquivos da biblioteca estao sendo usados em algum conteudo.'
-                        : 'Envie fotos de imoveis, obras e da empresa para usar nas paginas do site.'
+                        ? 'Todos os arquivos da biblioteca estão sendo usados em algum conteúdo.'
+                        : 'Envie fotos de imóveis, obras e da empresa para usar nas páginas do site.'
                     }
                   />
                 ) : (
@@ -254,7 +254,7 @@ export function MediaPage() {
                   </ul>
                   <p className="text-xs text-slate-500">
                     O texto alternativo descreve a imagem para leitores de tela e para os buscadores. Vale
-                    preencher em todas as fotos de imoveis e obras.
+                    preencher em todas as fotos de imóveis e obras.
                   </p>
                 </>
               )}
@@ -278,13 +278,13 @@ export function MediaPage() {
         message={
           removeBlockedBy && removeBlockedBy.length > 0 ? (
             <>
-              <strong>{removing?.fileName}</strong> esta em uso em {removeBlockedBy.join(', ')}. Remova as
-              referencias antes de excluir, para o site nao ficar com imagem quebrada.
+              <strong>{removing?.fileName}</strong> está em uso em {removeBlockedBy.join(', ')}. Remova as
+              referências antes de excluir, para o site não ficar com imagem quebrada.
             </>
           ) : (
             <>
-              <strong>{removing?.fileName}</strong> sera removido da biblioteca e do armazenamento. Esta acao
-              nao pode ser desfeita.
+              <strong>{removing?.fileName}</strong> será removido da biblioteca e do armazenamento. Esta ação
+              não pode ser desfeita.
             </>
           )
         }
@@ -342,7 +342,7 @@ function EditAssetModal({
           hint="Descreva a imagem em poucas palavras. Usado por leitores de tela e pelos buscadores."
           onChange={(event) => setAlt(event.target.value)}
         />
-        <TextInput label="Titulo" value={title} onChange={(event) => setTitle(event.target.value)} />
+        <TextInput label="Título" value={title} onChange={(event) => setTitle(event.target.value)} />
         <TextInput
           label="Etiqueta"
           value={tag}
@@ -364,7 +364,7 @@ function EditAssetModal({
           </div>
           {asset.width && asset.height ? (
             <div>
-              <dt className="font-medium text-slate-600">Dimensoes</dt>
+              <dt className="font-medium text-slate-600">Dimensões</dt>
               <dd>
                 {asset.width} x {asset.height} px
               </dd>

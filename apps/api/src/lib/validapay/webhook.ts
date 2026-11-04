@@ -109,10 +109,10 @@ function constantTimeEquals(a: string, b: string): boolean {
 }
 
 export const WEBHOOK_FAILURE_MESSAGES: Record<WebhookVerificationFailure, string> = {
-  missing_signature: 'Cabecalho X-Webhook-Signature ausente.',
-  malformed_signature: 'Cabecalho X-Webhook-Signature em formato invalido.',
-  invalid_signature: 'Assinatura do webhook invalida.',
-  timestamp_out_of_tolerance: 'Timestamp do webhook fora da janela de tolerancia.',
-  invalid_access_token: 'Token estatico do webhook invalido.',
-  not_configured: 'VALIDAPAY_WEBHOOK_SECRET nao configurado no servidor.',
+  missing_signature: 'Cabeçalho X-Webhook-Signature ausente.',
+  malformed_signature: 'Cabeçalho X-Webhook-Signature em formato inválido.',
+  invalid_signature: 'Assinatura do webhook inválida.',
+  timestamp_out_of_tolerance: 'Timestamp do webhook fora da janela de tolerância.',
+  invalid_access_token: 'Token estatico do webhook inválido.',
+  not_configured: 'VALIDAPAY_WEBHOOK_SECRET não configurado no servidor.',
 };

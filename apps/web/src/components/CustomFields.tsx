@@ -130,7 +130,7 @@ export function CampoPersonalizado({
     return (
       <TextArea
         {...comum}
-        hint={dica ?? 'Separe por virgula.'}
+        hint={dica ?? 'Separe por vírgula.'}
         rows={2}
         value={Array.isArray(valor) ? (valor as string[]).join(', ') : typeof valor === 'string' ? valor : ''}
         onChange={(event) => onChange(event.target.value)}

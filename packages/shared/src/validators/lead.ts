@@ -38,5 +38,5 @@ export const updateLeadSchema = z.object({
 });
 
 export const leadNoteSchema = z.object({
-  note: z.string().trim().min(1, 'Escreva a observacao.').max(4000),
+  note: z.string().trim().min(1, 'Escreva a observação.').max(4000),
 });

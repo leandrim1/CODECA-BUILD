@@ -106,7 +106,7 @@ export async function queueContentPublished(
     return { queued: linhas.length };
   } catch (error) {
     // Registrar e seguir. A escrita do cliente ja aconteceu.
-    console.error('[webhook] nao foi possivel enfileirar content.published:', descrever(error));
+    console.error('[webhook] não foi possível enfileirar content.published:', descrever(error));
     return { queued: 0 };
   }
 }
@@ -166,7 +166,7 @@ export async function attemptDelivery(
       .update(schema.webhookDeliveries)
       .set({
         status: 'exhausted',
-        lastError: 'Endereco desativado antes da entrega.',
+        lastError: 'Endereço desativado antes da entrega.',
         updatedAt: ctx.now(),
       })
       .where(eq(schema.webhookDeliveries.id, deliveryId));
@@ -351,7 +351,7 @@ async function enviar(
 /** Motivo curto e sem dado sensivel, para a coluna de erro. */
 function descrever(error: unknown): string {
   if (error instanceof DOMException && error.name === 'AbortError') {
-    return `O site nao respondeu em ${OUTBOUND_TIMEOUT_MS / 1000}s.`;
+    return `O site não respondeu em ${OUTBOUND_TIMEOUT_MS / 1000}s.`;
   }
   if (error instanceof Error) {
     // A mensagem do fetch costuma trazer o host, que nao e segredo: ele foi

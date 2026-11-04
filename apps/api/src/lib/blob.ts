@@ -89,7 +89,7 @@ export function createVercelBlobStorage(token?: string): BlobStorage {
 export function createUnconfiguredBlobStorage(): BlobStorage {
   const fail = (): never => {
     throw AppError.notConfigured(
-      'O armazenamento de arquivos nao esta configurado. Conecte um Blob store ao projeto na '
+      'O armazenamento de arquivos não está configurado. Conecte um Blob store ao projeto na '
         + 'Vercel -- isso define BLOB_STORE_ID -- ou defina BLOB_READ_WRITE_TOKEN no ambiente.',
     );
   };

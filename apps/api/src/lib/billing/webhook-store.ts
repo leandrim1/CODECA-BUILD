@@ -100,7 +100,7 @@ export async function processWebhookEvent(
       tenantId: row.tenantId,
       subscriptionId: row.externalSubscriptionId,
       chargeId: row.externalChargeId,
-      detail: 'Evento ja processado anteriormente.',
+      detail: 'Evento já processado anteriormente.',
     };
   }
 
@@ -115,7 +115,7 @@ export async function processWebhookEvent(
       tenantId: null,
       subscriptionId: null,
       chargeId: null,
-      detail: `Evento ${row.event} nao e tratado por esta integracao.`,
+      detail: `Evento ${row.event} não é tratado por esta integração.`,
     };
   }
 

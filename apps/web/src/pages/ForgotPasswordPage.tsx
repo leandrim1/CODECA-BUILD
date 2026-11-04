@@ -21,7 +21,7 @@ export function ForgotPasswordPage() {
         <div className="mt-8 grid gap-4">
           {/* A mensagem e a mesma para qualquer e-mail, para nao revelar cadastros. */}
           <Alert tone="success" title="Verifique sua caixa de entrada">
-            Se existir uma conta com <strong>{email}</strong>, o link de redefinicao chega em alguns minutos.
+            Se existir uma conta com <strong>{email}</strong>, o link de redefinição chega em alguns minutos.
             O link expira em 2 horas.
           </Alert>
           <Link to="/entrar">

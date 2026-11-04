@@ -38,37 +38,37 @@ export function DomainsPage() {
 
   const add = useMutation((value: string) => domainApi.add(tenantId, value), {
     onSuccess: (result) => {
-      toast.success('Dominio cadastrado', result.message);
+      toast.success('Domínio cadastrado', result.message);
       setHostname('');
       list.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel cadastrar', error.message),
+    onError: (error) => toast.error('Não foi possível cadastrar', error.message),
   });
 
   const verify = useMutation((domainId: string) => domainApi.verify(tenantId, domainId), {
     onSuccess: (result) => {
-      if (result.domain?.status === 'active') toast.success('Dominio ativo', result.message);
-      else toast.push({ tone: 'warning', title: 'Verificacao pendente', description: result.message });
+      if (result.domain?.status === 'active') toast.success('Domínio ativo', result.message);
+      else toast.push({ tone: 'warning', title: 'Verificação pendente', description: result.message });
       list.reload();
     },
-    onError: (error) => toast.error('Falha na verificacao', error.message),
+    onError: (error) => toast.error('Falha na verificação', error.message),
   });
 
   const setPrimary = useMutation((domainId: string) => domainApi.setPrimary(tenantId, domainId), {
     onSuccess: () => {
-      toast.success('Dominio principal atualizado');
+      toast.success('Domínio principal atualizado');
       list.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel definir', error.message),
+    onError: (error) => toast.error('Não foi possível definir', error.message),
   });
 
   const remove = useMutation((domainId: string) => domainApi.remove(tenantId, domainId), {
     onSuccess: () => {
-      toast.success('Dominio desvinculado');
+      toast.success('Domínio desvinculado');
       setRemoving(null);
       list.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel desvincular', error.message),
+    onError: (error) => toast.error('Não foi possível desvincular', error.message),
   });
 
   async function copy(value: string) {
@@ -76,24 +76,24 @@ export function DomainsPage() {
       await navigator.clipboard.writeText(value);
       toast.success('Copiado');
     } catch {
-      toast.error('Nao foi possivel copiar', 'Selecione o texto e copie manualmente.');
+      toast.error('Não foi possível copiar', 'Selecione o texto e copie manualmente.');
     }
   }
 
   return (
     <div className="panel-shell grid gap-6">
       <PageHeader
-        title="Dominio proprio"
-        description="O endereco da empresa, por exemplo www.suaempresa.com.br, vinculado a este site."
+        title="Domínio próprio"
+        description="O endereço da empresa, por exemplo www.suaempresa.com.br, vinculado a este site."
       />
 
       <ResourcePanel resource={list}>
         {(data) => (
           <div className="grid gap-6">
             {!data.customDomainAvailable ? (
-              <Alert tone="warning" title="Recurso nao incluido no plano">
-                O plano {data.limits.planName} nao inclui dominio proprio. Atualize o plano para conectar o
-                endereco da empresa.
+              <Alert tone="warning" title="Recurso não incluído no plano">
+                O plano {data.limits.planName} não inclui domínio próprio. Atualize o plano para conectar o
+                endereço da empresa.
               </Alert>
             ) : null}
 
@@ -103,31 +103,31 @@ export function DomainsPage() {
               delas. Quando hospeda, a falta delas e o que impede a ativacao.
             */}
             {!data.hosting.managed && data.customDomainAvailable ? (
-              <Alert tone="info" title="O site deste projeto nao e hospedado pela plataforma">
-                Os enderecos ficam <strong>registrados</strong> nesta conta, mas a CODECA Build nao
-                verifica nem configura o DNS deles: o apontamento e feito no provedor onde o site esta
-                hospedado. Em caso de duvida, fale com a CODECA IA.
+              <Alert tone="info" title="O site deste projeto não é hospedado pela plataforma">
+                Os endereços ficam <strong>registrados</strong> nesta conta, mas a CODECA Build não
+                verifica nem configura o DNS deles: o apontamento é feito no provedor onde o site está
+                hospedado. Em caso de dúvida, fale com a CODECA IA.
               </Alert>
             ) : null}
 
             {data.hosting.managed && !data.providerConfigured ? (
-              <Alert tone="warning" title="Verificacao automatica indisponivel">
-                A plataforma nao esta com as credenciais da Vercel configuradas (
-                <code>VERCEL_API_TOKEN</code>). Os dominios ficam aguardando configuracao externa e nao
-                sao ativados automaticamente.
+              <Alert tone="warning" title="Verificação automática indisponível">
+                A plataforma não está com as credenciais da Vercel configuradas (
+                <code>VERCEL_API_TOKEN</code>). Os domínios ficam aguardando configuração externa e não
+                são ativados automaticamente.
               </Alert>
             ) : null}
 
             {user && !user.emailVerified ? (
               <Alert tone="warning" title="Confirme seu e-mail">
-                A conexao de dominio exige e-mail confirmado.
+                A conexão de domínio exige e-mail confirmado.
               </Alert>
             ) : null}
 
             {can('domains:manage') ? (
               <Card>
                 <CardHeader
-                  title="Adicionar dominio"
+                  title="Adicionar domínio"
                   description={`Seu plano permite ${data.limits.maxDomains} dominio(s).`}
                 />
                 <CardBody>
@@ -140,11 +140,11 @@ export function DomainsPage() {
                   >
                     <div className="w-full min-w-0 flex-1 sm:min-w-64">
                       <TextInput
-                        label="Dominio"
+                        label="Domínio"
                         placeholder="www.suaempresa.com.br"
                         value={hostname}
                         error={add.error?.fieldErrors.domain}
-                        hint="Informe com ou sem www. Enderecos administrativos (app, painel, api) sao reservados."
+                        hint="Informe com ou sem www. Endereços administrativos (app, painel, api) são reservados."
                         onChange={(event) => setHostname(event.target.value)}
                       />
                     </div>
@@ -165,8 +165,8 @@ export function DomainsPage() {
                 <CardBody>
                   <EmptyState
                     icon={<Globe aria-hidden="true" className="size-8" />}
-                    title="Nenhum dominio conectado"
-                    description="Enquanto nao houver dominio ativo, o site pode ser visto apenas pela previa do painel."
+                    title="Nenhum domínio conectado"
+                    description="Enquanto não houver domínio ativo, o site pode ser visto apenas pela prévia do painel."
                   />
                 </CardBody>
               </Card>
@@ -197,8 +197,8 @@ export function DomainsPage() {
                         domain.status === 'registered'
                           ? 'Registrado nesta conta'
                           : domain.lastCheckedAt
-                            ? `Ultima verificacao em ${formatDateTime(domain.lastCheckedAt)}`
-                            : 'Ainda nao verificado'
+                            ? `Última verificação em ${formatDateTime(domain.lastCheckedAt)}`
+                            : 'Ainda não verificado'
                       }
                       actions={
                         can('domains:manage') ? (
@@ -258,7 +258,7 @@ export function DomainsPage() {
                             <div className="grid gap-2">
                               <h3 className="text-sm font-semibold text-slate-800">Registros de DNS</h3>
                               <p className="text-xs text-slate-500">
-                                Configure estes registros no painel do seu provedor de dominio. A propagacao pode
+                                Configure estes registros no painel do seu provedor de domínio. A propagação pode
                                 levar algumas horas; use "Verificar novamente" depois.
                               </p>
                               <div className="overflow-x-auto">
@@ -300,7 +300,7 @@ export function DomainsPage() {
                                   aria-hidden="true"
                                   className={domain.ownershipVerified ? 'size-3.5 text-emerald-600' : 'size-3.5 text-slate-300'}
                                 />
-                                Propriedade do dominio comprovada
+                                Propriedade do domínio comprovada
                               </li>
                               <li className="flex items-center gap-1.5">
                                 <CheckCircle2
@@ -333,11 +333,11 @@ export function DomainsPage() {
 
       <ConfirmDialog
         open={removing !== null}
-        title="Desvincular dominio"
+        title="Desvincular domínio"
         message={
           <>
-            O dominio <strong>{removing?.hostname}</strong> deixara de responder pelo site. Os registros de
-            DNS no seu provedor continuam como estao e podem ser removidos por la.
+            O domínio <strong>{removing?.hostname}</strong> deixará de responder pelo site. Os registros de
+            DNS no seu provedor continuam como estão e podem ser removidos por lá.
           </>
         }
         confirmLabel="Desvincular"

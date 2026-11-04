@@ -49,14 +49,14 @@ export function BannersPage() {
       setRemovendo(null);
       banners.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel remover', error.message),
+    onError: (error) => toast.error('Não foi possível remover', error.message),
   });
 
   return (
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Banners"
-        description="Destaques que abrem o seu site. A ordem define a sequencia de exibicao."
+        description="Destaques que abrem o seu site. A ordem define a sequência de exibição."
         actions={
           <Can capability="content:write">
             <Button
@@ -76,7 +76,7 @@ export function BannersPage() {
           data.items.length === 0 ? (
             <EmptyState
               title="Nenhum banner cadastrado"
-              description="Um banner tem imagem, titulo e, se quiser, um botao que leva para outra pagina do site."
+              description="Um banner tem imagem, título e, se quiser, um botão que leva para outra página do site."
               action={
                 <Can capability="content:write">
                   <Button onClick={() => setEditando('novo')}>Criar o primeiro</Button>
@@ -113,7 +113,7 @@ export function BannersPage() {
                       ) : null}
                       {banner.buttonLabel ? (
                         <p className="mt-1 text-xs text-slate-500">
-                          Botao: {banner.buttonLabel} - {banner.buttonUrl}
+                          Botão: {banner.buttonLabel} - {banner.buttonUrl}
                         </p>
                       ) : null}
                       <Janela banner={banner} />
@@ -153,7 +153,7 @@ export function BannersPage() {
       <ConfirmDialog
         open={removendo !== null}
         title="Remover este banner?"
-        message="Ele sai do seu site assim que a pagina for recarregada. A imagem continua na Biblioteca de imagens."
+        message="Ele sai do seu site assim que a página for recarregada. A imagem continua na Biblioteca de imagens."
         confirmLabel="Remover"
         tone="danger"
         loading={remover.loading}
@@ -175,7 +175,7 @@ function Janela({ banner }: { banner: BannerRecord }) {
     ? banner.endsAt
       ? `Aparece de ${formatar(banner.startsAt)} a ${formatar(banner.endsAt)}`
       : `Aparece a partir de ${formatar(banner.startsAt)}`
-    : `Aparece ate ${formatar(banner.endsAt!)}`;
+    : `Aparece até ${formatar(banner.endsAt!)}`;
 
   return <p className="mt-1 text-xs text-slate-500">{texto}</p>;
 }
@@ -229,7 +229,7 @@ function FormularioBanner({
       },
       onError: (error) => {
         applyApiError(error);
-        toast.error('Nao foi possivel salvar', error.message);
+        toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -243,7 +243,7 @@ function FormularioBanner({
       open
       onClose={onClose}
       title={banner ? 'Editar banner' : 'Novo banner'}
-      description="O titulo aparece sobre a imagem. O botao e opcional."
+      description="O título aparece sobre a imagem. O botão é opcional."
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
@@ -257,7 +257,7 @@ function FormularioBanner({
     >
       <div className="grid gap-4">
         <TextInput
-          label="Titulo"
+          label="Título"
           required
           value={values.title}
           error={errors.title}
@@ -267,7 +267,7 @@ function FormularioBanner({
         />
 
         <TextArea
-          label="Subtitulo"
+          label="Subtítulo"
           rows={2}
           value={values.subtitle}
           error={errors.subtitle}
@@ -286,14 +286,14 @@ function FormularioBanner({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <TextInput
-            label="Texto do botao"
+            label="Texto do botão"
             value={values.buttonLabel}
             error={errors.buttonLabel}
-            hint="Deixe vazio para um banner sem botao."
+            hint="Deixe vazio para um banner sem botão."
             onChange={(event) => setField('buttonLabel', event.target.value)}
           />
           <TextInput
-            label="Link do botao"
+            label="Link do botão"
             value={values.buttonUrl}
             error={errors.buttonUrl}
             placeholder="/imoveis"
@@ -302,8 +302,8 @@ function FormularioBanner({
         </div>
 
         {values.buttonLabel.trim() !== '' && values.buttonUrl.trim() === '' ? (
-          <Alert tone="warning" title="O botao precisa de um link">
-            Um botao sem destino nao e exibido no site.
+          <Alert tone="warning" title="O botão precisa de um link">
+            Um botão sem destino não é exibido no site.
           </Alert>
         ) : null}
 
@@ -313,7 +313,7 @@ function FormularioBanner({
             type="date"
             value={values.startsAt}
             error={errors.startsAt}
-            hint="Vazio: aparece desde ja."
+            hint="Vazio: aparece desde já."
             onChange={(event) => setField('startsAt', event.target.value)}
           />
           <TextInput
@@ -331,7 +331,7 @@ function FormularioBanner({
           type="number"
           value={values.sortOrder}
           error={errors.sortOrder}
-          hint="Menor numero aparece primeiro."
+          hint="Menor número aparece primeiro."
           onChange={(event) => setField('sortOrder', event.target.value)}
         />
 

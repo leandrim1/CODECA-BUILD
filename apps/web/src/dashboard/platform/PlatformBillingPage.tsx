@@ -89,13 +89,13 @@ export function PlatformBillingPage() {
         limit: 50,
       });
       toast.success(
-        'Reconciliacao concluida',
-        `${report.subscriptionsChecked} assinatura(s) e ${report.chargesChecked} cobranca(s) conferidas; `
+        'Reconciliação concluída',
+        `${report.subscriptionsChecked} assinatura(s) e ${report.chargesChecked} cobrança(s) conferidas; `
           + `${report.divergences.length} divergencia(s), ${report.failures.length} falha(s).`,
       );
       reload();
     } catch (error) {
-      toast.error('Falha na reconciliacao', error instanceof ApiError ? error.message : undefined);
+      toast.error('Falha na reconciliação', error instanceof ApiError ? error.message : undefined);
     } finally {
       setWorking(false);
     }
@@ -123,12 +123,12 @@ export function PlatformBillingPage() {
         hold: !holdTarget.adminHold,
         reason: holdReason,
       });
-      toast.success('Publicacao atualizada', result.message);
+      toast.success('Publicação atualizada', result.message);
       setHoldTarget(null);
       setHoldReason('');
       reload();
     } catch (error) {
-      toast.error('Falha ao alterar a publicacao', error instanceof ApiError ? error.message : undefined);
+      toast.error('Falha ao alterar a publicação', error instanceof ApiError ? error.message : undefined);
     } finally {
       setWorking(false);
     }
@@ -138,7 +138,7 @@ export function PlatformBillingPage() {
     setWorking(true);
     try {
       const result = await platformBillingApi.syncPlan(planId);
-      toast.success(`Plano ${planName} sincronizado`, `Preco criado: ${result.externalPriceId}.`);
+      toast.success(`Plano ${planName} sincronizado`, `Preço criado: ${result.externalPriceId}.`);
       overview.reload();
     } catch (error) {
       toast.error('Falha ao sincronizar', error instanceof ApiError ? error.message : undefined);
@@ -177,7 +177,7 @@ export function PlatformBillingPage() {
       },
       {
         key: 'publication',
-        header: 'Publicacao',
+        header: 'Publicação',
         render: (row) => (
           <div className="grid gap-0.5">
             <Badge tone={row.publicationState === 'allowed' ? 'success' : 'danger'}>
@@ -187,22 +187,22 @@ export function PlatformBillingPage() {
               <span className="text-xs text-rose-600">Suspenso: {row.adminHoldReason}</span>
             ) : null}
             {row.disputeHold ? (
-              <span className="text-xs text-amber-700">Estorno em revisao</span>
+              <span className="text-xs text-amber-700">Estorno em revisão</span>
             ) : null}
           </div>
         ),
       },
       {
         key: 'period',
-        header: 'Acesso / proxima',
+        header: 'Acesso / próxima',
         hideOnMobile: true,
         render: (row) => (
           <div className="grid gap-0.5 text-xs text-slate-600">
-            <span>{row.accessUntil ? `ate ${formatDateTime(row.accessUntil)}` : 'sem acesso pago'}</span>
+            <span>{row.accessUntil ? `até ${formatDateTime(row.accessUntil)}` : 'sem acesso pago'}</span>
             <span>
-              {row.nextChargeAt ? `cobra ${formatDateTime(row.nextChargeAt)}` : 'sem cobranca programada'}
+              {row.nextChargeAt ? `cobra ${formatDateTime(row.nextChargeAt)}` : 'sem cobrança programada'}
             </span>
-            <span>tolerancia: {row.gracePeriodDays} dia(s)</span>
+            <span>tolerância: {row.gracePeriodDays} dia(s)</span>
           </div>
         ),
       },
@@ -212,7 +212,7 @@ export function PlatformBillingPage() {
         hideOnMobile: true,
         render: (row) => (
           <div className="grid gap-0.5 text-xs text-slate-500">
-            <code>{row.externalSubscriptionId ?? 'nao vinculada'}</code>
+            <code>{row.externalSubscriptionId ?? 'não vinculada'}</code>
             <span>
               {row.lastSyncedAt ? `sinc. ${formatDateTime(row.lastSyncedAt)}` : 'nunca sincronizada'}
             </span>
@@ -246,7 +246,7 @@ export function PlatformBillingPage() {
                 setHoldReason('');
               }}
               disabled={working}
-              title={row.adminHold ? 'Reativar a publicacao' : 'Suspender a publicacao'}
+              title={row.adminHold ? 'Reativar a publicação' : 'Suspender a publicação'}
             >
               {row.adminHold ? (
                 <ShieldCheck aria-hidden="true" className="size-4 text-emerald-600" />
@@ -254,7 +254,7 @@ export function PlatformBillingPage() {
                 <ShieldOff aria-hidden="true" className="size-4 text-rose-600" />
               )}
               <span className="sr-only">
-                {row.adminHold ? 'Reativar publicacao' : 'Suspender publicacao'}
+                {row.adminHold ? 'Reativar publicação' : 'Suspender publicação'}
               </span>
             </Button>
           </div>
@@ -288,12 +288,12 @@ export function PlatformBillingPage() {
       },
       {
         key: 'status',
-        header: 'Situacao',
+        header: 'Situação',
         render: (row) => <Badge tone={chargeTone(row.status)}>{row.statusLabel}</Badge>,
       },
       {
         key: 'external',
-        header: 'Cobranca',
+        header: 'Cobrança',
         hideOnMobile: true,
         render: (row) => (
           <div className="grid gap-0.5 text-xs text-slate-500">
@@ -330,7 +330,7 @@ export function PlatformBillingPage() {
       },
       {
         key: 'status',
-        header: 'Situacao',
+        header: 'Situação',
         render: (row) => (
           <div className="grid gap-0.5">
             <Badge tone={eventTone(row.status)}>{row.status}</Badge>
@@ -382,8 +382,8 @@ export function PlatformBillingPage() {
   return (
     <div className="panel-shell grid gap-6">
       <PageHeader
-        title="Cobranca e assinaturas"
-        description="Assinaturas, cobrancas, eventos de webhook e reconciliacao com a ValidaPay."
+        title="Cobrança e assinaturas"
+        description="Assinaturas, cobranças, eventos de webhook e reconciliação com a ValidaPay."
         actions={
           <Button variant="outline" onClick={() => void runReconcile()} disabled={working}>
             <RefreshCw aria-hidden="true" className="size-4" />
@@ -396,20 +396,20 @@ export function PlatformBillingPage() {
         {(data) => (
           <div className="grid gap-4">
             {!data.provider.configured ? (
-              <Alert tone="warning" title="ValidaPay nao configurada">
+              <Alert tone="warning" title="ValidaPay não configurada">
                 Defina VALIDAPAY_CLIENT_ID e VALIDAPAY_CLIENT_SECRET no ambiente do servidor. Sem
-                elas nenhuma contratacao pode ser concluida.
+                elas nenhuma contratação pode ser concluída.
               </Alert>
             ) : null}
             {!data.provider.webhooksConfigured ? (
-              <Alert tone="warning" title="Webhooks nao configurados">
-                Sem VALIDAPAY_WEBHOOK_SECRET os eventos de pagamento sao recusados, e a ativacao
-                das assinaturas dependeria apenas da reconciliacao.
+              <Alert tone="warning" title="Webhooks não configurados">
+                Sem VALIDAPAY_WEBHOOK_SECRET os eventos de pagamento são recusados, e a ativação
+                das assinaturas dependeria apenas da reconciliação.
               </Alert>
             ) : null}
             {!data.provider.reconciliationConfigured ? (
-              <Alert tone="info" title="Reconciliacao automatica desligada">
-                Defina BILLING_RECONCILIATION_SECRET para habilitar o job periodico.
+              <Alert tone="info" title="Reconciliação automática desligada">
+                Defina BILLING_RECONCILIATION_SECRET para habilitar o job periódico.
               </Alert>
             ) : null}
             {data.webhooks.failed > 0 ? (
@@ -420,7 +420,7 @@ export function PlatformBillingPage() {
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Stat label="Ativas" value={data.subscriptions.active ?? 0} />
-              <Stat label="Em avaliacao" value={data.subscriptions.trialing ?? 0} />
+              <Stat label="Em avaliação" value={data.subscriptions.trialing ?? 0} />
               <Stat label="Aguardando pagamento" value={data.subscriptions.pending ?? 0} />
               <Stat label="Em atraso" value={data.subscriptions.pastDue ?? 0} tone="warning" />
               <Stat label="Canceladas" value={data.subscriptions.canceled ?? 0} />
@@ -428,15 +428,15 @@ export function PlatformBillingPage() {
               <Stat
                 label="Recebido em 30 dias"
                 value={data.paidLast30Days.amountLabel}
-                hint={`${data.paidLast30Days.count} cobranca(s) paga(s)`}
+                hint={`${data.paidLast30Days.count} cobrança(s) paga(s)`}
               />
-              <Stat label="Cobrancas em aberto" value={data.openCharges} />
+              <Stat label="Cobranças em aberto" value={data.openCharges} />
             </div>
 
             <Card>
               <CardHeader
                 title="Planos na ValidaPay"
-                description="Um plano sem preco sincronizado nao pode ser contratado."
+                description="Um plano sem preço sincronizado não pode ser contratado."
               />
               <CardBody className="grid gap-2">
                 {data.plans.map((plan) => (
@@ -454,8 +454,8 @@ export function PlatformBillingPage() {
                             ? `preco ${plan.externalPriceId} - sinc. ${
                                 plan.externalSyncedAt ? formatDateTime(plan.externalSyncedAt) : '-'
                               }`
-                            : 'ainda nao sincronizado'
-                          : 'plano gratuito: nao vira preco na ValidaPay'}
+                            : 'ainda não sincronizado'
+                          : 'plano gratuito: não vira preço na ValidaPay'}
                       </span>
                       {plan.externalSyncError ? (
                         <span className="text-xs text-rose-600">{plan.externalSyncError}</span>
@@ -480,14 +480,14 @@ export function PlatformBillingPage() {
       </ResourcePanel>
 
       <SegmentedControl
-        label="Secao da cobranca"
+        label="Seção da cobrança"
         value={tab}
         onChange={(value) => setTab(value as typeof tab)}
         options={[
           { value: 'assinaturas', label: 'Assinaturas' },
-          { value: 'cobrancas', label: 'Cobrancas' },
+          { value: 'cobrancas', label: 'Cobranças' },
           { value: 'eventos', label: 'Eventos' },
-          { value: 'historico', label: 'Historico' },
+          { value: 'historico', label: 'Histórico' },
         ]}
       />
 
@@ -504,13 +504,13 @@ export function PlatformBillingPage() {
                   onChange={(event) => setSearch(event.target.value)}
                 />
                 <Select
-                  label="Situacao"
+                  label="Situação"
                   value={stateFilter}
                   onChange={(event) => setStateFilter(event.target.value)}
                   placeholder="Todas"
                   options={[
                     { value: 'pending', label: 'Aguardando pagamento' },
-                    { value: 'trialing', label: 'Em avaliacao' },
+                    { value: 'trialing', label: 'Em avaliação' },
                     { value: 'active', label: 'Ativa' },
                     { value: 'past_due', label: 'Em atraso' },
                     { value: 'cancel_at_period_end', label: 'Cancelamento agendado' },
@@ -539,7 +539,7 @@ export function PlatformBillingPage() {
 
       {tab === 'cobrancas' ? (
         <Card>
-          <CardHeader title="Cobrancas" />
+          <CardHeader title="Cobranças" />
           <CardBody>
             <ResourcePanel resource={charges}>
               {(data) => (
@@ -547,7 +547,7 @@ export function PlatformBillingPage() {
                   columns={chargeColumns}
                   rows={data.items}
                   rowKey={(row) => row.id}
-                  empty="Nenhuma cobranca registrada."
+                  empty="Nenhuma cobrança registrada."
                 />
               )}
             </ResourcePanel>
@@ -559,10 +559,10 @@ export function PlatformBillingPage() {
         <Card>
           <CardHeader
             title="Eventos de webhook"
-            description="O mesmo evento pode chegar varias vezes: o reprocessamento e idempotente."
+            description="O mesmo evento pode chegar várias vezes: o reprocessamento e idempotente."
             actions={
               <Select
-                label="Situacao"
+                label="Situação"
                 value={eventStatus}
                 onChange={(event) => setEventStatus(event.target.value)}
                 placeholder="Todas"
@@ -583,7 +583,7 @@ export function PlatformBillingPage() {
                   columns={eventColumns}
                   rows={data.items}
                   rowKey={(row) => row.id}
-                  empty="Nenhum evento nesta situacao."
+                  empty="Nenhum evento nesta situação."
                 />
               )}
             </ResourcePanel>
@@ -594,8 +594,8 @@ export function PlatformBillingPage() {
       {tab === 'historico' ? (
         <Card>
           <CardHeader
-            title="Historico de cobranca"
-            description="Mudancas de estado, publicacao e acoes administrativas, com a origem de cada uma."
+            title="Histórico de cobrança"
+            description="Mudanças de estado, publicação e ações administrativas, com a origem de cada uma."
           />
           <CardBody>
             <ResourcePanel resource={history}>
@@ -638,8 +638,8 @@ export function PlatformBillingPage() {
         onClose={() => setHoldTarget(null)}
         title={
           holdTarget?.adminHold
-            ? `Reativar a publicacao de ${holdTarget.siteName}`
-            : `Suspender a publicacao de ${holdTarget?.siteName ?? ''}`
+            ? `Reativar a publicação de ${holdTarget.siteName}`
+            : `Suspender a publicação de ${holdTarget?.siteName ?? ''}`
         }
         footer={
           <>
@@ -660,15 +660,15 @@ export function PlatformBillingPage() {
         <div className="grid gap-3 text-sm text-slate-600">
           <p className="flex gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
             <AlertTriangle aria-hidden="true" className="size-4 flex-none" />
-            Esta decisao e administrativa e fica registrada em auditoria. Ela nao altera o estado
-            financeiro confirmado pela ValidaPay, e nenhum conteudo da empresa e removido.
+            Esta decisão e administrativa e fica registrada em auditoria. Ela não altera o estado
+            financeiro confirmado pela ValidaPay, e nenhum conteúdo da empresa e removido.
           </p>
           <TextArea
             label="Justificativa"
             rows={3}
             value={holdReason}
             onChange={(event) => setHoldReason(event.target.value)}
-            hint="Minimo de 10 caracteres. Fica visivel no historico de cobranca."
+            hint="Mínimo de 10 caracteres. Fica visível no histórico de cobrança."
           />
         </div>
       </Modal>

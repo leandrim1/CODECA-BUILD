@@ -104,12 +104,12 @@ export function domainRoutes() {
 
       // Hosts da plataforma e subdominios reservados nao podem ser vinculados.
       if (isPlatformHost(hostname, platformHosts(ctx.env))) {
-        throw AppError.conflict('Este endereco pertence a plataforma e nao pode ser vinculado.');
+        throw AppError.conflict('Este endereço pertence a plataforma e não pode ser vinculado.');
       }
       const firstLabel = hostname.split('.')[0] ?? '';
       if (RESERVED_SUBDOMAIN_LABELS.has(firstLabel) && hostname.split('.').length > 2) {
         throw AppError.conflict(
-          `O subdominio "${firstLabel}" e reservado para servicos administrativos. Use outro, como www.`,
+          `O subdominio "${firstLabel}" e reservado para serviços administrativos. Use outro, como www.`,
         );
       }
 
@@ -120,8 +120,8 @@ export function domainRoutes() {
       if (conflict) {
         throw AppError.conflict(
           conflict.tenantId === tenant.tenantId
-            ? 'Este dominio ja esta cadastrado nesta empresa.'
-            : 'Este dominio ja esta vinculado a outra empresa na plataforma.',
+            ? 'Este domínio já está cadastrado nesta empresa.'
+            : 'Este domínio já está vinculado a outra empresa na plataforma.',
         );
       }
 
@@ -157,7 +157,7 @@ export function domainRoutes() {
           verifiedAt: mapped.status === 'active' ? ctx.now() : null,
         })
         .returning();
-      if (!row) throw AppError.internal('Nao foi possivel cadastrar o dominio.');
+      if (!row) throw AppError.internal('Não foi possível cadastrar o domínio.');
 
       if (input.setAsPrimary && mapped.status === 'active') {
         await setPrimary(ctx.db, { tenantId: tenant.tenantId, domainId: row.id, now: ctx.now() });
@@ -204,7 +204,7 @@ export function domainRoutes() {
       .select()
       .from(schema.domains)
       .where(and(eq(schema.domains.id, domainId), eq(schema.domains.tenantId, tenant.tenantId)));
-    if (!domain) throw AppError.notFound('Dominio nao encontrado.');
+    if (!domain) throw AppError.notFound('Domínio não encontrado.');
 
     const { mode } = await loadHosting(ctx.db, { tenantId: tenant.tenantId, siteId: domain.siteId });
     if (!mode.managed) {
@@ -272,10 +272,10 @@ export function domainRoutes() {
       .select({ id: schema.domains.id, status: schema.domains.status, hostname: schema.domains.hostname })
       .from(schema.domains)
       .where(and(eq(schema.domains.id, domainId), eq(schema.domains.tenantId, tenant.tenantId)));
-    if (!domain) throw AppError.notFound('Dominio nao encontrado.');
+    if (!domain) throw AppError.notFound('Domínio não encontrado.');
     if (domain.status !== 'active') {
       throw AppError.badRequest(
-        'Somente um dominio ativo pode ser definido como principal. Conclua a verificacao primeiro.',
+        'Somente um domínio ativo pode ser definido como principal. Conclua a verificação primeiro.',
       );
     }
 
@@ -301,7 +301,7 @@ export function domainRoutes() {
       .select()
       .from(schema.domains)
       .where(and(eq(schema.domains.id, domainId), eq(schema.domains.tenantId, tenant.tenantId)));
-    if (!domain) throw AppError.notFound('Dominio nao encontrado.');
+    if (!domain) throw AppError.notFound('Domínio não encontrado.');
 
     // So desfaz no provedor o que foi la colocado: `vercelDomainId` e o sinal.
     // O projeto vem do site e **nao** do plano atual -- um downgrade nao pode

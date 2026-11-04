@@ -10,9 +10,9 @@ export const PLATFORM_ROLES = ['none', 'platform_admin'] as const;
 export type PlatformRole = (typeof PLATFORM_ROLES)[number];
 
 export const TENANT_ROLE_LABELS: Record<TenantRole, string> = {
-  owner: 'Proprietario',
+  owner: 'Proprietário',
   admin: 'Administrador',
-  editor: 'Editor de conteudo',
+  editor: 'Editor de conteúdo',
   viewer: 'Somente leitura',
 };
 

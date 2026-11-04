@@ -52,8 +52,8 @@ export function DocumentModulePage({ moduleKey }: { moduleKey: 'institucional' |
   return (
     <div className="panel-shell grid gap-6">
       <PageHeader
-        title={definicao?.name ?? 'Conteudo do site'}
-        description={definicao?.description ?? 'Conteudo que o seu site exibe.'}
+        title={definicao?.name ?? 'Conteúdo do site'}
+        description={definicao?.description ?? 'Conteúdo que o seu site exibe.'}
       />
 
       <ResourcePanel resource={documento}>
@@ -70,7 +70,7 @@ export function DocumentModulePage({ moduleKey }: { moduleKey: 'institucional' |
               // A politica pode ter mudado junto: recarregar mantem o menu e
               // os cadeados coerentes com o que o servidor acabou de aceitar.
               reloadModules();
-              toast.success('Conteudo salvo', 'O seu site passa a exibir a versao nova.');
+              toast.success('Conteúdo salvo', 'O seu site passa a exibir a versão nova.');
             }}
           />
         )}
@@ -118,7 +118,7 @@ function Formulario({
         alterado.current = false;
         onSaved();
       },
-      onError: (error) => toast.error('Nao foi possivel salvar', error.message),
+      onError: (error) => toast.error('Não foi possível salvar', error.message),
     },
   );
 
@@ -130,11 +130,11 @@ function Formulario({
   return (
     <Card>
       <CardHeader
-        title="Conteudo"
+        title="Conteúdo"
         description={
           atualizadoEm
-            ? `Alterado pela ultima vez em ${new Date(atualizadoEm).toLocaleString('pt-BR')}.`
-            : 'Ainda nao alterado por aqui.'
+            ? `Alterado pela última vez em ${new Date(atualizadoEm).toLocaleString('pt-BR')}.`
+            : 'Ainda não alterado por aqui.'
         }
         actions={
           <Button
@@ -148,7 +148,7 @@ function Formulario({
       />
       <CardBody className="grid gap-5">
         {travados.length > 0 ? (
-          <Alert tone="info" title="Alguns campos sao mantidos pela CODECA IA">
+          <Alert tone="info" title="Alguns campos são mantidos pela CODECA IA">
             {travados.map((campo) => campo.label).join(', ')} aparecem aqui para consulta. Para
             alterar, fale com a equipe que desenvolveu o seu site.
           </Alert>
@@ -284,7 +284,7 @@ function Campo({
     return (
       <TextArea
         {...comum}
-        hint={dica ?? 'Separe por virgula ou quebra de linha.'}
+        hint={dica ?? 'Separe por vírgula ou quebra de linha.'}
         rows={2}
         value={Array.isArray(valor) ? formatList(valor) : typeof valor === 'string' ? valor : ''}
         onChange={(event) => onChange(event.target.value)}
@@ -338,7 +338,7 @@ function RedesSociais({
         {campo.label}
         {travado ? <Lock aria-label="Campo travado" className="ml-1.5 inline size-3.5 text-slate-400" /> : null}
       </legend>
-      <p className="text-xs text-slate-500">Endereco completo, comecando com https://.</p>
+      <p className="text-xs text-slate-500">Endereço completo, começando com https://.</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {SOCIAL_NETWORKS.map((rede: SocialNetwork) => (
           <TextInput

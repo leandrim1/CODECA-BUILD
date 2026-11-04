@@ -276,7 +276,7 @@ describe('depoimentos', () => {
       publicationStatus: 'published',
     });
     expect(blocked.status).toBe(422);
-    expect(JSON.stringify(blocked.body)).toMatch(/autorizacao/i);
+    expect(JSON.stringify(blocked.body)).toMatch(/autorização/i);
 
     const asDraft = await account.client.post(`/api/tenants/${account.tenantId}/testimonials`, {
       authorName: 'Cliente Satisfeito',

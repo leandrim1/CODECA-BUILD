@@ -21,14 +21,14 @@ const descrever = <T extends z.ZodType>(schema: T, texto: string): T =>
 
 export const publicImageSchema = z.object({
   id: z.string(),
-  url: z.string().describe('URL publica no Vercel Blob, pronta para o atributo src.'),
+  url: z.string().describe('URL pública no Vercel Blob, pronta para o atributo src.'),
   alt: z.string().describe('Texto alternativo escrito pelo cliente na biblioteca de imagens.'),
   width: z.number().nullable(),
   height: z.number().nullable(),
 });
 
 export const publicAddressSchema = z.object({
-  street: z.string().describe('Vazio quando o cliente escolheu esconder o endereco completo.'),
+  street: z.string().describe('Vazio quando o cliente escolheu esconder o endereço completo.'),
   number: z.string(),
   complement: z.string(),
   neighborhood: z.string(),
@@ -46,7 +46,7 @@ export const publicAddressSchema = z.object({
  */
 export const publicCustomFieldsSchema = descrever(
   z.record(z.string(), z.unknown()),
-  'Valores dos campos personalizados deste site, por chave. Vazio quando nao ha.',
+  'Valores dos campos personalizados deste site, por chave. Vazio quando não há.',
 );
 
 export const publicSeoSchema = z.object({
@@ -65,8 +65,8 @@ export const publicPropertySchema = z.object({
   purpose: z.string(),
   price: descrever(
     z.number().nullable(),
-    'Preco anunciado, em reais -- valor de vitrine, nao calculo financeiro. '
-      + '`null` quando nao informado ou quando `priceOnRequest` esta ligado.',
+    'Preço anunciado, em reais -- valor de vitrine, não calculo financeiro. '
+      + '`null` quando não informado ou quando `priceOnRequest` está ligado.',
   ),
   priceOnRequest: z.boolean(),
   condoFee: z.number().nullable(),
@@ -105,7 +105,7 @@ export const publicProjectSchema = z.object({
   status: z.string(),
   stage: z.string(),
   progressPercent: z.number().nullable(),
-  city: descrever(z.string(), 'Vazio quando o cliente escolheu nao divulgar a localizacao.'),
+  city: descrever(z.string(), 'Vazio quando o cliente escolheu não divulgar a localização.'),
   state: z.string(),
   neighborhood: z.string(),
   startDate: z.string().nullable(),
@@ -157,20 +157,20 @@ export const publicProductSchema = z.object({
   title: z.string(),
   summary: z.string(),
   description: z.string(),
-  code: descrever(z.string(), 'SKU ou referencia interna. Vazio quando nao usado.'),
+  code: descrever(z.string(), 'SKU ou referência interna. Vazio quando não usado.'),
   price: descrever(
     z.number().nullable(),
-    '`null` quando nao ha preco publicado **ou** quando `priceOnRequest` esta '
-      + 'ligado: o valor guardado nao viaja. O texto exibido e escolha do projeto.',
+    '`null` quando não há preço publicado **ou** quando `priceOnRequest` está '
+      + 'ligado: o valor guardado não viaja. O texto exibido e escolha do projeto.',
   ),
   priceOnRequest: z.boolean(),
   currency: z.string(),
-  unit: descrever(z.string(), 'Unidade exibida ao lado do preco: `un`, `kg`, `porcao`.'),
+  unit: descrever(z.string(), 'Unidade exibida ao lado do preço: `un`, `kg`, `porção`.'),
   isAvailable: descrever(
     z.boolean(),
-    '`false` e produto no ar porem esgotado -- ele continua na resposta de '
-      + 'proposito. Riscar, esmaecer ou esconder e decisao do projeto; use '
-      + '`availableOnly=true` para nao receber.',
+    '`false` é produto no ar porém esgotado -- ele continua na resposta de '
+      + 'propósito. Riscar, esmaecer ou esconder e decisão do projeto; use '
+      + '`availableOnly=true` para não receber.',
   ),
   category: publicCategorySchema.nullable(),
   cover: publicImageSchema.nullable(),
@@ -190,7 +190,7 @@ export const publicGallerySummarySchema = z.object({
   description: z.string(),
   cover: descrever(
     publicImageSchema.nullable(),
-    'Primeira imagem da ordem. Nao existe campo de capa separado.',
+    'Primeira imagem da ordem. Não existe campo de capa separado.',
   ),
   imageCount: z.number(),
   sortOrder: z.number(),
@@ -217,7 +217,7 @@ export const publicTeamMemberSchema = z.object({
   name: z.string(),
   role: z.string(),
   bio: z.string(),
-  email: descrever(z.string(), 'Vazio quando o cliente escolheu nao exibir.'),
+  email: descrever(z.string(), 'Vazio quando o cliente escolheu não exibir.'),
   photo: publicImageSchema.nullable(),
   social: z.record(z.string(), z.string()),
   sortOrder: z.number(),
@@ -228,7 +228,7 @@ export const publicFaqSchema = z.object({
   id: z.string(),
   question: z.string(),
   answer: z.string(),
-  category: descrever(z.string(), 'Agrupamento livre do cliente. Vazio quando nao usado.'),
+  category: descrever(z.string(), 'Agrupamento livre do cliente. Vazio quando não usado.'),
   sortOrder: z.number(),
 });
 
@@ -252,13 +252,13 @@ export function publicPageSchema<T extends z.ZodType>(item: T) {
  */
 export const publicCustomRecordSchema = z.object({
   id: z.string(),
-  title: descrever(z.string(), 'Titulo do registro, usado na listagem.'),
-  slug: descrever(z.string(), 'Endereco do registro. Vazio num modulo `document`.'),
+  title: descrever(z.string(), 'Título do registro, usado na listagem.'),
+  slug: descrever(z.string(), 'Endereço do registro. Vazio num módulo `document`.'),
   data: descrever(
     z.record(z.string(), z.unknown()),
-    'Valores dos campos definidos para este modulo. As chaves sao as que a '
+    'Valores dos campos definidos para este módulo. As chaves são as que a '
       + 'CODECA IA configurou no projeto; confira o tipo do valor antes de usar '
-      + 'e trate chave ausente como nao informada.',
+      + 'e trate chave ausente como não informada.',
   ),
   featured: z.boolean(),
   sortOrder: z.number().int(),
@@ -273,8 +273,8 @@ export const siteInfoSchema = z.object({
     status: z.string(),
     segment: descrever(
       z.string().nullable(),
-      'Ramo do projeto, texto livre definido pela CODECA IA. Nao e lista '
-        + 'fechada: trate qualquer valor desconhecido como caso padrao.',
+      'Ramo do projeto, texto livre definido pela CODECA IA. Não e lista '
+        + 'fechada: trate qualquer valor desconhecido como caso padrão.',
     ),
   }),
   modules: descrever(
@@ -285,8 +285,8 @@ export const siteInfoSchema = z.object({
         kind: z.enum(['document', 'collection']),
       }),
     ),
-    'Modulos da plataforma habilitados neste site. A lista cresce com o tempo: '
-      + 'ignore o que o seu site nao conhece.',
+    'Módulos da plataforma habilitados neste site. A lista cresce com o tempo: '
+      + 'ignore o que o seu site não conhece.',
   ),
   customModules: descrever(
     z.array(
@@ -296,22 +296,22 @@ export const siteInfoSchema = z.object({
         kind: z.enum(['document', 'collection']),
       }),
     ),
-    'Modulos criados para este projeto, atendidos em `/api/v1/custom/{moduleKey}`. '
-      + 'Sao configuracao deste site e nao contrato da API: podem ser criados, '
-      + 'renomeados ou desligados sem versao nova.',
+    'Módulos criados para este projeto, atendidos em `/api/v1/custom/{moduleKey}`. '
+      + 'São configuração deste site e não contrato da API: podem ser criados, '
+      + 'renomeados ou desligados sem versão nova.',
   ),
   scopes: z.array(z.string()),
   notice: descrever(
     z.string().nullable(),
     'Aviso pronto para exibir ao visitante, ou `null`. Vem preenchido quando o '
-      + 'plano pede aviso durante pendencia da assinatura; nao descreve a '
-      + 'pendencia nem cita valores.',
+      + 'plano pede aviso durante pendência da assinatura; não descreve a '
+      + 'pendência nem cita valores.',
   ),
 });
 
 export const leadReceivedSchema = z.object({
   received: descrever(
     z.boolean(),
-    'Confirmacao. Quem envia nao le de volta: exiba o que ja tem no formulario.',
+    'Confirmação. Quem envia não lê de volta: exiba o que já tem no formulário.',
   ),
 });

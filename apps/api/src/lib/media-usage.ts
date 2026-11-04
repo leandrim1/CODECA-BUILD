@@ -123,7 +123,7 @@ export function describeUsage(usage: MediaUsage): string[] {
   if (usage.propertyGalleries > 0) parts.push(`galeria de ${usage.propertyGalleries} imovel(is)`);
   if (usage.projectCovers > 0) parts.push(`capa de ${usage.projectCovers} obra(s)`);
   if (usage.projectGalleries > 0) parts.push(`galeria de ${usage.projectGalleries} obra(s)`);
-  if (usage.projectUpdates > 0) parts.push(`${usage.projectUpdates} registro(s) de evolucao`);
+  if (usage.projectUpdates > 0) parts.push(`${usage.projectUpdates} registro(s) de evolução`);
   if (usage.services > 0) parts.push(`${usage.services} servico(s)`);
   if (usage.testimonials > 0) parts.push(`${usage.testimonials} depoimento(s)`);
   if (usage.teamMembers > 0) parts.push(`${usage.teamMembers} integrante(s) da equipe`);

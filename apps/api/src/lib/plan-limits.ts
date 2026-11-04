@@ -41,7 +41,7 @@ export async function loadEffectivePlan(db: Database, tenantId: string): Promise
     .innerJoin(schema.plans, eq(schema.plans.id, schema.tenants.planId))
     .where(eq(schema.tenants.id, tenantId));
 
-  if (!row) throw AppError.notFound('Empresa nao encontrada.');
+  if (!row) throw AppError.notFound('Empresa não encontrada.');
 
   const base = planLimitsSchema.parse(row.limits);
   const overrides = row.overrides ?? null;
@@ -98,7 +98,7 @@ export async function loadPlanStatus(db: Database, tenantId: string): Promise<Pl
 export function assertFeature(plan: EffectivePlan, feature: PlanFeature): void {
   if (!plan.limits.features.includes(feature)) {
     throw AppError.planLimit(
-      `O recurso "${PLAN_FEATURE_LABELS[feature]}" nao esta incluido no plano ${plan.planName}. `
+      `O recurso "${PLAN_FEATURE_LABELS[feature]}" não está incluído no plano ${plan.planName}. `
         + 'Atualize o plano para utiliza-lo.',
       { feature, planCode: plan.planCode },
     );
@@ -113,7 +113,7 @@ export function assertFeature(plan: EffectivePlan, feature: PlanFeature): void {
 type CountableLimit = 'maxUsers' | 'maxDomains';
 
 const LIMIT_LABELS: Record<CountableLimit, string> = {
-  maxUsers: 'usuarios ativos',
+  maxUsers: 'usuários ativos',
   maxDomains: 'dominios',
 };
 
@@ -141,8 +141,8 @@ export async function assertWithinLimit(
 
   if (current + increment > max) {
     throw AppError.planLimit(
-      `O plano ${plan.planName} permite ate ${max} ${LIMIT_LABELS[limit]}. `
-        + `Voce ja utiliza ${current}. Atualize o plano para continuar.`,
+      `O plano ${plan.planName} permite até ${max} ${LIMIT_LABELS[limit]}. `
+        + `Você já utiliza ${current}. Atualize o plano para continuar.`,
       { limit, max, current, planCode: plan.planCode },
     );
   }
@@ -166,7 +166,7 @@ export async function assertStorageAvailable(
     throw new AppError(
       'storage_limit_reached',
       `O plano ${effective.planName} inclui ${formatBytes(effective.limits.storageBytes)} de armazenamento. `
-        + `Voce já utiliza ${formatBytes(used)}. Remova arquivos sem uso ou atualize o plano.`,
+        + `Você já utiliza ${formatBytes(used)}. Remova arquivos sem uso ou atualize o plano.`,
       { used, limit: effective.limits.storageBytes, requested: sizeBytes },
     );
   }

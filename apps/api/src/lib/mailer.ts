@@ -29,7 +29,7 @@ export function createConsoleMailer(): Mailer {
         `[mailer:console] ${message.kind} -> ${message.to}\n`
           + `assunto: ${message.subject}\n${message.text}`,
       );
-      return { delivered: false, reason: 'RESEND_API_KEY nao configurada; mensagem registrada no log.' };
+      return { delivered: false, reason: 'RESEND_API_KEY não configurada; mensagem registrada no log.' };
     },
   };
 }

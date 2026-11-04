@@ -9,7 +9,7 @@ const isoDate = z
   .nullable();
 
 export const projectInputSchema = z.object({
-  title: z.string().trim().min(3, 'Informe o titulo da obra.').max(160),
+  title: z.string().trim().min(3, 'Informe o título da obra.').max(160),
   slug: slugSchema.optional(),
   description: z.string().trim().max(10_000).default(''),
   shortDescription: z.string().trim().max(400).default(''),

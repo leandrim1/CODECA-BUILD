@@ -72,8 +72,8 @@ export function memberRoutes() {
       if (!canAssignRole(tenant.role, input.role)) {
         throw AppError.forbidden(
           input.role === 'owner'
-            ? 'Apenas o proprietario pode conceder o papel de proprietario.'
-            : 'Seu papel nao permite conceder este nivel de acesso.',
+            ? 'Apenas o proprietário pode conceder o papel de proprietário.'
+            : 'Seu papel não permite conceder este nível de acesso.',
         );
       }
 
@@ -87,7 +87,7 @@ export function memberRoutes() {
           .values({ email: input.email, name: input.name || input.email.split('@')[0] || 'Convidado' })
           .returning();
       }
-      if (!user) throw AppError.internal('Nao foi possivel registrar o convite.');
+      if (!user) throw AppError.internal('Não foi possível registrar o convite.');
 
       const [existing] = await ctx.db
         .select({ id: schema.memberships.id, status: schema.memberships.status })
@@ -97,7 +97,7 @@ export function memberRoutes() {
         );
 
       if (existing?.status === 'active') {
-        throw AppError.conflict('Esta pessoa ja faz parte da equipe.');
+        throw AppError.conflict('Esta pessoa já faz parte da equipe.');
       }
 
       if (existing) {
@@ -128,7 +128,7 @@ export function memberRoutes() {
         kind: 'invitation',
         subject: `Convite para colaborar com ${tenant.displayName}`,
         text:
-          `${session.user.name} convidou voce para colaborar com o site da ${tenant.displayName} `
+          `${session.user.name} convidou você para colaborar com o site da ${tenant.displayName} `
           + `como ${input.role}.\n\nAceite o convite:\n`
           + `${buildActionUrl(ctx.env, '/aceitar-convite', token.token)}\n\n`
           + 'O link expira em 7 dias.',
@@ -166,13 +166,13 @@ export function memberRoutes() {
         and(eq(schema.memberships.id, membershipId), eq(schema.memberships.tenantId, tenant.tenantId)),
       );
 
-    if (!membership) throw AppError.notFound('Membro nao encontrado.');
+    if (!membership) throw AppError.notFound('Membro não encontrado.');
 
     if (!canAssignRole(tenant.role, input.role)) {
-      throw AppError.forbidden('Seu papel nao permite conceder este nivel de acesso.');
+      throw AppError.forbidden('Seu papel não permite conceder este nível de acesso.');
     }
     if (membership.role === 'owner' && tenant.role !== 'owner') {
-      throw AppError.forbidden('Apenas o proprietario pode alterar o papel de outro proprietario.');
+      throw AppError.forbidden('Apenas o proprietário pode alterar o papel de outro proprietário.');
     }
     if (membership.userId === session.user.id && membership.role === 'owner' && input.role !== 'owner') {
       await assertAnotherOwnerExists(ctx.db, tenant.tenantId, membership.id);
@@ -205,11 +205,11 @@ export function memberRoutes() {
         and(eq(schema.memberships.id, membershipId), eq(schema.memberships.tenantId, tenant.tenantId)),
       );
 
-    if (!membership) throw AppError.notFound('Membro nao encontrado.');
+    if (!membership) throw AppError.notFound('Membro não encontrado.');
     if (membership.role === 'owner') {
       await assertAnotherOwnerExists(ctx.db, tenant.tenantId, membership.id);
       if (tenant.role !== 'owner') {
-        throw AppError.forbidden('Apenas o proprietario pode remover outro proprietario.');
+        throw AppError.forbidden('Apenas o proprietário pode remover outro proprietário.');
       }
     }
 
@@ -247,7 +247,7 @@ async function assertAnotherOwnerExists(
     );
   if (owners.length === 0) {
     throw AppError.conflict(
-      'A empresa precisa de ao menos um proprietario ativo. Promova outra pessoa antes de prosseguir.',
+      'A empresa precisa de ao menos um proprietário ativo. Promova outra pessoa antes de prosseguir.',
     );
   }
 }

@@ -33,7 +33,7 @@ export function AcceptInvitePage() {
   if (!token) {
     return (
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Convite invalido</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Convite inválido</h1>
         <Alert tone="danger" title="Link incompleto">
           Abra o link completo que chegou por e-mail. Convites expiram em 7 dias.
         </Alert>
@@ -48,7 +48,7 @@ export function AcceptInvitePage() {
     <div>
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Aceitar convite</h1>
       <p className="mt-1.5 text-sm text-slate-600">
-        Defina seu nome e sua senha para entrar no painel da empresa. Se voce ja tem conta, basta
+        Defina seu nome e sua senha para entrar no painel da empresa. Se você já tem conta, basta
         confirmar.
       </p>
 
@@ -79,7 +79,7 @@ export function AcceptInvitePage() {
           autoComplete="new-password"
           value={values.password}
           error={errors.password}
-          hint="Obrigatoria apenas se esta e a sua primeira conta na plataforma."
+          hint="Obrigatória apenas se esta é a sua primeira conta na plataforma."
           onChange={(event) => setField('password', event.target.value)}
         />
 

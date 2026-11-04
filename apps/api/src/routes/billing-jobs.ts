@@ -73,7 +73,7 @@ async function executarJob(c: Context<AppBindings>) {
   if (report.failures.length > 0 || report.divergences.length > 0) {
     // Alerta operacional no log: a origem fica visivel no painel mestre.
     console.warn(
-      `[billing] reconciliacao com ${report.divergences.length} divergencia(s) e `
+      `[billing] reconciliação com ${report.divergences.length} divergência(s) e `
         + `${report.failures.length} falha(s).`,
     );
   }
@@ -94,7 +94,7 @@ async function executarJob(c: Context<AppBindings>) {
 export function assertJobSecret(header: string | undefined, secret: string | undefined): void {
   if (!secret) {
     throw AppError.notConfigured(
-      'A reconciliacao automatica nao esta configurada. Defina BILLING_RECONCILIATION_SECRET.',
+      'A reconciliação automática não está configurada. Defina BILLING_RECONCILIATION_SECRET.',
     );
   }
 
@@ -104,6 +104,6 @@ export function assertJobSecret(header: string | undefined, secret: string | und
   const a = Buffer.from(received, 'utf8');
   const b = Buffer.from(secret, 'utf8');
   if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    throw AppError.unauthenticated('Segredo do job invalido.');
+    throw AppError.unauthenticated('Segredo do job inválido.');
   }
 }

@@ -45,22 +45,22 @@ export function ServicesPage() {
 
   const remove = useMutation((id: string) => contentApi.removeService(tenantId, id), {
     onSuccess: () => {
-      toast.success('Servico excluido');
+      toast.success('Serviço excluído');
       setRemoving(null);
       list.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel excluir', error.message),
+    onError: (error) => toast.error('Não foi possível excluir', error.message),
   });
 
   return (
     <div className="panel-shell grid gap-6">
       <PageHeader
-        title="Servicos"
-        description="O que a empresa oferece. Os servicos publicados alimentam o bloco de servicos do site."
+        title="Serviços"
+        description="O que a empresa oferece. Os serviços publicados alimentam o bloco de serviços do site."
         actions={
           can('content:write') ? (
             <Button icon={<Plus aria-hidden="true" className="size-4" />} onClick={() => setEditing('new')}>
-              Novo servico
+              Novo serviço
             </Button>
           ) : undefined
         }
@@ -75,8 +75,8 @@ export function ServicesPage() {
               <CardBody>
                 <EmptyState
                   icon={<Wrench aria-hidden="true" className="size-8" />}
-                  title="Nenhum servico cadastrado"
-                  description="Cadastre os servicos para que apareçam no site e no formulario de orcamento."
+                  title="Nenhum serviço cadastrado"
+                  description="Cadastre os serviços para que apareçam no site e no formulário de orçamento."
                 />
               </CardBody>
             </Card>
@@ -145,8 +145,8 @@ export function ServicesPage() {
 
       <ConfirmDialog
         open={removing !== null}
-        title="Excluir servico"
-        message={<>O servico <strong>{removing?.title}</strong> sera removido do site.</>}
+        title="Excluir serviço"
+        message={<>O serviço <strong>{removing?.title}</strong> será removido do site.</>}
         confirmLabel="Excluir"
         loading={remove.loading}
         onConfirm={() => removing && void remove.run(removing.id)}
@@ -223,12 +223,12 @@ function ServiceFormModal({
     },
     {
       onSuccess: () => {
-        toast.success(service ? 'Servico atualizado' : 'Servico cadastrado');
+        toast.success(service ? 'Serviço atualizado' : 'Serviço cadastrado');
         onSaved();
       },
       onError: (error) => {
         form.applyApiError(error);
-        if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel salvar', error.message);
+        if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -239,7 +239,7 @@ function ServiceFormModal({
     <Modal
       open
       onClose={onClose}
-      title={service ? 'Editar servico' : 'Novo servico'}
+      title={service ? 'Editar serviço' : 'Novo serviço'}
       size="lg"
       footer={
         <>
@@ -254,14 +254,14 @@ function ServiceFormModal({
     >
       <div className="grid gap-4">
         <TextInput
-          label="Nome do servico"
+          label="Nome do serviço"
           required
           value={values.title}
           error={errors.title}
           onChange={(event) => setField('title', event.target.value)}
         />
         <TextInput
-          label="Endereco da pagina"
+          label="Endereço da página"
           value={values.slug}
           error={errors.slug}
           placeholder={slugify(values.title)}
@@ -275,11 +275,11 @@ function ServiceFormModal({
         <TextInput
           label="Resumo"
           value={values.summary}
-          hint="Uma frase que explica o servico."
+          hint="Uma frase que explica o serviço."
           onChange={(event) => setField('summary', event.target.value)}
         />
         <TextArea
-          label="Descricao"
+          label="Descrição"
           rows={4}
           value={values.description}
           onChange={(event) => setField('description', event.target.value)}
@@ -288,12 +288,12 @@ function ServiceFormModal({
           label="Itens inclusos"
           rows={4}
           value={values.highlights}
-          hint="Um por linha. Aparecem como lista no cartao do servico."
+          hint="Um por linha. Aparecem como lista no cartão do serviço."
           onChange={(event) => setField('highlights', event.target.value)}
         />
 
         <fieldset className="grid gap-1.5">
-          <legend className="text-sm font-medium text-slate-700">Icone</legend>
+          <legend className="text-sm font-medium text-slate-700">Ícone</legend>
           <div className="grid max-h-40 grid-cols-8 gap-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
             {SAFE_ICONS.map((icon) => (
               <button
@@ -316,7 +316,7 @@ function ServiceFormModal({
         </fieldset>
 
         <ImageField
-          label="Imagem do servico"
+          label="Imagem do serviço"
           tag="servicos"
           value={values.imageId}
           preview={image}
@@ -329,7 +329,7 @@ function ServiceFormModal({
         />
 
         <Select
-          label="Situacao no site"
+          label="Situação no site"
           value={values.publicationStatus}
           options={toOptions(labels.publication, PUBLICATION_STATUSES)}
           onChange={(event) => setField('publicationStatus', event.target.value as PublicationStatus)}

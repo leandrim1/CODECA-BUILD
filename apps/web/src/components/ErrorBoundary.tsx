@@ -30,7 +30,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, Estado> {
     // O console e o unico canal garantido: nao ha coletor de erros contratado,
     // e inventar um aqui seria enviar dado de cliente para um terceiro que
     // ninguem escolheu.
-    console.error('[painel] erro nao tratado na renderizacao', erro, info.componentStack);
+    console.error('[painel] erro não tratado na renderização', erro, info.componentStack);
   }
 
   override render(): ReactNode {
@@ -58,8 +58,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, Estado> {
             O painel encontrou um erro
           </h1>
           <p style={{ margin: 0, color: '#475569', lineHeight: 1.5 }}>
-            A tela nao pode ser desenhada. Recarregar costuma resolver, sobretudo logo depois de
-            uma atualizacao da plataforma. Se continuar, envie a mensagem abaixo para a CODECA IA.
+            A tela não pode ser desenhada. Recarregar costuma resolver, sobretudo logo depois de
+            uma atualização da plataforma. Se continuar, envie a mensagem abaixo para a CODECA IA.
           </p>
           <pre
             style={{

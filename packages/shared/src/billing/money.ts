@@ -46,7 +46,7 @@ export function reaisToCents(value: number | string): number {
   const text = typeof value === 'number' ? decimalText(value) : value.trim().replace(',', '.');
   const match = /^(-?)(\d+)(?:\.(\d{1,}))?$/.exec(text);
   if (!match) {
-    throw new TypeError(`Valor em reais invalido: ${String(value)}`);
+    throw new TypeError(`Valor em reais inválido: ${String(value)}`);
   }
 
   const [, sign, whole, rawFraction = ''] = match;
@@ -59,7 +59,7 @@ export function reaisToCents(value: number | string): number {
 
 /** Texto decimal de um numero, sem notacao cientifica. */
 function decimalText(value: number): string {
-  if (!Number.isFinite(value)) throw new TypeError(`Valor em reais invalido: ${value}`);
+  if (!Number.isFinite(value)) throw new TypeError(`Valor em reais inválido: ${value}`);
   // 6 casas cobrem qualquer valor monetario e eliminam o residuo binario.
   return value.toFixed(6).replace(/0+$/, '').replace(/\.$/, '.0');
 }

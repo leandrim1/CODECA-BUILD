@@ -10,7 +10,7 @@ import { addressSchema, paginationSchema, slugSchema, sortDirectionSchema, uuidS
 
 const money = z
   .number()
-  .min(0, 'O valor nao pode ser negativo.')
+  .min(0, 'O valor não pode ser negativo.')
   .max(1_000_000_000, 'Valor acima do limite permitido.')
   .nullable();
 
@@ -20,7 +20,7 @@ const count = z.number().int().min(0).max(99).nullable();
 export const propertyFeatureSchema = z.string().trim().min(1).max(60);
 
 export const propertyInputSchema = z.object({
-  title: z.string().trim().min(3, 'Informe o titulo do imovel.').max(160),
+  title: z.string().trim().min(3, 'Informe o título do imóvel.').max(160),
   slug: slugSchema.optional(),
   reference: z.string().trim().max(40).default(''),
   description: z.string().trim().max(10_000).default(''),

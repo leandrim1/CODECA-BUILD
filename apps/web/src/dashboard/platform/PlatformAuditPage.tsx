@@ -31,7 +31,7 @@ export function PlatformAuditPage() {
     },
     {
       key: 'action',
-      header: 'Acao',
+      header: 'Ação',
       render: (row) => <span className="font-mono text-xs">{row.action}</span>,
     },
     {
@@ -67,7 +67,7 @@ export function PlatformAuditPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Auditoria"
-        description="Operacoes relevantes registradas pela plataforma, de todas as empresas."
+        description="Operações relevantes registradas pela plataforma, de todas as empresas."
       />
 
       <Card>
@@ -76,7 +76,7 @@ export function PlatformAuditPage() {
           actions={
             <div className="w-full sm:w-56">
               <TextInput
-                label="Filtrar por acao"
+                label="Filtrar por ação"
                 className="[&>label]:sr-only"
                 placeholder="property.created, domain.verified..."
                 value={action}

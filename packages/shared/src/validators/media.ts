@@ -42,7 +42,7 @@ export function mediaKindFor(mimeType: string): MediaKind {
 
 export const uploadRequestSchema = z.object({
   fileName: z.string().trim().min(1).max(240),
-  mimeType: z.string().trim().min(3).max(120).refine(isAllowedMimeType, 'Tipo de arquivo nao permitido.'),
+  mimeType: z.string().trim().min(3).max(120).refine(isAllowedMimeType, 'Tipo de arquivo não permitido.'),
   sizeBytes: z.number().int().min(1).max(MAX_UPLOAD_BYTES, 'Arquivo acima do limite de 4 MB.'),
   alt: z.string().trim().max(240).default(''),
   tag: z.string().trim().max(60).default(''),

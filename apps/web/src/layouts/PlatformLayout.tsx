@@ -17,13 +17,13 @@ import { preloadRoute } from '../lib/routePreload.js';
 
 /** Moldura do painel mestre, restrito a administradores da plataforma. */
 const ITEMS = [
-  { to: '/plataforma', label: 'Visao geral', icon: LayoutDashboard, end: true },
+  { to: '/plataforma', label: 'Visão geral', icon: LayoutDashboard, end: true },
   { to: '/plataforma/empresas', label: 'Empresas', icon: Building2 },
   { to: '/plataforma/sites', label: 'Sites', icon: AppWindow },
   { to: '/plataforma/segmentos', label: 'Segmentos', icon: Shapes },
   { to: '/plataforma/planos', label: 'Planos', icon: Package },
-  { to: '/plataforma/cobranca', label: 'Cobranca', icon: CreditCard },
-  { to: '/plataforma/dominios', label: 'Dominios', icon: Globe },
+  { to: '/plataforma/cobranca', label: 'Cobrança', icon: CreditCard },
+  { to: '/plataforma/dominios', label: 'Domínios', icon: Globe },
   { to: '/plataforma/suporte', label: 'Acesso de suporte', icon: LifeBuoy },
   { to: '/plataforma/auditoria', label: 'Auditoria', icon: FileClock },
 ];
@@ -48,7 +48,7 @@ export function PlatformLayout() {
             Voltar ao painel
           </Link>
           <span className="ml-auto rounded-full bg-amber-400/15 px-3 py-1 text-xs font-medium tracking-wide text-amber-300 ring-1 ring-inset ring-amber-400/20">
-            Area restrita da plataforma
+            Área restrita da plataforma
           </span>
         </div>
         {/*

@@ -31,7 +31,7 @@ export async function parseJsonBody<T extends z.ZodType>(c: Context, schema: T):
   try {
     raw = await c.req.json();
   } catch {
-    throw AppError.badRequest('Corpo da requisicao deve ser um JSON valido.');
+    throw AppError.badRequest('Corpo da requisição deve ser um JSON válido.');
   }
   const result = schema.safeParse(raw);
   if (!result.success) throw validationError(result.error);
@@ -53,7 +53,7 @@ export async function parseJsonBodyWithRaw<T extends z.ZodType>(
   try {
     raw = await c.req.json();
   } catch {
-    throw AppError.badRequest('Corpo da requisicao deve ser um JSON valido.');
+    throw AppError.badRequest('Corpo da requisição deve ser um JSON válido.');
   }
   const result = schema.safeParse(raw);
   if (!result.success) throw validationError(result.error);
@@ -73,7 +73,7 @@ export function parseQuery<T extends z.ZodType>(c: Context, schema: T): z.output
 
 export function parseParams<T extends z.ZodType>(c: Context, schema: T): z.output<T> {
   const result = schema.safeParse(c.req.param());
-  if (!result.success) throw AppError.notFound('Endereco invalido.');
+  if (!result.success) throw AppError.notFound('Endereço inválido.');
   return result.data;
 }
 

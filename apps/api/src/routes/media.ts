@@ -107,7 +107,7 @@ export function mediaRoutes() {
 
     if (!ctx.blob.configured) {
       throw AppError.notConfigured(
-        'O envio de arquivos depende da configuracao do Vercel Blob. Defina BLOB_READ_WRITE_TOKEN '
+        'O envio de arquivos depende da configuração do Vercel Blob. Defina BLOB_READ_WRITE_TOKEN '
           + 'no ambiente para habilitar a biblioteca de midia.',
       );
     }
@@ -132,11 +132,11 @@ export function mediaRoutes() {
     if (!isAllowedMimeType(mimeType)) {
       throw new AppError(
         'unsupported_media_type',
-        'Tipo de arquivo nao permitido. Aceitamos JPG, PNG, WEBP, AVIF, SVG, GIF e PDF.',
+        'Tipo de arquivo não permitido. Aceitamos JPG, PNG, WEBP, AVIF, SVG, GIF e PDF.',
         { received: mimeType },
       );
     }
-    if (file.size <= 0) throw AppError.badRequest('O arquivo esta vazio.');
+    if (file.size <= 0) throw AppError.badRequest('O arquivo está vazio.');
     if (file.size > MAX_UPLOAD_BYTES) {
       throw new AppError(
         'payload_too_large',
@@ -186,7 +186,7 @@ export function mediaRoutes() {
     if (!row) {
       // Evita arquivo orfao no Blob quando o registro no banco falha.
       await ctx.blob.remove(stored.url).catch(() => undefined);
-      throw AppError.internal('Nao foi possivel registrar o arquivo enviado.');
+      throw AppError.internal('Não foi possível registrar o arquivo enviado.');
     }
 
     await auditFromContext(c, {
@@ -211,7 +211,7 @@ export function mediaRoutes() {
       .set({ ...input, updatedAt: ctx.now() })
       .where(and(eq(schema.mediaAssets.id, mediaId), eq(schema.mediaAssets.tenantId, tenant.tenantId)))
       .returning();
-    if (!row) throw AppError.notFound('Arquivo nao encontrado.');
+    if (!row) throw AppError.notFound('Arquivo não encontrado.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.mediaUpdated,
@@ -233,7 +233,7 @@ export function mediaRoutes() {
       .select({ id: schema.mediaAssets.id })
       .from(schema.mediaAssets)
       .where(and(eq(schema.mediaAssets.id, mediaId), eq(schema.mediaAssets.tenantId, tenant.tenantId)));
-    if (!row) throw AppError.notFound('Arquivo nao encontrado.');
+    if (!row) throw AppError.notFound('Arquivo não encontrado.');
 
     const usage = await countMediaReferences(ctx.db, tenant.tenantId, mediaId);
     return ok(c, { usage, description: describeUsage(usage) });
@@ -249,18 +249,18 @@ export function mediaRoutes() {
       .select()
       .from(schema.mediaAssets)
       .where(and(eq(schema.mediaAssets.id, mediaId), eq(schema.mediaAssets.tenantId, tenant.tenantId)));
-    if (!row) throw AppError.notFound('Arquivo nao encontrado.');
+    if (!row) throw AppError.notFound('Arquivo não encontrado.');
 
     // Segunda barreira: o caminho no Blob precisa pertencer a esta empresa.
     if (!blobPathBelongsToTenant(row.blobPathname, tenant.tenantId)) {
-      throw AppError.forbidden('Este arquivo nao pertence ao espaco de armazenamento desta empresa.');
+      throw AppError.forbidden('Este arquivo não pertence ao espaco de armazenamento desta empresa.');
     }
 
     const usage = await countMediaReferences(ctx.db, tenant.tenantId, mediaId);
     if (usage.total > 0) {
       throw AppError.conflict(
-        `Este arquivo esta em uso em ${describeUsage(usage).join(', ')}. `
-          + 'Remova as referencias antes de excluir o arquivo.',
+        `Este arquivo está em uso em ${describeUsage(usage).join(', ')}. `
+          + 'Remova as referências antes de excluir o arquivo.',
         { usage },
       );
     }

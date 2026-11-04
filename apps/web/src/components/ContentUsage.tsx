@@ -49,7 +49,7 @@ export function ContentUsageBreakdown({ byModule }: { byModule: Record<string, n
         ))}
       </ul>
       <p className="mt-2 text-xs text-slate-500">
-        Rascunhos e arquivados contam; o que voce exclui libera a vaga na hora.
+        Rascunhos e arquivados contam; o que você exclui libera a vaga na hora.
       </p>
     </div>
   );
@@ -79,12 +79,12 @@ export function ContentLimitNotice() {
   const cheio = dados.used >= dados.max;
 
   return (
-    <Alert tone={cheio ? 'warning' : 'info'} title={cheio ? 'Limite de conteudos atingido' : 'Voce esta perto do limite'}>
-      O plano {dados.planName} permite ate <strong>{dados.max}</strong> conteudos cadastrados, somando todos os
-      modulos do site, e voce ja usa <strong>{dados.used}</strong>.{' '}
+    <Alert tone={cheio ? 'warning' : 'info'} title={cheio ? 'Limite de conteúdos atingido' : 'Você está perto do limite'}>
+      O plano {dados.planName} permite até <strong>{dados.max}</strong> conteúdos cadastrados, somando todos os
+      módulos do site, e você já usa <strong>{dados.used}</strong>.{' '}
       {cheio
-        ? 'Nada do que esta cadastrado e apagado ou escondido; para cadastrar novos, exclua o que nao usa mais ou atualize o plano.'
-        : 'Rascunhos e arquivados tambem contam.'}{' '}
+        ? 'Nada do que está cadastrado é apagado ou escondido; para cadastrar novos, exclua o que não usa mais ou atualize o plano.'
+        : 'Rascunhos e arquivados também contam.'}{' '}
       {can('billing:read') ? (
         <Link to="/painel/plano" className="link">
           Ver plano

@@ -239,7 +239,7 @@ export function billingRoutes() {
         notice: result.notice,
         // O site continua privado ate o pagamento ser confirmado.
         message:
-          'Conclua o pagamento na pagina da ValidaPay. A publicacao e liberada quando o pagamento '
+          'Conclua o pagamento na página da ValidaPay. A publicação e liberada quando o pagamento '
           + 'for confirmado.',
       });
     },
@@ -296,7 +296,7 @@ export function billingRoutes() {
         .select()
         .from(schema.charges)
         .where(and(eq(schema.charges.id, chargeId), eq(schema.charges.tenantId, tenant.tenantId)));
-      if (!charge) throw AppError.notFound('Cobranca nao encontrada.');
+      if (!charge) throw AppError.notFound('Cobrança não encontrada.');
 
       return ok(c, { charge: presentCharge(charge) });
     },
@@ -319,11 +319,11 @@ export function billingRoutes() {
         .select()
         .from(schema.charges)
         .where(and(eq(schema.charges.id, chargeId), eq(schema.charges.tenantId, tenant.tenantId)));
-      if (!charge) throw AppError.notFound('Cobranca nao encontrada.');
+      if (!charge) throw AppError.notFound('Cobrança não encontrada.');
 
       if (!ctx.billing.configured) {
         throw AppError.notConfigured(
-          'A consulta ao provedor depende da configuracao da ValidaPay no servidor.',
+          'A consulta ao provedor depende da configuração da ValidaPay no servidor.',
         );
       }
 
@@ -360,7 +360,7 @@ export function billingRoutes() {
         { db: ctx.db, now: ctx.now, source: 'reconciliation', actorUserId: session.user.id },
         subscription,
         {},
-        { action: BILLING_ACTIONS.reconciled, reason: 'Reavaliacao do periodo de acesso.' },
+        { action: BILLING_ACTIONS.reconciled, reason: 'Reavaliacao do período de acesso.' },
       );
       return ok(c, {
         state: refreshed.status,
@@ -406,7 +406,7 @@ export function billingRoutes() {
       const plan = await loadPlan(ctx.db, input.planId);
 
       if (plan.id === subscription.planId) {
-        throw AppError.conflict(`A empresa ja esta no plano ${plan.name}.`);
+        throw AppError.conflict(`A empresa já está no plano ${plan.name}.`);
       }
 
       const method: PaymentMethodCode = subscription.paymentMethod ?? 'creditcard';
@@ -415,13 +415,13 @@ export function billingRoutes() {
       // Sem assinatura ativa no provedor, trocar de plano e contratar.
       if (!subscription.externalSubscriptionId || !subscription.externalItemId) {
         throw AppError.conflict(
-          'Nao ha assinatura ativa para alterar. Contrate o plano desejado pelo checkout.',
+          'Não há assinatura ativa para alterar. Contrate o plano desejado pelo checkout.',
           { action: 'checkout' },
         );
       }
       if (!plan.externalPriceId) {
         throw AppError.conflict(
-          `O plano ${plan.name} ainda nao foi sincronizado com o provedor de pagamento.`,
+          `O plano ${plan.name} ainda não foi sincronizado com o provedor de pagamento.`,
         );
       }
 
@@ -490,7 +490,7 @@ export function billingRoutes() {
         chargeId: result.chargeId ?? null,
         message: upgrade
           ? 'Troca solicitada. Quando o pagamento da diferenca for confirmado, o plano novo passa a valer.'
-          : 'Troca registrada. O valor novo passa a valer na proxima cobranca.',
+          : 'Troca registrada. O valor novo passa a valer na próxima cobrança.',
       });
     },
   );
@@ -508,10 +508,10 @@ export function billingRoutes() {
       const subscription = await requireSubscription(ctx.db, tenant.siteId);
 
       if (!subscription.externalSubscriptionId) {
-        throw AppError.conflict('Nao ha assinatura contratada para cancelar.');
+        throw AppError.conflict('Não há assinatura contratada para cancelar.');
       }
       if (subscription.status === 'canceled') {
-        throw AppError.conflict('Esta assinatura ja esta cancelada.');
+        throw AppError.conflict('Esta assinatura já está cancelada.');
       }
 
       const response = await ctx.billing.cancelSubscription(
@@ -560,9 +560,9 @@ export function billingRoutes() {
         stateLabel: BILLING_STATE_LABELS[updated.status],
         publicationState: updated.publicationState,
         message: immediate
-          ? 'Assinatura cancelada. O conteudo do site continua salvo e o painel segue disponivel.'
-          : `Cancelamento agendado. O site continua no ar ate ${
-              effectiveAt ? effectiveAt.toLocaleDateString('pt-BR') : 'o fim do periodo pago'
+          ? 'Assinatura cancelada. O conteúdo do site continua salvo e o painel segue disponível.'
+          : `Cancelamento agendado. O site continua no ar até ${
+              effectiveAt ? effectiveAt.toLocaleDateString('pt-BR') : 'o fim do período pago'
             }.`,
       });
     },
@@ -579,7 +579,7 @@ export function billingRoutes() {
       const subscription = await requireSubscription(ctx.db, tenant.siteId);
 
       if (!subscription.externalSubscriptionId || !subscription.cancelAtPeriodEnd) {
-        throw AppError.conflict('Nao ha cancelamento agendado para desfazer.');
+        throw AppError.conflict('Não há cancelamento agendado para desfazer.');
       }
 
       await ctx.billing.undoScheduledCancellation(subscription.externalSubscriptionId);

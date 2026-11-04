@@ -60,20 +60,20 @@ export function CustomModulePage({ moduleKey }: { moduleKey: string }) {
     (id: string) => customModuleApi.remove(tenantId, moduleKey, id),
     {
       onSuccess: () => {
-        toast.success('Registro excluido');
+        toast.success('Registro excluído');
         setRemovendo(null);
         lista.reload();
       },
-      onError: (error) => toast.error('Nao foi possivel excluir', error.message),
+      onError: (error) => toast.error('Não foi possível excluir', error.message),
     },
   );
 
   const colunas = useMemo<Column<CustomRecordRow>[]>(
     () => [
-      { key: 'title', header: 'Titulo', render: (row) => row.title },
+      { key: 'title', header: 'Título', render: (row) => row.title },
       {
         key: 'publicationStatus',
-        header: 'Situacao',
+        header: 'Situação',
         render: (row) => (
           <Badge tone={publicationTone(row.publicationStatus)}>
             {labels.publication[row.publicationStatus]}
@@ -111,7 +111,7 @@ export function CustomModulePage({ moduleKey }: { moduleKey: string }) {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title={modulo?.name ?? moduleKey}
-        description={modulo?.description || 'Conteudo deste projeto.'}
+        description={modulo?.description || 'Conteúdo deste projeto.'}
         actions={
           can('content:write') ? (
             <Button
@@ -134,7 +134,7 @@ export function CustomModulePage({ moduleKey }: { moduleKey: string }) {
                 <EmptyState
                   icon={<SafeIcon name={modulo?.icon ?? ''} className="size-8" />}
                   title="Nenhum registro cadastrado"
-                  description={`Cadastre o primeiro item de ${modulo?.name ?? 'este modulo'} para que apareca no site.`}
+                  description={`Cadastre o primeiro item de ${modulo?.name ?? 'este módulo'} para que apareça no site.`}
                 />
               </CardBody>
             </Card>
@@ -164,7 +164,7 @@ export function CustomModulePage({ moduleKey }: { moduleKey: string }) {
       <ConfirmDialog
         open={removendo !== null}
         title="Excluir registro"
-        message={`"${removendo?.title ?? ''}" sera removido do painel e do site. Esta acao nao pode ser desfeita.`}
+        message={`"${removendo?.title ?? ''}" será removido do painel e do site. Esta ação não pode ser desfeita.`}
         confirmLabel="Excluir"
         tone="danger"
         loading={remover.loading}
@@ -253,7 +253,7 @@ function FormularioRegistro({
         toast.success(registro ? 'Registro atualizado' : 'Registro cadastrado');
         onSaved();
       },
-      onError: (error) => toast.error('Nao foi possivel salvar', error.message),
+      onError: (error) => toast.error('Não foi possível salvar', error.message),
     },
   );
 
@@ -275,10 +275,10 @@ function FormularioRegistro({
     >
       <div className="grid gap-4">
         <TextInput
-          label="Titulo"
+          label="Título"
           value={title}
           required
-          hint="Como o registro aparece na lista e no endereco do site."
+          hint="Como o registro aparece na lista e no endereço do site."
           onChange={(event) => setTitle(event.target.value)}
         />
 
@@ -294,7 +294,7 @@ function FormularioRegistro({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
-            label="Situacao"
+            label="Situação"
             value={status}
             options={toOptions(labels.publication, CUSTOM_RECORD_STATUSES)}
             onChange={(event) => setStatus(event.target.value as CustomRecordStatus)}
@@ -386,7 +386,7 @@ export function CustomDocumentPage({ moduleKey }: { moduleKey: string }) {
         alterado.current = false;
         documento.reload();
       },
-      onError: (error) => toast.error('Nao foi possivel salvar', error.message),
+      onError: (error) => toast.error('Não foi possível salvar', error.message),
     },
   );
 
@@ -397,12 +397,12 @@ export function CustomDocumentPage({ moduleKey }: { moduleKey: string }) {
           <>
             <PageHeader
               title={dados.module.name}
-              description={dados.module.description || 'Conteudo deste projeto.'}
+              description={dados.module.description || 'Conteúdo deste projeto.'}
             />
             <Card>
               <CardBody className="grid gap-4">
                 <TextInput
-                  label="Titulo"
+                  label="Título"
                   value={title}
                   required
                   onChange={(event) => {
@@ -415,7 +415,7 @@ export function CustomDocumentPage({ moduleKey }: { moduleKey: string }) {
                   <EmptyState
                     icon={<SafeIcon name={dados.module.icon ?? ''} className="size-8" />}
                     title="Nenhum campo configurado"
-                    description="A CODECA IA ainda nao definiu os campos deste modulo."
+                    description="A CODECA IA ainda não definiu os campos deste módulo."
                   />
                 ) : (
                   campos.map((campo) => (
@@ -433,7 +433,7 @@ export function CustomDocumentPage({ moduleKey }: { moduleKey: string }) {
                 )}
 
                 <Select
-                  label="Situacao"
+                  label="Situação"
                   value={status}
                   options={toOptions(labels.publication, CUSTOM_RECORD_STATUSES)}
                   onChange={(event) => {

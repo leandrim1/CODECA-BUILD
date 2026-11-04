@@ -66,7 +66,7 @@ export async function requireSubscription(
   siteId: string,
 ): Promise<SubscriptionRow> {
   const row = await loadSubscription(db, siteId);
-  if (!row) throw AppError.notFound('Este site nao possui assinatura registrada.');
+  if (!row) throw AppError.notFound('Este site não possui assinatura registrada.');
   return row;
 }
 
@@ -253,7 +253,7 @@ export async function applySubscriptionPatch(
     .where(eq(schema.subscriptions.id, current.id))
     .returning();
 
-  if (!updated) throw AppError.internal('Nao foi possivel atualizar a assinatura.');
+  if (!updated) throw AppError.internal('Não foi possível atualizar a assinatura.');
 
   const stateChanged = current.status !== updated.status;
   const publicationChanged = current.publicationState !== updated.publicationState;
@@ -390,7 +390,7 @@ async function resolveChargeSiteId(
     if (row) return row.siteId;
   }
   const siteId = await findPrimarySiteId(ctx.db, input.tenantId);
-  if (!siteId) throw new Error('Empresa sem site principal para vincular a cobranca.');
+  if (!siteId) throw new Error('Empresa sem site principal para vincular a cobrança.');
   return siteId;
 }
 
@@ -438,7 +438,7 @@ export async function upsertCharge(
         lastSyncedAt: input.fromSync ? ctx.now() : null,
       })
       .returning();
-    if (!created) throw AppError.internal('Nao foi possivel registrar a cobranca.');
+    if (!created) throw AppError.internal('Não foi possível registrar a cobrança.');
 
     await recordBillingAudit(ctx.db, {
       tenantId: input.tenantId,
@@ -468,7 +468,7 @@ export async function upsertCharge(
   // A cobranca pertence a empresa que a registrou primeiro. Um evento que
   // aponte para outra empresa e tratado como divergencia, nao aplicado.
   if (existing.tenantId !== input.tenantId) {
-    throw AppError.conflict('A cobranca informada pertence a outra empresa.');
+    throw AppError.conflict('A cobrança informada pertence a outra empresa.');
   }
 
   const advances = chargeStateAdvances(existing.status, state);
@@ -484,7 +484,7 @@ export async function upsertCharge(
       webhookEventId: ctx.webhookEventId ?? null,
       previousState: existing.status,
       newState: state,
-      reason: 'Estado recebido e anterior ao estado atual da cobranca.',
+      reason: 'Estado recebido é anterior ao estado atual da cobrança.',
       metadata: { externalChargeId: input.externalChargeId, eventAt: input.eventAt.toISOString() },
     });
     return {
@@ -526,7 +526,7 @@ export async function upsertCharge(
     })
     .where(eq(schema.charges.id, existing.id))
     .returning();
-  if (!updated) throw AppError.internal('Nao foi possivel atualizar a cobranca.');
+  if (!updated) throw AppError.internal('Não foi possível atualizar a cobrança.');
 
   if (!sameState) {
     await recordBillingAudit(ctx.db, {
@@ -575,7 +575,7 @@ function normalizeChargeState(status: ValidaPayChargeStatus | string): ChargeSta
   if (!valid) {
     // Estado novo do provedor: tratamos como pendente e seguimos pela
     // reconciliacao, em vez de assumir que o dinheiro entrou.
-    console.warn(`[billing] status de cobranca desconhecido recebido: ${upper}`);
+    console.warn(`[billing] status de cobrança desconhecido recebido: ${upper}`);
     return 'pending';
   }
   return known;

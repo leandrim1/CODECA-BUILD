@@ -106,7 +106,7 @@ export function CompanyPage() {
       },
       onError: (error) => {
         profile.applyApiError(error);
-        if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel salvar', error.message);
+        if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -140,7 +140,7 @@ export function CompanyPage() {
       },
       onError: (error) => {
         contact.applyApiError(error);
-        if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel salvar', error.message);
+        if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -155,11 +155,11 @@ export function CompanyPage() {
   return (
     <div className="panel-shell grid gap-6">
       <PageHeader
-        title="Configuracoes da empresa"
+        title="Configurações da empresa"
         description="Dados cadastrais, contato e WhatsApp da sua empresa."
       />
 
-      {readOnly ? <Alert tone="info" title="Somente leitura">Seu papel nao permite alterar estes dados.</Alert> : null}
+      {readOnly ? <Alert tone="info" title="Somente leitura">Seu papel não permite alterar estes dados.</Alert> : null}
 
       <Tabs
         items={[
@@ -192,16 +192,16 @@ export function CompanyPage() {
                 />
                 <CardBody className="grid gap-4 lg:max-w-2xl">
                   <TextInput
-                    label="Nome de exibicao"
+                    label="Nome de exibição"
                     required
                     value={profile.values.displayName}
                     error={profile.errors.displayName}
                     disabled={readOnly}
-                    hint="Aparece no site, no cabecalho e nos e-mails."
+                    hint="Aparece no site, no cabeçalho e nos e-mails."
                     onChange={(event) => profile.setField('displayName', event.target.value)}
                   />
                   <TextInput
-                    label="Razao social"
+                    label="Razão social"
                     required
                     value={profile.values.legalName}
                     error={profile.errors.legalName}
@@ -217,7 +217,7 @@ export function CompanyPage() {
                       onChange={(event) => profile.setField('taxId', event.target.value)}
                     />
                     <TextInput
-                      label="Ano de fundacao"
+                      label="Ano de fundação"
                       inputMode="numeric"
                       value={profile.values.foundedYear}
                       error={profile.errors.foundedYear}
@@ -232,11 +232,11 @@ export function CompanyPage() {
                     />
                   </div>
                   <TextArea
-                    label="Descricao da empresa"
+                    label="Descrição da empresa"
                     rows={5}
                     value={profile.values.description}
                     disabled={readOnly}
-                    hint="Usada no bloco 'Sobre a empresa' quando ele nao tem texto proprio."
+                    hint="Usada no bloco 'Sobre a empresa' quando ele não tem texto próprio."
                     onChange={(event) => profile.setField('description', event.target.value)}
                   />
                 </CardBody>
@@ -246,7 +246,7 @@ export function CompanyPage() {
             {tab === 'contato' ? (
               <Card>
                 <CardHeader
-                  title="Contato e endereco"
+                  title="Contato e endereço"
                   actions={
                     <Button
                       icon={<Save aria-hidden="true" className="size-4" />}
@@ -285,21 +285,21 @@ export function CompanyPage() {
                       error={contact.errors.whatsapp}
                       disabled={readOnly}
                       placeholder="(19) 99999-0000"
-                      hint="Numero proprio desta empresa. Os botoes do site abrem conversa com este numero."
+                      hint="Número próprio desta empresa. Os botões do site abrem conversa com este número."
                       onChange={(event) => contact.setField('whatsapp', event.target.value)}
                     />
                     <TextArea
-                      label="Mensagem padrao"
+                      label="Mensagem padrão"
                       rows={2}
                       value={contact.values.whatsappDefaultMessage}
                       disabled={readOnly}
-                      hint="Opcional. Vazio, a plataforma monta a mensagem conforme o imovel, a obra ou o servico."
+                      hint="Opcional. Vazio, a plataforma monta a mensagem conforme o imóvel, a obra ou o serviço."
                       onChange={(event) => contact.setField('whatsappDefaultMessage', event.target.value)}
                     />
                     {contact.values.whatsapp ? (
                       isValidWhatsAppNumber(contact.values.whatsapp) ? (
                         <p className="text-xs text-emerald-800">
-                          Numero reconhecido: {formatWhatsAppNumber(contact.values.whatsapp)}.{' '}
+                          Número reconhecido: {formatWhatsAppNumber(contact.values.whatsapp)}.{' '}
                           {whatsappPreview ? (
                             <a className="link" href={whatsappPreview} target="_blank" rel="noopener noreferrer">
                               Testar conversa
@@ -308,7 +308,7 @@ export function CompanyPage() {
                         </p>
                       ) : (
                         <p className="text-xs font-medium text-rose-600">
-                          Numero nao reconhecido. Informe com DDD, por exemplo (19) 99999-0000.
+                          Número não reconhecido. Informe com DDD, por exemplo (19) 99999-0000.
                         </p>
                       )
                     ) : null}
@@ -316,7 +316,7 @@ export function CompanyPage() {
 
                   <div className="grid gap-4">
                     <Switch
-                      label="Exibir endereco completo no site"
+                      label="Exibir endereço completo no site"
                       hint="Desligado, o site mostra apenas bairro e cidade."
                       checked={contact.values.showFullAddress}
                       disabled={readOnly}
@@ -330,7 +330,7 @@ export function CompanyPage() {
                         onChange={(event) => contact.setField('street', event.target.value)}
                       />
                       <TextInput
-                        label="Numero"
+                        label="Número"
                         value={contact.values.number}
                         disabled={readOnly}
                         onChange={(event) => contact.setField('number', event.target.value)}
@@ -371,14 +371,14 @@ export function CompanyPage() {
                       />
                     </div>
                     <TextInput
-                      label="Regiao atendida"
+                      label="Região atendida"
                       value={contact.values.serviceArea}
                       disabled={readOnly}
-                      placeholder="Campinas, Valinhos, Vinhedo e Paulinia"
+                      placeholder="Campinas, Valinhos, Vinhedo e Paulínia"
                       onChange={(event) => contact.setField('serviceArea', event.target.value)}
                     />
                     <TextInput
-                      label="Horario de atendimento"
+                      label="Horário de atendimento"
                       value={contact.values.businessHours}
                       disabled={readOnly}
                       placeholder="Segunda a sexta, das 8h as 18h"
@@ -431,19 +431,19 @@ function AccountSection({ email, onSaved }: { email: string; onSaved: () => void
 
   const changePassword = useMutation(() => authApi.changePassword(password.values), {
     onSuccess: () => {
-      toast.success('Senha alterada', 'As outras sessoes foram encerradas.');
+      toast.success('Senha alterada', 'As outras sessões foram encerradas.');
       password.reset();
       sessions.reload();
     },
     onError: (error) => {
       password.applyApiError(error);
-      if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel alterar', error.message);
+      if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível alterar', error.message);
     },
   });
 
   const revokeOthers = useMutation(() => authApi.revokeOtherSessions(), {
     onSuccess: () => {
-      toast.success('Outras sessoes encerradas');
+      toast.success('Outras sessões encerradas');
       sessions.reload();
     },
   });
@@ -477,7 +477,7 @@ function AccountSection({ email, onSaved }: { email: string; onSaved: () => void
       </Card>
 
       <Card>
-        <CardHeader title="Trocar senha" description="As outras sessoes sao encerradas ao trocar a senha." />
+        <CardHeader title="Trocar senha" description="As outras sessões são encerradas ao trocar a senha." />
         <CardBody className="grid gap-4">
           <TextInput
             label="Senha atual"
@@ -493,7 +493,7 @@ function AccountSection({ email, onSaved }: { email: string; onSaved: () => void
             autoComplete="new-password"
             value={password.values.newPassword}
             error={password.errors.newPassword}
-            hint="Ao menos 10 caracteres, com letras e numeros."
+            hint="Ao menos 10 caracteres, com letras e números."
             onChange={(event) => password.setField('newPassword', event.target.value)}
           />
           <Button loading={changePassword.loading} onClick={() => void changePassword.run(undefined)}>
@@ -504,10 +504,10 @@ function AccountSection({ email, onSaved }: { email: string; onSaved: () => void
 
       <Card>
         <CardHeader
-          title="Sessoes ativas"
+          title="Sessões ativas"
           actions={
             <Button variant="outline" size="sm" loading={revokeOthers.loading} onClick={() => void revokeOthers.run(undefined)}>
-              Encerrar outras sessoes
+              Encerrar outras sessões
             </Button>
           }
         />
@@ -518,9 +518,9 @@ function AccountSection({ email, onSaved }: { email: string; onSaved: () => void
                 {data.sessions.map((session) => (
                   <li key={session.id} className="rounded-lg border border-slate-200 p-3 text-sm">
                     <p className="flex flex-wrap items-center gap-2 font-medium text-slate-800">
-                      {session.current ? 'Esta sessao' : 'Outro dispositivo'}
+                      {session.current ? 'Esta sessão' : 'Outro dispositivo'}
                     </p>
-                    <p className="truncate text-xs text-slate-500">{session.userAgent || 'Dispositivo nao identificado'}</p>
+                    <p className="truncate text-xs text-slate-500">{session.userAgent || 'Dispositivo não identificado'}</p>
                   </li>
                 ))}
               </ul>

@@ -54,7 +54,7 @@ export function TestimonialsPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Depoimentos"
-        description="O que seus clientes dizem. Publicar exige a autorizacao de quem falou."
+        description="O que seus clientes dizem. Publicar exige a autorização de quem falou."
       />
       <ContentLimitNotice />
       <TestimonialsSection />
@@ -80,7 +80,7 @@ export function FaqPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Perguntas frequentes"
-        description="As duvidas que o site responde sem ninguem precisar ligar."
+        description="As dúvidas que o site responde sem ninguém precisar ligar."
       />
       <ContentLimitNotice />
       <FaqSection />
@@ -106,9 +106,9 @@ function TestimonialsSection() {
 
   return (
     <div className="grid gap-4">
-      <Alert tone="info" title="Autorizacao do autor">
-        Um depoimento so vai ao ar quando a empresa confirma que tem a autorizacao da pessoa que o escreveu.
-        Sem essa confirmacao, ele fica guardado como rascunho.
+      <Alert tone="info" title="Autorização do autor">
+        Um depoimento só vai ao ar quando a empresa confirma que tem a autorização da pessoa que o escreveu.
+        Sem essa confirmação, ele fica guardado como rascunho.
       </Alert>
 
       <Card>
@@ -129,7 +129,7 @@ function TestimonialsSection() {
                 <EmptyState
                   icon={<MessageSquareQuote aria-hidden="true" className="size-8" />}
                   title="Nenhum depoimento cadastrado"
-                  description="Registre depoimentos de clientes com a autorizacao deles."
+                  description="Registre depoimentos de clientes com a autorização deles."
                 />
               ) : (
                 <ul className="grid gap-3">
@@ -147,7 +147,7 @@ function TestimonialsSection() {
                             {labels.publication[testimonial.publicationStatus]}
                           </Badge>
                           <Badge tone={testimonial.authorizationConfirmed ? 'success' : 'warning'}>
-                            {testimonial.authorizationConfirmed ? 'Autorizado' : 'Sem autorizacao'}
+                            {testimonial.authorizationConfirmed ? 'Autorizado' : 'Sem autorização'}
                           </Badge>
                         </div>
                       </div>
@@ -192,7 +192,7 @@ function TestimonialsSection() {
       <ConfirmDialog
         open={removing !== null}
         title="Remover depoimento"
-        message={<>O depoimento de <strong>{removing?.authorName}</strong> sera removido.</>}
+        message={<>O depoimento de <strong>{removing?.authorName}</strong> será removido.</>}
         confirmLabel="Remover"
         loading={remove.loading}
         onConfirm={() => removing && void remove.run(removing.id)}
@@ -252,7 +252,7 @@ function TestimonialModal({
       },
       onError: (error) => {
         form.applyApiError(error);
-        if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel salvar', error.message);
+        if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -287,7 +287,7 @@ function TestimonialModal({
         <TextInput
           label="Cargo ou empreendimento"
           value={values.authorRole}
-          placeholder="Proprietaria - Casa Vila Verde"
+          placeholder="Proprietária - Casa Vila Verde"
           onChange={(event) => setField('authorRole', event.target.value)}
         />
         <TextArea
@@ -299,11 +299,11 @@ function TestimonialModal({
           onChange={(event) => setField('content', event.target.value)}
         />
         <Select
-          label="Avaliacao"
+          label="Avaliação"
           value={values.rating}
-          placeholder="Sem avaliacao"
+          placeholder="Sem avaliação"
           options={[1, 2, 3, 4, 5].map((value) => ({ value: String(value), label: `${value} estrela(s)` }))}
-          hint="Opcional. Deixe vazio para nao exibir estrelas."
+          hint="Opcional. Deixe vazio para não exibir estrelas."
           onChange={(event) => setField('rating', event.target.value)}
         />
         <ImageField
@@ -321,8 +321,8 @@ function TestimonialModal({
 
         <div className="grid gap-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
           <Checkbox
-            label="Confirmo que o autor autorizou a publicacao deste depoimento"
-            hint="Exigido para publicar. A plataforma registra esta declaracao."
+            label="Confirmo que o autor autorizou a publicação deste depoimento"
+            hint="Exigido para publicar. A plataforma registra esta declaração."
             checked={values.authorizationConfirmed}
             onChange={(checked) => setField('authorizationConfirmed', checked)}
           />
@@ -330,15 +330,15 @@ function TestimonialModal({
             <p className="text-xs font-medium text-rose-600">{errors.authorizationConfirmed}</p>
           ) : null}
           <TextInput
-            label="Como a autorizacao foi obtida"
+            label="Como a autorização foi obtida"
             value={values.authorizationNote}
-            placeholder="Autorizacao por escrito em 12/03/2025"
+            placeholder="Autorização por escrito em 12/03/2025"
             onChange={(event) => setField('authorizationNote', event.target.value)}
           />
         </div>
 
         <Select
-          label="Situacao no site"
+          label="Situação no site"
           value={values.publicationStatus}
           options={toOptions(labels.publication, PUBLICATION_STATUSES)}
           onChange={(event) => setField('publicationStatus', event.target.value as PublicationStatus)}
@@ -375,7 +375,7 @@ function TeamSection() {
       <Card>
         <CardHeader
           title="Equipe exibida no site"
-          description="Diferente de Equipe e usuarios, que trata de quem acessa o painel."
+          description="Diferente de Equipe e usuários, que trata de quem acessa o painel."
           actions={
             can('content:write') ? (
               <Button size="sm" icon={<Plus aria-hidden="true" className="size-3.5" />} onClick={() => setEditing('new')}>
@@ -391,7 +391,7 @@ function TeamSection() {
                 <EmptyState
                   icon={<Users aria-hidden="true" className="size-8" />}
                   title="Nenhum integrante cadastrado"
-                  description="Apresente a equipe tecnica responsavel pelas obras."
+                  description="Apresente a equipe técnica responsável pelas obras."
                 />
               ) : (
                 <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -451,7 +451,7 @@ function TeamSection() {
       <ConfirmDialog
         open={removing !== null}
         title="Remover integrante"
-        message={<><strong>{removing?.name}</strong> deixara de aparecer no site.</>}
+        message={<><strong>{removing?.name}</strong> deixará de aparecer no site.</>}
         confirmLabel="Remover"
         loading={remove.loading}
         onConfirm={() => removing && void remove.run(removing.id)}
@@ -508,7 +508,7 @@ function TeamMemberModal({
       },
       onError: (error) => {
         form.applyApiError(error);
-        if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel salvar', error.message);
+        if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -543,7 +543,7 @@ function TeamMemberModal({
         <TextInput
           label="Cargo e registro profissional"
           value={values.role}
-          placeholder="Engenheira civil responsavel - CREA-SP 1234567"
+          placeholder="Engenheira civil responsável - CREA-SP 1234567"
           onChange={(event) => setField('role', event.target.value)}
         />
         <TextArea
@@ -579,7 +579,7 @@ function TeamMemberModal({
           ))}
         </fieldset>
         <Select
-          label="Situacao no site"
+          label="Situação no site"
           value={values.publicationStatus}
           options={toOptions(labels.publication, PUBLICATION_STATUSES)}
           onChange={(event) => setField('publicationStatus', event.target.value as PublicationStatus)}
@@ -632,7 +632,7 @@ function FaqSection() {
                 <EmptyState
                   icon={<CircleHelp aria-hidden="true" className="size-8" />}
                   title="Nenhuma pergunta cadastrada"
-                  description="Responda as duvidas que mais aparecem nos contatos."
+                  description="Responda as dúvidas que mais aparecem nos contatos."
                 />
               ) : (
                 <ul className="grid gap-2">
@@ -690,7 +690,7 @@ function FaqSection() {
       <ConfirmDialog
         open={removing !== null}
         title="Remover pergunta"
-        message="A pergunta sera removida do site."
+        message="A pergunta será removida do site."
         confirmLabel="Remover"
         loading={remove.loading}
         onConfirm={() => removing && void remove.run(removing.id)}
@@ -727,7 +727,7 @@ function FaqModal({
       },
       onError: (error) => {
         form.applyApiError(error);
-        if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel salvar', error.message);
+        if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -773,7 +773,7 @@ function FaqModal({
           onChange={(event) => setField('category', event.target.value)}
         />
         <Select
-          label="Situacao no site"
+          label="Situação no site"
           value={values.publicationStatus}
           options={toOptions(labels.publication, PUBLICATION_STATUSES)}
           onChange={(event) => setField('publicationStatus', event.target.value as PublicationStatus)}

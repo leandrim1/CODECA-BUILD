@@ -20,7 +20,7 @@ export function PlatformSupportPage() {
       toast.success('Acesso revogado');
       list.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel revogar', error.message),
+    onError: (error) => toast.error('Não foi possível revogar', error.message),
   });
 
   const columns: Array<Column<SupportGrantRow>> = [
@@ -43,7 +43,7 @@ export function PlatformSupportPage() {
     },
     {
       key: 'status',
-      header: 'Situacao',
+      header: 'Situação',
       render: (row) => {
         const expired = new Date(row.expiresAt).getTime() < Date.now();
         if (row.revokedAt) return <Badge tone="neutral">Revogado</Badge>;
@@ -68,24 +68,24 @@ export function PlatformSupportPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Acesso de suporte"
-        description="Autorizacoes para consultar dados de uma empresa. Conceda apenas quando houver chamado aberto."
+        description="Autorizações para consultar dados de uma empresa. Conceda apenas quando houver chamado aberto."
       />
 
       <Alert tone="info" title="Como funciona">
-        O papel de administrador da plataforma nao da acesso ao conteudo das empresas. Para abrir o painel de
-        uma empresa e necessaria uma concessao explicita, somente leitura, com prazo definido e registro
-        em auditoria. A concessao e feita na ficha da empresa, em Empresas.
+        O papel de administrador da plataforma não da acesso ao conteúdo das empresas. Para abrir o painel de
+        uma empresa é necessária uma concessão explícita, somente leitura, com prazo definido e registro
+        em auditoria. A concessão e feita na ficha da empresa, em Empresas.
       </Alert>
 
       <Card>
-        <CardHeader title="Concessoes" />
+        <CardHeader title="Concessões" />
         <ResourcePanel resource={list}>
           {(data) => (
             <DataTable
               columns={columns}
               rows={data.grants}
               rowKey={(row) => row.id}
-              caption="Concessoes de acesso de suporte"
+              caption="Concessões de acesso de suporte"
             />
           )}
         </ResourcePanel>

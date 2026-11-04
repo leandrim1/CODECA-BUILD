@@ -60,8 +60,8 @@ export function requirePanelPlan(options: PanelPlanOptions): MiddlewareHandler<A
 
     if (!planHasFeature(plano.limits, 'cms_panel')) {
       throw AppError.planWithoutPanel(
-        `O plano ${plano.planName} nao inclui o painel de conteudo: quem mantem o conteudo `
-          + 'do site e a CODECA IA. Para administrar voce mesmo, contrate o plano Profissional '
+        `O plano ${plano.planName} não inclui o painel de conteúdo: quem mantém o conteúdo `
+          + 'do site é a CODECA IA. Para administrar você mesmo, contrate o plano Profissional '
           + 'na tela de plano e assinatura.',
         { planCode: plano.planCode },
       );

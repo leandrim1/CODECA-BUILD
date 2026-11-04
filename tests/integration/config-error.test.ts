@@ -103,7 +103,7 @@ describe('sites publicos com ambiente incompleto', () => {
     expect(response.headers.get('content-type')).toContain('text/html');
 
     const html = await response.text();
-    expect(html).toContain('temporariamente indisponivel');
+    expect(html).toContain('temporariamente indisponível');
     expect(html).toContain('noindex');
     // Quem visita o site de um cliente nao ve nome de variavel nem segredo.
     expect(html).not.toContain('AUTH_SECRET');

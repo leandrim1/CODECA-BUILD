@@ -19,7 +19,7 @@ export const segmentCodeSchema = z
   .toLowerCase()
   .min(2)
   .max(SEGMENT_CODE_MAX_LENGTH)
-  .regex(SLUG_PATTERN, 'Use apenas letras minusculas, numeros e hifen (ex.: clinica-odontologica).');
+  .regex(SLUG_PATTERN, 'Use apenas letras minúsculas, números e hífen (ex.: clinica-odontologica).');
 
 /**
  * Modulos padrao do segmento.

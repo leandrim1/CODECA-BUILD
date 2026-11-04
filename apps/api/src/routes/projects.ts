@@ -115,7 +115,7 @@ export function projectRoutes() {
       .select()
       .from(schema.projects)
       .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, tenant.tenantId)));
-    if (!row) throw AppError.notFound('Obra nao encontrada.');
+    if (!row) throw AppError.notFound('Obra não encontrada.');
 
     const gallery = await loadGallery(ctx.db, 'project', {
       tenantId: tenant.tenantId,
@@ -194,7 +194,7 @@ export function projectRoutes() {
         publishedAt: input.publicationStatus === 'published' ? ctx.now() : null,
       })
       .returning();
-    if (!row) throw AppError.internal('Nao foi possivel cadastrar a obra.');
+    if (!row) throw AppError.internal('Não foi possível cadastrar a obra.');
 
     await syncGallery(ctx.db, 'project', {
       tenantId: tenant.tenantId,
@@ -233,7 +233,7 @@ export function projectRoutes() {
       .select()
       .from(schema.projects)
       .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, tenant.tenantId)));
-    if (!current) throw AppError.notFound('Obra nao encontrada.');
+    if (!current) throw AppError.notFound('Obra não encontrada.');
 
     const personalizados = await lerAlteracao(
       ctx.db,
@@ -324,7 +324,7 @@ export function projectRoutes() {
       })
       .from(schema.projects)
       .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, tenant.tenantId)));
-    if (!current) throw AppError.notFound('Obra nao encontrada.');
+    if (!current) throw AppError.notFound('Obra não encontrada.');
 
     await ctx.db
       .delete(schema.projects)
@@ -363,7 +363,7 @@ export function projectRoutes() {
       .select({ id: schema.projects.id })
       .from(schema.projects)
       .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, tenant.tenantId)));
-    if (!project) throw AppError.notFound('Obra nao encontrada.');
+    if (!project) throw AppError.notFound('Obra não encontrada.');
 
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, input.imageIds);
 
@@ -380,7 +380,7 @@ export function projectRoutes() {
         createdByUserId: session.user.id,
       })
       .returning();
-    if (!row) throw AppError.internal('Nao foi possivel registrar a evolucao.');
+    if (!row) throw AppError.internal('Não foi possível registrar a evolução.');
 
     await syncGallery(ctx.db, 'projectUpdate', {
       tenantId: tenant.tenantId,
@@ -429,7 +429,7 @@ export function projectRoutes() {
         )
         .returning({ id: schema.projectUpdates.id });
 
-      if (result.length === 0) throw AppError.notFound('Registro de evolucao nao encontrado.');
+      if (result.length === 0) throw AppError.notFound('Registro de evolução não encontrado.');
       return noContent(c);
     },
   );
@@ -444,7 +444,7 @@ export function projectRoutes() {
       .from(schema.projects)
       .where(and(eq(schema.projects.tenantId, tenant.tenantId), inArray(schema.projects.id, input.ids)));
     if (rows.length !== input.ids.length) {
-      throw AppError.notFound('Uma ou mais obras informadas nao pertencem a esta empresa.');
+      throw AppError.notFound('Uma ou mais obras informadas não pertencem a esta empresa.');
     }
 
     await ctx.db.transaction(async (tx) => {

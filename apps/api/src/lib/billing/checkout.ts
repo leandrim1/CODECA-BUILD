@@ -81,7 +81,7 @@ export async function startCheckout(
     subscription.externalSubscriptionId
   ) {
     throw AppError.conflict(
-      `A empresa ja possui uma assinatura ativa do plano ${plan.name}.`,
+      `A empresa já possui uma assinatura ativa do plano ${plan.name}.`,
     );
   }
 
@@ -131,7 +131,7 @@ export async function startCheckout(
   });
 
   if (!session.url || !session.id) {
-    throw new AppError('upstream_error', 'A ValidaPay nao devolveu o link de pagamento.');
+    throw new AppError('upstream_error', 'A ValidaPay não devolveu o link de pagamento.');
   }
 
   const replacing = Boolean(subscription.checkoutSessionId);
@@ -155,7 +155,7 @@ export async function startCheckout(
     },
     {
       action: replacing ? BILLING_ACTIONS.checkoutReplaced : BILLING_ACTIONS.checkoutStarted,
-      reason: `Contratacao do plano ${plan.name} por ${PAYMENT_METHOD_OPTIONS[input.paymentMethod].label}.`,
+      reason: `Contratação do plano ${plan.name} por ${PAYMENT_METHOD_OPTIONS[input.paymentMethod].label}.`,
       metadata: {
         planId: plan.id,
         planCode: plan.code,
@@ -200,20 +200,20 @@ function reusableSession(
 /** Recusa a contratacao de plano inativo, gratuito ou com metodo nao oferecido. */
 export function assertPlanContractable(plan: PlanRow, paymentMethod: PaymentMethodCode): void {
   if (!plan.isActive) {
-    throw AppError.conflict(`O plano ${plan.name} esta inativo e nao pode ser contratado.`);
+    throw AppError.conflict(`O plano ${plan.name} está inativo e não pode ser contratado.`);
   }
   if (plan.priceCents <= 0) {
     throw AppError.badRequest(
-      `O plano ${plan.name} nao tem preco e nao pode ser contratado. `
-        + 'Planos de avaliacao sao concedidos pela plataforma.',
+      `O plano ${plan.name} não tem preço e não pode ser contratado. `
+        + 'Planos de avaliação são concedidos pela plataforma.',
     );
   }
 
   const billing = planBillingSchema.parse(plan.billing);
   if (!billing.paymentMethods.includes(paymentMethod)) {
     throw AppError.badRequest(
-      `O plano ${plan.name} nao aceita ${PAYMENT_METHOD_OPTIONS[paymentMethod].label}. `
-        + `Formas disponiveis: ${billing.paymentMethods
+      `O plano ${plan.name} não aceita ${PAYMENT_METHOD_OPTIONS[paymentMethod].label}. `
+        + `Formas disponíveis: ${billing.paymentMethods
           .map((code) => PAYMENT_METHOD_OPTIONS[code].label)
           .join(', ')}.`,
     );
@@ -222,7 +222,7 @@ export function assertPlanContractable(plan: PlanRow, paymentMethod: PaymentMeth
   const option = PAYMENT_METHOD_OPTIONS[paymentMethod];
   if (plan.priceCents < option.minimumCents) {
     throw AppError.badRequest(
-      `${option.label} exige valor minimo de ${formatCents(option.minimumCents)} por cobranca. `
+      `${option.label} exige valor mínimo de ${formatCents(option.minimumCents)} por cobrança. `
         + `O plano ${plan.name} custa ${formatCents(plan.priceCents)}.`,
     );
   }
@@ -233,8 +233,8 @@ function methodNotice(paymentMethod: PaymentMethodCode): string | null {
   const option = PAYMENT_METHOD_OPTIONS[paymentMethod];
   if (option.automatic) return null;
   return (
-    `${option.label}: a ValidaPay emite uma cobranca a cada ciclo, mas o pagamento e manual. `
-    + 'Nao ha debito automatico nesta forma de pagamento.'
+    `${option.label}: a ValidaPay emite uma cobrança a cada ciclo, mas o pagamento e manual. `
+    + 'Não há débito automático nesta forma de pagamento.'
   );
 }
 
@@ -265,7 +265,7 @@ export async function syncPlanWithProvider(
 ): Promise<SyncedPlan> {
   if (plan.priceCents <= 0) {
     throw AppError.badRequest(
-      `O plano ${plan.name} e gratuito: a ValidaPay exige preco maior que zero para criar um preco recorrente.`,
+      `O plano ${plan.name} e gratuito: a ValidaPay exige preço maior que zero para criar um preço recorrente.`,
     );
   }
 
@@ -325,12 +325,12 @@ export async function syncPlanWithProvider(
 
 export async function loadPlan(db: Database, planId: string): Promise<PlanRow> {
   const [row] = await db.select().from(schema.plans).where(eq(schema.plans.id, planId));
-  if (!row) throw AppError.notFound('Plano nao encontrado.');
+  if (!row) throw AppError.notFound('Plano não encontrado.');
   return row;
 }
 
 export async function loadTenant(db: Database, tenantId: string): Promise<TenantRow> {
   const [row] = await db.select().from(schema.tenants).where(eq(schema.tenants.id, tenantId));
-  if (!row) throw AppError.notFound('Empresa nao encontrada.');
+  if (!row) throw AppError.notFound('Empresa não encontrada.');
   return row;
 }

@@ -93,7 +93,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => dismiss(toast.id)}
-                aria-label="Fechar notificacao"
+                aria-label="Fechar notificação"
                 className="flex-none rounded p-0.5 opacity-60 transition-opacity hover:opacity-100"
               >
                 <X aria-hidden="true" className="size-4" />

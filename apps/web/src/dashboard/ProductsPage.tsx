@@ -64,7 +64,7 @@ export function ProductsPage() {
       setRemovendo(null);
       produtos.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel remover', error.message),
+    onError: (error) => toast.error('Não foi possível remover', error.message),
   });
 
   const lista = categorias.data?.items ?? [];
@@ -73,7 +73,7 @@ export function ProductsPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Produtos"
-        description="O que a sua empresa oferece. A ordem define a sequencia no site."
+        description="O que a sua empresa oferece. A ordem define a sequência no site."
         actions={
           <Can capability="content:write">
             <Button
@@ -105,7 +105,7 @@ export function ProductsPage() {
           data.items.length === 0 ? (
             <EmptyState
               title="Nenhum produto cadastrado"
-              description="Um produto tem nome, preco e imagem. O preco pode ficar sob consulta."
+              description="Um produto tem nome, preço e imagem. O preço pode ficar sob consulta."
               action={
                 <Can capability="content:write">
                   <Button onClick={() => setEditando('novo')}>Criar o primeiro</Button>
@@ -145,7 +145,7 @@ export function ProductsPage() {
                         <p className="mt-1 line-clamp-2 text-sm text-slate-600">{produto.summary}</p>
                       ) : null}
                       {produto.code ? (
-                        <p className="mt-1 text-xs text-slate-500">Codigo: {produto.code}</p>
+                        <p className="mt-1 text-xs text-slate-500">Código: {produto.code}</p>
                       ) : null}
                     </div>
 
@@ -267,7 +267,7 @@ function FormularioProduto({
       },
       onError: (error) => {
         applyApiError(error);
-        toast.error('Nao foi possivel salvar', error.message);
+        toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -314,7 +314,7 @@ function FormularioProduto({
         />
 
         <TextArea
-          label="Descricao"
+          label="Descrição"
           rows={4}
           value={values.description}
           error={errors.description}
@@ -338,7 +338,7 @@ function FormularioProduto({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <TextInput
-            label="Preco"
+            label="Preço"
             inputMode="decimal"
             placeholder="0,00"
             value={values.price}
@@ -349,7 +349,7 @@ function FormularioProduto({
           />
           <TextInput
             label="Unidade"
-            placeholder="un, kg, porcao"
+            placeholder="un, kg, porção"
             value={values.unit}
             error={errors.unit}
             readOnly={travado('unit')}
@@ -358,22 +358,22 @@ function FormularioProduto({
         </div>
 
         <Switch
-          label="Preco sob consulta"
+          label="Preço sob consulta"
           hint="O site mostra 'sob consulta' em vez do valor."
           checked={values.priceOnRequest}
           onChange={(checked) => setField('priceOnRequest', checked)}
         />
 
         <Switch
-          label="Disponivel"
+          label="Disponível"
           hint="Desmarque quando acabar. O produto continua no site, marcado como esgotado."
           checked={values.isAvailable}
           onChange={(checked) => setField('isAvailable', checked)}
         />
 
         <TextInput
-          label="Codigo interno"
-          hint="SKU ou referencia. Opcional."
+          label="Código interno"
+          hint="SKU ou referência. Opcional."
           value={values.code}
           error={errors.code}
           readOnly={travado('code')}
@@ -396,7 +396,7 @@ function FormularioProduto({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
-            label="Publicacao"
+            label="Publicação"
             value={values.publicationStatus}
             onChange={(event) => setField('publicationStatus', event.target.value as typeof values.publicationStatus)}
             options={toOptions(labels.publication, PUBLICATION_STATUSES)}

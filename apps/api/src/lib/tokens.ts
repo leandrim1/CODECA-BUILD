@@ -100,7 +100,7 @@ export async function consumeUserToken(
     });
 
   if (!row) {
-    throw AppError.badRequest('Este link e invalido ou expirou. Solicite um novo.');
+    throw AppError.badRequest('Este link e inválido ou expirou. Solicite um novo.');
   }
 
   return {

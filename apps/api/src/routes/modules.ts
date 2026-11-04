@@ -48,7 +48,7 @@ const moduleParamSchema = z.object({
 
 /** Converte o parametro da rota em chave de modulo conhecida. */
 function parseModuleKey(value: string) {
-  if (!isModuleKey(value)) throw AppError.notFound('Modulo nao encontrado.');
+  if (!isModuleKey(value)) throw AppError.notFound('Módulo não encontrado.');
   return value;
 }
 
@@ -56,7 +56,7 @@ function parseDocumentModuleKey(value: string): DocumentModuleKey {
   const key = parseModuleKey(value);
   if (MODULE_REGISTRY[key].kind !== 'document') {
     throw AppError.badRequest(
-      `O modulo ${MODULE_REGISTRY[key].name} guarda uma lista de registros, nao um documento.`,
+      `O módulo ${MODULE_REGISTRY[key].name} guarda uma lista de registros, não um documento.`,
     );
   }
   return key as DocumentModuleKey;

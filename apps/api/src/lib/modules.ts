@@ -221,7 +221,7 @@ export async function assertModuleEnabled(
 
   if (!linha?.enabled) {
     throw AppError.forbidden(
-      `O modulo ${MODULE_REGISTRY[moduleKey].name} nao esta habilitado para este site.`,
+      `O módulo ${MODULE_REGISTRY[moduleKey].name} não está habilitado para este site.`,
     );
   }
 }
@@ -247,7 +247,7 @@ export function assertEditableChanges(
       return campo?.label ?? key;
     });
     throw AppError.forbidden(
-      `Estes campos sao mantidos pela CODECA IA e nao podem ser alterados aqui: ${rotulos.join(', ')}.`,
+      `Estes campos são mantidos pela CODECA IA e não podem ser alterados aqui: ${rotulos.join(', ')}.`,
     );
   }
   return mudou;
@@ -279,7 +279,7 @@ export function assertEditableCreate(
       return campo?.label ?? key;
     });
     throw AppError.forbidden(
-      `Estes campos sao mantidos pela CODECA IA e nao podem ser definidos aqui: ${rotulos.join(', ')}.`,
+      `Estes campos são mantidos pela CODECA IA e não podem ser definidos aqui: ${rotulos.join(', ')}.`,
     );
   }
   return enviadas;

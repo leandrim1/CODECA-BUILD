@@ -83,17 +83,17 @@ export function PropertiesPage() {
 
   const remove = useMutation((id: string) => propertyApi.remove(tenantId, id), {
     onSuccess: () => {
-      toast.success('Imovel excluido');
+      toast.success('Imóvel excluído');
       setRemoving(null);
       list.reload();
     },
-    onError: (error) => toast.error('Nao foi possivel excluir', error.message),
+    onError: (error) => toast.error('Não foi possível excluir', error.message),
   });
 
   const columns: Array<Column<PropertyRecord>> = [
     {
       key: 'title',
-      header: 'Imovel',
+      header: 'Imóvel',
       render: (property) => (
         <div className="flex items-center gap-3">
           <div className="size-12 flex-none overflow-hidden rounded-lg bg-slate-100">
@@ -138,7 +138,7 @@ export function PropertiesPage() {
     },
     {
       key: 'status',
-      header: 'Situacao',
+      header: 'Situação',
       render: (property) => (
         <div className="grid gap-1">
           <Badge tone={publicationTone(property.publicationStatus)}>
@@ -152,7 +152,7 @@ export function PropertiesPage() {
     },
     {
       key: 'location',
-      header: 'Localizacao',
+      header: 'Localização',
       hideOnMobile: true,
       render: (property) => (
         <span className="text-xs text-slate-600">
@@ -200,12 +200,12 @@ export function PropertiesPage() {
   return (
     <div className="panel-shell grid gap-6">
       <PageHeader
-        title="Imoveis"
-        description="Cadastro dos imoveis a venda, em locacao e lancamentos. Cada imovel publicado ganha uma pagina propria no site."
+        title="Imóveis"
+        description="Cadastro dos imóveis a venda, em locação e lançamentos. Cada imóvel publicado ganha uma página própria no site."
         actions={
           can('content:write') ? (
             <Button icon={<Plus aria-hidden="true" className="size-4" />} onClick={() => setEditing('new')}>
-              Novo imovel
+              Novo imóvel
             </Button>
           ) : undefined
         }
@@ -215,14 +215,14 @@ export function PropertiesPage() {
 
       <Card>
         <CardHeader
-          title="Carteira de imoveis"
+          title="Carteira de imóveis"
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <div className="w-full sm:w-48">
                 <TextInput
                   label="Buscar"
                   className="[&>label]:sr-only"
-                  placeholder="Titulo ou referencia"
+                  placeholder="Título ou referência"
                   value={search}
                   onChange={(event) => {
                     setSearch(event.target.value);
@@ -232,9 +232,9 @@ export function PropertiesPage() {
               </div>
               <div className="w-full sm:w-40">
                 <Select
-                  label="Situacao"
+                  label="Situação"
                   className="[&>label]:sr-only"
-                  placeholder="Todas as situacoes"
+                  placeholder="Todas as situações"
                   value={status}
                   options={toOptions(labels.publication, PUBLICATION_STATUSES)}
                   onChange={(event) => {
@@ -266,16 +266,16 @@ export function PropertiesPage() {
                 columns={columns}
                 rows={data.items}
                 rowKey={(property) => property.id}
-                caption="Imoveis cadastrados"
+                caption="Imóveis cadastrados"
                 empty={
                   <CardBody>
                     <EmptyState
                       icon={<Building2 aria-hidden="true" className="size-8" />}
-                      title="Nenhum imovel cadastrado"
-                      description="Cadastre o primeiro imovel para que ele apareca no site."
+                      title="Nenhum imóvel cadastrado"
+                      description="Cadastre o primeiro imóvel para que ele apareça no site."
                       action={
                         can('content:write') ? (
-                          <Button onClick={() => setEditing('new')}>Novo imovel</Button>
+                          <Button onClick={() => setEditing('new')}>Novo imóvel</Button>
                         ) : undefined
                       }
                     />
@@ -303,14 +303,14 @@ export function PropertiesPage() {
 
       <ConfirmDialog
         open={removing !== null}
-        title="Excluir imovel"
+        title="Excluir imóvel"
         message={
           <>
-            O imovel <strong>{removing?.title}</strong> sera excluido, junto com a pagina publica dele. As
+            O imóvel <strong>{removing?.title}</strong> será excluído, junto com a página pública dele. As
             fotos permanecem na biblioteca de imagens.
           </>
         }
-        confirmLabel="Excluir imovel"
+        confirmLabel="Excluir imóvel"
         loading={remove.loading}
         onConfirm={() => removing && void remove.run(removing.id)}
         onCancel={() => setRemoving(null)}
@@ -482,13 +482,13 @@ function PropertyFormModal({
     () => (propertyId ? propertyApi.update(tenantId, propertyId, payload()) : propertyApi.create(tenantId, payload())),
     {
       onSuccess: () => {
-        toast.success(propertyId ? 'Imovel atualizado' : 'Imovel cadastrado');
+        toast.success(propertyId ? 'Imóvel atualizado' : 'Imóvel cadastrado');
         onSaved();
       },
       onError: (error) => {
         form.applyApiError(error);
-        if (error.isPlanLimit) toast.error('Limite do plano alcancado', error.message);
-        else if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel salvar', error.message);
+        if (error.isPlanLimit) toast.error('Limite do plano alcançado', error.message);
+        else if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -499,8 +499,8 @@ function PropertyFormModal({
     <Modal
       open
       onClose={onClose}
-      title={propertyId ? 'Editar imovel' : 'Novo imovel'}
-      description="Os campos de endereco podem ficar ocultos no site publico."
+      title={propertyId ? 'Editar imóvel' : 'Novo imóvel'}
+      description="Os campos de endereço podem ficar ocultos no site público."
       size="xl"
       footer={
         <>
@@ -508,16 +508,16 @@ function PropertyFormModal({
             Cancelar
           </Button>
           <Button loading={save.loading} onClick={() => void save.run(undefined)}>
-            {propertyId ? 'Salvar alteracoes' : 'Cadastrar imovel'}
+            {propertyId ? 'Salvar alterações' : 'Cadastrar imóvel'}
           </Button>
         </>
       }
     >
       <div className="grid gap-6">
         <section className="grid gap-4">
-          <h3 className="text-sm font-semibold text-slate-800">Identificacao</h3>
+          <h3 className="text-sm font-semibold text-slate-800">Identificação</h3>
           <TextInput
-            label="Titulo"
+            label="Título"
             required
             value={values.title}
             error={errors.title}
@@ -525,7 +525,7 @@ function PropertyFormModal({
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <TextInput
-              label="Endereco da pagina"
+              label="Endereço da página"
               value={values.slug}
               error={errors.slug}
               placeholder={slugify(values.title)}
@@ -533,12 +533,12 @@ function PropertyFormModal({
               disabled={!politica.editavel('slug')}
               hint={
                 politica.travaExplicada('slug') ??
-                'Gerado a partir do titulo quando vazio.'
+                'Gerado a partir do título quando vazio.'
               }
               onChange={(event) => setField('slug', slugify(event.target.value))}
             />
             <TextInput
-              label="Referencia interna"
+              label="Referência interna"
               value={values.reference}
               error={errors.reference}
               onChange={(event) => setField('reference', event.target.value)}
@@ -548,11 +548,11 @@ function PropertyFormModal({
             label="Resumo"
             value={values.shortDescription}
             error={errors.shortDescription}
-            hint="Aparece nos cartoes de listagem."
+            hint="Aparece nos cartões de listagem."
             onChange={(event) => setField('shortDescription', event.target.value)}
           />
           <TextArea
-            label="Descricao completa"
+            label="Descrição completa"
             rows={5}
             value={values.description}
             error={errors.description}
@@ -580,7 +580,7 @@ function PropertyFormModal({
           </div>
           <Switch
             label="Valor sob consulta"
-            hint="O site mostra 'Valor sob consulta' em vez do preco."
+            hint="O site mostra 'Valor sob consulta' em vez do preço."
             checked={values.priceOnRequest}
             onChange={(checked) => setField('priceOnRequest', checked)}
           />
@@ -604,7 +604,7 @@ function PropertyFormModal({
               onChange={(event) => setField('currency', event.target.value)}
             />
             <TextInput
-              label="Condominio"
+              label="Condomínio"
               inputMode="decimal"
               value={values.condoFee}
               onChange={(event) => setField('condoFee', event.target.value)}
@@ -619,28 +619,28 @@ function PropertyFormModal({
         </section>
 
         <section className="grid gap-4">
-          <h3 className="text-sm font-semibold text-slate-800">Caracteristicas</h3>
+          <h3 className="text-sm font-semibold text-slate-800">Características</h3>
           <div className="grid gap-4 sm:grid-cols-3">
             <TextInput
-              label="Area construida (m2)"
+              label="Área construída (m²)"
               inputMode="decimal"
               value={values.builtAreaM2}
               onChange={(event) => setField('builtAreaM2', event.target.value)}
             />
             <TextInput
-              label="Area do terreno (m2)"
+              label="Área do terreno (m²)"
               inputMode="decimal"
               value={values.landAreaM2}
               onChange={(event) => setField('landAreaM2', event.target.value)}
             />
             <TextInput
-              label="Dormitorios"
+              label="Dormitórios"
               inputMode="numeric"
               value={values.bedrooms}
               onChange={(event) => setField('bedrooms', event.target.value)}
             />
             <TextInput
-              label="Suites"
+              label="Suítes"
               inputMode="numeric"
               value={values.suites}
               onChange={(event) => setField('suites', event.target.value)}
@@ -659,7 +659,7 @@ function PropertyFormModal({
             />
           </div>
           <TextArea
-            label="Caracteristicas adicionais"
+            label="Características adicionais"
             rows={4}
             value={values.features}
             hint="Uma por linha. Exemplo: varanda gourmet, portaria 24 horas, energia solar."
@@ -668,16 +668,16 @@ function PropertyFormModal({
         </section>
 
         <section className="grid gap-4">
-          <h3 className="text-sm font-semibold text-slate-800">Localizacao</h3>
+          <h3 className="text-sm font-semibold text-slate-800">Localização</h3>
           <Switch
-            label="Exibir endereco completo no site"
+            label="Exibir endereço completo no site"
             hint="Desligado, o site mostra apenas bairro e cidade."
             checked={values.showFullAddress}
             onChange={(checked) => setField('showFullAddress', checked)}
           />
           <div className="grid gap-4 sm:grid-cols-[2fr_1fr_1fr]">
             <TextInput label="Rua" value={values.street} onChange={(event) => setField('street', event.target.value)} />
-            <TextInput label="Numero" value={values.number} onChange={(event) => setField('number', event.target.value)} />
+            <TextInput label="Número" value={values.number} onChange={(event) => setField('number', event.target.value)} />
             <TextInput
               label="Complemento"
               value={values.complement}
@@ -761,26 +761,26 @@ function PropertyFormModal({
         </section>
 
         <section className="grid gap-4">
-          <h3 className="text-sm font-semibold text-slate-800">Publicacao</h3>
+          <h3 className="text-sm font-semibold text-slate-800">Publicação</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <Select
-              label="Situacao no site"
+              label="Situação no site"
               value={values.publicationStatus}
               options={toOptions(labels.publication, PUBLICATION_STATUSES)}
-              hint="Somente imoveis publicados aparecem no site."
+              hint="Somente imóveis publicados aparecem no site."
               onChange={(event) => setField('publicationStatus', event.target.value)}
             />
             <Select
-              label="Situacao comercial"
+              label="Situação comercial"
               value={values.commercialStatus}
               options={toOptions(labels.propertyCommercial, PROPERTY_COMMERCIAL_STATUSES)}
-              hint="Independente da publicacao: um imovel vendido pode seguir no portfolio."
+              hint="Independente da publicação: um imóvel vendido pode seguir no portfólio."
               onChange={(event) => setField('commercialStatus', event.target.value)}
             />
           </div>
           <Checkbox
             label="Marcar como destaque"
-            hint="Usado pelo bloco de imovel em destaque e na ordenacao das listagens."
+            hint="Usado pelo bloco de imóvel em destaque e na ordenação das listagens."
             checked={values.featured}
             onChange={(checked) => setField('featured', checked)}
           />
@@ -793,18 +793,18 @@ function PropertyFormModal({
         </section>
 
         <section className="grid gap-4">
-          <h3 className="text-sm font-semibold text-slate-800">SEO da pagina do imovel</h3>
+          <h3 className="text-sm font-semibold text-slate-800">SEO da página do imóvel</h3>
           <TextInput
-            label="Titulo para buscadores"
+            label="Título para buscadores"
             value={values.seoTitle}
-            hint="Vazio usa o titulo do imovel."
+            hint="Vazio usa o título do imóvel."
             onChange={(event) => setField('seoTitle', event.target.value)}
           />
           <TextArea
-            label="Descricao para buscadores"
+            label="Descrição para buscadores"
             rows={2}
             value={values.seoDescription}
-            hint="Vazio usa o resumo do imovel."
+            hint="Vazio usa o resumo do imóvel."
             onChange={(event) => setField('seoDescription', event.target.value)}
           />
         </section>

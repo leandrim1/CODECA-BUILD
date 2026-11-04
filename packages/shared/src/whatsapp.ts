@@ -41,21 +41,21 @@ export function whatsAppMessage(context: WhatsAppContext, companyName: string): 
     case 'property': {
       const ref = context.reference ? ` (referencia ${context.reference})` : '';
       const price = context.price ? ` Valor anunciado: ${context.price}.` : '';
-      return `Ola, ${companyName}! Tenho interesse no imovel "${context.title}"${ref}.${price} Pode me enviar mais informacoes?`;
+      return `Olá, ${companyName}! Tenho interesse no imóvel "${context.title}"${ref}.${price} Pode me enviar mais informações?`;
     }
     case 'project': {
       const stage = context.stage ? ` (etapa atual: ${context.stage})` : '';
-      return `Ola, ${companyName}! Gostaria de saber mais sobre a obra "${context.title}"${stage}.`;
+      return `Olá, ${companyName}! Gostaria de saber mais sobre a obra "${context.title}"${stage}.`;
     }
     case 'service':
-      return `Ola, ${companyName}! Gostaria de informacoes sobre o servico "${context.title}".`;
+      return `Olá, ${companyName}! Gostaria de informações sobre o serviço "${context.title}".`;
     case 'quote':
       return context.subject
-        ? `Ola, ${companyName}! Gostaria de solicitar um orcamento sobre ${context.subject}.`
-        : `Ola, ${companyName}! Gostaria de solicitar um orcamento.`;
+        ? `Olá, ${companyName}! Gostaria de solicitar um orçamento sobre ${context.subject}.`
+        : `Olá, ${companyName}! Gostaria de solicitar um orçamento.`;
     case 'generic':
     default:
-      return `Ola, ${companyName}! Gostaria de falar com a equipe de voces.`;
+      return `Olá, ${companyName}! Gostaria de falar com a equipe de voces.`;
   }
 }
 

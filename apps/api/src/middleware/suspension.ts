@@ -59,13 +59,13 @@ export function enforceSuspension(options: SuspensionOptions): MiddlewareHandler
 
     if (panelFullyBlocked(situacao.effect)) {
       throw AppError.forbidden(
-        `${explicacao} Enquanto isso o painel fica indisponivel; o conteudo continua salvo.`,
+        `${explicacao} Enquanto isso o painel fica indisponível; o conteúdo continua salvo.`,
       );
     }
 
     if (!leitura && panelWritesBlocked(situacao.effect)) {
       throw AppError.forbidden(
-        `${explicacao} Enquanto isso o painel fica em somente leitura; nada do que ja esta cadastrado foi apagado.`,
+        `${explicacao} Enquanto isso o painel fica em somente leitura; nada do que já está cadastrado foi apagado.`,
       );
     }
 
@@ -99,7 +99,7 @@ export function enforcePublicSuspension(): MiddlewareHandler<AppBindings> {
       // credencial sem permissao -- algo a corrigir no codigo do site; 402 e
       // pendencia da assinatura, que ninguem resolve mexendo no site.
       throw AppError.subscriptionRequired(
-        'O conteudo deste site esta indisponivel por pendencia da assinatura. '
+        'O conteúdo deste site está indisponível por pendência da assinatura. '
           + 'Nenhum dado foi apagado: regularize no painel para voltar a responder.',
       );
     }

@@ -45,7 +45,7 @@ export function PlatformPlansPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Planos"
-        description="Limites e recursos de cada plano. Alteracoes passam a valer imediatamente para as empresas que usam o plano."
+        description="Limites e recursos de cada plano. Alterações passam a valer imediatamente para as empresas que usam o plano."
         actions={
           <Button icon={<Plus aria-hidden="true" className="size-4" />} onClick={() => setEditing('new')}>
             Novo plano
@@ -81,7 +81,7 @@ export function PlatformPlansPage() {
                 <CardBody className="grid gap-3">
                   <p className="text-2xl font-semibold text-slate-900">
                     {plan.priceCents === 0 ? 'Gratuito' : formatPlanPrice(plan.priceCents)}
-                    {plan.priceCents > 0 ? <span className="text-sm font-normal text-slate-500">/mes</span> : null}
+                    {plan.priceCents > 0 ? <span className="text-sm font-normal text-slate-500">/mês</span> : null}
                   </p>
                   {/*
                     A mesma lista da pagina inicial e da tela de plano do
@@ -181,7 +181,7 @@ function PlanModal({
       },
       onError: (error) => {
         form.applyApiError(error);
-        if (Object.keys(error.fieldErrors).length === 0) toast.error('Nao foi possivel salvar', error.message);
+        if (Object.keys(error.fieldErrors).length === 0) toast.error('Não foi possível salvar', error.message);
       },
     },
   );
@@ -208,11 +208,11 @@ function PlanModal({
       <div className="grid gap-4">
         {plan ? null : (
           <TextInput
-            label="Codigo"
+            label="Código"
             required
             value={values.code}
             error={errors.code}
-            hint="Identificador interno, apenas letras minusculas, numeros, - e _."
+            hint="Identificador interno, apenas letras minúsculas, números, - e _."
             onChange={(event) => setField('code', event.target.value.toLowerCase())}
           />
         )}
@@ -224,13 +224,13 @@ function PlanModal({
           onChange={(event) => setField('name', event.target.value)}
         />
         <TextArea
-          label="Descricao"
+          label="Descrição"
           rows={2}
           value={values.description}
           onChange={(event) => setField('description', event.target.value)}
         />
         <TextInput
-          label="Preco mensal (R$)"
+          label="Preço mensal (R$)"
           inputMode="decimal"
           value={values.priceReais}
           onChange={(event) => setField('priceReais', event.target.value)}
@@ -239,21 +239,21 @@ function PlanModal({
         <fieldset className="grid items-start gap-4 sm:grid-cols-3">
           <legend className="text-sm font-medium text-slate-700">Limites</legend>
           <TextInput
-            label="Usuarios"
+            label="Usuários"
             inputMode="numeric"
             value={values.maxUsers}
             onChange={(event) => setField('maxUsers', event.target.value)}
           />
           <TextInput
-            label="Conteudos cadastrados"
+            label="Conteúdos cadastrados"
             inputMode="numeric"
             value={values.maxContentRecords}
             error={errors['limits.maxContentRecords']}
-            hint="Limite geral: soma dos registros de todos os modulos do site."
+            hint="Limite geral: soma dos registros de todos os módulos do site."
             onChange={(event) => setField('maxContentRecords', event.target.value)}
           />
           <TextInput
-            label="Dominios"
+            label="Domínios"
             inputMode="numeric"
             value={values.maxDomains}
             onChange={(event) => setField('maxDomains', event.target.value)}
@@ -265,16 +265,16 @@ function PlanModal({
             onChange={(event) => setField('storageMb', event.target.value)}
           />
           <p className="text-xs leading-relaxed text-slate-500 sm:col-span-3">
-            <strong>Conteudos cadastrados</strong> e um limite unico, igual para todo segmento: conta os
-            registros de todos os modulos de colecao habilitados no site (produtos, servicos, imoveis, obras,
-            equipe, galerias, banners e os modulos personalizados). Rascunhos e arquivados contam; excluidos
-            nao; documentos (institucional, contato) nao. Reduzir o limite nunca apaga nada: quem ja passou
-            dele continua editando e excluindo, e so deixa de cadastrar novos.
+            <strong>Conteúdos cadastrados</strong> e um limite único, igual para todo segmento: conta os
+            registros de todos os módulos de coleção habilitados no site (produtos, serviços, imóveis, obras,
+            equipe, galerias, banners e os módulos personalizados). Rascunhos e arquivados contam; excluídos
+            não; documentos (institucional, contato) não. Reduzir o limite nunca apaga nada: quem já passou
+            dele continua editando e excluindo, e só deixa de cadastrar novos.
           </p>
         </fieldset>
 
         <fieldset className="grid gap-1.5">
-          <legend className="text-sm font-medium text-slate-700">Recursos incluidos</legend>
+          <legend className="text-sm font-medium text-slate-700">Recursos incluídos</legend>
           <div className="grid gap-1 rounded-lg border border-slate-200 p-3">
             {PLAN_FEATURES.map((feature) => (
               <Checkbox
@@ -302,10 +302,10 @@ function PlanModal({
 
         <fieldset className="grid gap-4 rounded-lg border border-slate-200 p-4">
           <legend className="px-1 text-sm font-medium text-slate-700">
-            Quando a assinatura nao esta em dia
+            Quando a assinatura não está em dia
           </legend>
           <p className="text-xs text-slate-500">
-            Vale apos o periodo de tolerancia. Durante a tolerancia nada muda.
+            Vale após o período de tolerância. Durante a tolerância nada muda.
           </p>
 
           <Select
@@ -315,7 +315,7 @@ function PlanModal({
               value: code,
               label: PUBLIC_SITE_ON_SUSPENSION_LABELS[code],
             }))}
-            hint="O site e um projeto na Vercel do cliente: a plataforma controla o conteudo que ele busca, nao a hospedagem."
+            hint="O site é um projeto na Vercel do cliente: a plataforma controla o conteúdo que ele busca, não a hospedagem."
             onChange={(event) =>
               setField('suspensionPublicSite', event.target.value as PublicSiteOnSuspension)
             }
@@ -328,24 +328,24 @@ function PlanModal({
               value: code,
               label: PANEL_ON_SUSPENSION_LABELS[code],
             }))}
-            hint="A tela de cobranca continua aberta nos dois casos: sem ela o cliente nao tem como regularizar."
+            hint="A tela de cobrança continua aberta nos dois casos: sem ela o cliente não tem como regularizar."
             onChange={(event) => setField('suspensionPanel', event.target.value as PanelOnSuspension)}
           />
 
-          <Alert tone="info" title="O conteudo nunca e apagado">
-            Imoveis, obras, imagens e configuracoes continuam salvos em qualquer uma das opcoes, e
-            voltam a aparecer ao regularizar. Nao ha opcao de apagar.
+          <Alert tone="info" title="O conteúdo nunca e apagado">
+            Imóveis, obras, imagens e configurações continuam salvos em qualquer uma das opções, e
+            voltam a aparecer ao regularizar. Não há opção de apagar.
           </Alert>
         </fieldset>
 
         <Switch
-          label="Visivel para contratacao"
+          label="Visível para contratação"
           checked={values.isPublic}
           onChange={(checked) => setField('isPublic', checked)}
         />
         <Switch
           label="Plano ativo"
-          hint="Planos inativos nao podem ser atribuidos a novas empresas."
+          hint="Planos inativos não podem ser atribuídos a novas empresas."
           checked={values.isActive}
           onChange={(checked) => setField('isActive', checked)}
         />

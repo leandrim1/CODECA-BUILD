@@ -137,9 +137,9 @@ export function Pagination({
   }
 
   return (
-    <nav className="flex items-center justify-between gap-3 px-4 py-3" aria-label="Paginacao">
+    <nav className="flex items-center justify-between gap-3 px-4 py-3" aria-label="Paginação">
       <p className="text-xs text-slate-500">
-        Pagina {page} de {totalPages} - {total} registro(s)
+        Página {page} de {totalPages} - {total} registro(s)
       </p>
       <div className="flex gap-1.5">
         <button
@@ -156,7 +156,7 @@ export function Pagination({
           disabled={page >= totalPages}
           className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-transparent"
         >
-          Proxima
+          Próxima
         </button>
       </div>
     </nav>

@@ -89,7 +89,7 @@ export function platformSegmentRoutes() {
       .from(schema.segments)
       .where(eq(schema.segments.code, input.code));
     if (existente) {
-      throw AppError.conflict(`Ja existe um segmento com o codigo "${input.code}".`);
+      throw AppError.conflict(`Já existe um segmento com o código "${input.code}".`);
     }
 
     const row = await ctx.db.transaction(async (tx) => {
@@ -131,12 +131,12 @@ export function platformSegmentRoutes() {
       // Sem padrao, uma empresa nova nasceria com todos os modulos ligados.
       // Trocar o padrao e marcar outro, nao desmarcar este.
       throw AppError.badRequest(
-        'Para deixar de ser o padrao, marque outro segmento como padrao: '
+        'Para deixar de ser o padrão, marque outro segmento como padrão: '
           + 'uma empresa nova precisa de um conjunto inicial.',
       );
     }
     if (input.isDefault && !input.isActive) {
-      throw AppError.badRequest('Um segmento desativado nao pode ser o padrao de empresas novas.');
+      throw AppError.badRequest('Um segmento desativado não pode ser o padrão de empresas novas.');
     }
 
     const row = await ctx.db.transaction(async (tx) => {
@@ -189,11 +189,11 @@ export function platformSegmentRoutes() {
       // lista de projetos novos e preserva o que ja esta configurado.
       throw AppError.conflict(
         `${uso?.total} site(s) usam este segmento. Desative-o em vez de remover: `
-          + 'os sites mantem a configuracao que ja tem.',
+          + 'os sites mantem a configuração que já tem.',
       );
     }
     if (atual.isDefault) {
-      throw AppError.badRequest('Marque outro segmento como padrao antes de remover este.');
+      throw AppError.badRequest('Marque outro segmento como padrão antes de remover este.');
     }
 
     await ctx.db.delete(schema.segments).where(eq(schema.segments.id, segmentId));
@@ -227,6 +227,6 @@ async function limparPadrao(tx: Transaction): Promise<void> {
 
 async function carregarSegmento(db: Database, segmentId: string) {
   const [row] = await db.select().from(schema.segments).where(eq(schema.segments.id, segmentId));
-  if (!row) throw AppError.notFound('Segmento nao encontrado.');
+  if (!row) throw AppError.notFound('Segmento não encontrado.');
   return row;
 }

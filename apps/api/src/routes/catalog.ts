@@ -213,7 +213,7 @@ export function catalogRoutes() {
         seoDescription: input.seoDescription,
       })
       .returning();
-    if (!row) throw AppError.conflict('Nao foi possivel criar o produto.');
+    if (!row) throw AppError.conflict('Não foi possível criar o produto.');
 
     await syncGallery(ctx.db, 'product', {
       tenantId: tenant.tenantId,
@@ -290,7 +290,7 @@ export function catalogRoutes() {
       .set(updates)
       .where(and(eq(schema.products.id, productId), eq(schema.products.siteId, tenant.siteId)))
       .returning();
-    if (!row) throw AppError.notFound('Produto nao encontrado.');
+    if (!row) throw AppError.notFound('Produto não encontrado.');
 
     if (input.galleryImageIds !== undefined) {
       await syncGallery(ctx.db, 'product', {
@@ -334,7 +334,7 @@ export function catalogRoutes() {
         slug: schema.products.slug,
         publicationStatus: schema.products.publicationStatus,
       });
-    if (!apagado) throw AppError.notFound('Produto nao encontrado.');
+    if (!apagado) throw AppError.notFound('Produto não encontrado.');
 
     if (visibilityChanged(apagado.publicationStatus, null)) {
       await queueContentPublished(ctx, {
@@ -448,7 +448,7 @@ export function catalogRoutes() {
       .where(
         and(eq(schema.categories.id, categoryId), eq(schema.categories.siteId, tenant.siteId)),
       );
-    if (!atual) throw AppError.notFound('Categoria nao encontrada.');
+    if (!atual) throw AppError.notFound('Categoria não encontrada.');
 
     const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
     assertEditablePatch('categorias', atual, input as Record<string, unknown>, overrides);
@@ -471,7 +471,7 @@ export function catalogRoutes() {
       .set(updates)
       .where(and(eq(schema.categories.id, categoryId), eq(schema.categories.siteId, tenant.siteId)))
       .returning();
-    if (!row) throw AppError.notFound('Categoria nao encontrada.');
+    if (!row) throw AppError.notFound('Categoria não encontrada.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentUpdated,
@@ -494,7 +494,7 @@ export function catalogRoutes() {
       .delete(schema.categories)
       .where(and(eq(schema.categories.id, categoryId), eq(schema.categories.siteId, tenant.siteId)))
       .returning({ id: schema.categories.id, name: schema.categories.name });
-    if (!apagado) throw AppError.notFound('Categoria nao encontrada.');
+    if (!apagado) throw AppError.notFound('Categoria não encontrada.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentDeleted,
@@ -554,7 +554,7 @@ export function catalogRoutes() {
         sortOrder: input.sortOrder,
       })
       .returning();
-    if (!row) throw AppError.conflict('Nao foi possivel criar a galeria.');
+    if (!row) throw AppError.conflict('Não foi possível criar a galeria.');
 
     await syncGallery(ctx.db, 'gallery', {
       tenantId: tenant.tenantId,
@@ -593,7 +593,7 @@ export function catalogRoutes() {
       .select()
       .from(schema.galleries)
       .where(and(eq(schema.galleries.id, galleryId), eq(schema.galleries.siteId, tenant.siteId)));
-    if (!atual) throw AppError.notFound('Galeria nao encontrada.');
+    if (!atual) throw AppError.notFound('Galeria não encontrada.');
 
     const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
     assertEditablePatch('galerias', atual, input as Record<string, unknown>, overrides);
@@ -615,7 +615,7 @@ export function catalogRoutes() {
       .set(updates)
       .where(and(eq(schema.galleries.id, galleryId), eq(schema.galleries.siteId, tenant.siteId)))
       .returning();
-    if (!row) throw AppError.notFound('Galeria nao encontrada.');
+    if (!row) throw AppError.notFound('Galeria não encontrada.');
 
     if (input.imageIds !== undefined) {
       await syncGallery(ctx.db, 'gallery', {
@@ -661,7 +661,7 @@ export function catalogRoutes() {
         slug: schema.galleries.slug,
         publicationStatus: schema.galleries.publicationStatus,
       });
-    if (!apagada) throw AppError.notFound('Galeria nao encontrada.');
+    if (!apagada) throw AppError.notFound('Galeria não encontrada.');
 
     if (visibilityChanged(apagada.publicationStatus, null)) {
       await queueContentPublished(ctx, {
@@ -696,7 +696,7 @@ async function carregarProduto(
     .select()
     .from(schema.products)
     .where(and(eq(schema.products.id, productId), eq(schema.products.siteId, siteId)));
-  if (!row) throw AppError.notFound('Produto nao encontrado.');
+  if (!row) throw AppError.notFound('Produto não encontrado.');
   return row;
 }
 
@@ -717,5 +717,5 @@ async function assertCategoria(
     .select({ id: schema.categories.id })
     .from(schema.categories)
     .where(and(eq(schema.categories.id, categoryId), eq(schema.categories.siteId, siteId)));
-  if (!row) throw AppError.notFound('Categoria nao encontrada neste site.');
+  if (!row) throw AppError.notFound('Categoria não encontrada neste site.');
 }

@@ -81,7 +81,7 @@ export function BillingPage() {
       window.location.href = result.checkoutUrl;
     } catch (error) {
       toast.error(
-        'Nao foi possivel iniciar a contratacao',
+        'Não foi possível iniciar a contratação',
         error instanceof ApiError ? error.message : undefined,
       );
     } finally {
@@ -109,7 +109,7 @@ export function BillingPage() {
     setWorking(true);
     try {
       const result = await billingApi.refreshCharge(tenantId, charge.id);
-      toast.success('Cobranca consultada', `Situacao atual: ${result.charge.statusLabel}.`);
+      toast.success('Cobrança consultada', `Situação atual: ${result.charge.statusLabel}.`);
       billing.reload();
     } catch (error) {
       toast.error('Falha ao consultar', error instanceof ApiError ? error.message : undefined);
@@ -156,13 +156,13 @@ export function BillingPage() {
       const result = await billingApi.changePlan(tenantId, { planId: plan.id, preview: true });
       const parts: string[] = [];
       if (result.chargeNowCents) {
-        parts.push(`Cobranca proporcional agora: ${centsLabel(result.chargeNowCents)}.`);
+        parts.push(`Cobrança proporcional agora: ${centsLabel(result.chargeNowCents)}.`);
       }
       if (result.creditCents) {
-        parts.push(`Credito gerado: ${centsLabel(result.creditCents)}, abatido nas proximas cobrancas.`);
+        parts.push(`Crédito gerado: ${centsLabel(result.creditCents)}, abatido nas próximas cobranças.`);
       }
       if (!result.chargeNowCents && !result.creditCents) {
-        parts.push('Sem cobranca agora: o valor novo passa a valer na proxima cobranca.');
+        parts.push('Sem cobrança agora: o valor novo passa a valer na próxima cobrança.');
       }
       for (const warning of result.warnings ?? []) parts.push(warning);
       setPreview(parts.join(' '));
@@ -170,7 +170,7 @@ export function BillingPage() {
       setPreview(
         error instanceof ApiError
           ? error.message
-          : 'Nao foi possivel simular a troca de plano agora.',
+          : 'Não foi possível simular a troca de plano agora.',
       );
     }
   };
@@ -213,7 +213,7 @@ export function BillingPage() {
       },
       {
         key: 'status',
-        header: 'Situacao',
+        header: 'Situação',
         render: (row) => (
           <div className="grid gap-0.5">
             <Badge tone={chargeTone(row.status)}>{row.statusLabel}</Badge>
@@ -251,7 +251,7 @@ export function BillingPage() {
             size="sm"
             onClick={() => void refreshCharge(row)}
             disabled={working}
-            title="Consultar a situacao desta cobranca no provedor"
+            title="Consultar a situação desta cobrança no provedor"
           >
             <RefreshCw aria-hidden="true" className="size-4" />
             <span className="sr-only">Consultar novamente</span>
@@ -266,7 +266,7 @@ export function BillingPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Plano e assinatura"
-        description="Situacao da assinatura, historico de pagamentos e estado da publicacao do site."
+        description="Situação da assinatura, histórico de pagamentos e estado da publicação do site."
         actions={
           subscription ? (
             <Button variant="outline" onClick={() => void refreshState()} disabled={working}>
@@ -281,9 +281,9 @@ export function BillingPage() {
         {(view) => (
           <div className="grid gap-6">
             {!view.available ? (
-              <Alert tone="warning" title="Contratacao indisponivel">
-                A integracao de pagamento nao esta configurada no servidor. Fale com a equipe da
-                plataforma: enquanto isso, nenhuma contratacao pode ser concluida.
+              <Alert tone="warning" title="Contratação indisponível">
+                A integração de pagamento não está configurada no servidor. Fale com a equipe da
+                plataforma: enquanto isso, nenhuma contratação pode ser concluída.
               </Alert>
             ) : null}
 
@@ -298,14 +298,14 @@ export function BillingPage() {
                   {view.subscription.inGracePeriod && view.subscription.graceEndsAt ? (
                     <>
                       {' '}
-                      O site continua no ar durante a tolerancia, ate{' '}
+                      O site continua no ar durante a tolerância, até{' '}
                       <strong>{formatDateTime(view.subscription.graceEndsAt)}</strong>.
                     </>
                   ) : null}
                 </Alert>
 
                 {/*
-                  O que esta restringido, em termos concretos.
+                  O que está restringido, em termos concretos.
                   O cliente suspenso chega nesta tela para entender o que
                   perdeu e o que nao perdeu. Dizer "suspenso" sem dizer o que
                   isso faz deixa a pior leitura possivel no lugar: a de que o
@@ -314,8 +314,8 @@ export function BillingPage() {
                 {!view.subscription.suspension.current ? (
                   <Card>
                     <CardHeader
-                      title="O que esta valendo agora"
-                      description="Enquanto a assinatura nao e regularizada."
+                      title="O que está valendo agora"
+                      description="Enquanto a assinatura não é regularizada."
                     />
                     <CardBody className="grid gap-2 text-sm">
                       <p className="text-slate-700">
@@ -325,12 +325,12 @@ export function BillingPage() {
                       <p className="text-slate-700">
                         <strong>Seu painel:</strong>{' '}
                         {view.subscription.suspension.panel === 'full'
-                          ? 'Sem restricao'
+                          ? 'Sem restrição'
                           : PANEL_ON_SUSPENSION_LABELS[view.subscription.suspension.panel]}
                       </p>
                       <p className="text-slate-700">
-                        <strong>Seu conteudo:</strong> continua salvo. Imoveis, obras, imagens e
-                        configuracoes nao sao apagados por pendencia de pagamento, e voltam a
+                        <strong>Seu conteúdo:</strong> continua salvo. Imóveis, obras, imagens e
+                        configurações não são apagados por pendência de pagamento, e voltam a
                         aparecer assim que a assinatura e regularizada.
                       </p>
                     </CardBody>
@@ -338,14 +338,14 @@ export function BillingPage() {
                 ) : null}
 
                 {view.subscription.lastErrorMessage ? (
-                  <Alert tone="danger" title="Ultima tentativa de pagamento recusada">
+                  <Alert tone="danger" title="Última tentativa de pagamento recusada">
                     {view.subscription.lastErrorMessage}
                   </Alert>
                 ) : null}
 
                 {view.subscription.state === 'pending' && view.subscription.checkoutUrl ? (
                   <Alert tone="info" title="Pagamento pendente">
-                    A contratacao foi iniciada e aguarda o pagamento.{' '}
+                    A contratação foi iniciada e aguarda o pagamento.{' '}
                     <a
                       className="font-medium text-brand-700 underline"
                       href={view.subscription.checkoutUrl}
@@ -380,12 +380,12 @@ export function BillingPage() {
                     <dl className="grid gap-3 sm:grid-cols-2">
                       <Info
                         label="Forma de pagamento"
-                        value={view.subscription?.paymentMethodLabel ?? 'Nao definida'}
+                        value={view.subscription?.paymentMethodLabel ?? 'Não definida'}
                         hint={
                           view.subscription?.automaticRenewal === false
-                            ? 'Renovacao manual: a cada ciclo e emitida uma cobranca para pagamento.'
+                            ? 'Renovação manual: a cada ciclo e emitida uma cobrança para pagamento.'
                             : view.subscription?.automaticRenewal === true
-                              ? 'Renovacao automatica a cada ciclo.'
+                              ? 'Renovação automática a cada ciclo.'
                               : undefined
                         }
                       />
@@ -398,7 +398,7 @@ export function BillingPage() {
                         }
                       />
                       <Info
-                        label="Acesso garantido ate"
+                        label="Acesso garantido até"
                         value={
                           view.subscription?.accessUntil
                             ? formatDateTime(view.subscription.accessUntil)
@@ -406,26 +406,26 @@ export function BillingPage() {
                         }
                       />
                       <Info
-                        label="Proxima cobranca"
+                        label="Próxima cobrança"
                         value={
                           view.subscription?.nextChargeAt
                             ? formatDateTime(view.subscription.nextChargeAt)
-                            : 'Nao programada'
+                            : 'Não programada'
                         }
                         hint={
                           view.subscription?.cancelAtPeriodEnd
-                            ? 'Cancelamento agendado: nao havera nova cobranca.'
+                            ? 'Cancelamento agendado: não haverá nova cobrança.'
                             : undefined
                         }
                       />
                       {view.subscription?.trialEndsAt ? (
                         <Info
-                          label="Avaliacao ate"
+                          label="Avaliação até"
                           value={formatDateTime(view.subscription.trialEndsAt)}
                         />
                       ) : null}
                       <Info
-                        label="Ultima sincronizacao"
+                        label="Última sincronização"
                         value={
                           view.subscription?.lastSyncedAt
                             ? formatDateTime(view.subscription.lastSyncedAt)
@@ -436,13 +436,13 @@ export function BillingPage() {
 
                     <div className="grid gap-3 border-t border-slate-100 pt-4">
                       <Meter
-                        label="Conteudos cadastrados"
+                        label="Conteúdos cadastrados"
                         current={view.usage.contentRecords}
                         limit={view.plan.limits.maxContentRecords}
                       />
                       <ContentUsageBreakdown byModule={view.usage.contentByModule} />
-                      <Meter label="Usuarios ativos" current={view.usage.users} limit={view.plan.limits.maxUsers} />
-                      <Meter label="Dominios" current={view.usage.domains} limit={view.plan.limits.maxDomains} />
+                      <Meter label="Usuários ativos" current={view.usage.users} limit={view.plan.limits.maxUsers} />
+                      <Meter label="Domínios" current={view.usage.domains} limit={view.plan.limits.maxDomains} />
                       <Meter
                         label="Armazenamento"
                         current={view.usage.storageBytes}
@@ -455,15 +455,15 @@ export function BillingPage() {
 
                 <Card>
                   <CardHeader
-                    title="Historico de cobrancas"
-                    description="Cada linha e uma cobranca registrada na ValidaPay."
+                    title="Histórico de cobranças"
+                    description="Cada linha é uma cobrança registrada na ValidaPay."
                   />
                   <CardBody>
                     <DataTable
                       columns={chargeColumns}
                       rows={view.charges}
                       rowKey={(row) => row.id}
-                      empty="Nenhuma cobranca registrada ainda."
+                      empty="Nenhuma cobrança registrada ainda."
                     />
                   </CardBody>
                 </Card>
@@ -500,7 +500,7 @@ export function BillingPage() {
 
               <div className="grid gap-6">
                 <Card>
-                  <CardHeader title="Planos disponiveis" />
+                  <CardHeader title="Planos disponíveis" />
                   <CardBody className="grid gap-3">
                     {view.plans.map((plan) => (
                       <div
@@ -560,8 +560,8 @@ export function BillingPage() {
                       {view.subscription.cancelAtPeriodEnd ? (
                         <>
                           <p>
-                            O cancelamento esta agendado para o fim do periodo pago. O site continua
-                            no ar ate la.
+                            O cancelamento está agendado para o fim do período pago. O site continua
+                            no ar até lá.
                           </p>
                           <Button variant="outline" onClick={() => void undoCancel()} disabled={working}>
                             Desfazer cancelamento
@@ -570,8 +570,8 @@ export function BillingPage() {
                       ) : (
                         <>
                           <p>
-                            O cancelamento respeita o periodo contratado. O conteudo do site, os
-                            imoveis e as imagens continuam salvos.
+                            O cancelamento respeita o período contratado. O conteúdo do site, os
+                            imóveis e as imagens continuam salvos.
                           </p>
                           <Button
                             variant="danger"
@@ -590,15 +590,15 @@ export function BillingPage() {
                   <CardHeader title="Pagamento com problema?" />
                   <CardBody className="grid gap-2 text-sm text-slate-600">
                     <p>
-                      Uma falha isolada nao cancela a assinatura: ha um periodo de tolerancia de{' '}
+                      Uma falha isolada não cancela a assinatura: há um período de tolerância de{' '}
                       {view.subscription?.gracePeriodDays ?? 5} dias antes de o site ser suspenso.
                     </p>
                     <p>
                       Para regularizar, confira a forma de pagamento com o seu banco e use{' '}
-                      <strong>Consultar novamente</strong> para atualizar a situacao aqui.
+                      <strong>Consultar novamente</strong> para atualizar a situação aqui.
                     </p>
                     <p className="text-xs text-slate-500">
-                      O painel continua acessivel mesmo com o site suspenso, para que a empresa
+                      O painel continua acessível mesmo com o site suspenso, para que a empresa
                       possa regularizar sem perder nada.
                     </p>
                   </CardBody>
@@ -652,13 +652,13 @@ export function BillingPage() {
             {method && !checkoutPlan.paymentMethods.find((o) => o.code === method)?.automatic ? (
               <p className="flex gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
                 <AlertTriangle aria-hidden="true" className="size-4 flex-none" />
-                Esta forma de pagamento nao tem debito automatico: a cada ciclo e emitida uma nova
-                cobranca para pagamento manual.
+                Esta forma de pagamento não tem débito automático: a cada ciclo e emitida uma nova
+                cobrança para pagamento manual.
               </p>
             ) : null}
 
             <p className="text-xs text-slate-500">
-              O pagamento acontece na pagina da ValidaPay. A publicacao do site e liberada quando o
+              O pagamento acontece na página da ValidaPay. A publicação do site e liberada quando o
               pagamento for confirmado.
             </p>
           </div>
@@ -705,8 +705,8 @@ export function BillingPage() {
         message={
           <div className="grid gap-3">
             <p>
-              O cancelamento respeita o periodo contratado: o site continua no ar ate o fim do
-              periodo pago, e o conteudo cadastrado continua salvo.
+              O cancelamento respeita o período contratado: o site continua no ar até o fim do
+              período pago, e o conteúdo cadastrado continua salvo.
             </p>
             <TextArea
               label="Motivo (opcional)"
@@ -818,31 +818,31 @@ function AvisoDeLimites({
 }) {
   const acima: string[] = [];
   if (usage.contentRecords > limits.maxContentRecords) {
-    acima.push(`${usage.contentRecords} conteudos cadastrados (o limite e ${limits.maxContentRecords})`);
+    acima.push(`${usage.contentRecords} conteúdos cadastrados (o limite é ${limits.maxContentRecords})`);
   }
   if (usage.users > limits.maxUsers) {
-    acima.push(`${usage.users} usuarios (o limite e ${limits.maxUsers})`);
+    acima.push(`${usage.users} usuários (o limite é ${limits.maxUsers})`);
   }
   if (usage.domains > limits.maxDomains) {
-    acima.push(`${usage.domains} dominios (o limite e ${limits.maxDomains})`);
+    acima.push(`${usage.domains} domínios (o limite é ${limits.maxDomains})`);
   }
   if (usage.storageBytes > limits.storageBytes) {
     acima.push(
-      `${formatBytes(usage.storageBytes)} de armazenamento (o limite e ${formatBytes(limits.storageBytes)})`,
+      `${formatBytes(usage.storageBytes)} de armazenamento (o limite é ${formatBytes(limits.storageBytes)})`,
     );
   }
   if (acima.length === 0) return null;
 
   return (
-    <Alert tone="warning" title={`Voce usa mais do que o plano ${planName} permite`}>
+    <Alert tone="warning" title={`Você usa mais do que o plano ${planName} permite`}>
       <ul className="list-disc pl-4">
         {acima.map((linha) => (
           <li key={linha}>{linha}</li>
         ))}
       </ul>
       <p className="mt-2">
-        Nada sera apagado nem escondido: voce continua vendo, editando e excluindo tudo. So nao sera possivel
-        cadastrar novos itens nesses limites ate voltar a ficar abaixo deles.
+        Nada será apagado nem escondido: você continua vendo, editando e excluindo tudo. Só não será possível
+        cadastrar novos itens nesses limites até voltar a ficar abaixo deles.
       </p>
     </Alert>
   );

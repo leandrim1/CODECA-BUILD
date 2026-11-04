@@ -3,7 +3,7 @@ import { PUBLICATION_STATUSES, SAFE_ICONS, SOCIAL_NETWORKS } from '../constants.
 import { httpsUrlSchema, paginationSchema, slugSchema, uuidSchema } from './common.js';
 
 export const serviceInputSchema = z.object({
-  title: z.string().trim().min(3, 'Informe o nome do servico.').max(120),
+  title: z.string().trim().min(3, 'Informe o nome do serviço.').max(120),
   slug: slugSchema.optional(),
   summary: z.string().trim().max(400).default(''),
   description: z.string().trim().max(10_000).default(''),
@@ -26,7 +26,7 @@ export const testimonialInputSchema = z
   .object({
     authorName: z.string().trim().min(2, 'Informe o nome do autor.').max(120),
     authorRole: z.string().trim().max(120).default(''),
-    content: z.string().trim().min(10, 'O depoimento esta muito curto.').max(2000),
+    content: z.string().trim().min(10, 'O depoimento está muito curto.').max(2000),
     rating: z.number().int().min(1).max(5).nullable().default(null),
     photoId: uuidSchema.nullable().default(null),
     relatedProjectId: uuidSchema.nullable().default(null),
@@ -39,7 +39,7 @@ export const testimonialInputSchema = z
   .refine(
     (value) => value.publicationStatus !== 'published' || value.authorizationConfirmed,
     {
-      message: 'Confirme a autorizacao do autor antes de publicar o depoimento.',
+      message: 'Confirme a autorização do autor antes de publicar o depoimento.',
       path: ['authorizationConfirmed'],
     },
   );

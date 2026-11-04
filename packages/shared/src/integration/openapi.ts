@@ -125,20 +125,20 @@ const ROTAS: readonly RotaDescrita[] = [
   {
     method: 'get',
     path: '/site',
-    summary: 'Identidade do site, modulos habilitados e escopos da chave',
+    summary: 'Identidade do site, módulos habilitados e escopos da chave',
     description:
-      'Primeira chamada de qualquer integracao: confirma que a chave vale, diz '
-      + 'quais modulos este site tem e traz o aviso de pendencia, se houver.',
+      'Primeira chamada de qualquer integração: confirma que a chave vale, diz '
+      + 'quais módulos este site tem e traz o aviso de pendência, se houver.',
     response: ref('SiteInfo'),
     scope: 'content:read',
   },
   {
     method: 'get',
     path: '/content/{moduleKey}',
-    summary: 'Documento de instancia unica',
+    summary: 'Documento de instância única',
     description:
-      'Modulos de documento: `institucional` e `contato`. A forma de `data` '
-      + 'depende do modulo pedido.',
+      'Módulos de documento: `institucional` e `contato`. A forma de `data` '
+      + 'depende do módulo pedido.',
     params: [{ name: 'moduleKey', description: '`institucional` ou `contato`.' }],
     response: {
       type: 'object',
@@ -154,8 +154,8 @@ const ROTAS: readonly RotaDescrita[] = [
     path: '/banners',
     summary: 'Banners ativos',
     description:
-      'Ja filtrados pela janela de exibicao: um banner programado para a '
-      + 'semana que vem simplesmente nao vem. O site nao precisa conhecer a regra.',
+      'Já filtrados pela janela de exibição: um banner programado para a '
+      + 'semana que vem simplesmente não vem. O site não precisa conhecer a regra.',
     response: itens('PublicBanner'),
     scope: 'content:read',
     module: 'banners',
@@ -163,7 +163,7 @@ const ROTAS: readonly RotaDescrita[] = [
   {
     method: 'get',
     path: '/properties',
-    summary: 'Imoveis publicados',
+    summary: 'Imóveis publicados',
     query: publicPropertyQuerySchema,
     response: pagina('PublicProperty'),
     scope: 'content:read',
@@ -172,8 +172,8 @@ const ROTAS: readonly RotaDescrita[] = [
   {
     method: 'get',
     path: '/properties/{slug}',
-    summary: 'Um imovel, com a galeria completa',
-    params: [{ name: 'slug', description: 'Endereco do imovel na URL.' }],
+    summary: 'Um imóvel, com a galeria completa',
+    params: [{ name: 'slug', description: 'Endereço do imóvel na URL.' }],
     query: publicListQuerySchema,
     response: envelope('property', 'PublicProperty'),
     scope: 'content:read',
@@ -192,7 +192,7 @@ const ROTAS: readonly RotaDescrita[] = [
     method: 'get',
     path: '/projects/{slug}',
     summary: 'Uma obra, com a galeria completa',
-    params: [{ name: 'slug', description: 'Endereco da obra na URL.' }],
+    params: [{ name: 'slug', description: 'Endereço da obra na URL.' }],
     query: publicListQuerySchema,
     response: envelope('project', 'PublicProject'),
     scope: 'content:read',
@@ -201,7 +201,7 @@ const ROTAS: readonly RotaDescrita[] = [
   {
     method: 'get',
     path: '/services',
-    summary: 'Servicos publicados',
+    summary: 'Serviços publicados',
     query: publicListQuerySchema,
     response: pagina('PublicService'),
     scope: 'content:read',
@@ -213,7 +213,7 @@ const ROTAS: readonly RotaDescrita[] = [
     summary: 'Produtos publicados',
     description:
       'O esgotado vem junto, com `isAvailable: false` -- use `availableOnly` '
-      + 'para nao receber. `gallery` vem vazia aqui.',
+      + 'para não receber. `gallery` vem vazia aqui.',
     query: publicProductQuerySchema,
     response: pagina('PublicProduct'),
     scope: 'content:read',
@@ -223,7 +223,7 @@ const ROTAS: readonly RotaDescrita[] = [
     method: 'get',
     path: '/products/{slug}',
     summary: 'Um produto, com a galeria completa',
-    params: [{ name: 'slug', description: 'Endereco do produto na URL.' }],
+    params: [{ name: 'slug', description: 'Endereço do produto na URL.' }],
     query: publicListQuerySchema,
     response: envelope('product', 'PublicProduct'),
     scope: 'content:read',
@@ -233,7 +233,7 @@ const ROTAS: readonly RotaDescrita[] = [
     method: 'get',
     path: '/categories',
     summary: 'Categorias de produto',
-    description: 'Sem paginacao: um menu de agrupamentos tem dezenas de itens, nao milhares.',
+    description: 'Sem paginação: um menu de agrupamentos tem dezenas de itens, não milhares.',
     query: publicListQuerySchema,
     response: itens('PublicCategory'),
     scope: 'content:read',
@@ -255,7 +255,7 @@ const ROTAS: readonly RotaDescrita[] = [
     method: 'get',
     path: '/galleries/{slug}',
     summary: 'Uma galeria, com as imagens na ordem do cliente',
-    params: [{ name: 'slug', description: 'Endereco da galeria na URL.' }],
+    params: [{ name: 'slug', description: 'Endereço da galeria na URL.' }],
     query: publicListQuerySchema,
     response: envelope('gallery', 'PublicGallery'),
     scope: 'content:read',
@@ -266,8 +266,8 @@ const ROTAS: readonly RotaDescrita[] = [
     path: '/testimonials',
     summary: 'Depoimentos autorizados pelo autor',
     description:
-      'A plataforma **nao** devolve depoimento sem a confirmacao de que o autor '
-      + 'autorizou a publicacao, nem com `preview=true`. Nao ha nada a conferir '
+      'A plataforma **não** devolve depoimento sem a confirmação de que o autor '
+      + 'autorizou a publicação, nem com `preview=true`. Não há nada a conferir '
       + 'no site: o que chega pode ser exibido.',
     query: publicListQuerySchema,
     response: pagina('PublicTestimonial'),
@@ -295,20 +295,20 @@ const ROTAS: readonly RotaDescrita[] = [
   {
     method: 'get',
     path: '/custom/{moduleKey}',
-    summary: 'Conteudo de um modulo criado para este projeto',
+    summary: 'Conteúdo de um módulo criado para este projeto',
     description:
-      'Modulos que existem somente neste site, criados pela CODECA IA no painel '
-      + 'mestre -- um cardapio, uma lista de turmas, um catalogo de processos. '
+      'Módulos que existem somente neste site, criados pela CODECA IA no painel '
+      + 'mestre -- um cardápio, uma lista de turmas, um catálogo de processos. '
       + '`GET /site` diz quais existem, em `customModules`.\n\n'
-      + 'O namespace `/custom/` nao e enfeite: um modulo deste tipo nunca ocupa a '
-      + 'raiz de `/api/v1`, entao o dia em que a plataforma acrescentar um modulo '
-      + 'com a mesma chave ao catalogo, a rota do seu site continua lendo o mesmo '
+      + 'O namespace `/custom/` não é enfeite: um módulo deste tipo nunca ocupa a '
+      + 'raiz de `/api/v1`, então o dia em que a plataforma acrescentar um módulo '
+      + 'com a mesma chave ao catálogo, a rota do seu site continua lendo o mesmo '
       + 'conteudo.\n\n'
-      + 'A forma de `data` e definida por site e **nao** e contrato desta API: '
+      + 'A forma de `data` e definida por site e **não** e contrato desta API: '
       + 'campos podem ser criados, renomeados ou removidos no painel mestre sem '
-      + 'versao nova. Confira o tipo do valor antes de usar e trate chave ausente '
-      + 'como nao informada.',
-    params: [{ name: 'moduleKey', description: 'Chave do modulo, como vem em `customModules`.' }],
+      + 'versão nova. Confira o tipo do valor antes de usar e trate chave ausente '
+      + 'como não informada.',
+    params: [{ name: 'moduleKey', description: 'Chave do módulo, como vem em `customModules`.' }],
     query: publicListQuerySchema,
     response: pagina('PublicCustomRecord'),
     scope: 'content:read',
@@ -316,13 +316,13 @@ const ROTAS: readonly RotaDescrita[] = [
   {
     method: 'get',
     path: '/custom/{moduleKey}/{slug}',
-    summary: 'Um registro de um modulo deste projeto',
+    summary: 'Um registro de um módulo deste projeto',
     description:
-      'Num modulo `document` o registro unico vem pela listagem, e nao por aqui: '
-      + 'ele nao tem endereco proprio.',
+      'Num módulo `document` o registro único vem pela listagem, e não por aqui: '
+      + 'ele não tem endereço próprio.',
     params: [
-      { name: 'moduleKey', description: 'Chave do modulo, como vem em `customModules`.' },
-      { name: 'slug', description: 'Endereco do registro.' },
+      { name: 'moduleKey', description: 'Chave do módulo, como vem em `customModules`.' },
+      { name: 'slug', description: 'Endereço do registro.' },
     ],
     query: publicListQuerySchema,
     response: envelope('record', 'PublicCustomRecord'),
@@ -331,12 +331,12 @@ const ROTAS: readonly RotaDescrita[] = [
   {
     method: 'post',
     path: '/leads',
-    summary: 'Recebe o formulario de contato',
+    summary: 'Recebe o formulário de contato',
     description:
-      'Unica escrita aceita com chave publicavel, porque o formulario roda no '
-      + 'navegador do visitante e nao ha segredo a guardar. A protecao vem da '
+      'Única escrita aceita com chave publicável, porque o formulário roda no '
+      + 'navegador do visitante e não há segredo a guardar. A proteção vem da '
       + 'origem autorizada, do limite por IP e do campo-armadilha `honeypot`. '
-      + 'A resposta e so a confirmacao: quem envia nao le de volta.',
+      + 'A resposta é só a confirmação: quem envia não lê de volta.',
     body: 'LeadInput',
     response: ref('LeadReceived'),
     scope: 'leads:write',
@@ -433,24 +433,24 @@ export function buildOpenApiDocument(options: OpenApiOptions): Record<string, un
           description: 'Sucesso.',
           content: { 'application/json': { schema: rota.response } },
         },
-        '401': { description: 'Chave ausente, invalida ou revogada.' },
+        '401': { description: 'Chave ausente, inválida ou revogada.' },
         '402': {
           description:
-            'Assinatura com pendencia e o plano do site manda parar de responder. '
+            'Assinatura com pendência e o plano do site manda parar de responder. '
             + 'Nada foi apagado.',
         },
         '403': {
           description:
             rota.scope === 'content:read'
-              ? 'A chave nao tem o escopo necessario, ou pediu `preview` sem `content:draft`.'
-              : 'A chave nao tem o escopo necessario.',
+              ? 'A chave não tem o escopo necessario, ou pediu `preview` sem `content:draft`.'
+              : 'A chave não tem o escopo necessario.',
         },
         '404': {
           description: rota.module
-            ? `Este site nao tem o modulo \`${rota.module}\` habilitado, ou o registro nao existe.`
-            : 'Registro nao encontrado.',
+            ? `Este site não tem o módulo \`${rota.module}\` habilitado, ou o registro não existe.`
+            : 'Registro não encontrado.',
         },
-        '429': { description: 'Limite de requisicoes da chave excedido.' },
+        '429': { description: 'Limite de requisições da chave excedido.' },
       },
       security: [{ ApiKey: [] }],
     };
@@ -459,26 +459,26 @@ export function buildOpenApiDocument(options: OpenApiOptions): Record<string, un
   return {
     openapi: OPENAPI_VERSION,
     info: {
-      title: 'CODECA Build - API publica',
+      title: 'CODECA Build - API pública',
       version: options.version ?? '1.0.0',
       description:
-        'Conteudo dos sites desenvolvidos pela CODECA IA. Autenticada por chave '
-        + 'de integracao do site: a **publicavel** (`cb_pub_...`) le o publicado e '
-        + 'pode enviar o formulario de contato; a **secreta** (`cb_sec_...`) le '
-        + 'tambem rascunho e previa e nunca deve ir para o navegador.\n\n'
-        + 'Dado de interessado nao sai por nenhuma rota: nome, telefone e e-mail '
+        'Conteúdo dos sites desenvolvidos pela CODECA IA. Autenticada por chave '
+        + 'de integração do site: a **publicável** (`cb_pub_...`) lê o publicado e '
+        + 'pode enviar o formulário de contato; a **secreta** (`cb_sec_...`) lê '
+        + 'também rascunho e prévia e nunca deve ir para o navegador.\n\n'
+        + 'Dado de interessado não sai por nenhuma rota: nome, telefone e e-mail '
         + 'ficam atras do painel autenticado.\n\n'
         + 'Este documento e gerado dos mesmos schemas que a API usa para validar, '
         + 'e um teste compara a cobertura com a tabela de rotas do servidor.',
     },
     servers: [{ url: options.baseUrl }],
     tags: [
-      { name: 'site', description: 'Identidade do site e documentos de instancia unica.' },
+      { name: 'site', description: 'Identidade do site e documentos de instância única.' },
       { name: 'banners', description: 'Destaques da abertura.' },
-      { name: 'imoveis', description: 'Carteira de imoveis.' },
+      { name: 'imoveis', description: 'Carteira de imóveis.' },
       { name: 'obras', description: 'Obras e projetos.' },
-      { name: 'servicos', description: 'Servicos oferecidos.' },
-      { name: 'produtos', description: 'Catalogo, cardapio ou lista de itens.' },
+      { name: 'servicos', description: 'Serviços oferecidos.' },
+      { name: 'produtos', description: 'Catálogo, cardápio ou lista de itens.' },
       { name: 'categorias', description: 'Agrupamento dos produtos.' },
       { name: 'galerias', description: 'Conjuntos de imagens.' },
       { name: 'depoimentos', description: 'Depoimentos autorizados pelo autor.' },
@@ -493,7 +493,7 @@ export function buildOpenApiDocument(options: OpenApiOptions): Record<string, un
           type: 'http',
           scheme: 'bearer',
           description:
-            'Chave de integracao do site no cabecalho `Authorization: Bearer <chave>`.',
+            'Chave de integração do site no cabeçalho `Authorization: Bearer <chave>`.',
         },
       },
     },

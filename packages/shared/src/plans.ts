@@ -30,10 +30,10 @@ export const PLAN_FEATURES = [
 export type PlanFeature = (typeof PLAN_FEATURES)[number];
 
 export const PLAN_FEATURE_LABELS: Record<PlanFeature, string> = {
-  cms_panel: 'Painel de conteudo para o cliente',
-  custom_domain: 'Dominio proprio',
+  cms_panel: 'Painel de conteúdo para o cliente',
+  custom_domain: 'Domínio próprio',
   lead_export: 'Exportacao de interessados',
-  included_hosting: 'Hospedagem incluida',
+  included_hosting: 'Hospedagem incluída',
 };
 
 /**
@@ -45,7 +45,7 @@ export const PLAN_FEATURE_LABELS: Record<PlanFeature, string> = {
  */
 export const PLAN_FEATURE_NOTES: Partial<Record<PlanFeature, string>> = {
   included_hosting:
-    'A plataforma passa a gerenciar o dominio (Vercel) dos sites com projeto de hospedagem '
+    'A plataforma passa a gerenciar o domínio (Vercel) dos sites com projeto de hospedagem '
     + 'configurado. Quem faz o deploy do site continua sendo a CODECA IA.',
 };
 
@@ -99,7 +99,7 @@ export function planIsBillable(plan: { priceCents: number }): boolean {
 export const DEFAULT_PLANS: readonly PlanSeed[] = [
   {
     code: 'trial',
-    name: 'Avaliacao',
+    name: 'Avaliação',
     description: 'Para conhecer o painel e visualizar o funcionamento da plataforma.',
     priceCents: 0,
     limits: {
@@ -257,7 +257,7 @@ export function checkLimit(current: number, limit: number, label: string): Limit
         allowed,
         limit,
         current,
-        message: `Seu plano permite ate ${limit} ${label}. Atualize o plano para continuar.`,
+        message: `Seu plano permite até ${limit} ${label}. Atualize o plano para continuar.`,
       };
 }
 

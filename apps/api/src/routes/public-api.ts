@@ -69,7 +69,7 @@ async function assertModulo(
 ): Promise<void> {
   const state = await loadSiteModules(db, siteId);
   if (!enabledModuleKeys(state).includes(moduleKey)) {
-    throw AppError.notFound('Recurso nao disponivel para este site.');
+    throw AppError.notFound('Recurso não disponível para este site.');
   }
 }
 
@@ -82,7 +82,7 @@ async function assertModulo(
 function assertPreview(scopes: readonly string[], preview: boolean): boolean {
   if (!preview) return false;
   if (!scopes.includes('content:draft')) {
-    throw AppError.forbidden('Esta credencial nao pode ler rascunhos.');
+    throw AppError.forbidden('Esta credencial não pode ler rascunhos.');
   }
   return true;
 }
@@ -212,7 +212,7 @@ export function publicApiRoutes() {
     const { moduleKey } = parseParams(c, moduleParamSchema);
 
     if (!isModuleKey(moduleKey) || MODULE_REGISTRY[moduleKey].kind !== 'document') {
-      throw AppError.notFound('Recurso nao disponivel para este site.');
+      throw AppError.notFound('Recurso não disponível para este site.');
     }
     await assertModulo(ctx.db, credencial.siteId, moduleKey);
 
@@ -336,7 +336,7 @@ export function publicApiRoutes() {
           sql`${schema.properties.archivedAt} is null`,
         ),
       );
-    if (!row) throw AppError.notFound('Imovel nao encontrado.');
+    if (!row) throw AppError.notFound('Imóvel não encontrado.');
 
     const galeria = await loadGalleryIds(ctx.db, 'property', credencial.tenantId, row.id);
     const media = await loadMedia(ctx.db, credencial.tenantId, [row.coverImageId, ...galeria]);
@@ -410,7 +410,7 @@ export function publicApiRoutes() {
           sql`${schema.projects.archivedAt} is null`,
         ),
       );
-    if (!row) throw AppError.notFound('Obra nao encontrada.');
+    if (!row) throw AppError.notFound('Obra não encontrada.');
 
     const galeria = await loadGalleryIds(ctx.db, 'project', credencial.tenantId, row.id);
     const media = await loadMedia(ctx.db, credencial.tenantId, [row.coverImageId, ...galeria]);
@@ -532,7 +532,7 @@ export function publicApiRoutes() {
           publicacao(schema.products.publicationStatus, preview),
         ),
       );
-    if (!linha) throw AppError.notFound('Produto nao encontrado.');
+    if (!linha) throw AppError.notFound('Produto não encontrado.');
 
     const galeriaIds = await loadGalleryIds(
       ctx.db,
@@ -648,7 +648,7 @@ export function publicApiRoutes() {
           publicacao(schema.galleries.publicationStatus, preview),
         ),
       );
-    if (!row) throw AppError.notFound('Galeria nao encontrada.');
+    if (!row) throw AppError.notFound('Galeria não encontrada.');
 
     const imagens = await loadGallery(ctx.db, 'gallery', {
       tenantId: credencial.tenantId,
@@ -865,7 +865,7 @@ export function publicApiRoutes() {
           publicacao(schema.customRecords.publicationStatus, preview),
         ),
       );
-    if (!row) throw AppError.notFound('Registro nao encontrado.');
+    if (!row) throw AppError.notFound('Registro não encontrado.');
 
     return ok(c, { record: toPublicCustomRecord(row) });
   });

@@ -31,7 +31,7 @@ export function assertSameOrigin(c: Context, env: Env): void {
   const allowed = allowedOrigins(env);
   const selfOrigin = selfOriginOf(c);
   if (allowed.includes(origin) || (selfOrigin && origin === selfOrigin)) return;
-  throw AppError.forbidden('Origem da requisicao nao autorizada.');
+  throw AppError.forbidden('Origem da requisição não autorizada.');
 }
 
 export function assertCsrfToken(c: Context, env: Env, sessionCsrfTokenHash: string): void {
@@ -39,13 +39,13 @@ export function assertCsrfToken(c: Context, env: Env, sessionCsrfTokenHash: stri
   const cookie = readCsrfCookie(c);
 
   if (!header) {
-    throw AppError.forbidden(`Cabecalho ${CSRF_HEADER} ausente na requisicao.`);
+    throw AppError.forbidden(`Cabeçalho ${CSRF_HEADER} ausente na requisição.`);
   }
   if (!cookie || !constantTimeEquals(header, cookie)) {
-    throw AppError.forbidden('Token anti-CSRF invalido. Recarregue a pagina e tente novamente.');
+    throw AppError.forbidden('Token anti-CSRF inválido. Recarregue a página e tente novamente.');
   }
   if (!constantTimeEquals(hashToken(header, env.AUTH_SECRET), sessionCsrfTokenHash)) {
-    throw AppError.forbidden('Token anti-CSRF nao corresponde a sessao atual.');
+    throw AppError.forbidden('Token anti-CSRF não corresponde a sessão atual.');
   }
 }
 

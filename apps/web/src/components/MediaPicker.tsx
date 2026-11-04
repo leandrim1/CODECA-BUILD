@@ -96,7 +96,7 @@ export function UploadButton({
 
   if (!blobConfigured) {
     return (
-      <Alert tone="warning" title="Envio de arquivos indisponivel">
+      <Alert tone="warning" title="Envio de arquivos indisponível">
         Conecte um Blob store ao projeto na Vercel para habilitar a biblioteca de imagens.
       </Alert>
     );
@@ -406,7 +406,7 @@ export function MediaLibraryModal({
           </ul>
         ) : (
           <p className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-            Nenhum arquivo na biblioteca ainda. Envie a primeira imagem pelo botao abaixo.
+            Nenhum arquivo na biblioteca ainda. Envie a primeira imagem pelo botão abaixo.
           </p>
         )}
       </div>

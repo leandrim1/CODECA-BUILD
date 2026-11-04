@@ -29,11 +29,11 @@ export function RegisterPage() {
       if (!result.emailDelivery.delivered && result.emailDelivery.reason) {
         toast.push({
           tone: 'warning',
-          title: 'Conta criada, mas o e-mail de confirmacao nao saiu',
+          title: 'Conta criada, mas o e-mail de confirmação não saiu',
           description: result.emailDelivery.reason,
         });
       } else {
-        toast.success('Conta criada', 'Confirme seu e-mail para liberar a publicacao do site.');
+        toast.success('Conta criada', 'Confirme seu e-mail para liberar a publicação do site.');
       }
       navigate('/painel', { replace: true });
     },
@@ -49,7 +49,7 @@ export function RegisterPage() {
     <div>
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Criar a conta da empresa</h1>
       <p className="mt-1.5 text-sm text-slate-600">
-        Ja tem conta?{' '}
+        Já tem conta?{' '}
         <Link to="/entrar" className="link">
           Entrar
         </Link>
@@ -72,7 +72,7 @@ export function RegisterPage() {
           placeholder="Nome da sua empresa"
           value={values.companyName}
           error={errors.companyName}
-          hint={previewSlug ? `Endereco interno: ${previewSlug}` : undefined}
+          hint={previewSlug ? `Endereço interno: ${previewSlug}` : undefined}
           onChange={(event) => setField('companyName', event.target.value)}
         />
 
@@ -112,12 +112,12 @@ export function RegisterPage() {
           autoComplete="new-password"
           value={values.password}
           error={errors.password}
-          hint="Ao menos 10 caracteres, com letras e numeros."
+          hint="Ao menos 10 caracteres, com letras e números."
           onChange={(event) => setField('password', event.target.value)}
         />
 
         <Checkbox
-          label="Aceito os termos de uso e a politica de privacidade"
+          label="Aceito os termos de uso e a política de privacidade"
           checked={values.acceptedTerms}
           onChange={(checked) => setField('acceptedTerms', checked)}
         />

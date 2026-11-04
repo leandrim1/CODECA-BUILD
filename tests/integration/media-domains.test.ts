@@ -420,7 +420,7 @@ describe('dominios proprios', () => {
       domain: 'www.construtora-alpha.com.br',
     });
     expect(response.status).toBe(402);
-    expect(response.errorMessage).toMatch(/Dominio proprio/i);
+    expect(response.errorMessage).toMatch(/Domínio próprio/i);
   });
 
   it('respeita a quantidade de dominios do plano', async () => {
@@ -509,8 +509,8 @@ describe('quem hospeda o site', () => {
 
     it('diz com todas as letras que a hospedagem e externa', async () => {
       const response = await account.client.post(base(), { domain: HOST });
-      expect(response.body.message).toMatch(/nao e hospedado pela plataforma/i);
-      expect(response.body.message).toMatch(/nao verifica nem configura o DNS/i);
+      expect(response.body.message).toMatch(/não é hospedado pela plataforma/i);
+      expect(response.body.message).toMatch(/não verifica nem configura o DNS/i);
     });
 
     it('a listagem informa o motivo, para a tela explicar', async () => {
@@ -523,7 +523,7 @@ describe('quem hospeda o site', () => {
       const response = await account.client.post(`${base()}/${criado.body.domain.id}/verify`);
 
       expect(response.status).toBe(400);
-      expect(response.errorMessage).toMatch(/nao verifica nem configura/i);
+      expect(response.errorMessage).toMatch(/não verifica nem configura/i);
       expect(provider.calls).toEqual([]);
     });
 

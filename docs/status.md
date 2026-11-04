@@ -213,6 +213,28 @@ substituem as que descreviam o modelo antigo.
 `features.billingReconciliation`, o que permite conferir o que esta ativo em um
 deploy sem abrir o painel.
 
+## Acentos nos textos do painel
+
+Todo texto que a pessoa le no painel e na API (rotulos, avisos, mensagens de erro,
+dicas de formulario) passa a sair com acentuacao correta em portugues.
+
+- **Acentuado:** `apps/web`, `packages/ui`, `packages/shared` (rotulos de planos,
+  recursos, modulos, campos, validadores, constantes) e as mensagens de
+  `apps/api`.
+- **Propositalmente sem acento:** identificadores de codigo, chaves de modulo,
+  valores de enumeracao gravados no banco (`disponivel`, `concluida`,
+  `em_construcao`...), caminhos e rotas (`/painel/servicos`), o texto de
+  `ProbeResult` em `/api/health` (`nao testada`, que e contrato), comentarios e
+  documentacao.
+- **Dados ja gravados:** a migracao `0019_acentos_nos_textos_de_fabrica.sql`
+  acentua o nome do plano Avaliacao e os nomes/descricoes dos segmentos de
+  fabrica, **somente onde o texto ainda e o de fabrica**; o que o painel mestre
+  editou nao e tocado. Segura de reaplicar.
+- **Nao tocado:** os dados de demonstracao do seed (`packages/database/src/seed.ts`)
+  e as mensagens de linha de comando (`db:deploy`, diagnostico).
+- **Guarda:** `tests/unit/acentos.test.ts` falha se um plano, segmento ou modulo
+  de fabrica voltar a trazer palavra comum sem acento.
+
 ## Testes
 
 826 testes no Vitest, em 51 arquivos; os de integracao rodam contra Postgres real em processo

@@ -69,11 +69,11 @@ export function relativeTime(value: string | Date | null | undefined): string {
   const diffMs = Date.now() - date.getTime();
   const minutes = Math.round(diffMs / 60_000);
   if (minutes < 1) return 'agora mesmo';
-  if (minutes < 60) return `ha ${minutes} min`;
+  if (minutes < 60) return `há ${minutes} min`;
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `ha ${hours} h`;
+  if (hours < 24) return `há ${hours} h`;
   const days = Math.round(hours / 24);
-  if (days < 30) return `ha ${days} d`;
+  if (days < 30) return `há ${days} d`;
   return formatDateTime(date);
 }
 

@@ -304,7 +304,7 @@ describe('colecoes respeitam o modulo do site', () => {
     // 403 e nao lista vazia: uma lista vazia sugere que poderia ser
     // preenchida, e este site nao tem o modulo.
     expect(response.status).toBe(403);
-    expect(response.errorMessage).toContain('nao esta habilitado');
+    expect(response.errorMessage).toContain('não está habilitado');
   });
 
   it.each(cenarios)('sem o modulo $modulo a criacao e recusada', async ({ modulo, caminho, corpo }) => {
@@ -349,7 +349,7 @@ describe('campo travado nas colecoes', () => {
     );
 
     expect(response.status).toBe(403);
-    expect(response.errorMessage).toContain('Endereco na URL');
+    expect(response.errorMessage).toContain('Endereço na URL');
   });
 
   it('reenviar o mesmo endereco na URL nao e alteracao', async () => {

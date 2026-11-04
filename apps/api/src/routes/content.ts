@@ -165,7 +165,7 @@ export function contentRoutes() {
       .select()
       .from(schema.services)
       .where(and(eq(schema.services.id, serviceId), eq(schema.services.tenantId, tenant.tenantId)));
-    if (!atual) throw AppError.notFound('Servico nao encontrado.');
+    if (!atual) throw AppError.notFound('Serviço não encontrado.');
 
     const personalizados = await lerAlteracao(
       ctx.db,
@@ -201,7 +201,7 @@ export function contentRoutes() {
       .set(updates)
       .where(and(eq(schema.services.id, serviceId), eq(schema.services.tenantId, tenant.tenantId)))
       .returning();
-    if (!row) throw AppError.notFound('Servico nao encontrado.');
+    if (!row) throw AppError.notFound('Serviço não encontrado.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentUpdated,
@@ -238,7 +238,7 @@ export function contentRoutes() {
         publicationStatus: schema.services.publicationStatus,
       });
     const apagado = removed[0];
-    if (!apagado) throw AppError.notFound('Servico nao encontrado.');
+    if (!apagado) throw AppError.notFound('Serviço não encontrado.');
 
     if (visibilityChanged(apagado.publicationStatus, null)) {
       await queueContentPublished(ctx, {
@@ -340,7 +340,7 @@ export function contentRoutes() {
       .where(
         and(eq(schema.testimonials.id, testimonialId), eq(schema.testimonials.tenantId, tenant.tenantId)),
       );
-    if (!atual) throw AppError.notFound('Depoimento nao encontrado.');
+    if (!atual) throw AppError.notFound('Depoimento não encontrado.');
 
     const personalizados = await lerAlteracao(
       ctx.db,
@@ -367,7 +367,7 @@ export function contentRoutes() {
         and(eq(schema.testimonials.id, testimonialId), eq(schema.testimonials.tenantId, tenant.tenantId)),
       )
       .returning();
-    if (!row) throw AppError.notFound('Depoimento nao encontrado.');
+    if (!row) throw AppError.notFound('Depoimento não encontrado.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentUpdated,
@@ -390,7 +390,7 @@ export function contentRoutes() {
         and(eq(schema.testimonials.id, testimonialId), eq(schema.testimonials.tenantId, tenant.tenantId)),
       )
       .returning({ id: schema.testimonials.id });
-    if (removed.length === 0) throw AppError.notFound('Depoimento nao encontrado.');
+    if (removed.length === 0) throw AppError.notFound('Depoimento não encontrado.');
 
     return noContent(c);
   });
@@ -444,7 +444,7 @@ export function contentRoutes() {
       .select()
       .from(schema.teamMembers)
       .where(and(eq(schema.teamMembers.id, memberId), eq(schema.teamMembers.tenantId, tenant.tenantId)));
-    if (!atual) throw AppError.notFound('Integrante nao encontrado.');
+    if (!atual) throw AppError.notFound('Integrante não encontrado.');
 
     const personalizados = await lerAlteracao(
       ctx.db,
@@ -468,7 +468,7 @@ export function contentRoutes() {
       })
       .where(and(eq(schema.teamMembers.id, memberId), eq(schema.teamMembers.tenantId, tenant.tenantId)))
       .returning();
-    if (!row) throw AppError.notFound('Integrante nao encontrado.');
+    if (!row) throw AppError.notFound('Integrante não encontrado.');
 
     return ok(c, { member: row });
   });
@@ -482,7 +482,7 @@ export function contentRoutes() {
       .delete(schema.teamMembers)
       .where(and(eq(schema.teamMembers.id, memberId), eq(schema.teamMembers.tenantId, tenant.tenantId)))
       .returning({ id: schema.teamMembers.id });
-    if (removed.length === 0) throw AppError.notFound('Integrante nao encontrado.');
+    if (removed.length === 0) throw AppError.notFound('Integrante não encontrado.');
 
     return noContent(c);
   });
@@ -522,7 +522,7 @@ export function contentRoutes() {
       .set({ ...input, updatedAt: ctx.now() })
       .where(and(eq(schema.faqs.id, faqId), eq(schema.faqs.tenantId, tenant.tenantId)))
       .returning();
-    if (!row) throw AppError.notFound('Pergunta nao encontrada.');
+    if (!row) throw AppError.notFound('Pergunta não encontrada.');
 
     return ok(c, { faq: row });
   });
@@ -536,7 +536,7 @@ export function contentRoutes() {
       .delete(schema.faqs)
       .where(and(eq(schema.faqs.id, faqId), eq(schema.faqs.tenantId, tenant.tenantId)))
       .returning({ id: schema.faqs.id });
-    if (removed.length === 0) throw AppError.notFound('Pergunta nao encontrada.');
+    if (removed.length === 0) throw AppError.notFound('Pergunta não encontrada.');
 
     return noContent(c);
   });
@@ -571,7 +571,7 @@ export function contentRoutes() {
       .from(table)
       .where(and(eq(table.tenantId, tenant.tenantId), inArray(table.id, input.ids)));
     if (rows.length !== input.ids.length) {
-      throw AppError.notFound('Um ou mais registros informados nao pertencem a esta empresa.');
+      throw AppError.notFound('Um ou mais registros informados não pertencem a esta empresa.');
     }
 
     await ctx.db.transaction(async (tx) => {
@@ -600,5 +600,5 @@ async function assertProjectBelongsToTenant(
     .select({ id: schema.projects.id })
     .from(schema.projects)
     .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, tenantId)));
-  if (!row) throw AppError.notFound('Obra relacionada nao encontrada.');
+  if (!row) throw AppError.notFound('Obra relacionada não encontrada.');
 }

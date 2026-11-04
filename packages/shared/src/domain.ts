@@ -23,7 +23,7 @@ export const DOMAIN_STATUS_LABELS: Record<DomainStatus, string> = {
   awaiting_dns: 'Aguardando DNS',
   verifying_ownership: 'Verificando propriedade',
   active: 'Ativo',
-  misconfigured: 'Erro de configuracao',
+  misconfigured: 'Erro de configuração',
   unlinked: 'Desvinculado',
   registered: 'Registrado',
 };
@@ -113,7 +113,7 @@ export function dnsInstructions(
           type: 'A',
           name: '@',
           value: options.aRecordIp,
-          note: 'Registro A na raiz do dominio.',
+          note: 'Registro A na raiz do domínio.',
         },
       ]
     : [
@@ -129,7 +129,7 @@ export function dnsInstructions(
       type: 'TXT',
       name: options.verificationTxt.name,
       value: options.verificationTxt.value,
-      note: 'Registro temporario para comprovar a propriedade do dominio.',
+      note: 'Registro temporario para comprovar a propriedade do domínio.',
     });
   }
   return { domain, apex, records };

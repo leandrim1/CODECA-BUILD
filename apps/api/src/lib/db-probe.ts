@@ -83,7 +83,7 @@ export async function probeDatabase(db: Database, timeoutMs = 4_000): Promise<Da
     );
   } catch (error) {
     const failure = describeDatabaseFailure(error);
-    console.error('[health] transacao no banco falhou:', failure.message);
+    console.error('[health] transação no banco falhou:', failure.message);
     return {
       query: 'ok',
       transaction: 'falha',
@@ -91,8 +91,8 @@ export async function probeDatabase(db: Database, timeoutMs = 4_000): Promise<Da
       code: failure.code,
       cause:
         failure.cause
-        ?? 'a consulta simples passa e a transacao nao: o driver nao esta conseguindo abrir a '
-          + 'conexao WebSocket com o banco.',
+        ?? 'a consulta simples passa e a transação não: o driver não está conseguindo abrir a '
+          + 'conexão WebSocket com o banco.',
     };
   }
 

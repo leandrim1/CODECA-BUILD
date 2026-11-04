@@ -67,7 +67,7 @@ export async function createSession(
     })
     .returning({ id: schema.sessions.id });
 
-  if (!row) throw AppError.internal('Nao foi possivel iniciar a sessao.');
+  if (!row) throw AppError.internal('Não foi possível iniciar a sessão.');
   return { sessionToken, csrfToken, expiresAt, sessionId: row.id };
 }
 

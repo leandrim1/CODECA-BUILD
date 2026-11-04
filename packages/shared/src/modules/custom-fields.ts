@@ -51,13 +51,13 @@ export function isCustomFieldType(valor: string): valor is CustomFieldType {
 export const CUSTOM_FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   text: 'Texto curto',
   longText: 'Texto longo',
-  number: 'Numero',
-  boolean: 'Sim ou nao',
-  url: 'Endereco de site',
+  number: 'Número',
+  boolean: 'Sim ou não',
+  url: 'Endereço de site',
   email: 'E-mail',
   phone: 'Telefone',
   date: 'Data',
-  select: 'Escolha entre opcoes',
+  select: 'Escolha entre opções',
   tags: 'Lista de palavras',
 };
 
@@ -79,7 +79,7 @@ export const customFieldKeySchema = z
   .max(40)
   .regex(
     /^[a-z][a-z0-9_]*$/,
-    'Comece com letra e use apenas letras minusculas, numeros e _ (ex.: creci).',
+    'Comece com letra e use apenas letras minúsculas, números e _ (ex.: creci).',
   );
 
 export const customFieldDefinitionSchema = z
@@ -95,11 +95,11 @@ export const customFieldDefinitionSchema = z
     sortOrder: z.number().int().min(0).max(10_000).default(0),
   })
   .refine((campo) => campo.type !== 'select' || campo.options.length >= 2, {
-    message: 'Um campo de escolha precisa de pelo menos duas opcoes.',
+    message: 'Um campo de escolha precisa de pelo menos duas opções.',
     path: ['options'],
   })
   .refine((campo) => campo.type === 'select' || campo.options.length === 0, {
-    message: 'Opcoes valem somente para campo de escolha.',
+    message: 'Opções valem somente para campo de escolha.',
     path: ['options'],
   })
   /**
@@ -112,7 +112,7 @@ export const customFieldDefinitionSchema = z
    */
   .refine((campo) => !(campo.required && !campo.editable), {
     message:
-      'Um campo mantido pela CODECA IA nao pode ser obrigatorio: o cliente nao conseguiria cadastrar.',
+      'Um campo mantido pela CODECA IA não pode ser obrigatório: o cliente não conseguiria cadastrar.',
     path: ['required'],
   });
 export type CustomFieldDefinitionInput = z.infer<typeof customFieldDefinitionSchema>;
@@ -188,7 +188,7 @@ function schemaDoTipo(definicao: CustomFieldDefinition): z.ZodType {
           .trim()
           .max(500)
           .refine((valor) => valor === '' || /^https:\/\//.test(valor), {
-            message: 'Use um endereco comecando com https://.',
+            message: 'Use um endereço começando com https://.',
           });
       case 'email':
         return z
@@ -197,7 +197,7 @@ function schemaDoTipo(definicao: CustomFieldDefinition): z.ZodType {
           .toLowerCase()
           .max(254)
           .refine((valor) => valor === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(valor), {
-            message: 'Informe um e-mail valido.',
+            message: 'Informe um e-mail válido.',
           });
       case 'phone':
         return z.string().trim().max(40);
@@ -224,10 +224,10 @@ function schemaDoTipo(definicao: CustomFieldDefinition): z.ZodType {
     // Obrigatorio significa preenchido, nao apenas presente: texto vazio
     // passaria por `z.string()` e deixaria o campo obrigatorio em branco.
     if (definicao.type === 'text' || definicao.type === 'longText') {
-      return (base as z.ZodString).min(1, `${definicao.label} e obrigatorio.`);
+      return (base as z.ZodString).min(1, `${definicao.label} é obrigatório.`);
     }
     if (definicao.type === 'tags') {
-      return (base as z.ZodArray<z.ZodString>).min(1, `${definicao.label} e obrigatorio.`);
+      return (base as z.ZodArray<z.ZodString>).min(1, `${definicao.label} é obrigatório.`);
     }
     return base;
   }

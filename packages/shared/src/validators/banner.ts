@@ -12,7 +12,7 @@ const dataOpcional = z.coerce.date().nullable().default(null);
 
 export const bannerInputSchema = z
   .object({
-    title: z.string().trim().min(1, 'Informe o titulo do banner.').max(160),
+    title: z.string().trim().min(1, 'Informe o título do banner.').max(160),
     subtitle: z.string().trim().max(400).default(''),
     imageId: uuidSchema.nullable().default(null),
     buttonLabel: z.string().trim().max(60).default(''),
@@ -27,7 +27,7 @@ export const bannerInputSchema = z
     path: ['endsAt'],
   })
   .refine((v) => !v.buttonLabel || Boolean(v.buttonUrl), {
-    message: 'Informe o link do botao.',
+    message: 'Informe o link do botão.',
     path: ['buttonUrl'],
   });
 

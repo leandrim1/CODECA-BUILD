@@ -77,13 +77,13 @@ export class AppError extends Error {
   static validation(message: string, details?: unknown): AppError {
     return new AppError('validation_error', message, details);
   }
-  static unauthenticated(message = 'Autenticacao necessaria.'): AppError {
+  static unauthenticated(message = 'Autenticacao necessária.'): AppError {
     return new AppError('unauthenticated', message);
   }
-  static forbidden(message = 'Voce nao tem permissao para esta operacao.'): AppError {
+  static forbidden(message = 'Você não tem permissão para esta operação.'): AppError {
     return new AppError('forbidden', message);
   }
-  static notFound(message = 'Registro nao encontrado.'): AppError {
+  static notFound(message = 'Registro não encontrado.'): AppError {
     return new AppError('not_found', message);
   }
   static conflict(message: string, details?: unknown): AppError {

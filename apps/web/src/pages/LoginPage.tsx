@@ -32,7 +32,7 @@ export function LoginPage() {
     <div>
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Entrar no painel</h1>
       <p className="mt-1.5 text-sm text-slate-600">
-        Nao tem conta?{' '}
+        Não tem conta?{' '}
         <Link to="/criar-conta" className="link">
           Criar conta da empresa
         </Link>

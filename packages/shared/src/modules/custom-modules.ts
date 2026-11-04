@@ -134,7 +134,7 @@ export const customRecordInputSchema = z.object({
     .trim()
     .toLowerCase()
     .max(140)
-    .regex(/^[a-z0-9-]*$/, 'Use apenas letras minusculas, numeros e hifen.')
+    .regex(/^[a-z0-9-]*$/, 'Use apenas letras minúsculas, números e hífen.')
     .optional(),
   publicationStatus: z.enum(CUSTOM_RECORD_STATUSES).default('draft'),
   featured: z.boolean().default(false),

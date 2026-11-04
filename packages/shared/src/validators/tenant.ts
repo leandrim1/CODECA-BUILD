@@ -11,8 +11,8 @@ import {
 } from './common.js';
 
 export const createTenantSchema = z.object({
-  legalName: z.string().trim().min(2, 'Informe a razao social.').max(160),
-  displayName: z.string().trim().min(2, 'Informe o nome de exibicao.').max(160),
+  legalName: z.string().trim().min(2, 'Informe a razão social.').max(160),
+  displayName: z.string().trim().min(2, 'Informe o nome de exibição.').max(160),
   slug: slugSchema.optional(),
   planCode: z.string().trim().max(40).optional(),
 });

@@ -101,7 +101,7 @@ export function createValidaPayProvider(env: Env): BillingProvider {
     async syncPlan(input) {
       if (input.priceCents <= 0) {
         throw AppError.badRequest(
-          'A ValidaPay exige preco maior que zero: um plano gratuito nao pode ser sincronizado.',
+          'A ValidaPay exige preço maior que zero: um plano gratuito não pode ser sincronizado.',
         );
       }
 
@@ -133,7 +133,7 @@ export function createValidaPayProvider(env: Env): BillingProvider {
       if (!response.productId || !price?.priceId) {
         throw new AppError(
           'upstream_error',
-          'A ValidaPay nao devolveu o produto e o preco criados.',
+          'A ValidaPay não devolveu o produto e o preço criados.',
         );
       }
       return {
@@ -233,7 +233,7 @@ export function createValidaPayProvider(env: Env): BillingProvider {
 
 function planPriceTitle(recurrenceType: string): string {
   const titles: Record<string, string> = {
-    DAILY: 'Diario',
+    DAILY: 'Diário',
     WEEKLY: 'Semanal',
     MONTHLY: 'Mensal',
     QUARTERLY: 'Trimestral',
@@ -247,9 +247,9 @@ function planPriceTitle(recurrenceType: string): string {
 // ----------------------------------------------------- nao configurado
 
 const NOT_CONFIGURED_MESSAGE =
-  'A integracao de pagamentos nao esta configurada. Defina VALIDAPAY_CLIENT_ID, '
+  'A integração de pagamentos não está configurada. Defina VALIDAPAY_CLIENT_ID, '
   + 'VALIDAPAY_CLIENT_SECRET e VALIDAPAY_WEBHOOK_SECRET no ambiente do servidor para habilitar '
-  + 'a contratacao de planos.';
+  + 'a contratação de planos.';
 
 /**
  * Implementacao usada quando faltam credenciais.

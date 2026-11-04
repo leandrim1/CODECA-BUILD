@@ -188,7 +188,7 @@ export function customModuleRoutes() {
 
     const state = await loadCustomModules(ctx.db, tenant.siteId);
     const modulo = state.modules.find((m) => m.key === moduleKey && m.enabled);
-    if (!modulo) throw AppError.notFound('Modulo nao encontrado.');
+    if (!modulo) throw AppError.notFound('Módulo não encontrado.');
     assertDocumento(modulo.kind, modulo.name);
 
     const [atual] = await ctx.db
@@ -239,7 +239,7 @@ export function customModuleRoutes() {
         },
       })
       .returning();
-    if (!row) throw AppError.internal('Nao foi possivel gravar o documento.');
+    if (!row) throw AppError.internal('Não foi possível gravar o documento.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentUpdated,
@@ -287,10 +287,10 @@ export function customModuleRoutes() {
 
     const state = await loadCustomModules(ctx.db, tenant.siteId);
     const modulo = state.modules.find((m) => m.key === moduleKey && m.enabled);
-    if (!modulo) throw AppError.notFound('Modulo nao encontrado.');
+    if (!modulo) throw AppError.notFound('Módulo não encontrado.');
     if (modulo.kind === 'document') {
       throw AppError.badRequest(
-        `O modulo ${modulo.name} guarda um documento unico. Use a rota de documento.`,
+        `O módulo ${modulo.name} guarda um documento único. Use a rota de documento.`,
       );
     }
 
@@ -319,7 +319,7 @@ export function customModuleRoutes() {
         publishedAt: publicando ? ctx.now() : null,
       })
       .returning();
-    if (!row) throw AppError.internal('Nao foi possivel cadastrar o registro.');
+    if (!row) throw AppError.internal('Não foi possível cadastrar o registro.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentCreated,
@@ -353,7 +353,7 @@ export function customModuleRoutes() {
 
       const state = await loadCustomModules(ctx.db, tenant.siteId);
       const modulo = state.modules.find((m) => m.key === moduleKey && m.enabled);
-      if (!modulo) throw AppError.notFound('Modulo nao encontrado.');
+      if (!modulo) throw AppError.notFound('Módulo não encontrado.');
 
       const atual = await carregar(c, moduleKey, recordId);
       const valores = parseRecordData({
@@ -372,7 +372,7 @@ export function customModuleRoutes() {
 
       if (input.slug !== undefined && input.slug !== atual.slug) {
         if (modulo.kind === 'document') {
-          throw AppError.badRequest('O documento de um modulo nao tem endereco proprio.');
+          throw AppError.badRequest('O documento de um módulo não tem endereço próprio.');
         }
         updates.slug = await uniqueRecordSlug(ctx.db, {
           siteId: tenant.siteId,
@@ -403,7 +403,7 @@ export function customModuleRoutes() {
           ),
         )
         .returning();
-      if (!row) throw AppError.notFound('Registro nao encontrado.');
+      if (!row) throw AppError.notFound('Registro não encontrado.');
 
       await auditFromContext(c, {
         action: AUDIT_ACTIONS.contentUpdated,
@@ -474,7 +474,7 @@ export function customModuleRoutes() {
 
 function assertDocumento(kind: string, nome: string) {
   if (kind !== 'document') {
-    throw AppError.badRequest(`O modulo ${nome} guarda uma lista de registros, nao um documento.`);
+    throw AppError.badRequest(`O módulo ${nome} guarda uma lista de registros, não um documento.`);
   }
 }
 
@@ -498,6 +498,6 @@ async function carregar(c: Context<AppBindings>, moduleKey: string, recordId: st
         eq(schema.customRecords.moduleKey, moduleKey),
       ),
     );
-  if (!row) throw AppError.notFound('Registro nao encontrado.');
+  if (!row) throw AppError.notFound('Registro não encontrado.');
   return row;
 }

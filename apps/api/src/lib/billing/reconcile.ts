@@ -162,7 +162,7 @@ export async function refreshStalePublications(
     const updated = await refreshPublication(
       ctx,
       row,
-      'Reavaliacao periodica do periodo de acesso e da tolerancia.',
+      'Reavaliacao periodica do período de acesso e da tolerância.',
     );
     if (updated.publicationState !== row.publicationState) changed += 1;
   }
@@ -259,7 +259,7 @@ export async function reconcileSubscription(
     divergence: divergedState
       ? `Estado corrigido de ${row.status} para ${updated.status}.`
       : divergedAccess
-        ? 'Periodo de acesso corrigido a partir dos ciclos pagos.'
+        ? 'Período de acesso corrigido a partir dos ciclos pagos.'
         : null,
   };
 }
@@ -406,7 +406,7 @@ async function reconcilePendingCheckout(
       action: BILLING_ACTIONS.reconciliationDivergence,
       source: ctx.source,
       reason:
-        'Sessao de checkout concluida, mas nenhuma assinatura correspondente foi encontrada na ValidaPay.',
+        'Sessão de checkout concluída, mas nenhuma assinatura correspondente foi encontrada na ValidaPay.',
       metadata: { checkoutSessionId: row.checkoutSessionId },
     });
     return {
@@ -421,7 +421,7 @@ async function reconcilePendingCheckout(
     { externalSubscriptionId: match.subscriptionId, intentToken: null, lastSyncedAt: ctx.now() },
     {
       action: BILLING_ACTIONS.subscriptionBound,
-      reason: 'Assinatura localizada pela reconciliacao da sessao de checkout.',
+      reason: 'Assinatura localizada pela reconciliação da sessão de checkout.',
       metadata: { subscriptionId: match.subscriptionId },
     },
   );
@@ -481,7 +481,7 @@ export async function reconcileCharge(
         },
         {
           action: BILLING_ACTIONS.paymentConfirmed,
-          reason: `Pagamento da cobranca ${charge.externalChargeId} confirmado pela reconciliacao.`,
+          reason: `Pagamento da cobrança ${charge.externalChargeId} confirmado pela reconciliação.`,
           metadata: { chargeId: charge.externalChargeId, source: 'reconciliation' },
           extendAccessOnly: true,
         },

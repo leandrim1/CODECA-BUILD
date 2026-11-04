@@ -25,7 +25,7 @@ export function configurationIssues(error: unknown): string[] {
 export function createConfigErrorApp(error: unknown, basePath = '/api') {
   const issues = configurationIssues(error);
   console.error(
-    `[config] a API nao pode iniciar. Corrija as variaveis de ambiente:\n- ${issues.join('\n- ')}`,
+    `[config] a API não pode iniciar. Corrija as variáveis de ambiente:\n- ${issues.join('\n- ')}`,
   );
 
   const app = new Hono().basePath(basePath);
@@ -42,7 +42,7 @@ export function createConfigErrorApp(error: unknown, basePath = '/api') {
           // adicionada depois do ultimo build so vale no proximo deploy, e e
           // por este commit que se percebe que o build e antigo.
           deployment: deploymentInfo(),
-          hint: 'Defina as variaveis no projeto da Vercel e faca um novo deploy.',
+          hint: 'Defina as variáveis no projeto da Vercel e faca um novo deploy.',
         },
       },
       503,
@@ -55,7 +55,7 @@ export function createConfigErrorApp(error: unknown, basePath = '/api') {
         error: {
           code: 'integration_not_configured',
           message:
-            'O servidor esta sem a configuracao necessaria para atender esta operacao. '
+            'O servidor está sem a configuração necessária para atender esta operação. '
             + 'Consulte /api/health para ver o que falta.',
           details: { issues },
         },
@@ -76,7 +76,7 @@ export function createConfigErrorApp(error: unknown, basePath = '/api') {
 export function createSiteConfigErrorApp(error: unknown) {
   const issues = configurationIssues(error);
   console.error(
-    `[config] o renderizador dos sites nao pode iniciar. Corrija as variaveis de ambiente:\n- ${issues.join('\n- ')}`,
+    `[config] o renderizador dos sites não pode iniciar. Corrija as variáveis de ambiente:\n- ${issues.join('\n- ')}`,
   );
 
   const app = new Hono();
@@ -88,7 +88,7 @@ export function createSiteConfigErrorApp(error: unknown) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Site temporariamente indisponivel</title>
+<title>Site temporariamente indisponível</title>
 <style>
   body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px;
          font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:#f8fafc; color:#0f172a; }
@@ -99,7 +99,7 @@ export function createSiteConfigErrorApp(error: unknown) {
 </head>
 <body>
   <main>
-    <h1>Site temporariamente indisponivel</h1>
+    <h1>Site temporariamente indisponível</h1>
     <p>Estamos resolvendo um problema tecnico. Tente novamente em alguns instantes.</p>
   </main>
 </body>

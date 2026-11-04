@@ -65,7 +65,7 @@ export function parseCustomFields(input: ParseCustomFieldsInput): Record<string,
   const desconhecidas = Object.keys(enviados).filter((chave) => !definidos.has(chave));
   if (desconhecidas.length > 0) {
     throw AppError.badRequest(
-      `Estes campos nao estao definidos para este site: ${desconhecidas.join(', ')}.`,
+      `Estes campos não estão definidos para este site: ${desconhecidas.join(', ')}.`,
     );
   }
 
@@ -84,7 +84,7 @@ export function parseCustomFields(input: ParseCustomFieldsInput): Record<string,
   if (travados.length > 0) {
     const rotulos = travados.map((chave) => definidos.get(chave)!.label);
     throw AppError.forbidden(
-      `Estes campos sao mantidos pela CODECA IA e nao podem ser definidos aqui: ${rotulos.join(', ')}.`,
+      `Estes campos são mantidos pela CODECA IA e não podem ser definidos aqui: ${rotulos.join(', ')}.`,
     );
   }
 

@@ -47,7 +47,7 @@ export function RequireTenant({ children }: { children: ReactNode }) {
           description={
             isPlatformAdmin
               ? 'Sua conta e de administrador da plataforma. Use o painel da plataforma para gerenciar as empresas.'
-              : 'Pedir ao responsavel da empresa que envie um convite para o seu e-mail.'
+              : 'Pedir ao responsável da empresa que envie um convite para o seu e-mail.'
           }
           action={
             isPlatformAdmin ? (
@@ -72,9 +72,9 @@ export function RequirePlatformAdmin({ children }: { children: ReactNode }) {
   if (!isPlatformAdmin) {
     return (
       <div className="panel-shell">
-        <Alert tone="danger" title="Area restrita">
-          Esta area e exclusiva de administradores da plataforma. Se precisa de acesso, fale com o
-          responsavel pela conta.
+        <Alert tone="danger" title="Área restrita">
+          Esta área é exclusiva de administradores da plataforma. Se precisa de acesso, fale com o
+          responsável pela conta.
         </Alert>
       </div>
     );
@@ -128,8 +128,8 @@ export function RequireCustomModule({
       <div className="panel-shell">
         <EmptyState
           icon={<PackageOpen aria-hidden="true" className="size-10" />}
-          title="Este conteudo nao faz parte do seu site"
-          description="O endereco pode ter mudado, ou o modulo foi retirado do ar pela equipe que desenvolveu o seu site. Nada do que foi cadastrado se perde quando isso acontece."
+          title="Este conteúdo não faz parte do seu site"
+          description="O endereço pode ter mudado, ou o módulo foi retirado do ar pela equipe que desenvolveu o seu site. Nada do que foi cadastrado se perde quando isso acontece."
         />
       </div>
     );
@@ -157,8 +157,8 @@ function RequireModuleBase({
       <div className="panel-shell">
         <EmptyState
           icon={<PackageOpen aria-hidden="true" className="size-10" />}
-          title={`${module(moduleKey)?.name ?? 'Este recurso'} nao faz parte deste site`}
-          description="Cada site da CODECA IA e montado com os modulos que o projeto precisa. Para incluir este, fale com a equipe que desenvolveu o seu site."
+          title={`${module(moduleKey)?.name ?? 'Este recurso'} não faz parte deste site`}
+          description="Cada site da CODECA IA e montado com os módulos que o projeto precisa. Para incluir este, fale com a equipe que desenvolveu o seu site."
         />
       </div>
     );
@@ -178,7 +178,7 @@ export function ErrorState({
   return (
     <Alert
       tone="danger"
-      title="Nao foi possivel carregar"
+      title="Não foi possível carregar"
       action={
         onRetry ? (
           <Button variant="outline" size="sm" onClick={onRetry}>

@@ -76,6 +76,6 @@ export async function loadHosting(
  * e com quem hospeda.
  */
 export const EXTERNAL_HOSTING_MESSAGE =
-  'Dominio registrado nesta conta. O site deste projeto nao e hospedado pela plataforma, '
-  + 'entao a CODECA Build nao verifica nem configura o DNS dele: o apontamento e feito no '
-  + 'provedor onde o site esta hospedado. Em caso de duvida, fale com a CODECA IA.';
+  'Domínio registrado nesta conta. O site deste projeto não é hospedado pela plataforma, '
+  + 'então a CODECA Build não verifica nem configura o DNS dele: o apontamento é feito no '
+  + 'provedor onde o site está hospedado. Em caso de dúvida, fale com a CODECA IA.';

@@ -46,14 +46,14 @@ export function ResourcePanel<T>({
       {resource.error ? (
         <Alert
           tone="warning"
-          title="Nao foi possivel atualizar"
+          title="Não foi possível atualizar"
           action={
             <Button variant="outline" size="sm" onClick={resource.reload} loading={resource.refreshing}>
               Tentar novamente
             </Button>
           }
         >
-          Os dados abaixo sao da ultima consulta bem-sucedida e podem estar desatualizados.{' '}
+          Os dados abaixo são da última consulta bem-sucedida e podem estar desatualizados.{' '}
           {resource.error.message}
         </Alert>
       ) : null}

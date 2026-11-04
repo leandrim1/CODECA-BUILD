@@ -17,14 +17,14 @@ export type PropertyType = (typeof PROPERTY_TYPES)[number];
 export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   apartamento: 'Apartamento',
   casa: 'Casa',
-  casa_condominio: 'Casa em condominio',
+  casa_condominio: 'Casa em condomínio',
   terreno: 'Terreno',
   sala_comercial: 'Sala comercial',
   loja: 'Loja',
   galpao: 'Galpao',
   cobertura: 'Cobertura',
   studio: 'Studio',
-  rural: 'Area rural',
+  rural: 'Área rural',
 };
 
 export const PROPERTY_PURPOSES = ['venda', 'locacao', 'venda_locacao', 'lancamento'] as const;
@@ -32,8 +32,8 @@ export type PropertyPurpose = (typeof PROPERTY_PURPOSES)[number];
 
 export const PROPERTY_PURPOSE_LABELS: Record<PropertyPurpose, string> = {
   venda: 'Venda',
-  locacao: 'Locacao',
-  venda_locacao: 'Venda ou locacao',
+  locacao: 'Locação',
+  venda_locacao: 'Venda ou locação',
   lancamento: 'Lancamento',
 };
 
@@ -58,8 +58,8 @@ export const PROPERTY_COMMERCIAL_STATUSES = [
 export type PropertyCommercialStatus = (typeof PROPERTY_COMMERCIAL_STATUSES)[number];
 
 export const PROPERTY_COMMERCIAL_STATUS_LABELS: Record<PropertyCommercialStatus, string> = {
-  disponivel: 'Disponivel',
-  em_construcao: 'Em construcao',
+  disponivel: 'Disponível',
+  em_construcao: 'Em construção',
   reservado: 'Reservado',
   vendido: 'Vendido',
   alugado: 'Alugado',
@@ -81,12 +81,12 @@ export type ProjectStage = (typeof PROJECT_STAGES)[number];
 
 export const PROJECT_STAGE_LABELS: Record<ProjectStage, string> = {
   planejamento: 'Planejamento',
-  fundacao: 'Fundacao',
+  fundacao: 'Fundação',
   estrutura: 'Estrutura',
   alvenaria: 'Alvenaria',
-  instalacoes: 'Instalacoes',
+  instalacoes: 'Instalações',
   acabamentos: 'Acabamentos',
-  concluida: 'Concluida',
+  concluida: 'Concluída',
 };
 
 export const PROJECT_STATUSES = ['em_andamento', 'concluida', 'pausada', 'prevista'] as const;
@@ -96,7 +96,7 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   prevista: 'Prevista',
   em_andamento: 'Em andamento',
   pausada: 'Pausada',
-  concluida: 'Concluida',
+  concluida: 'Concluída',
 };
 
 export const PROJECT_CATEGORIES = [
@@ -132,14 +132,14 @@ export const LEAD_INTEREST_TYPES = [
 export type LeadInterestType = (typeof LEAD_INTEREST_TYPES)[number];
 
 export const LEAD_INTEREST_LABELS: Record<LeadInterestType, string> = {
-  compra_imovel: 'Compra de imovel',
-  locacao_imovel: 'Locacao de imovel',
-  construcao: 'Construcao',
+  compra_imovel: 'Compra de imóvel',
+  locacao_imovel: 'Locação de imóvel',
+  construcao: 'Construção',
   reforma: 'Reforma',
   acabamentos: 'Acabamentos',
-  orcamento: 'Orcamento',
-  obra: 'Duvida sobre uma obra',
-  servico: 'Outro servico',
+  orcamento: 'Orçamento',
+  obra: 'Dúvida sobre uma obra',
+  servico: 'Outro serviço',
   outro: 'Outro assunto',
 };
 
@@ -158,7 +158,7 @@ export const TENANT_STATUSES = ['trialing', 'active', 'suspended', 'canceled'] a
 export type TenantStatus = (typeof TENANT_STATUSES)[number];
 
 export const TENANT_STATUS_LABELS: Record<TenantStatus, string> = {
-  trialing: 'Em avaliacao',
+  trialing: 'Em avaliação',
   active: 'Ativa',
   suspended: 'Suspensa',
   canceled: 'Cancelada',
@@ -236,9 +236,9 @@ export type SiteStatus = (typeof SITE_STATUSES)[number];
  * publicar -- o cliente nao publica nada aqui.
  */
 export const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
-  draft: 'Em conexao pela CODECA IA',
+  draft: 'Em conexão pela CODECA IA',
   active: 'Integrado',
-  suspended: 'Integracao suspensa',
+  suspended: 'Integração suspensa',
   archived: 'Arquivado',
 };
 

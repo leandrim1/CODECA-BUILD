@@ -21,7 +21,7 @@ const commaList = z
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL e obrigatoria.'),
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL é obrigatória.'),
 
   /** Segredo usado para derivar hashes de tokens de sessao e de IP. */
   AUTH_SECRET: z.string().min(32, 'AUTH_SECRET deve ter ao menos 32 caracteres.'),
@@ -95,7 +95,7 @@ export type Env = z.infer<typeof envSchema>;
 
 export class EnvError extends Error {
   constructor(public readonly issues: string[]) {
-    super(`Configuracao de ambiente invalida:\n- ${issues.join('\n- ')}`);
+    super(`Configuração de ambiente inválida:\n- ${issues.join('\n- ')}`);
     this.name = 'EnvError';
   }
 }

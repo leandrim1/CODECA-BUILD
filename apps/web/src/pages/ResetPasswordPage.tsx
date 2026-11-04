@@ -26,7 +26,7 @@ export function ResetPasswordPage() {
   if (!token) {
     return (
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Link invalido</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Link inválido</h1>
         <Alert tone="danger" title="Token ausente" >
           Abra o link completo recebido por e-mail. Se ele expirou, solicite um novo.
         </Alert>
@@ -41,7 +41,7 @@ export function ResetPasswordPage() {
     <div>
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Definir nova senha</h1>
       <p className="mt-1.5 text-sm text-slate-600">
-        Ao concluir, todas as sessoes abertas serao encerradas por seguranca.
+        Ao concluir, todas as sessões abertas serão encerradas por segurança.
       </p>
 
       <form
@@ -65,7 +65,7 @@ export function ResetPasswordPage() {
           autoComplete="new-password"
           value={password}
           error={reset.error?.fieldErrors.password}
-          hint="Ao menos 10 caracteres, com letras e numeros."
+          hint="Ao menos 10 caracteres, com letras e números."
           onChange={(event) => setPassword(event.target.value)}
         />
         <TextInput
@@ -74,7 +74,7 @@ export function ResetPasswordPage() {
           required
           autoComplete="new-password"
           value={confirmation}
-          error={mismatch ? 'As senhas nao conferem.' : undefined}
+          error={mismatch ? 'As senhas não conferem.' : undefined}
           onChange={(event) => setConfirmation(event.target.value)}
         />
 

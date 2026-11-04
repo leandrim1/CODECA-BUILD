@@ -28,7 +28,7 @@ export function VerifyEmailPage() {
       .catch((error: unknown) => {
         if (!active) return;
         setState('failed');
-        setMessage(error instanceof Error ? error.message : 'Nao foi possivel confirmar o e-mail.');
+        setMessage(error instanceof Error ? error.message : 'Não foi possível confirmar o e-mail.');
       });
     return () => {
       active = false;
@@ -37,7 +37,7 @@ export function VerifyEmailPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Confirmacao de e-mail</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Confirmação de e-mail</h1>
 
       {state === 'verifying' ? (
         <div className="mt-8 flex items-center gap-3">
@@ -49,7 +49,7 @@ export function VerifyEmailPage() {
       {state === 'done' ? (
         <div className="mt-8 grid gap-4">
           <Alert tone="success" title="E-mail confirmado">
-            Tudo certo. Agora voce pode publicar o site e conectar um dominio proprio.
+            Tudo certo. Agora você pode publicar o site e conectar um domínio próprio.
           </Alert>
           <Link to="/painel">
             <Button className="w-full">Ir para o painel</Button>
@@ -60,12 +60,12 @@ export function VerifyEmailPage() {
       {state === 'failed' || state === 'idle' ? (
         <div className="mt-8 grid gap-4">
           {state === 'failed' ? (
-            <Alert tone="danger" title="Nao foi possivel confirmar">
+            <Alert tone="danger" title="Não foi possível confirmar">
               {message} Solicite um novo link abaixo.
             </Alert>
           ) : (
             <p className="text-sm text-slate-600">
-              Informe o e-mail da conta para receber um novo link de confirmacao.
+              Informe o e-mail da conta para receber um novo link de confirmação.
             </p>
           )}
 
@@ -84,7 +84,7 @@ export function VerifyEmailPage() {
               onChange={(event) => setEmail(event.target.value)}
             />
             <Button type="submit" loading={resend.loading}>
-              Reenviar confirmacao
+              Reenviar confirmação
             </Button>
           </form>
 

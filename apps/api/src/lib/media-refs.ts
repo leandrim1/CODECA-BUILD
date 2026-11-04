@@ -23,7 +23,7 @@ export async function assertMediaBelongsToTenant(
     .where(and(eq(schema.mediaAssets.tenantId, tenantId), inArray(schema.mediaAssets.id, ids)));
 
   if (rows.length !== ids.length) {
-    throw AppError.notFound('Uma ou mais imagens informadas nao estao na biblioteca desta empresa.');
+    throw AppError.notFound('Uma ou mais imagens informadas não estão na biblioteca desta empresa.');
   }
 }
 

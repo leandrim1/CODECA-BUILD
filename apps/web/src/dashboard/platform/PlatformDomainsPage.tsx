@@ -16,7 +16,7 @@ export function PlatformDomainsPage() {
   const columns: Array<Column<Row>> = [
     {
       key: 'hostname',
-      header: 'Dominio',
+      header: 'Domínio',
       render: (row) => (
         <div className="min-w-0">
           <p className="truncate font-medium text-slate-900">{row.hostname}</p>
@@ -26,7 +26,7 @@ export function PlatformDomainsPage() {
     },
     {
       key: 'status',
-      header: 'Situacao',
+      header: 'Situação',
       render: (row) => (
         <div className="flex flex-wrap gap-1.5">
           <Badge tone={domainTone(row.status)}>{DOMAIN_STATUS_LABELS[row.status]}</Badge>
@@ -41,7 +41,7 @@ export function PlatformDomainsPage() {
     },
     {
       key: 'checked',
-      header: 'Ultima verificacao',
+      header: 'Última verificação',
       hideOnMobile: true,
       render: (row) =>
         row.lastCheckedAt ? (
@@ -68,24 +68,24 @@ export function PlatformDomainsPage() {
   return (
     <div className="panel-shell grid gap-6">
       <PageHeader
-        title="Dominios"
-        description="Todos os dominios cadastrados na plataforma. Os registrados pertencem a sites hospedados fora dela e nao sao verificados."
+        title="Domínios"
+        description="Todos os domínios cadastrados na plataforma. Os registrados pertencem a sites hospedados fora dela e não são verificados."
       />
 
       <ResourcePanel resource={list}>
         {(data) => (
           <div className="grid gap-4">
             {!data.providerConfigured ? (
-              <Alert tone="warning" title="Integracao de dominios nao configurada">
-                Defina <code>VERCEL_API_TOKEN</code> no ambiente para que a plataforma gerencie os dominios
-                dos sites com hospedagem incluida. O projeto de cada site e configurado na aba Identidade
-                do proprio site.
+              <Alert tone="warning" title="Integração de domínios não configurada">
+                Defina <code>VERCEL_API_TOKEN</code> no ambiente para que a plataforma gerencie os domínios
+                dos sites com hospedagem incluída. O projeto de cada site e configurado na aba Identidade
+                do próprio site.
               </Alert>
             ) : null}
 
             <Card>
               <CardHeader title={`${data.domains.length} dominio(s)`} />
-              <DataTable columns={columns} rows={data.domains} rowKey={(row) => row.id} caption="Dominios" />
+              <DataTable columns={columns} rows={data.domains} rowKey={(row) => row.id} caption="Domínios" />
             </Card>
           </div>
         )}

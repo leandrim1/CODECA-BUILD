@@ -29,13 +29,13 @@ export const errorHandler: ErrorHandler<AppBindings> = (error, c) => {
   );
 
   const generic = AppError.internal(
-    'Ocorreu um erro inesperado. Tente novamente; se persistir, informe o codigo da requisicao.',
+    'Ocorreu um erro inesperado. Tente novamente; se persistir, informe o código da requisição.',
   );
   return c.json({ error: { ...generic.toBody().error, requestId } }, 500);
 };
 
 export const notFoundHandler: NotFoundHandler<AppBindings> = (c) =>
-  c.json(AppError.notFound('Endpoint nao encontrado.').toBody(), 404);
+  c.json(AppError.notFound('Endpoint não encontrado.').toBody(), 404);
 
 function respond(c: Context<AppBindings>, error: AppError, status: number) {
   if (error.code === 'rate_limited') {

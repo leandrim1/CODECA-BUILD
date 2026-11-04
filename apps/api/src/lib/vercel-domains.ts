@@ -53,9 +53,9 @@ export interface DomainProvider {
 }
 
 const UNCONFIGURED_MESSAGE =
-  'A integracao de dominios da Vercel nao esta configurada. Defina VERCEL_API_TOKEN no '
-  + 'ambiente para que a plataforma registre e verifique o dominio automaticamente. '
-  + 'Enquanto isso, o dominio fica aguardando configuracao externa.';
+  'A integração de domínios da Vercel não está configurada. Defina VERCEL_API_TOKEN no '
+  + 'ambiente para que a plataforma registre e verifique o domínio automaticamente. '
+  + 'Enquanto isso, o domínio fica aguardando configuração externa.';
 
 function unconfiguredStatus(): DomainProviderStatus {
   return {
@@ -116,7 +116,7 @@ export function createVercelDomainProvider(options: {
     } catch (error) {
       throw new AppError(
         'upstream_error',
-        'Nao foi possivel contatar a API da Vercel para verificar o dominio.',
+        'Não foi possível contatar a API da Vercel para verificar o domínio.',
         { cause: error instanceof Error ? error.message : String(error) },
       );
     }
@@ -146,7 +146,7 @@ export function createVercelDomainProvider(options: {
           dnsConfigured: false,
           sslActive: false,
           challenges: [],
-          message: 'O dominio ainda nao esta registrado no projeto da Vercel.',
+          message: 'O domínio ainda não está registrado no projeto da Vercel.',
           providerDomainId: null,
         };
       }
@@ -174,10 +174,10 @@ export function createVercelDomainProvider(options: {
       sslActive: dnsConfigured,
       challenges: domain.data.verification ?? [],
       message: dnsConfigured
-        ? 'Dominio ativo e servindo com HTTPS.'
+        ? 'Domínio ativo e servindo com HTTPS.'
         : ownershipVerified
-          ? 'Propriedade comprovada. Ajuste os registros de DNS para concluir a ativacao.'
-          : 'Aguardando os registros de DNS para comprovar a propriedade do dominio.',
+          ? 'Propriedade comprovada. Ajuste os registros de DNS para concluir a ativação.'
+          : 'Aguardando os registros de DNS para comprovar a propriedade do domínio.',
       providerDomainId: domain.data.name,
     };
   }
@@ -193,12 +193,12 @@ export function createVercelDomainProvider(options: {
       if (!created.ok && created.code !== 'domain_already_in_use_by_this_project') {
         if (created.code === 'domain_already_in_use') {
           throw AppError.conflict(
-            'Este dominio ja esta em uso por outro projeto da Vercel. Remova-o de la antes de vincula-lo aqui.',
+            'Este domínio já está em uso por outro projeto da Vercel. Remova-o de lá antes de vinculá-lo aqui.',
           );
         }
         if (created.status === 403) {
           throw AppError.forbidden(
-            'O token da Vercel nao tem permissao para adicionar dominios neste projeto.',
+            'O token da Vercel não tem permissão para adicionar domínios neste projeto.',
           );
         }
         throw new AppError('upstream_error', created.message);

@@ -66,10 +66,10 @@ export function LeadsPage() {
     (input: { id: string; status: string }) => leadApi.update(tenantId, input.id, { status: input.status }),
     {
       onSuccess: () => {
-        toast.success('Situacao atualizada');
+        toast.success('Situação atualizada');
         list.reload();
       },
-      onError: (error) => toast.error('Nao foi possivel atualizar', error.message),
+      onError: (error) => toast.error('Não foi possível atualizar', error.message),
     },
   );
 
@@ -92,7 +92,7 @@ export function LeadsPage() {
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      toast.error('Nao foi possivel exportar', error instanceof Error ? error.message : 'Tente novamente.');
+      toast.error('Não foi possível exportar', error instanceof Error ? error.message : 'Tente novamente.');
     }
   }
 
@@ -117,7 +117,7 @@ export function LeadsPage() {
         <div className="grid gap-0.5">
           <span className="text-sm">{labels.leadInterest[lead.interestType]}</span>
           {lead.propertyTitle ? (
-            <span className="text-xs text-slate-500">Imovel: {lead.propertyTitle}</span>
+            <span className="text-xs text-slate-500">Imóvel: {lead.propertyTitle}</span>
           ) : null}
           {lead.projectTitle ? <span className="text-xs text-slate-500">Obra: {lead.projectTitle}</span> : null}
         </div>
@@ -131,11 +131,11 @@ export function LeadsPage() {
     },
     {
       key: 'status',
-      header: 'Situacao',
+      header: 'Situação',
       render: (lead) =>
         can('leads:write') ? (
           <Select
-            label="Situacao"
+            label="Situação"
             className="[&>label]:sr-only w-full sm:w-40"
             value={lead.status}
             options={toOptions(labels.leadStatus, LEAD_STATUSES)}
@@ -168,7 +168,7 @@ export function LeadsPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Interessados"
-        description="Contatos recebidos pelos formularios do site, com historico de atendimento."
+        description="Contatos recebidos pelos formulários do site, com histórico de atendimento."
         actions={
           list.data?.exportEnabled ? (
             <Button
@@ -183,8 +183,8 @@ export function LeadsPage() {
       />
 
       <Alert tone="info" title="Dados pessoais">
-        Cada contato foi enviado com autorizacao expressa para retorno. Use as informacoes apenas para
-        responder a solicitacao e mantenha as observacoes internas restritas a equipe.
+        Cada contato foi enviado com autorização expressa para retorno. Use as informações apenas para
+        responder a solicitação e mantenha as observações internas restritas a equipe.
       </Alert>
 
       <Card>
@@ -206,7 +206,7 @@ export function LeadsPage() {
               </div>
               <div className="w-full sm:w-40">
                 <Select
-                  label="Situacao"
+                  label="Situação"
                   className="[&>label]:sr-only"
                   placeholder="Todas"
                   value={status}
@@ -246,7 +246,7 @@ export function LeadsPage() {
                     <EmptyState
                       icon={<Users aria-hidden="true" className="size-8" />}
                       title="Nenhum contato recebido"
-                      description="Quando alguem preencher o formulario do site, o contato aparece aqui."
+                      description="Quando alguém preencher o formulário do site, o contato aparece aqui."
                     />
                   </CardBody>
                 }
@@ -264,7 +264,7 @@ export function LeadsPage() {
         title="Remover interessado"
         message={
           <>
-            Os dados de <strong>{removing?.name}</strong> e as observacoes internas serao excluidos
+            Os dados de <strong>{removing?.name}</strong> e as observações internas serão excluídos
             definitivamente.
           </>
         }
@@ -290,9 +290,9 @@ function LeadDetailModal({ lead, onClose }: { lead: LeadRecord; onClose: () => v
     onSuccess: () => {
       setNote('');
       detail.reload();
-      toast.success('Observacao registrada');
+      toast.success('Observação registrada');
     },
-    onError: (error) => toast.error('Nao foi possivel registrar', error.message),
+    onError: (error) => toast.error('Não foi possível registrar', error.message),
   });
 
   const assign = useMutation(
@@ -300,14 +300,14 @@ function LeadDetailModal({ lead, onClose }: { lead: LeadRecord; onClose: () => v
     {
       onSuccess: () => {
         detail.reload();
-        toast.success('Responsavel atualizado');
+        toast.success('Responsável atualizado');
       },
-      onError: (error) => toast.error('Nao foi possivel atribuir', error.message),
+      onError: (error) => toast.error('Não foi possível atribuir', error.message),
     },
   );
 
   return (
-    <Modal open onClose={onClose} title={lead.name} description="Detalhes e historico de atendimento" size="lg" footer={<Button onClick={onClose}>Fechar</Button>}>
+    <Modal open onClose={onClose} title={lead.name} description="Detalhes e histórico de atendimento" size="lg" footer={<Button onClick={onClose}>Fechar</Button>}>
       <ResourcePanel resource={detail}>
         {(data) => (
           <div className="grid gap-5">
@@ -340,7 +340,7 @@ function LeadDetailModal({ lead, onClose }: { lead: LeadRecord; onClose: () => v
               </div>
               {data.lead.sourcePath ? (
                 <div className="sm:col-span-2">
-                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Pagina de origem</dt>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Página de origem</dt>
                   <dd className="truncate font-mono text-xs">{data.lead.sourcePath}</dd>
                 </div>
               ) : null}
@@ -357,8 +357,8 @@ function LeadDetailModal({ lead, onClose }: { lead: LeadRecord; onClose: () => v
 
             {can('leads:write') && members.data ? (
               <Select
-                label="Responsavel pelo atendimento"
-                placeholder="Sem responsavel"
+                label="Responsável pelo atendimento"
+                placeholder="Sem responsável"
                 value={data.lead.assignedToUserId ?? ''}
                 options={members.data.members
                   .filter((member) => member.status === 'active')
@@ -368,14 +368,14 @@ function LeadDetailModal({ lead, onClose }: { lead: LeadRecord; onClose: () => v
             ) : null}
 
             <section className="grid gap-3">
-              <h3 className="text-sm font-semibold text-slate-800">Observacoes internas</h3>
+              <h3 className="text-sm font-semibold text-slate-800">Observações internas</h3>
               <p className="text-xs text-slate-500">
-                Visiveis apenas para a equipe no painel. Nunca aparecem no site.
+                Visíveis apenas para a equipe no painel. Nunca aparecem no site.
               </p>
 
               {data.notes.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-slate-300 p-3 text-center text-xs text-slate-500">
-                  Nenhuma observacao registrada.
+                  Nenhuma observação registrada.
                 </p>
               ) : (
                 <ul className="grid gap-2">
@@ -393,7 +393,7 @@ function LeadDetailModal({ lead, onClose }: { lead: LeadRecord; onClose: () => v
               {can('leads:write') ? (
                 <div className="grid gap-2">
                   <TextArea
-                    label="Nova observacao"
+                    label="Nova observação"
                     rows={3}
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
@@ -404,7 +404,7 @@ function LeadDetailModal({ lead, onClose }: { lead: LeadRecord; onClose: () => v
                     loading={addNote.loading}
                     onClick={() => void addNote.run(note)}
                   >
-                    Registrar observacao
+                    Registrar observação
                   </Button>
                 </div>
               ) : null}

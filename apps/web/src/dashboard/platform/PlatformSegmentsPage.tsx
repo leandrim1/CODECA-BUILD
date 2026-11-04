@@ -41,7 +41,7 @@ export function PlatformSegmentsPage() {
     <div className="panel-shell grid gap-6">
       <PageHeader
         title="Segmentos"
-        description="Conjuntos padrao de modulos, aplicados ao cadastrar um site."
+        description="Conjuntos padrão de módulos, aplicados ao cadastrar um site."
         actions={
           <Button icon={<Plus aria-hidden="true" className="size-4" />} onClick={() => setEditing('new')}>
             Novo segmento
@@ -49,9 +49,9 @@ export function PlatformSegmentsPage() {
         }
       />
 
-      <Alert tone="info" title="O segmento e um ponto de partida, nao uma trava">
-        Ele define quais modulos um site novo recebe no cadastro. Editar um segmento aqui nao mexe
-        nos sites que ja existem: para reconfigurar um projeto, abra o site em Sites e use
+      <Alert tone="info" title="O segmento é um ponto de partida, não uma trava">
+        Ele define quais módulos um site novo recebe no cadastro. Editar um segmento aqui não mexe
+        nos sites que já existem: para reconfigurar um projeto, abra o site em Sites e use
         &ldquo;Aplicar segmento&rdquo;.
       </Alert>
 
@@ -67,7 +67,7 @@ export function PlatformSegmentsPage() {
                       {segment.isDefault ? (
                         <Badge tone="brand">
                           <Star aria-hidden="true" className="mr-1 inline size-3" />
-                          padrao
+                          padrão
                         </Badge>
                       ) : null}
                       {segment.isActive ? null : <Badge tone="neutral">inativo</Badge>}
@@ -91,7 +91,7 @@ export function PlatformSegmentsPage() {
                   ) : null}
                   {segment.defaultModules.length === 0 ? (
                     <p className="text-sm text-amber-700">
-                      Nenhum modulo definido: um site criado com este segmento recebe todos.
+                      Nenhum módulo definido: um site criado com este segmento recebe todos.
                     </p>
                   ) : (
                     <ul className="flex flex-wrap gap-1.5">
@@ -166,7 +166,7 @@ function SegmentModal({
       onError: (error) => {
         form.applyApiError(error);
         if (Object.keys(error.fieldErrors).length === 0) {
-          toast.error('Nao foi possivel salvar', error.message);
+          toast.error('Não foi possível salvar', error.message);
         }
       },
     },
@@ -177,7 +177,7 @@ function SegmentModal({
       toast.success('Segmento removido');
       onSaved();
     },
-    onError: (error) => toast.error('Nao foi possivel remover', error.message),
+    onError: (error) => toast.error('Não foi possível remover', error.message),
   });
 
   const { values, errors, setField } = form;
@@ -219,22 +219,22 @@ function SegmentModal({
     >
       <div className="grid gap-4">
         {segment ? (
-          <Alert tone="info" title="Esta edicao nao alcanca os sites existentes">
-            Os {segment.siteCount} site(s) deste segmento mantem exatamente os modulos que tem
-            hoje. Um projeto pode ter sido ajustado a mao, e tirar um modulo daqui esconderia do
+          <Alert tone="info" title="Esta edição não alcança os sites existentes">
+            Os {segment.siteCount} site(s) deste segmento mantêm exatamente os módulos que tem
+            hoje. Um projeto pode ter sido ajustado a mão, e tirar um módulo daqui esconderia do
             cliente uma tela que ele usa.
           </Alert>
         ) : null}
 
         {segment ? (
-          <TextInput label="Codigo" value={segment.code} disabled hint="O codigo nao muda: ele ja viajou para o site do cliente na resposta da API publica." />
+          <TextInput label="Código" value={segment.code} disabled hint="O código não muda: ele já viajou para o site do cliente na resposta da API pública." />
         ) : (
           <TextInput
-            label="Codigo"
+            label="Código"
             required
             value={values.code}
             error={errors.code}
-            hint="Aparece na API publica como site.segment. Letras minusculas, numeros e hifen."
+            hint="Aparece na API pública como site.segment. Letras minúsculas, números e hífen."
             onChange={(event) => setField('code', slugify(event.target.value))}
           />
         )}
@@ -244,12 +244,12 @@ function SegmentModal({
           required
           value={values.name}
           error={errors.name}
-          hint="Como aparece no painel mestre. Ex.: Clinica odontologica."
+          hint="Como aparece no painel mestre. Ex.: Clínica odontológica."
           onChange={(event) => setField('name', event.target.value)}
         />
 
         <TextArea
-          label="Descricao"
+          label="Descrição"
           rows={2}
           value={values.description}
           error={errors.description}
@@ -257,7 +257,7 @@ function SegmentModal({
         />
 
         <fieldset className="grid gap-2">
-          <legend className="text-sm font-medium text-slate-800">Modulos padrao</legend>
+          <legend className="text-sm font-medium text-slate-800">Módulos padrão</legend>
           <p className="text-xs text-slate-500">
             O que um site novo deste segmento recebe habilitado. A CODECA IA ajusta site a site
             depois.
@@ -276,15 +276,15 @@ function SegmentModal({
         </fieldset>
 
         <Switch
-          label="Disponivel para projetos novos"
-          hint="Desativado, ele sai da lista de escolha e os sites que o usam continuam como estao."
+          label="Disponível para projetos novos"
+          hint="Desativado, ele sai da lista de escolha e os sites que o usam continuam como estão."
           checked={values.isActive}
           onChange={(checked) => setField('isActive', checked)}
         />
 
         <Switch
-          label="Padrao de empresas recem-cadastradas"
-          hint="Exatamente um segmento e o padrao. Marcar este desmarca o atual."
+          label="Padrão de empresas recem-cadastradas"
+          hint="Exatamente um segmento é o padrão. Marcar este desmarca o atual."
           checked={values.isDefault}
           onChange={(checked) => setField('isDefault', checked)}
         />

@@ -62,21 +62,21 @@ export const DEFAULT_SEGMENTS: readonly SegmentSeed[] = [
      */
     code: 'institucional',
     name: 'Site institucional',
-    description: 'Apresentacao, servicos e contato. Ponto de partida para qualquer ramo.',
+    description: 'Apresentação, serviços e contato. Ponto de partida para qualquer ramo.',
     defaultModules: ['institucional', 'banners', 'contato', 'servicos', 'depoimentos', 'equipe', 'faq', 'galerias'],
     isDefault: true,
   },
   {
     code: 'restaurante',
     name: 'Restaurante ou bar',
-    description: 'Cardapio por categoria, ambiente e equipe.',
+    description: 'Cardápio por categoria, ambiente e equipe.',
     defaultModules: ['institucional', 'banners', 'contato', 'produtos', 'categorias', 'galerias', 'depoimentos', 'equipe', 'faq'],
     isDefault: false,
   },
   {
     code: 'clinica',
-    name: 'Clinica ou consultorio',
-    description: 'Especialidades, corpo clinico e agendamento por contato.',
+    name: 'Clínica ou consultório',
+    description: 'Especialidades, corpo clínico e agendamento por contato.',
     defaultModules: ['institucional', 'banners', 'contato', 'servicos', 'equipe', 'depoimentos', 'faq', 'galerias'],
     isDefault: false,
   },
@@ -90,21 +90,21 @@ export const DEFAULT_SEGMENTS: readonly SegmentSeed[] = [
   {
     code: 'varejo',
     name: 'Loja ou varejo',
-    description: 'Catalogo de produtos por categoria, com vitrine.',
+    description: 'Catálogo de produtos por categoria, com vitrine.',
     defaultModules: ['institucional', 'banners', 'contato', 'produtos', 'categorias', 'galerias', 'depoimentos', 'faq'],
     isDefault: false,
   },
   {
     code: 'prestador',
-    name: 'Prestador de servicos',
-    description: 'Servicos oferecidos, portfolio e equipe.',
+    name: 'Prestador de serviços',
+    description: 'Serviços oferecidos, portfólio e equipe.',
     defaultModules: ['institucional', 'banners', 'contato', 'servicos', 'equipe', 'galerias', 'depoimentos', 'faq'],
     isDefault: false,
   },
   {
     code: 'construtora',
     name: 'Construtora',
-    description: 'Obras, imoveis e institucional.',
+    description: 'Obras, imóveis e institucional.',
     defaultModules: [
       'institucional',
       'banners',
@@ -121,8 +121,8 @@ export const DEFAULT_SEGMENTS: readonly SegmentSeed[] = [
   },
   {
     code: 'imobiliaria',
-    name: 'Imobiliaria',
-    description: 'Carteira de imoveis e servicos.',
+    name: 'Imobiliária',
+    description: 'Carteira de imóveis e serviços.',
     defaultModules: [
       'institucional',
       'banners',
@@ -137,7 +137,7 @@ export const DEFAULT_SEGMENTS: readonly SegmentSeed[] = [
   },
   {
     code: 'corretor',
-    name: 'Corretor autonomo',
+    name: 'Corretor autônomo',
     description: 'Carteira enxuta e contato direto.',
     defaultModules: ['institucional', 'banners', 'imoveis', 'contato', 'depoimentos'],
     isDefault: false,

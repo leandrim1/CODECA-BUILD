@@ -11,7 +11,7 @@ import './index.css';
 preloadRoute(window.location.pathname);
 
 const container = document.getElementById('root');
-if (!container) throw new Error('Elemento #root nao encontrado no documento.');
+if (!container) throw new Error('Elemento #root não encontrado no documento.');
 
 createRoot(container).render(
   <StrictMode>

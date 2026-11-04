@@ -119,8 +119,8 @@ export const PAYMENT_METHOD_OPTIONS = {
   creditcard: {
     checkoutValue: 'creditcard',
     paymentType: 'CREDIT_CARD',
-    label: 'Cartao de credito',
-    description: 'Renovacao automatica a cada ciclo, com nova tentativa em caso de recusa.',
+    label: 'Cartão de crédito',
+    description: 'Renovação automática a cada ciclo, com nova tentativa em caso de recusa.',
     automatic: true,
     requiresCompanyAccount: false,
     minimumCents: 0,
@@ -128,10 +128,10 @@ export const PAYMENT_METHOD_OPTIONS = {
   pix_automatico: {
     checkoutValue: 'pix_automatico',
     paymentType: 'PIX_AUTOMATICO',
-    label: 'Pix Automatico',
+    label: 'Pix Automático',
     description:
-      'O cliente autoriza a recorrencia uma unica vez no aplicativo do banco e os ciclos seguintes '
-      + 'sao debitados automaticamente. Valor minimo de R$ 4,99 por cobranca.',
+      'O cliente autoriza a recorrência uma única vez no aplicativo do banco e os ciclos seguintes '
+      + 'são debitados automaticamente. Valor mínimo de R$ 4,99 por cobrança.',
     automatic: true,
     requiresCompanyAccount: true,
     minimumCents: 499,
@@ -141,7 +141,7 @@ export const PAYMENT_METHOD_OPTIONS = {
     paymentType: 'PIX',
     label: 'Pix a cada ciclo',
     description:
-      'A plataforma emite um Pix por ciclo e avisa a empresa. O pagamento e manual: nao ha debito '
+      'A plataforma emite um Pix por ciclo e avisa a empresa. O pagamento é manual: não há débito '
       + 'automatico.',
     automatic: false,
     requiresCompanyAccount: false,
@@ -191,13 +191,13 @@ export type BillingState = (typeof BILLING_STATES)[number];
 
 export const BILLING_STATE_LABELS: Record<BillingState, string> = {
   pending: 'Aguardando primeiro pagamento',
-  trialing: 'Em avaliacao',
+  trialing: 'Em avaliação',
   active: 'Ativa',
   past_due: 'Pagamento em atraso',
   cancel_at_period_end: 'Cancelamento agendado',
   canceled: 'Cancelada',
   expired: 'Encerrada por falta de pagamento',
-  completed: 'Concluida',
+  completed: 'Concluída',
   suspended: 'Suspensa pela plataforma',
 } as const;
 
@@ -269,7 +269,7 @@ export const CHARGE_STATE_LABELS: Record<ChargeState, string> = {
   canceled: 'Cancelada',
   archived: 'Arquivada',
   paid: 'Paga',
-  dispute: 'Em contestacao',
+  dispute: 'Em contestação',
   partially_refunded: 'Parcialmente estornada',
   refunded: 'Estornada',
   charged_back: 'Chargeback',
@@ -335,28 +335,28 @@ export const PUBLICATION_STATES = [
 export type PublicationState = (typeof PUBLICATION_STATES)[number];
 
 export const PUBLICATION_STATE_LABELS: Record<PublicationState, string> = {
-  allowed: 'Publicacao liberada',
-  blocked_pending: 'Aguardando a confirmacao do primeiro pagamento',
+  allowed: 'Publicação liberada',
+  blocked_pending: 'Aguardando a confirmação do primeiro pagamento',
   blocked_overdue: 'Suspenso por pagamento em atraso',
   blocked_canceled: 'Suspenso: assinatura encerrada',
-  blocked_dispute: 'Suspenso para revisao de estorno ou contestacao',
+  blocked_dispute: 'Suspenso para revisão de estorno ou contestação',
   blocked_admin: 'Suspenso pela plataforma',
 };
 
 export const PUBLICATION_STATE_MESSAGES: Record<PublicationState, string> = {
-  allowed: 'O site esta no ar.',
+  allowed: 'O site está no ar.',
   blocked_pending:
-    'O site fica privado ate a confirmacao do pagamento. Conclua a contratacao para publicar.',
+    'O site fica privado até a confirmação do pagamento. Conclua a contratação para publicar.',
   blocked_overdue:
-    'O pagamento esta em atraso e o periodo de tolerancia terminou. Regularize para voltar ao ar; '
-    + 'o conteudo cadastrado continua salvo.',
+    'O pagamento está em atraso e o período de tolerância terminou. Regularize para voltar ao ar; '
+    + 'o conteúdo cadastrado continua salvo.',
   blocked_canceled:
-    'A assinatura foi encerrada. Contrate um plano para publicar de novo; o conteudo continua salvo.',
+    'A assinatura foi encerrada. Contrate um plano para publicar de novo; o conteúdo continua salvo.',
   blocked_dispute:
-    'Ha um estorno ou contestacao em analise. O site fica suspenso durante a revisao e o conteudo '
+    'Há um estorno ou contestação em analise. O site fica suspenso durante a revisão e o conteúdo '
     + 'continua salvo.',
   blocked_admin:
-    'A publicacao foi suspensa pela plataforma. Fale com o suporte; o conteudo continua salvo.',
+    'A publicação foi suspensa pela plataforma. Fale com o suporte; o conteúdo continua salvo.',
 };
 
 export function publicationAllowed(state: PublicationState): boolean {

@@ -78,8 +78,8 @@ export type DeliveryState = (typeof DELIVERY_STATES)[number];
 export const DELIVERY_STATE_LABELS: Record<DeliveryState, string> = {
   pending: 'Aguardando envio',
   delivered: 'Entregue',
-  failed: 'Falhou, sera tentada de novo',
-  exhausted: 'Desistimos depois de varias tentativas',
+  failed: 'Falhou, será tentada de novo',
+  exhausted: 'Desistimos depois de várias tentativas',
 };
 
 /**

@@ -94,7 +94,7 @@ describe('configurar o projeto de hospedagem', () => {
     const response = await salvar({ hostingProjectId: 'prj_horizonte' });
     expect(response.status).toBe(409);
     expect(response.errorMessage).toMatch(/Profissional/);
-    expect(response.errorMessage).toMatch(/nao inclui hospedagem/i);
+    expect(response.errorMessage).toMatch(/não inclui hospedagem/i);
     expect(await projetoGravado()).toBeNull();
   });
 

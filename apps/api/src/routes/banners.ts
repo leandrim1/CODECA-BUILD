@@ -95,7 +95,7 @@ export function bannerRoutes() {
       .select()
       .from(schema.banners)
       .where(and(eq(schema.banners.id, bannerId), eq(schema.banners.siteId, tenant.siteId)));
-    if (!atual) throw AppError.notFound('Banner nao encontrado.');
+    if (!atual) throw AppError.notFound('Banner não encontrado.');
 
     const input = await parseJsonBody(c, bannerInputSchema);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.imageId]);
@@ -142,7 +142,7 @@ export function bannerRoutes() {
       .delete(schema.banners)
       .where(and(eq(schema.banners.id, bannerId), eq(schema.banners.siteId, tenant.siteId)))
       .returning({ id: schema.banners.id });
-    if (!removido) throw AppError.notFound('Banner nao encontrado.');
+    if (!removido) throw AppError.notFound('Banner não encontrado.');
 
     await queueContentPublished(ctx, {
       tenantId: tenant.tenantId,

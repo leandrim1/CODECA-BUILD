@@ -312,7 +312,7 @@ export function platformBillingRoutes() {
     const ctx = c.get('ctx');
     const { eventId } = parseParams(c, z.object({ eventId: uuidSchema }));
     const row = await loadWebhookEvent(ctx.db, eventId);
-    if (!row) throw AppError.notFound('Evento nao encontrado.');
+    if (!row) throw AppError.notFound('Evento não encontrado.');
     return ok(c, { event: row });
   });
 
@@ -323,7 +323,7 @@ export function platformBillingRoutes() {
     const input = await parseJsonBody(c, replayWebhookSchema);
 
     const row = await loadWebhookEvent(ctx.db, input.eventId);
-    if (!row) throw AppError.notFound('Evento nao encontrado.');
+    if (!row) throw AppError.notFound('Evento não encontrado.');
 
     // Seguro de repetir: o processamento e idempotente e os estados so avancam.
     const result = await replayWebhookEvent(
@@ -430,8 +430,8 @@ export function platformBillingRoutes() {
       publicationLabel: PUBLICATION_STATE_LABELS[updated.publicationState],
       adminHold: updated.adminHold,
       message: input.hold
-        ? 'Publicacao suspensa. O conteudo da empresa continua salvo e o painel segue acessivel.'
-        : 'Publicacao reativada conforme o estado da assinatura.',
+        ? 'Publicação suspensa. O conteúdo da empresa continua salvo e o painel segue acessível.'
+        : 'Publicação reativada conforme o estado da assinatura.',
     });
   });
 

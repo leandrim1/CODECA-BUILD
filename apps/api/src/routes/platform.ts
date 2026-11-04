@@ -165,7 +165,7 @@ export function platformRoutes() {
       .select()
       .from(schema.tenants)
       .where(eq(schema.tenants.id, tenantId));
-    if (!tenant) throw AppError.notFound('Empresa nao encontrada.');
+    if (!tenant) throw AppError.notFound('Empresa não encontrada.');
 
     const planStatus = await loadPlanStatus(ctx.db, tenantId);
 
@@ -233,7 +233,7 @@ export function platformRoutes() {
     const input = await parseJsonBody(c, platformCreateTenantSchema);
 
     const [plan] = await ctx.db.select().from(schema.plans).where(eq(schema.plans.code, input.planCode));
-    if (!plan) throw AppError.badRequest('Plano informado nao existe.');
+    if (!plan) throw AppError.badRequest('Plano informado não existe.');
 
     const existingSlugs = await ctx.db.select({ slug: schema.tenants.slug }).from(schema.tenants);
     const slug = uniqueSlug(
@@ -249,7 +249,7 @@ export function platformRoutes() {
           .values({ email: input.ownerEmail, name: input.ownerName })
           .returning();
       }
-      if (!owner) throw AppError.internal('Nao foi possivel criar o proprietario.');
+      if (!owner) throw AppError.internal('Não foi possível criar o proprietário.');
 
       const [tenant] = await tx
         .insert(schema.tenants)
@@ -266,7 +266,7 @@ export function platformRoutes() {
           },
         })
         .returning();
-      if (!tenant) throw AppError.internal('Nao foi possivel criar a empresa.');
+      if (!tenant) throw AppError.internal('Não foi possível criar a empresa.');
 
       await tx.insert(schema.memberships).values({
         tenantId: tenant.id,
@@ -332,7 +332,7 @@ export function platformRoutes() {
       .select({ id: schema.tenants.id, status: schema.tenants.status, planId: schema.tenants.planId })
       .from(schema.tenants)
       .where(eq(schema.tenants.id, tenantId));
-    if (!current) throw AppError.notFound('Empresa nao encontrada.');
+    if (!current) throw AppError.notFound('Empresa não encontrada.');
 
     const updates: Record<string, unknown> = { updatedAt: ctx.now() };
 
@@ -346,7 +346,7 @@ export function platformRoutes() {
 
     if (input.planCode !== undefined) {
       const [plan] = await ctx.db.select().from(schema.plans).where(eq(schema.plans.code, input.planCode));
-      if (!plan) throw AppError.badRequest('Plano informado nao existe.');
+      if (!plan) throw AppError.badRequest('Plano informado não existe.');
       updates.planId = plan.id;
       await ctx.db
         .update(schema.subscriptions)
@@ -412,7 +412,7 @@ export function platformRoutes() {
     const input = await parseJsonBody(c, planInputSchema);
 
     const [existing] = await ctx.db.select().from(schema.plans).where(eq(schema.plans.code, input.code));
-    if (existing) throw AppError.conflict('Ja existe um plano com este codigo.');
+    if (existing) throw AppError.conflict('Já existe um plano com este código.');
 
     const [row] = await ctx.db.insert(schema.plans).values(input).returning();
 
@@ -432,7 +432,7 @@ export function platformRoutes() {
     const input = await parseJsonBody(c, planUpdateSchema);
 
     const [current] = await ctx.db.select().from(schema.plans).where(eq(schema.plans.id, planId));
-    if (!current) throw AppError.notFound('Plano nao encontrado.');
+    if (!current) throw AppError.notFound('Plano não encontrado.');
 
     /**
      * Preco e periodicidade de um preco recorrente nao sao editaveis no
@@ -460,14 +460,14 @@ export function platformRoutes() {
               externalCheckoutUrl: null,
               externalSyncedAt: null,
               externalSyncError:
-                'Preco ou periodicidade alterados: sincronize o plano para criar o preco novo na ValidaPay.',
+                'Preço ou periodicidade alterados: sincronize o plano para criar o preço novo na ValidaPay.',
             }
           : {}),
         updatedAt: ctx.now(),
       })
       .where(eq(schema.plans.id, planId))
       .returning();
-    if (!row) throw AppError.notFound('Plano nao encontrado.');
+    if (!row) throw AppError.notFound('Plano não encontrado.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.planUpdated,
@@ -481,8 +481,8 @@ export function platformRoutes() {
       ...(unlinkPrice
         ? {
             notice:
-              'O preco mudou: o vinculo com o preco anterior na ValidaPay foi desfeito. '
-              + 'Sincronize o plano para criar o preco novo. Assinaturas em vigor continuam no preco contratado.',
+              'O preço mudou: o vínculo com o preço anterior na ValidaPay foi desfeito. '
+              + 'Sincronize o plano para criar o preço novo. Assinaturas em vigor continuam no preço contratado.',
           }
         : {}),
     });
@@ -517,7 +517,7 @@ export function platformRoutes() {
     const input = await parseJsonBody(c, setPlatformRoleSchema);
 
     if (input.userId === session.user.id && input.platformRole === 'none') {
-      throw AppError.badRequest('Voce nao pode remover o seu proprio acesso de administrador.');
+      throw AppError.badRequest('Você não pode remover o seu próprio acesso de administrador.');
     }
 
     const [row] = await ctx.db
@@ -525,7 +525,7 @@ export function platformRoutes() {
       .set({ platformRole: input.platformRole, updatedAt: ctx.now() })
       .where(eq(schema.users.id, input.userId))
       .returning({ id: schema.users.id, email: schema.users.email });
-    if (!row) throw AppError.notFound('Usuario nao encontrado.');
+    if (!row) throw AppError.notFound('Usuário não encontrado.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.platformRoleChanged,
@@ -547,7 +547,7 @@ export function platformRoutes() {
       .select({ id: schema.tenants.id, displayName: schema.tenants.displayName })
       .from(schema.tenants)
       .where(eq(schema.tenants.id, input.tenantId));
-    if (!tenant) throw AppError.notFound('Empresa nao encontrada.');
+    if (!tenant) throw AppError.notFound('Empresa não encontrada.');
 
     const expiresAt = new Date(ctx.now().getTime() + input.expiresInMinutes * 60_000);
 
@@ -590,7 +590,7 @@ export function platformRoutes() {
         ),
       )
       .returning({ id: schema.supportAccessGrants.id, tenantId: schema.supportAccessGrants.tenantId });
-    if (!grant) throw AppError.notFound('Concessao nao encontrada.');
+    if (!grant) throw AppError.notFound('Concessão não encontrada.');
 
     await auditFromContext(c, {
       tenantId: grant.tenantId,
@@ -652,6 +652,6 @@ function requirePlatformCapability(
 ): void {
   const session = c.get('session');
   if (!session || session.user.platformRole !== 'platform_admin') {
-    throw AppError.forbidden(`Acao restrita: ${capability}.`);
+    throw AppError.forbidden(`Ação restrita: ${capability}.`);
   }
 }

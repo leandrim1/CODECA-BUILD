@@ -162,7 +162,7 @@ export function leadRoutes() {
       .select()
       .from(schema.leads)
       .where(and(eq(schema.leads.id, leadId), eq(schema.leads.tenantId, tenant.tenantId)));
-    if (!lead) throw AppError.notFound('Interessado nao encontrado.');
+    if (!lead) throw AppError.notFound('Interessado não encontrado.');
 
     const notes = await ctx.db
       .select({
@@ -199,7 +199,7 @@ export function leadRoutes() {
           ),
         );
       if (!membership) {
-        throw AppError.badRequest('O responsavel informado nao faz parte da equipe desta empresa.');
+        throw AppError.badRequest('O responsável informado não faz parte da equipe desta empresa.');
       }
     }
 
@@ -212,7 +212,7 @@ export function leadRoutes() {
       .set(updates)
       .where(and(eq(schema.leads.id, leadId), eq(schema.leads.tenantId, tenant.tenantId)))
       .returning({ id: schema.leads.id, status: schema.leads.status });
-    if (!row) throw AppError.notFound('Interessado nao encontrado.');
+    if (!row) throw AppError.notFound('Interessado não encontrado.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.leadUpdated,
@@ -235,7 +235,7 @@ export function leadRoutes() {
       .select({ id: schema.leads.id })
       .from(schema.leads)
       .where(and(eq(schema.leads.id, leadId), eq(schema.leads.tenantId, tenant.tenantId)));
-    if (!lead) throw AppError.notFound('Interessado nao encontrado.');
+    if (!lead) throw AppError.notFound('Interessado não encontrado.');
 
     const [note] = await ctx.db
       .insert(schema.leadNotes)
@@ -267,7 +267,7 @@ export function leadRoutes() {
       .delete(schema.leads)
       .where(and(eq(schema.leads.id, leadId), eq(schema.leads.tenantId, tenant.tenantId)))
       .returning({ id: schema.leads.id });
-    if (removed.length === 0) throw AppError.notFound('Interessado nao encontrado.');
+    if (removed.length === 0) throw AppError.notFound('Interessado não encontrado.');
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.leadDeleted,

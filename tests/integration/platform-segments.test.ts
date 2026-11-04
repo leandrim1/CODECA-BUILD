@@ -281,7 +281,7 @@ describe('o segmento padrao', () => {
 
     const response = await admin.client.delete(`/api/platform/segments/${academia!.id}`);
     expect(response.status).toBe(400);
-    expect(response.errorMessage).toMatch(/padrao/i);
+    expect(response.errorMessage).toMatch(/padrão/i);
   });
 });
 

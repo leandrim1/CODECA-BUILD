@@ -82,7 +82,7 @@ export class RouteErrorBoundary extends Component<
   }
 
   override componentDidCatch(erro: Error, info: ErrorInfo): void {
-    console.error('[painel] erro de renderizacao na tela', erro, info.componentStack);
+    console.error('[painel] erro de renderização na tela', erro, info.componentStack);
   }
 
   override render(): ReactNode {
@@ -105,7 +105,7 @@ export class RouteErrorBoundary extends Component<
           }
         >
           <p>
-            O resto do painel continua funcionando: voce pode abrir outra tela pelo menu. Se o
+            O resto do painel continua funcionando: você pode abrir outra tela pelo menu. Se o
             erro se repetir, envie a mensagem abaixo para a CODECA IA.
           </p>
           <pre className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-white/70 p-2 text-xs">

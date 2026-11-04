@@ -95,7 +95,7 @@ export function createMemoryBillingProvider(
     async syncPlan(input: SyncPlanInput): Promise<SyncPlanResult> {
       track('syncPlan');
       if (input.priceCents <= 0) {
-        throw AppError.badRequest('A ValidaPay exige preco maior que zero.');
+        throw AppError.badRequest('A ValidaPay exige preço maior que zero.');
       }
       const productId = nextId('prod_');
       const priceId = nextId('price_');
@@ -119,7 +119,7 @@ export function createMemoryBillingProvider(
     async getCheckoutSession(sessionId) {
       track('getCheckoutSession');
       const session = sessions.get(sessionId);
-      if (!session) throw AppError.notFound('Sessao nao encontrada.');
+      if (!session) throw AppError.notFound('Sessão não encontrada.');
       const response: CheckoutSessionResponse = {
         id: session.id,
         status: session.status,
@@ -132,7 +132,7 @@ export function createMemoryBillingProvider(
     async getSubscription(subscriptionId) {
       track('getSubscription');
       const subscription = subscriptions.get(subscriptionId);
-      if (!subscription) throw AppError.notFound('Assinatura nao encontrada.');
+      if (!subscription) throw AppError.notFound('Assinatura não encontrada.');
       return subscription;
     },
 
@@ -147,9 +147,9 @@ export function createMemoryBillingProvider(
     async cancelSubscription(subscriptionId, reason) {
       track('cancelSubscription');
       const subscription = subscriptions.get(subscriptionId);
-      if (!subscription) throw AppError.notFound('Assinatura nao encontrada.');
+      if (!subscription) throw AppError.notFound('Assinatura não encontrada.');
       if (subscription.status === 'CANCELED') {
-        throw AppError.conflict('Esta assinatura ja esta cancelada.');
+        throw AppError.conflict('Esta assinatura já está cancelada.');
       }
 
       // Com periodo pago pela frente, a ValidaPay agenda; sem ele, cancela agora.
@@ -180,14 +180,14 @@ export function createMemoryBillingProvider(
     async undoScheduledCancellation(subscriptionId) {
       track('undoScheduledCancellation');
       const subscription = subscriptions.get(subscriptionId);
-      if (!subscription) throw AppError.notFound('Assinatura nao encontrada.');
+      if (!subscription) throw AppError.notFound('Assinatura não encontrada.');
       subscription.cancelAtPeriodEnd = false;
     },
 
     async previewPlanChange({ subscriptionId, priceId }) {
       track('previewPlanChange');
       const subscription = subscriptions.get(subscriptionId);
-      if (!subscription) throw AppError.notFound('Assinatura nao encontrada.');
+      if (!subscription) throw AppError.notFound('Assinatura não encontrada.');
       const preview: ProrataPreviewResponse = {
         mode: 'PRORATA_NOW',
         amount: 0,
@@ -202,7 +202,7 @@ export function createMemoryBillingProvider(
     async changePlan({ subscriptionId, itemId, priceId }) {
       track('changePlan');
       const subscription = subscriptions.get(subscriptionId);
-      if (!subscription) throw AppError.notFound('Assinatura nao encontrada.');
+      if (!subscription) throw AppError.notFound('Assinatura não encontrada.');
       subscription.priceId = priceId;
       if (subscription.items?.[0]) subscription.items[0].priceId = priceId;
       const response: ChangeItemResponse = {
@@ -218,7 +218,7 @@ export function createMemoryBillingProvider(
     async getChargeStatus(chargeId) {
       track('getChargeStatus');
       const charge = charges.get(chargeId);
-      if (!charge) throw AppError.notFound('Cobranca nao encontrada.');
+      if (!charge) throw AppError.notFound('Cobrança não encontrada.');
       return {
         chargeId: charge.chargeId,
         status: charge.status,
@@ -233,13 +233,13 @@ export function createMemoryBillingProvider(
     async getCharge(chargeId) {
       track('getCharge');
       const charge = charges.get(chargeId);
-      if (!charge) throw AppError.notFound('Cobranca nao encontrada.');
+      if (!charge) throw AppError.notFound('Cobrança não encontrada.');
       return charge;
     },
 
     simulatePaidSession(sessionId, simulation = {}) {
       const session = sessions.get(sessionId);
-      if (!session) throw new Error(`Sessao ${sessionId} nao existe no provedor de teste.`);
+      if (!session) throw new Error(`Sessão ${sessionId} não existe no provedor de teste.`);
 
       const paidAt = simulation.paidAt ?? now();
       const nextChargeDate =

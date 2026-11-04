@@ -22,12 +22,12 @@ const externalId = (prefix: string, label: string) =>
     .trim()
     .min(prefix.length + 1)
     .max(120)
-    .regex(new RegExp(`^${prefix}[A-Za-z0-9_-]+$`), `Informe um ${label} valido (${prefix}...).`);
+    .regex(new RegExp(`^${prefix}[A-Za-z0-9_-]+$`), `Informe um ${label} válido (${prefix}...).`);
 
 export const externalProductIdSchema = externalId('prod_', 'identificador de produto');
-export const externalPriceIdSchema = externalId('price_', 'identificador de preco');
+export const externalPriceIdSchema = externalId('price_', 'identificador de preço');
 export const externalSubscriptionIdSchema = externalId('sub_', 'identificador de assinatura');
-export const externalChargeIdSchema = externalId('cha_', 'identificador de cobranca');
+export const externalChargeIdSchema = externalId('cha_', 'identificador de cobrança');
 
 /** Contratacao: plano e forma de pagamento, decididos no servidor a partir do id. */
 export const startSubscriptionSchema = z.object({
@@ -139,7 +139,7 @@ export const reconcileSchema = z.object({
 export const publicationHoldSchema = z.object({
   siteId: uuidSchema,
   hold: z.boolean(),
-  reason: z.string().trim().min(10, 'Descreva o motivo da decisao.').max(400),
+  reason: z.string().trim().min(10, 'Descreva o motivo da decisão.').max(400),
 });
 export type PublicationHoldInput = z.infer<typeof publicationHoldSchema>;
 

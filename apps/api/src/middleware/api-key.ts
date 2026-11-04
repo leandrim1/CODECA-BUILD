@@ -31,12 +31,12 @@ export function apiKeyMiddleware(): MiddlewareHandler<AppBindings> {
     if (credencial.kind === 'publishable') {
       if (credencial.origins.length === 0) {
         throw AppError.forbidden(
-          'Este site ainda nao tem origem autorizada. Cadastre o endereco do site antes de usar a chave publicavel.',
+          'Este site ainda não tem origem autorizada. Cadastre o endereço do site antes de usar a chave publicável.',
         );
       }
       if (!originAllowed(origin, credencial.origins)) {
         throw AppError.forbidden(
-          'Origem nao autorizada para esta chave. Cadastre o endereco do site no painel da plataforma.',
+          'Origem não autorizada para esta chave. Cadastre o endereço do site no painel da plataforma.',
         );
       }
       // A origem foi conferida: o navegador pode ler a resposta.
@@ -52,7 +52,7 @@ export function apiKeyMiddleware(): MiddlewareHandler<AppBindings> {
     );
     if (!cota.allowed) {
       c.header('retry-after', String(cota.retryAfterSeconds));
-      throw AppError.rateLimited('Limite de requisicoes atingido para esta credencial.');
+      throw AppError.rateLimited('Limite de requisições atingido para esta credencial.');
     }
 
     // Depois de autorizar: registrar uso de uma chave recusada nao serve a

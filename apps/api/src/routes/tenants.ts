@@ -48,7 +48,7 @@ export function tenantRoutes() {
       .from(schema.tenants)
       .where(eq(schema.tenants.id, tenant.tenantId));
 
-    if (!row) throw AppError.notFound('Empresa nao encontrada.');
+    if (!row) throw AppError.notFound('Empresa não encontrada.');
 
     const planStatus = await loadPlanStatus(ctx.db, tenant.tenantId);
 
@@ -182,7 +182,7 @@ export function tenantRoutes() {
       .from(schema.sites)
       .where(eq(schema.sites.id, tenant.siteId));
 
-    if (!site) throw AppError.notFound('Site nao encontrado.');
+    if (!site) throw AppError.notFound('Site não encontrado.');
 
     /**
      * Ultimo acesso do site a API.

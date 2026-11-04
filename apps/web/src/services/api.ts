@@ -116,7 +116,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
-    throw new ApiError(0, 'network_error', 'Falha de conexao. Verifique sua internet e tente novamente.');
+    throw new ApiError(0, 'network_error', 'Falha de conexão. Verifique sua internet e tente novamente.');
   }
 
   if (response.ok && method !== 'GET') for (const listener of writeListeners) listener();
@@ -195,7 +195,7 @@ export const api = {
  */
 function opaqueErrorMessage(status: number): string {
   if (status === 404) {
-    return 'Endereco nao encontrado no servidor (404). Verifique a implantacao da API.';
+    return 'Endereço não encontrado no servidor (404). Verifique a implantação da API.';
   }
   if (status === 413) {
     return 'O envio excedeu o tamanho aceito pelo servidor (413).';
@@ -205,9 +205,9 @@ function opaqueErrorMessage(status: number): string {
   }
   if (status >= 500) {
     return (
-      `O servidor respondeu ${status} sem detalhes. Isso costuma indicar configuracao `
-      + 'incompleta na implantacao; consulte /api/health.'
+      `O servidor respondeu ${status} sem detalhes. Isso costuma indicar configuração `
+      + 'incompleta na implantação; consulte /api/health.'
     );
   }
-  return `Nao foi possivel concluir a operacao (HTTP ${status}).`;
+  return `Não foi possível concluir a operação (HTTP ${status}).`;
 }

@@ -123,7 +123,7 @@ describe('contratacao de plano', () => {
     );
 
     expect(response.status).toBe(400);
-    expect(response.errorMessage).toMatch(/nao tem preco|avaliacao/i);
+    expect(response.errorMessage).toMatch(/não tem preço|avaliação/i);
   });
 
   it('ignora qualquer valor enviado pelo navegador e usa o preco do banco', async () => {
@@ -157,7 +157,7 @@ describe('contratacao de plano', () => {
     );
 
     expect(response.status).toBe(400);
-    expect(response.errorMessage).toMatch(/nao aceita/i);
+    expect(response.errorMessage).toMatch(/não aceita/i);
   });
 
   it('recusa Pix Automatico quando o valor fica abaixo do minimo de R$ 4,99', async () => {
