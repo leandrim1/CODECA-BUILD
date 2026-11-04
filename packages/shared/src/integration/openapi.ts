@@ -467,7 +467,7 @@ export function buildOpenApiDocument(options: OpenApiOptions): Record<string, un
         + 'pode enviar o formulário de contato; a **secreta** (`cb_sec_...`) lê '
         + 'também rascunho e prévia e nunca deve ir para o navegador.\n\n'
         + 'Dado de interessado não sai por nenhuma rota: nome, telefone e e-mail '
-        + 'ficam atras do painel autenticado.\n\n'
+        + 'ficam atrás do painel autenticado.\n\n'
         + 'Este documento e gerado dos mesmos schemas que a API usa para validar, '
         + 'e um teste compara a cobertura com a tabela de rotas do servidor.',
     },

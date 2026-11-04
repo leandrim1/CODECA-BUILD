@@ -32,7 +32,7 @@ export type PlanFeature = (typeof PLAN_FEATURES)[number];
 export const PLAN_FEATURE_LABELS: Record<PlanFeature, string> = {
   cms_panel: 'Painel de conteúdo para o cliente',
   custom_domain: 'Domínio próprio',
-  lead_export: 'Exportacao de interessados',
+  lead_export: 'Exportação de interessados',
   included_hosting: 'Hospedagem incluída',
 };
 

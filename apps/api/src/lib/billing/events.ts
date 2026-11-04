@@ -662,7 +662,7 @@ async function applyRefundEvent(
       webhookEventId: ctx.webhookEventId ?? null,
       previousState: charge.status,
       newState: charge.status,
-      reason: 'Devolucao recusada pelo provedor: a cobrança segue paga.',
+      reason: 'Devolução recusada pelo provedor: a cobrança segue paga.',
       metadata: { event, refundId: readString(payload, 'refundId') },
     });
     return {
@@ -670,7 +670,7 @@ async function applyRefundEvent(
       tenantId: charge.tenantId,
       subscriptionId: charge.externalSubscriptionId,
       chargeId: charge.id,
-      detail: 'Devolucao recusada: nenhuma mudanca de acesso.',
+      detail: 'Devolução recusada: nenhuma mudança de acesso.',
     };
   }
 

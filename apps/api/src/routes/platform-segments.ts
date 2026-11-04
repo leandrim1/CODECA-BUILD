@@ -189,7 +189,7 @@ export function platformSegmentRoutes() {
       // lista de projetos novos e preserva o que ja esta configurado.
       throw AppError.conflict(
         `${uso?.total} site(s) usam este segmento. Desative-o em vez de remover: `
-          + 'os sites mantem a configuração que já tem.',
+          + 'os sites mantêm a configuração que já tem.',
       );
     }
     if (atual.isDefault) {
