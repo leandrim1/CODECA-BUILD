@@ -86,8 +86,10 @@ visão geral no celular (390x844, escala 3); converter para WebP (qualidade 80,
 largura 1920 / 780). A imagem de compartilhamento (`public/og-image.jpg`, 1200x630)
 usa a mesma captura da visão geral.
 
-O painel ainda escreve seus textos **sem acento** ("Visao geral", "Imoveis"), e as
-capturas mostram isso. É uma convenção do projeto inteiro, fora do escopo da página.
+**Pendente:** as capturas atuais foram feitas **antes** da passada de acentos do
+painel e ainda mostram "Visao geral", "Ola, Helena", "Situacao do site". O painel
+já escreve esses textos acentuados; as imagens precisam ser refeitas com o roteiro
+acima para voltarem a combinar com ele (e com `og-image.jpg`).
 
 ## 4. SEO
 

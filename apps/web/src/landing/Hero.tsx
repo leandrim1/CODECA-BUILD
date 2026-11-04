@@ -70,8 +70,15 @@ export function Hero() {
           </ul>
         </div>
 
-        {/* A interface real, em composicao: o painel no computador e no celular. */}
-        <figure className="relative lg:-mr-20 xl:-mr-40">
+        {/*
+          A interface real, em composicao: o painel no computador e no celular.
+
+          Sem margem negativa, de proposito. Ela ja foi `lg:-mr-20 xl:-mr-40`,
+          para a imagem "sangrar" alem da coluna -- mas a secao corta o que passa
+          da tela (`overflow-x-clip`), e a captura saia com a borda direita e os
+          cartoes do painel cortados em qualquer monitor ate ~1700px.
+        */}
+        <figure className="relative">
           <BrowserFrame label="Painel · Visão geral">
             <img
               src={painelVisaoGeral}
