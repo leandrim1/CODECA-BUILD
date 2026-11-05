@@ -132,8 +132,10 @@ A logo oficial vem de `apps/web/brand-source/logo-original.webp`. O script
 `scripts/brand/build-logos.py` (Pillow + numpy) gera, em `apps/web/public/brand/`,
 a logo completa com fundo transparente (`logo.webp`), a versão com texto branco
 para fundo escuro (`logo-branca.webp`) e o símbolo (`logo-icone.webp`), além dos
-favicons e do `apple-touch-icon` em `apps/web/public/`. Para trocar a logo,
-substitua o arquivo de origem e rode o script.
+favicons e do `apple-touch-icon` em `apps/web/public/`. O ícone do app (quadrado arredondado, `brand-source/icone-original.png`) gera
+`favicon-48.png`, `favicon-192.png`, `icon-512.png` (cantos transparentes) e
+`apple-touch-icon.png` (quadrado cheio, para o iOS). Para trocar a logo ou o
+ícone, substitua o arquivo de origem e rode o script.
 
 O componente é `components/Logo.tsx` (`tone="dark"` para fundo escuro) e aparece no
 cabeçalho e rodapé da página inicial, nas telas de acesso, nas páginas legais, no

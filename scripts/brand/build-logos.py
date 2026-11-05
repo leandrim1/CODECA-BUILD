@@ -1,5 +1,6 @@
 """
-Gera os arquivos da marca a partir da logo oficial (apps/web/brand-source/logo-original.webp).
+Gera os arquivos da marca a partir da logo oficial (apps/web/brand-source/logo-original.webp)
+e do icone do app (apps/web/brand-source/icone-original.png).
 
     python3 scripts/brand/build-logos.py
 
@@ -8,7 +9,8 @@ Saidas em apps/web/public/brand/ e favicons em apps/web/public/:
 - logo.webp          logo completa, fundo transparente (para fundo claro)
 - logo-branca.webp   igual, com o texto escuro trocado por branco (para fundo escuro)
 - logo-icone.webp    so o simbolo, fundo transparente
-- favicon-48.png, favicon-192.png, apple-touch-icon.png   simbolo sobre quadrado branco
+- favicon-48.png, favicon-192.png, icon-512.png   icone do app (icone-original.png), cantos transparentes
+- apple-touch-icon.png   o mesmo, quadrado cheio para o iOS
 
 Fundo transparente por "cor para alfa" (a cor-chave e o branco): composto sobre
 branco o resultado e IDENTICO ao arquivo original, sem halo nas bordas. Requer
@@ -70,21 +72,41 @@ save_webp(logo_white, "logo-branca.webp", 960)
 save_webp(icon, "logo-icone.webp", 256)
 
 
-def tile(size: int, name: str, radius_ratio: float, margin: float) -> None:
-    """Simbolo centralizado sobre quadrado branco (favicons precisam de fundo legivel)."""
-    canvas = Image.new("RGBA", (size, size), (255, 255, 255, 0))
-    from PIL import ImageDraw
+# --- icone do app (quadrado arredondado oficial) --------------------------
+# Origem: apps/web/brand-source/icone-original.png. Os cantos fora do quadrado
+# arredondado sao brancos; para favicon ficam transparentes (preenchimento a
+# partir dos cantos, que nao entra no desenho porque a borda azul o fecha).
+from PIL import ImageDraw, ImageFilter
 
-    ImageDraw.Draw(canvas).rounded_rectangle((0, 0, size - 1, size - 1), radius=int(size * radius_ratio), fill=(255, 255, 255, 255))
-    inner = int(size * (1 - 2 * margin))
-    scale = min(inner / icon.width, inner / icon.height)
-    glyph = icon.resize((round(icon.width * scale), round(icon.height * scale)), Image.LANCZOS)
-    canvas.alpha_composite(glyph, ((size - glyph.width) // 2, (size - glyph.height) // 2))
-    canvas.save(PUBLIC / name, "PNG", optimize=True)
-    print(f"{name}: {canvas.size}")
+ICON_SRC = ROOT / "apps/web/brand-source/icone-original.png"
+app = Image.open(ICON_SRC).convert("RGB")
+
+marked = app.copy()
+for corner in [(0, 0), (app.width - 1, 0), (0, app.height - 1), (app.width - 1, app.height - 1)]:
+    ImageDraw.floodfill(marked, corner, (255, 0, 255), thresh=14)
+outside = np.asarray(marked)[..., :3]
+is_bg = (outside[..., 0] == 255) & (outside[..., 1] == 0) & (outside[..., 2] == 255)
+mask = Image.fromarray(np.where(is_bg, 0, 255).astype(np.uint8), "L")
+# Erode 2 px (some o fiapo branco da borda) e suaviza.
+mask = mask.filter(ImageFilter.MinFilter(5)).filter(ImageFilter.GaussianBlur(1.2))
+app_rgba = app.convert("RGBA")
+app_rgba.putalpha(mask)
 
 
-tile(48, "favicon-48.png", 0.18, 0.08)
-tile(192, "favicon-192.png", 0.18, 0.08)
-# iOS arredonda sozinho: quadrado cheio, sem raio.
-tile(180, "apple-touch-icon.png", 0.0, 0.12)
+def save_png(im: Image.Image, name: str, size: int) -> None:
+    out = im.resize((size, size), Image.LANCZOS)
+    out.save(PUBLIC / name, "PNG", optimize=True)
+    print(f"{name}: {out.size}")
+
+
+save_png(app_rgba, "favicon-48.png", 48)
+save_png(app_rgba, "favicon-192.png", 192)
+save_png(app_rgba, "icon-512.png", 512)
+
+# iOS aplica a propria mascara arredondada e nao aceita transparencia: quadrado
+# cheio, cortando 4% de cada lado (o raio do iOS e maior que o do desenho, entao
+# os cantos brancos ficam fora da mascara).
+inset = round(app.width * 0.04)
+cropped = app.crop((inset, inset, app.width - inset, app.height - inset))
+cropped.resize((180, 180), Image.LANCZOS).save(PUBLIC / "apple-touch-icon.png", "PNG", optimize=True)
+print("apple-touch-icon.png: (180, 180)")
