@@ -8,13 +8,13 @@
  * - `cnpj`: a empresa ainda nao tem CNPJ; fica nulo ate haver.
  * - `endereco`: endereco para correspondencia.
  * - `emailPrivacidade`: canal para assuntos de privacidade e direitos dos
- *   titulares. **E o unico dado que a Politica de Privacidade realmente
- *   precisa**: sem ele, a pagina informa que o canal sera divulgado.
+ *   titulares (informado pela CODECA IA). Se for esvaziado, a pagina volta a
+ *   informar que o canal sera divulgado.
  */
 export const EMPRESA = {
   nome: 'CODECA IA',
   produto: 'CODECA Build',
   cnpj: null as string | null,
   endereco: null as string | null,
-  emailPrivacidade: null as string | null,
+  emailPrivacidade: 'codecabuild@gmail.com' as string | null,
 };

@@ -6,4 +6,4 @@
  * `users.terms_version`), o que permite provar, depois, **qual** texto a pessoa
  * aceitou. Altere-a sempre que os textos mudarem de forma relevante.
  */
-export const LEGAL_VERSION = '2026-11-04';
+export const LEGAL_VERSION = '2026-11-05';

@@ -57,7 +57,7 @@ no texto.
 
 | Item | Situação |
 | --- | --- |
-| **E-mail ou canal de privacidade** (`EMPRESA.emailPrivacidade`) | **Falta.** Sem ele, as páginas dizem que o canal "será divulgado nesta página". É o dado mais importante: os direitos dos titulares dependem dele. Preencha o campo e a página passa a exibi-lo (e o `mailto`) |
+| E-mail de privacidade (`EMPRESA.emailPrivacidade`) | **Informado: `codecabuild@gmail.com`.** Aparece na seção de contato das duas páginas, com `mailto`. É um endereço pessoal do Gmail: considere um e-mail do domínio da empresa quando houver. Se o campo for esvaziado, a página volta a dizer que o canal "será divulgado" |
 | CNPJ (`EMPRESA.cnpj`) | A empresa ainda não tem. Campo vazio é omitido |
 | Endereço (`EMPRESA.endereco`) | Opcional; omitido enquanto vazio |
 | Foro e eleição de lei | Os Termos citam só a legislação brasileira; **foro não foi definido** |

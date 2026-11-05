@@ -59,10 +59,13 @@ describe.each([
 });
 
 describe('empresa', () => {
-  it('nao inventa CNPJ, endereco nem e-mail', () => {
+  it('so exibe o que foi informado: sem CNPJ nem endereco inventados', () => {
     expect(EMPRESA.cnpj).toBeNull();
     expect(EMPRESA.endereco).toBeNull();
-    expect(EMPRESA.emailPrivacidade).toBeNull();
+  });
+
+  it('o canal de privacidade e o informado pela CODECA IA', () => {
+    expect(EMPRESA.emailPrivacidade).toBe('codecabuild@gmail.com');
   });
 
   it('o canal de contato aparece nas duas paginas', () => {
