@@ -1,3 +1,4 @@
+import { Logo } from '../components/Logo.js';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import {
   AppWindow,
@@ -43,6 +44,9 @@ export function PlatformLayout() {
       */}
       <header className="border-b border-slate-800 bg-slate-900">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <Link to="/plataforma" aria-label="CODECA Build, painel da plataforma" className="mr-2 flex items-center">
+            <Logo tone="dark" className="h-8" priority />
+          </Link>
           <Link to="/painel" className="inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white">
             <ArrowLeft aria-hidden="true" className="size-4" />
             Voltar ao painel

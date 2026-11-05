@@ -125,3 +125,17 @@ O cadastro grava o aceite (data e versão) em `users.terms_accepted_at` /
 - Hero com `fetchpriority="high"`; demais imagens `loading="lazy"`; largura e
   altura declaradas em todas. Capturas em WebP (33 a 94 KB cada).
 - Sem rolagem lateral de 320px a 1920px.
+
+## 7. Marca (logo)
+
+A logo oficial vem de `apps/web/brand-source/logo-original.webp`. O script
+`scripts/brand/build-logos.py` (Pillow + numpy) gera, em `apps/web/public/brand/`,
+a logo completa com fundo transparente (`logo.webp`), a versão com texto branco
+para fundo escuro (`logo-branca.webp`) e o símbolo (`logo-icone.webp`), além dos
+favicons e do `apple-touch-icon` em `apps/web/public/`. Para trocar a logo,
+substitua o arquivo de origem e rode o script.
+
+O componente é `components/Logo.tsx` (`tone="dark"` para fundo escuro) e aparece no
+cabeçalho e rodapé da página inicial, nas telas de acesso, nas páginas legais, no
+menu do painel da empresa e no cabeçalho do painel mestre. As capturas do painel
+usadas na página inicial são imagens e mostram a marca antiga até serem refeitas.

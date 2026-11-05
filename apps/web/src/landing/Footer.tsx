@@ -34,7 +34,7 @@ export function Footer() {
         <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-20">
           <div>
             <Link to="/" aria-label="CODECA Build, página inicial">
-              <Logo tone="dark" />
+              <Logo tone="dark" className="h-11" />
             </Link>
             <p className="mt-6 max-w-sm leading-relaxed text-slate-400">
               Plataforma de gestão de conteúdo para sites empresariais personalizados. Sua empresa organiza e

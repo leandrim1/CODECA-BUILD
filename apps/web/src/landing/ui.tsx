@@ -101,19 +101,5 @@ export function LinkButton({
   );
 }
 
-/** Logotipo: o mesmo quadrado azul do painel. */
-export function Logo({ tone = 'light', className }: { tone?: 'light' | 'dark'; className?: string }) {
-  return (
-    <span className={cx('inline-flex items-center gap-2.5', className)}>
-      <span className="grid size-9 place-items-center rounded-[0.6rem] bg-brand-600 text-white shadow-brand">
-        <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[1.15rem]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="4" y="2" width="16" height="20" rx="2" />
-          <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01" />
-        </svg>
-      </span>
-      <span className={cx('text-[1.05rem] font-semibold tracking-tight', tone === 'light' ? 'text-slate-900' : 'text-white')}>
-        CODECA <span className={tone === 'light' ? 'text-brand-700' : 'text-brand-300'}>Build</span>
-      </span>
-    </span>
-  );
-}
+/** Logotipo oficial (ver `components/Logo.tsx`). */
+export { Logo } from '../components/Logo.js';

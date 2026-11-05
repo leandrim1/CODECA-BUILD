@@ -54,7 +54,7 @@ export function Header() {
     >
       <Container className="flex h-[4.25rem] items-center gap-6">
         <Link to="/" aria-label="CODECA Build, página inicial">
-          <Logo />
+          <Logo className="h-9 sm:h-10" priority />
         </Link>
 
         <nav className="ml-8 hidden items-center gap-1 lg:flex" aria-label="Seções da página">

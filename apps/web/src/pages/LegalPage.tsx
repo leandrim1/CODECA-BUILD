@@ -33,7 +33,7 @@ export function LegalPage({ tipo }: { tipo: Tipo }) {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex h-[4.25rem] max-w-3xl items-center justify-between px-5">
           <Link to="/" aria-label="CODECA Build, página inicial">
-            <Logo />
+            <Logo className="h-9 sm:h-10" priority />
           </Link>
           <Link to="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900">
             <ArrowLeft aria-hidden="true" className="size-4" />

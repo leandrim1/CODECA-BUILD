@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Logo } from '../components/Logo.js';
 import { Link, NavLink } from 'react-router-dom';
 import {
   BarChart3,
@@ -288,11 +289,8 @@ export function DashboardLayout() {
         aria-label="Menu do painel"
       >
         <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4">
-          <Link to="/painel" className="flex items-center gap-2 font-semibold text-slate-900">
-            <span className="grid size-8 place-items-center rounded-lg bg-brand-600 text-white">
-              <Building2 aria-hidden="true" className="size-4" />
-            </span>
-            Codeca Build
+          <Link to="/painel" aria-label="CODECA Build, visão geral" className="flex items-center">
+            <Logo className="h-9" priority />
           </Link>
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Fechar menu">
             <X aria-hidden="true" className="size-4" />
