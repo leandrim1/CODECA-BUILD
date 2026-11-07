@@ -2058,3 +2058,146 @@ export const analyticsOauthStates = pgTable(
     }).onDelete('cascade'),
   ],
 );
+
+// ------------------------------------------------- importacao de sites
+
+/**
+ * Uma analise de site externo.
+ *
+ * Guarda o **que foi encontrado**, nao o conteudo final: o conteudo importado
+ * vai para as tabelas que o painel ja usa (`content_documents`, `services`,
+ * `faqs`, `media_assets`...). Esta tabela e o registro da operacao -- de onde
+ * veio, quem pediu, o que a analise viu, em que pe esta -- e e o que permite
+ * reverter e auditar depois.
+ *
+ * Nao e uma segunda estrutura de conteudo: nada aqui e lido pela API publica
+ * nem pelo site do cliente.
+ */
+export const siteImports = pgTable(
+  'site_imports',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    /** Endereco informado, ja normalizado por `checkImportUrl`. */
+    sourceUrl: text('source_url').notNull(),
+    /** Host de origem, para limitar reanalise e para a auditoria. */
+    sourceHost: text('source_host').notNull(),
+    /** Ver `IMPORT_STATES` em `@codeca/shared`. Texto, nao enum: a lista muda sem `ALTER TYPE`. */
+    state: text('state').notNull().default('validando'),
+    /** Mensagem para quem opera. Nunca rastro de pilha nem corpo de resposta alheia. */
+    message: text('message').notNull().default(''),
+    /** Paginas visitadas, com papel, tamanho e falha. Ver `AnalyzedPage`. */
+    pages: jsonb('pages').$type<unknown[]>().notNull().default([]),
+    /** Contagens reais exibidas no resumo. Ver `ImportSummary`. */
+    summary: jsonb('summary').$type<Record<string, unknown>>().notNull().default({}),
+    /**
+     * Estado do rastreamento entre fatias.
+     *
+     * A funcao da Vercel para em 60 s, entao a analise avanca em pedacos e
+     * precisa lembrar onde parou: fila de enderecos, profundidade de cada um,
+     * o que ja foi lido. Fica aqui, e nao em memoria, porque a fatia seguinte
+     * pode cair em outra instancia.
+     */
+    cursor: jsonb('cursor').$type<Record<string, unknown>>().notNull().default({}),
+    requestedByUserId: uuid('requested_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Quando a analise terminou e ficou disponivel para revisao. */
+    analyzedAt: timestamp('analyzed_at', { withTimezone: true }),
+    /** Quando o cliente confirmou a importacao. */
+    importedAt: timestamp('imported_at', { withTimezone: true }),
+    /** Quando a analise parou de avancar, com sucesso ou com erro. */
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index('site_imports_site_created_idx').on(table.siteId, table.createdAt),
+    index('site_imports_tenant_created_idx').on(table.tenantId, table.createdAt),
+    index('site_imports_state_idx').on(table.state),
+    /** O par (site, empresa) e conferido pelo banco: ver `sites`. */
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'site_imports_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
+/**
+ * Um candidato encontrado pela analise.
+ *
+ * Uma linha por coisa que pode ser importada: um campo do institucional, um
+ * servico, uma imagem. A linha carrega o valor proposto, o valor que ja estava
+ * no painel e a decisao de quem revisou -- os tres juntos, porque e isso que
+ * sustenta as duas garantias do produto:
+ *
+ * - **nada entra sem confirmacao**: `decision` nasce `ignorado` para campo que
+ *   colide com conteudo existente, e so a revisao muda isso;
+ * - **tudo pode ser revertido**: `previous_value` guarda o que havia antes, e
+ *   `created_entity_id` diz o que foi criado, entao desfazer e devolver um ao
+ *   lugar e apagar o outro.
+ */
+export const siteImportItems = pgTable(
+  'site_import_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    importId: uuid('import_id')
+      .notNull()
+      .references(() => siteImports.id, { onDelete: 'cascade' }),
+    /** Ver `IMPORT_ITEM_KINDS`: campo de documento, registro de colecao ou imagem. */
+    kind: text('kind').notNull(),
+    /** Modulo de destino, ou `midia`. Ver `IMPORT_TARGETS`. */
+    target: text('target').notNull(),
+    /** Campo do modulo de documento. Vazio nos outros tipos. */
+    fieldKey: text('field_key').notNull().default(''),
+    label: text('label').notNull().default(''),
+    /** Valor proposto pela analise. */
+    value: jsonb('value').notNull(),
+    /**
+     * Valor que estava no painel antes da importacao.
+     *
+     * `null` quando nao havia nada. Preenchido na gravacao, nao na analise:
+     * entre analisar e confirmar o cliente pode ter editado o campo, e o que
+     * precisa voltar na reversao e o valor do momento da gravacao.
+     */
+    previousValue: jsonb('previous_value'),
+    /** De onde o valor saiu: pagina, sinal e trecho. Ver `ImportEvidence`. */
+    evidence: jsonb('evidence').$type<Record<string, unknown>>().notNull().default({}),
+    /** Ver `IMPORT_DECISIONS`. */
+    decision: text('decision').notNull().default('selecionado'),
+    /** Ver `CONFLICT_RESOLUTIONS`. Só tem efeito em campo de documento. */
+    resolution: text('resolution').notNull().default('manter'),
+    /** Ver `IMPORT_OUTCOMES`. */
+    outcome: text('outcome').notNull().default('pendente'),
+    /** `true` quando o campo de destino ja tinha conteudo. */
+    conflict: boolean('conflict').notNull().default(false),
+    /** `true` quando outro candidato da mesma analise propoe a mesma coisa. */
+    duplicate: boolean('duplicate').notNull().default(false),
+    /** `true` quando o modulo de destino nao esta habilitado para este site. */
+    targetDisabled: boolean('target_disabled').notNull().default(false),
+    /** Registro criado na gravacao, para a reversao saber o que apagar. */
+    createdEntityId: uuid('created_entity_id'),
+    /** Motivo da falha, em portugues e sem rastro de pilha. */
+    error: text('error').notNull().default(''),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index('site_import_items_import_idx').on(table.importId, table.sortOrder),
+    index('site_import_items_tenant_idx').on(table.tenantId),
+    index('site_import_items_target_idx').on(table.importId, table.target),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'site_import_items_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);

@@ -97,6 +97,18 @@ export const AUDIT_ACTIONS = {
   siteWebhookUpdated: 'site.webhook_updated',
   siteWebhookDeleted: 'site.webhook_deleted',
   siteWebhookSecretRotated: 'site.webhook_secret_rotated',
+  /**
+   * Importacao de site externo.
+   *
+   * Tres acoes distintas, pelo mesmo motivo das chaves: a pergunta depois do
+   * fato e "quem mandou analisar aquele endereco", "quem autorizou gravar isso
+   * no painel" e "quem desfez". Uma linha so para as tres nao responderia
+   * nenhuma delas. Nenhuma registra conteudo do site analisado -- so o
+   * endereco, os numeros e quem agiu.
+   */
+  siteImportStarted: 'site_import.started',
+  siteImportConfirmed: 'site_import.confirmed',
+  siteImportReverted: 'site_import.reverted',
   segmentCreated: 'platform.segment_created',
   segmentUpdated: 'platform.segment_updated',
   segmentDeleted: 'platform.segment_deleted',

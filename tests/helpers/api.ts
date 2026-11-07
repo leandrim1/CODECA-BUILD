@@ -10,6 +10,7 @@ import {
   type Mailer,
   type MailMessage,
   type MemoryBillingProvider,
+  type SiteFetcher,
 } from '@codeca/api';
 import { and, eq, provisionSiteModules, schema, seedDatabase, type Database } from '@codeca/database';
 import { createTestDatabase, type TestDatabase } from './database.js';
@@ -32,6 +33,17 @@ export interface TestApiOptions {
   env?: Record<string, string>;
   /** Cliente HTTP da API (por exemplo, um Google falso). */
   fetch?: typeof globalThis.fetch;
+  /**
+   * Busca das paginas na importacao de site externo.
+   *
+   * Substituir aqui nao e um atalho: a implementacao de verdade **recusa**
+   * `localhost` e qualquer IP privado, de proposito -- e a protecao contra
+   * SSRF. Um teste de ponta a ponta com servidor local seria barrado por ela.
+   * Com um conjunto de paginas em memoria os testes exercitam o rastreamento, a
+   * extracao e a gravacao de verdade, e as barreiras de rede tem testes
+   * proprios (`tests/unit/import-extract.test.ts` e `import-fetcher.test.ts`).
+   */
+  siteFetcher?: SiteFetcher;
   /** E-mail alternativo (por exemplo, um que falha). Sem ele, a caixa de saida em memoria. */
   mailer?: Mailer;
 }
@@ -135,6 +147,7 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     billing,
     // Webhooks de saida por padrao; o teste do login com Google injeta o seu.
     fetch: options.fetch ?? webhooks.fetch,
+    ...(options.siteFetcher ? { siteFetcher: options.siteFetcher } : {}),
     ...(options.now ? { now: options.now } : {}),
   });
 

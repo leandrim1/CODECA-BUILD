@@ -6,6 +6,7 @@ import {
   Building2,
   ChevronDown,
   CreditCard,
+  DownloadCloud,
   Globe,
   GalleryHorizontalEnd,
   HardHat,
@@ -185,6 +186,18 @@ const NAV_GROUPS: NavGroup[] = [
         module: 'faq',
       },
       { to: '/painel/midia', label: 'Biblioteca de imagens', icon: Image, capability: 'media:read' },
+      /**
+       * Importar site fica em Conteudo, e nao em Configuracoes, porque e um
+       * atalho para **preencher conteudo** -- a alternativa a digitar tudo nas
+       * telas acima. Sem `module`: nao e um modulo do site, e vale para
+       * qualquer projeto que tenha painel.
+       */
+      {
+        to: '/painel/importar',
+        label: 'Importar site',
+        icon: DownloadCloud,
+        capability: 'content:write',
+      },
     ],
   },
   {

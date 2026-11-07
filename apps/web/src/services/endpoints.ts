@@ -5,6 +5,11 @@ import type {
   AnalyticsRange,
   AnalyticsReport,
   AnalyticsStatus,
+  ImportDetailView,
+  ImportResultView,
+  ImportRunView,
+  ImportTarget,
+  ReviewImportInput,
 } from '@codeca/shared';
 import type {
   BannerRecord,
@@ -829,4 +834,56 @@ export const analyticsApi = {
   report: (tenantId: string, range: AnalyticsRange, signal?: AbortSignal) =>
     api.get<AnalyticsReport>(`${tenantBase(tenantId)}/analytics/report${query({ range })}`, signal ? { signal } : {}),
   disconnect: (tenantId: string) => api.delete<void>(`${tenantBase(tenantId)}/analytics`),
+};
+
+/**
+ * Importacao automatica de sites.
+ *
+ * `state` nao e so leitura: cada consulta **avanca** a analise um pedaco no
+ * servidor. A funcao da Vercel para em 60 s e nao ha fila, entao o trabalho
+ * anda dentro da requisicao que a tela ja faria para desenhar o progresso.
+ * Consultar de tempo em tempo nao e um detalhe da interface -- e o motor.
+ */
+export const siteImportApi = {
+  /** Analise mais recente, historico e os limites que a tela exibe. */
+  overview: (tenantId: string) =>
+    api.get<{
+      latest: ImportRunView | null;
+      history: ImportRunView[];
+      limits: { maxPages: number; maxImages: number; maxDepth: number; maxRunsPerHour: number };
+    }>(`${tenantBase(tenantId)}/site-import`),
+
+  start: (tenantId: string, url: string) =>
+    api.post<{ run: ImportRunView }>(`${tenantBase(tenantId)}/site-import`, { url }),
+
+  /** Consulta o estado e avanca uma fatia da analise. */
+  state: (tenantId: string, importId: string, signal?: AbortSignal) =>
+    api.get<{ run: ImportDetailView }>(
+      `${tenantBase(tenantId)}/site-import/${importId}`,
+      signal ? { signal } : {},
+    ),
+
+  review: (tenantId: string, importId: string, items: ReviewImportInput['items']) =>
+    api.patch<{ applied: number; run: ImportDetailView }>(
+      `${tenantBase(tenantId)}/site-import/${importId}/revisao`,
+      { items },
+    ),
+
+  confirm: (tenantId: string, importId: string, targets: ImportTarget[]) =>
+    api.post<{ result: ImportResultView; run: ImportDetailView }>(
+      `${tenantBase(tenantId)}/site-import/${importId}/confirmar`,
+      { confirm: true, targets },
+    ),
+
+  revert: (tenantId: string, importId: string) =>
+    api.post<{ reverted: number; failed: number; run: ImportDetailView }>(
+      `${tenantBase(tenantId)}/site-import/${importId}/desfazer`,
+      {},
+    ),
+
+  cancel: (tenantId: string, importId: string) =>
+    api.post<{ run: ImportRunView }>(
+      `${tenantBase(tenantId)}/site-import/${importId}/cancelar`,
+      {},
+    ),
 };

@@ -11,6 +11,7 @@ import { requestLog } from './middleware/request-log.js';
 import { snapshotMetrics } from './lib/runtime-metrics.js';
 import { cors, securityHeaders } from './middleware/security.js';
 import { analyticsOAuthRoutes, analyticsRoutes } from './routes/analytics.js';
+import { siteImportRoutes } from './routes/site-import.js';
 import { authRoutes } from './routes/auth.js';
 import { bannerRoutes } from './routes/banners.js';
 import { billingRoutes } from './routes/billing.js';
@@ -183,6 +184,7 @@ export function createApp(options: CreateAppOptions = {}) {
   tenantScoped.route('/', domainRoutes());
   tenantScoped.route('/', billingRoutes());
   tenantScoped.route('/', analyticsRoutes());
+  tenantScoped.route('/', siteImportRoutes());
   app.route('/tenants', tenantScoped);
 
   // Painel mestre da plataforma.

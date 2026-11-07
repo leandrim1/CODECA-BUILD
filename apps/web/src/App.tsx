@@ -44,6 +44,7 @@ const CustomModulePage = lazyRoute(['/painel/p'], () => import('./dashboard/Cust
 const CustomDocumentPage = lazyRoute(['/painel/p'], () => import('./dashboard/CustomModulePage.js').then((m) => ({ default: m.CustomDocumentPage })));
 const BannersPage = lazyRoute(['/painel/banners'], () => import('./dashboard/BannersPage.js').then((m) => ({ default: m.BannersPage })));
 const MediaPage = lazyRoute(['/painel/midia'], () => import('./dashboard/MediaPage.js').then((m) => ({ default: m.MediaPage })));
+const ImportSitePage = lazyRoute(['/painel/importar'], () => import('./dashboard/ImportSitePage.js').then((m) => ({ default: m.ImportSitePage })));
 const PropertiesPage = lazyRoute(['/painel/imoveis'], () => import('./dashboard/PropertiesPage.js').then((m) => ({ default: m.PropertiesPage })));
 const ProjectsPage = lazyRoute(['/painel/obras'], () => import('./dashboard/ProjectsPage.js').then((m) => ({ default: m.ProjectsPage })));
 const ServicesPage = lazyRoute(['/painel/servicos'], () => import('./dashboard/ServicesPage.js').then((m) => ({ default: m.ServicesPage })));
@@ -117,6 +118,12 @@ export function App() {
           >
             <Route index element={<OverviewPage />} />
             <Route path="midia" element={<MediaPage />} />
+            {/*
+              Sem `RequireModule`: importar nao e um modulo do site, e um
+              atalho para preencher os modulos que o site ja tem. Quem decide o
+              que pode entrar e o servidor, modulo por modulo.
+            */}
+            <Route path="importar" element={<ImportSitePage />} />
             {/*
               Uma rota para todos os modulos criados para o site.
               `/painel/p/:moduleKey` -- o prefixo `p/` separa o que e deste

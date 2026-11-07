@@ -60,3 +60,19 @@ export { AUDIT_ACTIONS } from './lib/audit.js';
 // Exportado para teste: decide quem escapa das politicas do painel.
 export { subPathAllowed, tenantSubPath } from './middleware/tenant-path.js';
 export { SESSION_COOKIE, CSRF_COOKIE, CSRF_HEADER } from './lib/cookies.js';
+
+/**
+ * Importacao de sites externos.
+ *
+ * `createMemorySiteFetcher` e exportado para os testes: a busca de verdade
+ * recusa `localhost` e IP privado (protecao contra SSRF), entao um teste de
+ * ponta a ponta contra servidor local seria barrado pela propria protecao.
+ */
+export {
+  createSiteFetcher,
+  createMemorySiteFetcher,
+  SiteFetchError,
+  type SiteFetcher,
+  type FetchedResource,
+  type FetchOptions,
+} from './lib/import/fetcher.js';

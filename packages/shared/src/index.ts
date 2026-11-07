@@ -11,6 +11,7 @@ export * from './legal.js';
 export * from './segments.js';
 export * from './modules/index.js';
 export * from './integration/index.js';
+export * from './import/index.js';
 export * from './billing/index.js';
 export * from './formatters.js';
 export * from './validators/index.js';

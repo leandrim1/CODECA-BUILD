@@ -46,6 +46,17 @@ export const RATE_LIMITS = {
   invite: { action: 'invite', limit: 20, windowSeconds: 3600 },
   /** Leitura da API publica, por chave. Generoso: um site carrega varias de uma vez. */
   publicApi: { action: 'public_api', limit: 600, windowSeconds: 60 },
+  /**
+   * Importacao de site externo. Duas cotas, cada uma contra um abuso diferente.
+   *
+   * Por empresa, porque cada analise faz dezenas de requisicoes ao site de um
+   * terceiro, e um laco no botao "Analisar" transformaria a plataforma em
+   * ferramenta de inundacao contra o site de alguem. Por IP, porque varias
+   * contas na mesma maquina somariam as cotas por empresa e contornariam a
+   * primeira.
+   */
+  siteImport: { action: 'site_import', limit: 10, windowSeconds: 3600 },
+  siteImportIp: { action: 'site_import_ip', limit: 20, windowSeconds: 3600 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export interface RateLimitResult {
