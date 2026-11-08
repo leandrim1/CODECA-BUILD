@@ -650,6 +650,8 @@ export async function recordChanges(
       codecaValue: unknown;
       conflict: boolean;
       targetDisabled: boolean;
+      /** Registro da CODECA que esta alteracao toca, quando ha um. */
+      entityId?: string | null;
     }[];
     now: Date;
   },
@@ -678,6 +680,7 @@ export async function recordChanges(
           codecaValue: row.codecaValue as never,
           conflict: row.conflict,
           targetDisabled: row.targetDisabled,
+          entityId: row.entityId ?? null,
           decision: 'pendente' as SyncDecision,
           outcome: 'pendente' as SyncOutcome,
           sortOrder: start + index,
@@ -697,6 +700,7 @@ export async function recordChanges(
           codecaValue: sql`excluded.codeca_value`,
           conflict: sql`excluded.conflict`,
           targetDisabled: sql`excluded.target_disabled`,
+          entityId: sql`coalesce(excluded.entity_id, ${schema.syncChanges.entityId})`,
           updatedAt: input.now,
         },
       });

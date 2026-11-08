@@ -314,7 +314,13 @@ describe('cenário 2 e 3: telefone e endereço mudaram na origem', () => {
     expect(telefone.type).toBe('modificado');
     expect(telefone.decision).toBe('pendente');
     expect(telefone.sourcePreview).toBe('(34) 98888-2222');
-    expect(telefone.codecaPreview).toBe('(34) 99999-1111');
+    /**
+     * O lado da CODECA e o telefone do **cadastro**, nao o do site antigo: a
+     * importacao recusou sobrescrever um campo ja preenchido. Os dois lados
+     * nascem diferentes sem ninguem ter editado nada -- e por isso `conflict`
+     * e falso: quem mudou foi so a origem.
+     */
+    expect(telefone.codecaPreview).toBe('(19) 99999-0000');
     expect(telefone.conflict).toBe(false);
 
     const endereco = acharCampo(corpo, 'contato', 'addressLine');
@@ -330,7 +336,8 @@ describe('cenário 2 e 3: telefone e endereço mudaram na origem', () => {
           eq(schema.contentDocuments.moduleKey, 'contato'),
         ),
       );
-    expect((documento?.data as Record<string, unknown>)['phone']).toBe('(34) 99999-1111');
+    // Continua o telefone do cadastro: a sincronização não gravou nada.
+    expect((documento?.data as Record<string, unknown>)['phone']).toBe('(19) 99999-0000');
   });
 
   it('aplica somente o que foi aprovado', async () => {
@@ -934,7 +941,8 @@ describe('cenário 14: dois clientes ao mesmo tempo', () => {
     };
 
     expect(await lerTelefone(empresa)).toBe('(34) 98888-2222');
-    expect(await lerTelefone(outra)).toBe('(34) 99999-1111');
+    // A empresa B não aprovou: o telefone dela continua o do cadastro.
+    expect(await lerTelefone(outra)).toBe('(19) 99999-0000');
   });
 
   it('uma empresa não alcança a fonte nem as alterações da outra', async () => {

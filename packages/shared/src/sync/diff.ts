@@ -101,6 +101,20 @@ export interface ThreeWayInput {
   source: DiffSide;
   /** O que esta na CODECA Build agora. */
   codeca: DiffSide;
+  /**
+   * A impressao do que a CODECA tinha **na ultima sincronizacao**.
+   *
+   * Sem isto, "o cliente editou?" era respondido comparando o painel de hoje
+   * com o que a **origem** dizia -- o que so funciona quando os dois estavam
+   * iguais. Eles frequentemente nao estao: a importacao recusa sobrescrever
+   * campo ja preenchido, entao um telefone pode nascer diferente dos dois
+   * lados sem ninguem ter editado nada. Naquele desenho, a primeira mudanca
+   * na origem virava "conflito" para um campo que o cliente nunca tocou.
+   *
+   * Ausente, cai no valor da origem -- que e o certo quando o conteudo veio
+   * de la e foi aceito como estava.
+   */
+  codecaAtBaseline?: string;
   /** `true` quando o conteudo e uma imagem. */
   image?: boolean;
 }
@@ -123,8 +137,10 @@ export function compareThreeWay(input: ThreeWayInput): ThreeWayVerdict {
   const { baseline, source, codeca } = input;
   const imagem = input.image === true;
 
+  const codecaAnterior = input.codecaAtBaseline ?? baseline.fingerprint;
+
   const origemMudou = source.fingerprint !== baseline.fingerprint;
-  const clienteMudou = codeca.fingerprint !== baseline.fingerprint;
+  const clienteMudou = codeca.fingerprint !== codecaAnterior;
 
   if (!origemMudou) {
     return clienteMudou ? { kind: 'apenas_local' } : { kind: 'sem_alteracao' };

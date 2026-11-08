@@ -37,10 +37,37 @@ export async function readMigrations(directory = migrationsDirectory()): Promise
     const statements = content
       .split('--> statement-breakpoint')
       .map((statement) => statement.trim())
-      .filter((statement) => statement.length > 0 && !/^(--[^\n]*\n?)*$/.test(statement));
+      .filter((statement) => statement.length > 0 && hasExecutableSql(statement));
     migrations.push({ name, statements });
   }
   return migrations;
+}
+
+/**
+ * `true` quando o trecho tem ao menos uma linha que nao e comentario.
+ *
+ * Serve para descartar o bloco de comentario que abre cada migracao, que
+ * viraria um comando vazio.
+ *
+ * Era uma expressao regular -- `^(--[^\n]*\n?)*$` -- e ela tinha retrocesso
+ * catastrofico: o grupo repetido com `\n?` opcional da ao motor duas formas
+ * de consumir cada linha, entao um trecho com muitas linhas de comentario
+ * seguidas de SQL leva tempo **exponencial** no numero de linhas antes de
+ * falhar. Com os cabecalhos curtos das primeiras migracoes isso passou
+ * despercebido por muito tempo; uma migracao com um bloco de comentario mais
+ * longo travou a carga do banco inteira, e o sintoma era o pior possivel --
+ * nenhum erro, nenhuma mensagem, apenas a suite de testes parada consumindo
+ * um nucleo.
+ *
+ * A versao abaixo e linear e diz o que quer dizer.
+ */
+function hasExecutableSql(statement: string): boolean {
+  for (const line of statement.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed === '' || trimmed.startsWith('--')) continue;
+    return true;
+  }
+  return false;
 }
 
 export interface MigrateResult {

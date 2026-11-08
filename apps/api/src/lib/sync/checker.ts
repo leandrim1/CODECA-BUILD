@@ -82,9 +82,32 @@ export interface CheckResult {
   message: string;
 }
 
-/** Resumo do texto de uma pagina, para detectar alteracao sem ETag. */
+/** Resumo de um texto. */
 export function hashContent(input: string): string {
   return createHash('sha256').update(input).digest('hex');
+}
+
+/**
+ * Resumo de uma pagina, para detectar alteracao quando nao ha ETag.
+ *
+ * Cobre **tudo o que o mapeamento consome**, e nao um recorte dele. A versao
+ * anterior resumia so titulo, cabecalhos e paragrafos, e isso deixava passar
+ * exatamente o caso mais comum do produto: trocar o telefone. O numero vive no
+ * JSON-LD e no rodape -- que nao entra em `paragraphs`, porque rodape nao e
+ * conteudo -- e `(34) 99999-1111` e `(34) 98888-2222` tem o mesmo tamanho.
+ * Resultado: resumo identico, pagina tratada como inalterada, alteracao
+ * invisivel.
+ *
+ * Serializar o extrato inteiro resolve pela raiz: se qualquer sinal que vira
+ * conteudo mudou, o resumo muda; se so a marcacao mudou, o extrato e o mesmo e
+ * o resumo tambem -- que era a razao de nao resumir o HTML cru.
+ *
+ * Ficam de fora `url` (nao e conteudo) e `links` (servem para descobrir
+ * paginas; um menu reordenado nao e alteracao de conteudo).
+ */
+export function hashExtract(extract: PageExtract): string {
+  const { url: _url, links: _links, ...conteudo } = extract;
+  return hashContent(JSON.stringify(conteudo));
 }
 
 /**
@@ -194,7 +217,7 @@ async function visitPages(
       }
 
       const extract = extractPage({ html: resource.body, url: resource.url, homeUrl: home });
-      const hash = hashContent(`${extract.title}\u0001${extract.textLength}\u0001${JSON.stringify(extract.headings)}\u0001${extract.paragraphs.join('\u0002')}`);
+      const hash = hashExtract(extract);
       seenUrls.add(canonical);
 
       /**
@@ -341,6 +364,23 @@ export async function detectChanges(
   const { candidates } = mapToModules(input.extracts);
   const baseline = await loadBaseline(ctx.db, { sourceId: source.id, tenantId: source.tenantId });
 
+  /**
+   * A primeira verificacao depois de conectar **nao propoe nada**.
+   *
+   * Sem baseline nao da para distinguir "a origem mudou" de "sempre foi
+   * assim": toda diferenca entre a origem e o painel apareceria como conteudo
+   * novo, inclusive as que o cliente ja resolveu na importacao, quando
+   * escolheu manter o que estava no painel. Reabrir essas decisoes no momento
+   * em que ele liga a sincronizacao seria perguntar de novo o que ele ja
+   * respondeu.
+   *
+   * Entao conectar **estabelece o ponto de partida**: grava o que a origem diz
+   * hoje e o que o painel tem hoje, em silencio. Da proxima verificacao em
+   * diante, tudo o que aparecer e mudanca de verdade -- que e a promessa da
+   * funcionalidade.
+   */
+  const primeiraVerificacao = baseline.size === 0;
+
   const estado = await loadSiteModules(ctx.db, source.siteId);
   const habilitados = new Set<SyncTarget>(enabledModuleKeys(estado));
   habilitados.add(MEDIA_TARGET);
@@ -413,6 +453,7 @@ export async function detectChanges(
       baseline: ladoBaseline,
       source: ladoOrigem,
       codeca: ladoCodeca.side,
+      ...(anterior ? { codecaAtBaseline: anterior.codecaFingerprint } : {}),
       image: ehImagem,
     });
 
@@ -429,7 +470,7 @@ export async function detectChanges(
       seen: true,
     };
 
-    if (veredito.kind === 'sem_alteracao' || veredito.kind === 'apenas_local') {
+    if (primeiraVerificacao || veredito.kind === 'sem_alteracao' || veredito.kind === 'apenas_local') {
       /**
        * Avanca o baseline mesmo sem alteracao a propor.
        *
@@ -457,6 +498,13 @@ export async function detectChanges(
       codecaValue: ladoCodeca.side.value,
       conflict: veredito.conflict,
       targetDisabled: !habilitados.has(candidate.target) || !canCompare(candidate.target),
+      /**
+       * O registro da CODECA que esta alteracao toca.
+       *
+       * Sem ele a aplicacao nao sabe **o que** atualizar: um servico alterado
+       * viraria registro novo, e uma remocao nao teria o que arquivar.
+       */
+      entityId: ladoCodeca.entityId ?? anterior?.entityId ?? null,
     });
 
     /**
@@ -469,13 +517,16 @@ export async function detectChanges(
   }
 
   // ------------------------------------------------ conteudo que sumiu
-  const sumidos = detectRemovals({
-    baseline,
-    vistos,
-    unchangedUrls: input.unchangedUrls,
-    seenUrls: input.seenUrls,
-    habilitados,
-  });
+  // Na primeira verificacao o baseline esta vazio: nao ha o que ter sumido.
+  const sumidos = primeiraVerificacao
+    ? []
+    : detectRemovals({
+        baseline,
+        vistos,
+        unchangedUrls: input.unchangedUrls,
+        seenUrls: input.seenUrls,
+        habilitados,
+      });
 
   for (const row of sumidos) {
     if (mudancas.length >= SYNC_LIMITS.maxChangesPerCheck) break;
@@ -519,7 +570,9 @@ export async function detectChanges(
     pagesFailed: input.failedUrls.length,
     changesFound: mudancas.length,
     conflicts: conflitos,
-    message: checkMessage(mudancas.length, conflitos, sumidos.length),
+    message: primeiraVerificacao
+      ? `Acompanhamento iniciado: ${avancos.length} ${avancos.length === 1 ? 'conteúdo registrado' : 'conteúdos registrados'} como ponto de partida. A partir daqui avisamos o que mudar no site de origem.`
+      : checkMessage(mudancas.length, conflitos, sumidos.length),
   };
 }
 
@@ -545,6 +598,7 @@ interface RemovalRow {
   codecaValue: unknown;
   conflict: boolean;
   targetDisabled: boolean;
+  entityId: string | null;
 }
 
 function detectRemovals(input: {
@@ -581,6 +635,7 @@ function detectRemovals(input: {
       codecaValue: null,
       conflict: false,
       targetDisabled: !input.habilitados.has(linha.target),
+      entityId: linha.entityId,
     });
   }
 

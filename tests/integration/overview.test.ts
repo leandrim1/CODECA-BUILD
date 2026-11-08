@@ -37,6 +37,8 @@ const CAMPOS = [
   'domains',
   'plan',
   'usage',
+  // Aviso da sincronizacao; `null` quando nao ha fonte ou nao ha pendencia.
+  'syncNotice',
 ].sort();
 
 let api: TestApi;
