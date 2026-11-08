@@ -275,6 +275,76 @@ async function visitPages(
 }
 
 /**
+ * Resumo atual dos arquivos de imagem das paginas que mudaram.
+ *
+ * Sem isto a sincronizacao nao consegue ver uma **troca de arquivo no mesmo
+ * endereco** -- o caso de alguem substituir `hero.jpg` por outra foto. O
+ * endereco nao muda, o HTML pode nem mudar, e so o conteudo do arquivo
+ * denuncia.
+ *
+ * O custo e contido de proposito:
+ *
+ * - so entram imagens das paginas que mudaram nesta verificacao; imagem de
+ *   pagina que respondeu 304 nem e tocada;
+ * - a requisicao e condicional, com o `ETag`/`Last-Modified` da visita
+ *   anterior guardados em `sync_page_states` -- um arquivo que nao mudou
+ *   responde 304 **sem corpo**;
+ * - o resumo so e calculado quando o servidor de fato devolve bytes.
+ *
+ * Falha de uma imagem nao interrompe nada: sem resumo novo, ela conta como
+ * inalterada, que e a resposta conservadora.
+ */
+async function hashSourceImages(
+  ctx: CheckContext,
+  input: {
+    source: SyncSourceRow;
+    urls: readonly string[];
+    estadoAnterior: Map<string, { etag: string; lastModified: string; contentHash: string }>;
+  },
+): Promise<Map<string, string>> {
+  const resumos = new Map<string, string>();
+
+  for (const url of input.urls.slice(0, SYNC_LIMITS.maxChangesPerCheck)) {
+    const anterior = input.estadoAnterior.get(url);
+    try {
+      const recurso = await ctx.fetcher.fetch(url, {
+        accept: 'image',
+        wantBytes: true,
+        ...(anterior?.etag ? { ifNoneMatch: anterior.etag } : {}),
+        ...(anterior?.lastModified ? { ifModifiedSince: anterior.lastModified } : {}),
+      });
+
+      if (recurso.notModified) {
+        if (anterior?.contentHash) resumos.set(url, anterior.contentHash);
+        continue;
+      }
+      if (recurso.status >= 400 || recurso.bytes === null || recurso.bytes.length === 0) continue;
+
+      const resumo = createHash('sha256').update(recurso.bytes).digest('hex');
+      resumos.set(url, resumo);
+
+      await upsertPageState(ctx.db, {
+        tenantId: input.source.tenantId,
+        siteId: input.source.siteId,
+        sourceId: input.source.id,
+        url,
+        contentHash: resumo,
+        etag: recurso.etag,
+        lastModified: recurso.lastModified,
+        status: recurso.status,
+        seen: true,
+        now: ctx.now(),
+      });
+    } catch {
+      // Imagem indisponivel agora: trata como inalterada em vez de sumida.
+      continue;
+    }
+  }
+
+  return resumos;
+}
+
+/**
  * Executa uma verificacao completa de uma fonte.
  *
  * Nao lanca por falha da origem: um site fora do ar e um resultado possivel
@@ -414,6 +484,32 @@ export async function detectChanges(
     sourceUrls: urlsDeImagem,
   });
 
+  /**
+   * Resumo **atual** dos arquivos da origem.
+   *
+   * `importadas` traz o resumo de quando a imagem foi importada -- o lado da
+   * CODECA. Para saber se o arquivo na origem mudou e preciso le-lo de novo,
+   * e e isso que `hashSourceImages` faz, com requisicao condicional e so para
+   * as paginas que mudaram.
+   */
+  const estadoDasPaginas = await loadPageStates(ctx.db, {
+    sourceId: source.id,
+    tenantId: source.tenantId,
+  });
+  const validadores = new Map(
+    estadoDasPaginas.map((p) => [
+      p.url,
+      { etag: p.etag, lastModified: p.lastModified, contentHash: p.contentHash },
+    ]),
+  );
+  const resumosDaOrigem = primeiraVerificacao
+    ? new Map<string, string>()
+    : await hashSourceImages(ctx, {
+        source,
+        urls: urlsDeImagem,
+        estadoAnterior: validadores,
+      });
+
   type LinhaDeMudanca = Parameters<typeof recordChanges>[1]['rows'][number];
   type LinhaDeBaseline = Parameters<typeof upsertBaseline>[1]['rows'][number];
 
@@ -439,9 +535,25 @@ export async function detectChanges(
       baseline: anterior,
     });
 
+    /**
+     * Imagem compara `url` + resumo do arquivo, e **nada mais**.
+     *
+     * O texto alternativo ficou de fora de proposito: do lado da CODECA ele e
+     * editavel pelo cliente, e incluí-lo fazia os dois lados nunca baterem --
+     * toda imagem apareceria como alterada em toda verificacao, para sempre.
+     * O que diz "e outra imagem" e o conteudo do arquivo.
+     */
     const ladoOrigem = sideOf(
       ehImagem && candidate.kind === 'imagem'
-        ? { url: candidate.url, alt: candidate.alt, hash: importadas.get(candidate.url)?.hash ?? '' }
+        ? {
+            url: candidate.url,
+            // O resumo lido agora; sem leitura nova, o da importacao -- que
+            // deixa os dois lados iguais, ou seja, "nao mudou".
+            hash:
+              resumosDaOrigem.get(candidate.url)
+              ?? importadas.get(candidate.url)?.hash
+              ?? '',
+          }
         : valorOrigem,
     );
 
@@ -669,7 +781,7 @@ function codecaSideOf(input: {
      * criptografico, guardado quando ela foi importada.
      */
     return {
-      side: sideOf({ url: candidate.url, alt: '', hash: arquivo.hash }),
+      side: sideOf({ url: candidate.url, hash: arquivo.hash }),
       entityId: arquivo.mediaId,
     };
   }

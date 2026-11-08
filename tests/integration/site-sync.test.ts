@@ -597,6 +597,25 @@ describe('cenário 6 e 9: conteúdo e página que saem do ar', () => {
   });
 });
 
+describe('imagens estáveis', () => {
+  /**
+   * O texto alternativo ficou fora da comparacao de imagem: do lado da CODECA
+   * ele e editavel pelo cliente, e inclui-lo fazia os dois lados nunca
+   * baterem -- toda imagem apareceria como alterada em toda verificacao, para
+   * sempre.
+   */
+  it('imagem que não mudou não reaparece a cada verificação', async () => {
+    await importarEConectar(empresa);
+
+    await verificar(empresa);
+    await verificar(empresa);
+
+    const corpo = await estado(empresa);
+    const imagens = (corpo.changes as any[]).filter((c) => c.target === 'midia');
+    expect(imagens).toHaveLength(0);
+  });
+});
+
 describe('cenário 7: imagem trocada na origem', () => {
   it('troca de arquivo no mesmo endereço é detectada pelo conteúdo', async () => {
     await importarEConectar(empresa);

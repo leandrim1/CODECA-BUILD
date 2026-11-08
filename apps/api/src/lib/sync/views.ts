@@ -1,6 +1,7 @@
 import type { schema } from '@codeca/database';
 import {
   SCHEDULER_NOTE,
+  fingerprint,
   SYNC_CHANGE_TYPE_LABELS,
   SYNC_FREQUENCY_LABELS,
   SYNC_LIMITS,
@@ -97,6 +98,7 @@ export function toChangeView(
   input: { approvedByName: string; codecaImageUrl: string | null },
 ): SyncChangeView {
   const imagem = isImageChange(change.changeType);
+  const recorte = differingFields(change.sourceValue, change.codecaValue);
 
   return {
     id: change.id,
@@ -107,9 +109,9 @@ export function toChangeView(
     type: change.changeType,
     typeLabel: SYNC_CHANGE_TYPE_LABELS[change.changeType],
     pageUrl: change.pageUrl,
-    baselinePreview: previewOf(change.baselineValue),
-    sourcePreview: previewOf(change.sourceValue),
-    codecaPreview: previewOf(change.codecaValue),
+    baselinePreview: previewOf(pick(change.baselineValue, recorte)),
+    sourcePreview: previewOf(pick(change.sourceValue, recorte)),
+    codecaPreview: previewOf(pick(change.codecaValue, recorte)),
     sourceValue: change.sourceValue,
     sourceImageUrl: imagem ? imageUrlOf(change.sourceValue) : null,
     codecaImageUrl: input.codecaImageUrl,
@@ -124,6 +126,44 @@ export function toChangeView(
     error: change.error,
     targetDisabled: change.targetDisabled,
   };
+}
+
+/**
+ * Campos que de fato diferem entre a origem e a CODECA.
+ *
+ * Sem isto a tela mostrava o **titulo** dos dois lados -- porque e ele que
+ * identifica o registro -- e um banner cujo subtitulo mudou aparecia como
+ * "Conteudo modificado" com exatamente o mesmo texto nas duas colunas. A
+ * pessoa via que havia uma alteracao e nao conseguia ver qual.
+ *
+ * Devolve `null` quando nao ha o que recortar (campo de documento, imagem, ou
+ * um dos lados ausente): ai o valor inteiro e a resposta certa.
+ */
+function differingFields(source: unknown, codeca: unknown): string[] | null {
+  if (source === null || typeof source !== 'object' || Array.isArray(source)) return null;
+  if (codeca === null || typeof codeca !== 'object' || Array.isArray(codeca)) return null;
+
+  const a = source as Record<string, unknown>;
+  const b = codeca as Record<string, unknown>;
+  const chaves = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(
+    (chave) => !chave.startsWith('__'),
+  );
+
+  const diferentes = chaves.filter((chave) => fingerprint(a[chave]) !== fingerprint(b[chave]));
+  // Nenhuma diferenca de campo: mostra tudo, em vez de uma previa vazia.
+  return diferentes.length > 0 ? diferentes : null;
+}
+
+/** Recorta um objeto aos campos informados. */
+function pick(value: unknown, campos: string[] | null): unknown {
+  if (campos === null) return value;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return value;
+  const origem = value as Record<string, unknown>;
+  const recorte: Record<string, unknown> = {};
+  for (const campo of campos) {
+    if (origem[campo] !== undefined) recorte[campo] = origem[campo];
+  }
+  return Object.keys(recorte).length > 0 ? recorte : value;
 }
 
 /** Endereco da imagem dentro do valor de uma alteracao de imagem. */

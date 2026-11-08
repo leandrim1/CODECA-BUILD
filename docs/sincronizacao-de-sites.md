@@ -133,13 +133,30 @@ vire tráfego indesejado contra o site de um terceiro:
    nova falha (até 24 h), e após 5 falhas seguidas a fonte se pausa sozinha,
    com o motivo visível na tela.
 
-Imagens só são baixadas **quando a alteração é aprovada**. A prévia na tela de
-revisão aponta para o site de origem (com `referrerPolicy="no-referrer"`), para
-não gastar o armazenamento do plano com algo que o cliente pode descartar.
+Imagens só são **armazenadas** quando a alteração é aprovada. A prévia na tela
+de revisão aponta para o site de origem (com `referrerPolicy="no-referrer"`),
+para não gastar o armazenamento do plano com algo que o cliente pode descartar.
+
+Durante a verificação os arquivos das páginas que mudaram são lidos para
+calcular o resumo — é a única forma de ver uma troca de foto no mesmo
+endereço — mas nada é gravado no Blob antes da aprovação.
+
+O texto alternativo fica **fora** da comparação de imagem: do lado da CODECA
+ele é editável pelo cliente, e incluí-lo faria os dois lados nunca baterem,
+com toda imagem aparecendo como alterada em toda verificação.
 
 ---
 
 ## 5. As regras que não se dobram
+
+### Conectar não propõe nada
+
+A primeira verificação depois de conectar **estabelece o ponto de partida** em
+silêncio. Sem baseline não há como distinguir "a origem mudou" de "sempre foi
+assim", e toda diferença entre a origem e o painel apareceria como conteúdo
+novo — inclusive as que o cliente já resolveu na importação, quando escolheu
+manter o que estava no painel. Da verificação seguinte em diante, o que
+aparece é mudança de verdade.
 
 ### Nada é alterado sem aprovação
 
@@ -238,10 +255,11 @@ ciclo seguinte, sem precisar de limpeza.
   um registro de coleção é o título normalizado. Casar por semelhança de texto
   resolveria alguns casos e erraria outros em silêncio — e aqui errar significa
   sobrescrever o serviço errado.
-- **Imagem trocada no mesmo endereço** só é detectada quando a página que a
-  referencia também muda: a imagem é um recurso separado, lido quando a página
-  é relida. Trocar o arquivo sem tocar no HTML passa despercebido até a próxima
-  mudança da página.
+- **Imagem trocada no mesmo endereço** é detectada pelo conteúdo do arquivo
+  (SHA-256), mas só para imagens de páginas que mudaram naquela verificação.
+  Imagem de página que respondeu 304 não é relida — trocar o arquivo sem tocar
+  em nada no HTML passa despercebido até a página mudar. A releitura usa
+  requisição condicional, então um arquivo intacto responde 304 sem corpo.
 - **Desfazer não remove imagem.** O arquivo fica na biblioteca, que tem a
   própria exclusão (e recusa apagar arquivo em uso).
 - **Categorias** não recebe sincronização, como não recebe importação.
@@ -255,7 +273,7 @@ ciclo seguinte, sem precisar de limpeza.
 | Arquivo | O que prova |
 |---|---|
 | `tests/unit/sync-diff.test.ts` | As quatro combinações das três pontas; edição local não vira pendência; conflito detectado; remoção nunca em conflito; identidade entre verificações; frequências e o aviso do agendador |
-| `tests/integration/site-sync.test.ts` | Os 14 cenários do pedido sobre PostgreSQL real |
+| `tests/integration/site-sync.test.ts` | Os 14 cenários do pedido sobre PostgreSQL real (34 testes) |
 
 Os cenários cobertos, na ordem do pedido: sem alterações (com e sem 304),
 telefone, endereço, textos, serviço adicionado, serviço removido, imagem
