@@ -57,6 +57,14 @@ export const RATE_LIMITS = {
    */
   siteImport: { action: 'site_import', limit: 10, windowSeconds: 3600 },
   siteImportIp: { action: 'site_import_ip', limit: 20, windowSeconds: 3600 },
+  /**
+   * "Verificar agora" na tela de sincronizacao, por empresa.
+   *
+   * Mais apertado que a importacao: a verificacao agendada ja visita a origem
+   * sozinha, e o botao existe para antecipar uma checagem, nao para ser
+   * apertado em sequencia contra o site de um terceiro.
+   */
+  syncManualCheck: { action: 'sync_manual_check', limit: 6, windowSeconds: 3600 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export interface RateLimitResult {

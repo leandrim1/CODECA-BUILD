@@ -2,6 +2,7 @@ import type { DomainStatus } from './domain.js';
 import type { SiteStatus } from './constants.js';
 import type { EffectivePlan, UsageSnapshot } from './plans.js';
 import type { LeadInterestType, LeadStatus } from './constants.js';
+import type { SyncNotice } from './sync/types.js';
 
 /**
  * Contrato da visao geral do painel do cliente.
@@ -87,4 +88,13 @@ export interface TenantOverview {
   domains: OverviewDomain[];
   plan: EffectivePlan;
   usage: UsageSnapshot;
+  /**
+   * Aviso da sincronizacao, quando ha alteracoes esperando decisao.
+   *
+   * Vive na visao geral para o cliente nao precisar abrir a tela de
+   * sincronizacao para descobrir que existe algo por revisar. `null` quando
+   * nao ha fonte conectada ou nao ha nada pendente -- um aviso com zero nao e
+   * informacao, e ocuparia espaco todo dia.
+   */
+  syncNotice: SyncNotice | null;
 }

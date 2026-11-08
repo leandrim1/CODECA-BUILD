@@ -49,6 +49,17 @@ export interface FetchedResource {
   truncated: boolean;
   /** Saltos de redirecionamento percorridos, todos validados. */
   redirects: string[];
+  /** Validadores que o servidor de origem ofereceu, para a proxima visita. */
+  etag: string;
+  lastModified: string;
+  /**
+   * `true` quando o servidor respondeu 304 a uma requisicao condicional.
+   *
+   * Nao e erro nem resposta vazia: e a origem dizendo "nao mudou desde a sua
+   * ultima visita". A sincronizacao pula a pagina inteira nesse caso -- sem
+   * baixar corpo, sem extrair, sem comparar.
+   */
+  notModified: boolean;
 }
 
 export type FetchRejection =
@@ -79,6 +90,15 @@ export interface FetchOptions {
   wantBytes?: boolean;
   maxBytes?: number;
   timeoutMs?: number;
+  /**
+   * Validadores da visita anterior, para a requisicao condicional.
+   *
+   * Com eles o servidor pode responder 304 sem corpo. E o que torna uma
+   * verificacao semanal de 25 paginas barata -- para a plataforma e,
+   * sobretudo, para o site do cliente, que sera visitado para sempre.
+   */
+  ifNoneMatch?: string;
+  ifModifiedSince?: string;
 }
 
 /**
@@ -205,6 +225,8 @@ function requestOnce(input: {
   family: number;
   accept: NonNullable<FetchOptions['accept']>;
   timeoutMs: number;
+  ifNoneMatch?: string;
+  ifModifiedSince?: string;
 }): Promise<{ response: IncomingMessage }> {
   const isHttps = input.url.protocol === 'https:';
   const send = isHttps ? httpsRequest : httpRequest;
@@ -226,6 +248,8 @@ function requestOnce(input: {
           // limite de bytes, e algumas respostas vem com codificacao errada.
           'accept-encoding': 'identity',
           connection: 'close',
+          ...(input.ifNoneMatch ? { 'if-none-match': input.ifNoneMatch } : {}),
+          ...(input.ifModifiedSince ? { 'if-modified-since': input.ifModifiedSince } : {}),
         },
         // Nome no SNI, mesmo conectando por IP: certificado e host virtual
         // dependem dele.
@@ -347,10 +371,39 @@ export function createSiteFetcher(): SiteFetcher {
           family: target.family,
           accept,
           timeoutMs,
+          ...(options.ifNoneMatch ? { ifNoneMatch: options.ifNoneMatch } : {}),
+          ...(options.ifModifiedSince ? { ifModifiedSince: options.ifModifiedSince } : {}),
         });
 
         const status = response.statusCode ?? 0;
         const location = response.headers['location'];
+        const etag = String(response.headers['etag'] ?? '').slice(0, 300);
+        const lastModified = String(response.headers['last-modified'] ?? '').slice(0, 120);
+
+        /**
+         * 304: a origem diz que nada mudou desde a visita anterior.
+         *
+         * Vem antes da checagem de redirecionamento porque 304 esta na faixa
+         * 3xx mas nao e um salto -- nao tem `location`, nao tem corpo, e
+         * trata-lo como qualquer outro 3xx faria a resposta cair no caminho
+         * errado. E o resultado que a sincronizacao mais quer receber.
+         */
+        if (status === 304) {
+          response.resume();
+          response.destroy();
+          return {
+            url: url.toString(),
+            status,
+            contentType: '',
+            body: '',
+            bytes: null,
+            truncated: false,
+            redirects,
+            etag: etag || (options.ifNoneMatch ?? ''),
+            lastModified: lastModified || (options.ifModifiedSince ?? ''),
+            notModified: true,
+          };
+        }
 
         if (status >= 300 && status < 400 && typeof location === 'string' && location !== '') {
           response.resume();
@@ -380,6 +433,9 @@ export function createSiteFetcher(): SiteFetcher {
             bytes: null,
             truncated: false,
             redirects,
+            etag,
+            lastModified,
+            notModified: false,
           };
         }
 
@@ -417,6 +473,9 @@ export function createSiteFetcher(): SiteFetcher {
           bytes: options.wantBytes ? bytes : null,
           truncated,
           redirects,
+          etag,
+          lastModified,
+          notModified: false,
         };
       }
     },
@@ -433,7 +492,19 @@ export function createSiteFetcher(): SiteFetcher {
  * proprios.
  */
 export function createMemorySiteFetcher(
-  pages: Record<string, { body?: string; status?: number; contentType?: string; bytes?: Uint8Array; location?: string }>,
+  pages: Record<
+    string,
+    {
+      body?: string;
+      status?: number;
+      contentType?: string;
+      bytes?: Uint8Array;
+      location?: string;
+      /** Validadores que esta pagina oferece; com eles o teste exercita o 304. */
+      etag?: string;
+      lastModified?: string;
+    }
+  >,
 ): SiteFetcher {
   return {
     async fetch(rawUrl, options = {}) {
@@ -453,6 +524,39 @@ export function createMemorySiteFetcher(
             bytes: null,
             truncated: false,
             redirects,
+            etag: '',
+            lastModified: '',
+            notModified: false,
+          };
+        }
+
+        /**
+         * Responde 304 quando o validador enviado bate com o da pagina.
+         *
+         * E o mesmo contrato do servidor de verdade, para os testes
+         * exercitarem o caminho condicional -- que e o que evita baixar 25
+         * paginas toda semana.
+         */
+        const condicionalBate =
+          (options.ifNoneMatch !== undefined
+            && options.ifNoneMatch !== ''
+            && options.ifNoneMatch === page.etag)
+          || (options.ifModifiedSince !== undefined
+            && options.ifModifiedSince !== ''
+            && options.ifModifiedSince === page.lastModified);
+
+        if (condicionalBate) {
+          return {
+            url: normalized,
+            status: 304,
+            contentType: '',
+            body: '',
+            bytes: null,
+            truncated: false,
+            redirects,
+            etag: page.etag ?? '',
+            lastModified: page.lastModified ?? '',
+            notModified: true,
           };
         }
 
@@ -477,6 +581,9 @@ export function createMemorySiteFetcher(
           bytes: options.wantBytes ? (page.bytes ?? new Uint8Array()) : null,
           truncated: false,
           redirects,
+          etag: page.etag ?? '',
+          lastModified: page.lastModified ?? '',
+          notModified: false,
         };
       }
 

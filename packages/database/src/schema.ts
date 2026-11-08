@@ -2201,3 +2201,308 @@ export const siteImportItems = pgTable(
     }).onDelete('cascade'),
   ],
 );
+
+// ---------------------------------------------- sincronizacao de sites
+
+/**
+ * Ligacao viva com o site de origem de uma empresa.
+ *
+ * Uma por site. Enquanto a importacao (`site_imports`) e um evento -- aconteceu
+ * uma vez, terminou --, a fonte e um **estado**: ela tem frequencia, vence,
+ * falha, e pode ser pausada sem perder o historico.
+ *
+ * `next_check_at` e o que o agendador consulta. Ele ordena por esse campo e
+ * pega as que venceram, o que torna a fila uma consulta indexada em vez de
+ * uma tabela de tarefas separada.
+ */
+export const syncSources = pgTable(
+  'sync_sources',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    /** Endereco normalizado por `checkImportUrl`. */
+    sourceUrl: text('source_url').notNull(),
+    sourceHost: text('source_host').notNull(),
+    /** Ver `SYNC_SOURCE_STATES` em `@codeca/shared`. */
+    state: text('state').notNull().default('ativa'),
+    /** Ver `SYNC_FREQUENCIES`. */
+    frequency: text('frequency').notNull().default('semanal'),
+    lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+    /** Ultima vez que o cliente aplicou alteracoes vindas daqui. */
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    /**
+     * Quando esta fonte vence.
+     *
+     * Nulo em `manual` e quando a fonte esta pausada: o indice parcial do
+     * agendador so enxerga linha com data, entao pausar e literalmente sair
+     * da fila, sem precisar filtrar por estado na consulta quente.
+     */
+    nextCheckAt: timestamp('next_check_at', { withTimezone: true }),
+    /** Falhas seguidas. Zera no primeiro sucesso; alimenta o adiamento. */
+    consecutiveFailures: integer('consecutive_failures').notNull().default(0),
+    /** Motivo da ultima falha, em portugues e sem rastro de pilha. */
+    lastError: text('last_error').notNull().default(''),
+    /** Importacao que deu origem a esta fonte, quando houve uma. */
+    importId: uuid('import_id').references(() => siteImports.id, { onDelete: 'set null' }),
+    connectedByUserId: uuid('connected_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    /** Uma fonte por site: duas filas sobre o mesmo site se atropelariam. */
+    uniqueIndex('sync_sources_site_key').on(table.siteId),
+    index('sync_sources_tenant_idx').on(table.tenantId),
+    /**
+     * A consulta do agendador, e so ela.
+     *
+     * Parcial de proposito: fonte pausada ou manual tem `next_check_at` nulo
+     * e nem entra no indice, entao a fila nao cresce com quem nao esta nela.
+     */
+    index('sync_sources_due_idx')
+      .on(table.nextCheckAt)
+      .where(sql`${table.nextCheckAt} is not null`),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'sync_sources_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
+/**
+ * Estado de cada pagina acompanhada.
+ *
+ * Guarda o resumo do conteudo, o `ETag` e o `Last-Modified` da ultima visita.
+ * Com eles a verificacao seguinte manda uma requisicao condicional, e uma
+ * pagina que nao mudou responde `304` sem corpo -- o que torna uma
+ * verificacao semanal de 25 paginas barata para a plataforma e, sobretudo,
+ * para o site do cliente.
+ *
+ * `missing_since` e o que sustenta o item 8: pagina que sumiu nao e apagada,
+ * e marcada. E o que permite dizer "sumiu ha tres dias" em vez de so "sumiu".
+ */
+export const syncPageStates = pgTable(
+  'sync_page_states',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    sourceId: uuid('source_id')
+      .notNull()
+      .references(() => syncSources.id, { onDelete: 'cascade' }),
+    /** Endereco na forma canonica (`canonicalPageUrl`). */
+    url: text('url').notNull(),
+    /** Resumo do texto extraido. Decide alteracao quando nao ha ETag. */
+    contentHash: text('content_hash').notNull().default(''),
+    /** Validadores do servidor de origem, quando ele os oferece. */
+    etag: text('etag').notNull().default(''),
+    lastModified: text('last_modified').notNull().default(''),
+    status: integer('status').notNull().default(0),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    /** Desde quando a pagina nao responde. Nulo quando ela esta no ar. */
+    missingSince: timestamp('missing_since', { withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('sync_page_states_source_url_key').on(table.sourceId, table.url),
+    index('sync_page_states_tenant_idx').on(table.tenantId),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'sync_page_states_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
+/**
+ * O que a origem dizia na ultima sincronizacao.
+ *
+ * A terceira ponta da comparacao, e a razao de a sincronizacao conseguir
+ * distinguir "a origem mudou" de "o cliente editou no painel". Sem esta
+ * tabela so daria para comparar origem com CODECA, e toda edicao feita pelo
+ * cliente voltaria como alteracao a ser desfeita.
+ *
+ * `codeca_fingerprint` guarda o que estava na CODECA no momento em que o
+ * baseline foi gravado. Comparar o valor atual do painel contra ele e o que
+ * detecta a edicao local -- ver `compareThreeWay`.
+ */
+export const syncBaseline = pgTable(
+  'sync_baseline',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    sourceId: uuid('source_id')
+      .notNull()
+      .references(() => syncSources.id, { onDelete: 'cascade' }),
+    /** Identidade do conteudo entre verificacoes. Ver `syncKey`. */
+    contentKey: text('content_key').notNull(),
+    /** Modulo de destino, ou `midia`. */
+    target: text('target').notNull(),
+    fieldKey: text('field_key').notNull().default(''),
+    label: text('label').notNull().default(''),
+    /** Valor que a origem tinha na ultima sincronizacao. */
+    sourceValue: jsonb('source_value'),
+    /** Impressao desse valor, que decide igualdade. */
+    sourceFingerprint: text('source_fingerprint').notNull().default(''),
+    /** Impressao do que estava na CODECA quando o baseline foi gravado. */
+    codecaFingerprint: text('codeca_fingerprint').notNull().default(''),
+    /** Registro da CODECA que corresponde a este conteudo, quando ha um. */
+    entityId: uuid('entity_id'),
+    /** Pagina da origem de onde o conteudo veio. */
+    pageUrl: text('page_url').notNull().default(''),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    /** Desde quando o conteudo nao aparece mais na origem. */
+    missingSince: timestamp('missing_since', { withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('sync_baseline_source_key').on(table.sourceId, table.contentKey),
+    index('sync_baseline_tenant_idx').on(table.tenantId),
+    index('sync_baseline_target_idx').on(table.sourceId, table.target),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'sync_baseline_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
+/** Uma verificacao da origem. Alimenta o historico do item 10. */
+export const syncChecks = pgTable(
+  'sync_checks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    sourceId: uuid('source_id')
+      .notNull()
+      .references(() => syncSources.id, { onDelete: 'cascade' }),
+    /** Ver `SYNC_CHECK_STATES`. */
+    state: text('state').notNull().default('verificando'),
+    /** Ver `SYNC_TRIGGERS`: agendada, manual ou a primeira depois de conectar. */
+    trigger: text('trigger').notNull().default('agendada'),
+    pagesChecked: integer('pages_checked').notNull().default(0),
+    /** Paginas que responderam 304 ou cujo resumo nao mudou. */
+    pagesUnchanged: integer('pages_unchanged').notNull().default(0),
+    pagesFailed: integer('pages_failed').notNull().default(0),
+    changesFound: integer('changes_found').notNull().default(0),
+    conflicts: integer('conflicts').notNull().default(0),
+    message: text('message').notNull().default(''),
+    /** Fila do rastreamento entre fatias, como na importacao. */
+    cursor: jsonb('cursor').$type<Record<string, unknown>>().notNull().default({}),
+    triggeredByUserId: uuid('triggered_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index('sync_checks_source_created_idx').on(table.sourceId, table.createdAt),
+    index('sync_checks_tenant_idx').on(table.tenantId),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'sync_checks_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
+/**
+ * Uma alteracao encontrada, esperando decisao do cliente.
+ *
+ * Guarda as **tres** versoes do conteudo -- a do baseline, a da origem e a da
+ * CODECA no momento da deteccao. E o que a tela precisa para mostrar os tres
+ * lados de um conflito, e o que a reversao precisa para desfazer.
+ *
+ * `decision` nasce `pendente` sempre: nada entra sem autorizacao, e um padrao
+ * diferente tornaria "aplicar" um clique com efeito que o cliente nao
+ * escolheu conscientemente.
+ */
+export const syncChanges = pgTable(
+  'sync_changes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    sourceId: uuid('source_id')
+      .notNull()
+      .references(() => syncSources.id, { onDelete: 'cascade' }),
+    checkId: uuid('check_id')
+      .notNull()
+      .references(() => syncChecks.id, { onDelete: 'cascade' }),
+    contentKey: text('content_key').notNull(),
+    target: text('target').notNull(),
+    fieldKey: text('field_key').notNull().default(''),
+    label: text('label').notNull().default(''),
+    /** Ver `SYNC_CHANGE_TYPES`. */
+    changeType: text('change_type').notNull(),
+    pageUrl: text('page_url').notNull().default(''),
+    /** As tres versoes, no momento em que a alteracao foi detectada. */
+    baselineValue: jsonb('baseline_value'),
+    sourceValue: jsonb('source_value'),
+    codecaValue: jsonb('codeca_value'),
+    /** `true` quando o cliente editou o conteudo **e** a origem mudou. */
+    conflict: boolean('conflict').notNull().default(false),
+    /** `true` quando o modulo de destino nao esta habilitado neste site. */
+    targetDisabled: boolean('target_disabled').notNull().default(false),
+    /** Ver `SYNC_DECISIONS`. */
+    decision: text('decision').notNull().default('pendente'),
+    /** Ver `CONFLICT_CHOICES`. So vale em alteracao com conflito. */
+    conflictChoice: text('conflict_choice'),
+    /** Ver `REMOVAL_ACTIONS`. So vale em remocao. */
+    removalAction: text('removal_action'),
+    /** Ver `SYNC_OUTCOMES`. */
+    outcome: text('outcome').notNull().default('pendente'),
+    /**
+     * Valor que estava na CODECA imediatamente antes de aplicar.
+     *
+     * Diferente de `codeca_value`, que e do momento da **deteccao**: entre
+     * detectar e aplicar o cliente pode ter editado de novo, e o que a
+     * reversao precisa devolver e o valor do momento da gravacao.
+     */
+    revertValue: jsonb('revert_value'),
+    /** Registro criado ou alterado, para a reversao saber onde mexer. */
+    entityId: uuid('entity_id'),
+    approvedByUserId: uuid('approved_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    appliedAt: timestamp('applied_at', { withTimezone: true }),
+    error: text('error').notNull().default(''),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index('sync_changes_source_decision_idx').on(table.sourceId, table.decision),
+    index('sync_changes_check_idx').on(table.checkId, table.sortOrder),
+    index('sync_changes_tenant_idx').on(table.tenantId),
+    /**
+     * Uma alteracao pendente por conteudo.
+     *
+     * Parcial, so sobre as pendentes: e o que impede a verificacao seguinte de
+     * empilhar a mesma alteracao de novo (item 11 -- "evitar notificacoes
+     * repetidas"), sem travar o historico de alteracoes ja decididas sobre o
+     * mesmo campo.
+     */
+    uniqueIndex('sync_changes_pending_key')
+      .on(table.sourceId, table.contentKey)
+      .where(sql`${table.decision} = 'pendente'`),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'sync_changes_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);

@@ -10,6 +10,12 @@ import type {
   ImportRunView,
   ImportTarget,
   ReviewImportInput,
+  DecideChangesInput,
+  SyncApplyResult,
+  SyncFrequency,
+  SyncOverviewView,
+  SyncSourceView,
+  SyncTarget,
 } from '@codeca/shared';
 import type {
   BannerRecord,
@@ -886,4 +892,51 @@ export const siteImportApi = {
       `${tenantBase(tenantId)}/site-import/${importId}/cancelar`,
       {},
     ),
+};
+
+/**
+ * Sincronizacao com o site de origem.
+ *
+ * Diferente da importacao, nenhuma destas chamadas "avanca" trabalho: a
+ * verificacao acontece no servidor, pelo agendador, e `check` so antecipa uma
+ * passagem. A tela consulta `overview` depois de cada acao porque o que mudou
+ * foi o estado no banco, nao um processo em andamento no navegador.
+ */
+export const siteSyncApi = {
+  overview: (tenantId: string) =>
+    api.get<SyncOverviewView>(`${tenantBase(tenantId)}/sync`),
+
+  connect: (tenantId: string, url: string, frequency: SyncFrequency) =>
+    api.post<{ source: SyncSourceView }>(`${tenantBase(tenantId)}/sync`, { url, frequency }),
+
+  update: (tenantId: string, input: { frequency?: SyncFrequency; paused?: boolean }) =>
+    api.patch<{ source: SyncSourceView }>(`${tenantBase(tenantId)}/sync`, input),
+
+  /** Antecipa uma verificacao; o mesmo caminho que o agendador usa. */
+  check: (tenantId: string) =>
+    api.post<{
+      changesFound: number;
+      conflicts: number;
+      failed: boolean;
+      autoPaused: boolean;
+      message: string;
+    }>(`${tenantBase(tenantId)}/sync/verificar`, {}),
+
+  decide: (tenantId: string, items: DecideChangesInput['items']) =>
+    api.patch<{ applied: number }>(`${tenantBase(tenantId)}/sync/decisoes`, { items }),
+
+  apply: (tenantId: string, targets: SyncTarget[]) =>
+    api.post<{ result: SyncApplyResult }>(`${tenantBase(tenantId)}/sync/aplicar`, {
+      confirm: true,
+      targets,
+    }),
+
+  revert: (tenantId: string, changeId: string) =>
+    api.post<{ reverted: boolean; message: string }>(
+      `${tenantBase(tenantId)}/sync/alteracoes/${changeId}/desfazer`,
+      {},
+    ),
+
+  disconnect: (tenantId: string) =>
+    api.delete<{ disconnected: boolean }>(`${tenantBase(tenantId)}/sync`),
 };

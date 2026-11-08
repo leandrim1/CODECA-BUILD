@@ -29,6 +29,7 @@ import {
   createMemorySiteFetcher,
   createUnconfiguredDomainProvider,
   parseEnv,
+  type SiteFetcher,
 } from '@codeca/api';
 import {
   provisionSiteModules,
@@ -126,7 +127,16 @@ const PNG = Buffer.concat([
   Buffer.alloc(3072, 9),
 ]);
 
-const siteFetcher = createMemorySiteFetcher({
+/**
+ * O site de origem, em duas versoes.
+ *
+ * `/__mudar` troca de uma para a outra: e assim que a conferencia visual da
+ * sincronizacao simula o cliente editando o site antigo, sem precisar de um
+ * servidor externo.
+ */
+let versaoAlterada = false;
+
+const PAGINAS_V1: Record<string, { body?: string; status?: number; contentType?: string; bytes?: Uint8Array }> = {
   'https://clinicasorriso.com.br/': { body: HOME },
   'https://clinicasorriso.com.br/quem-somos': { body: SOBRE },
   'https://clinicasorriso.com.br/servicos': { body: SERVICOS },
@@ -136,7 +146,29 @@ const siteFetcher = createMemorySiteFetcher({
   'https://clinicasorriso.com.br/img/hero-banner.jpg': { contentType: 'image/png', bytes: new Uint8Array(PNG) },
   'https://clinicasorriso.com.br/img/ana.jpg': { contentType: 'image/png', bytes: new Uint8Array(PNG) },
   'https://clinicasorriso.com.br/img/bruno.jpg': { contentType: 'image/png', bytes: new Uint8Array(PNG) },
-});
+};
+
+/** Segunda versao: telefone, descricao e um servico a mais. */
+const PAGINAS_V2: typeof PAGINAS_V1 = {
+  ...PAGINAS_V1,
+  'https://clinicasorriso.com.br/': {
+    body: HOME.replace('(41) 3333-4444', '(41) 98888-2222').replace(
+      'Clínica odontológica com atendimento humanizado em Curitiba.',
+      'Agora com três unidades e atendimento em horário estendido.',
+    ),
+  },
+  'https://clinicasorriso.com.br/servicos': {
+    body: SERVICOS.replace(
+      '</main></body></html>',
+      '<h2>Facetas de porcelana</h2><p>Procedimento estético feito em duas sessões, com planejamento digital prévio do sorriso.</p></main></body></html>',
+    ),
+  },
+};
+
+const siteFetcher: SiteFetcher = {
+  fetch: async (url, options) =>
+    createMemorySiteFetcher(versaoAlterada ? PAGINAS_V2 : PAGINAS_V1).fetch(url, options),
+};
 
 // ------------------------------------------------------------- aplicacao
 
@@ -261,6 +293,14 @@ serve({
       return new Response('<meta http-equiv="refresh" content="0;url=/painel/importar">', {
         status: 200,
         headers,
+      });
+    }
+
+    /** Troca a versao do site de origem, para a conferencia da sincronizacao. */
+    if (url.pathname === '/__mudar') {
+      versaoAlterada = !versaoAlterada;
+      return new Response(`versao alterada: ${versaoAlterada}`, {
+        headers: { 'content-type': 'text/plain; charset=utf-8' },
       });
     }
 

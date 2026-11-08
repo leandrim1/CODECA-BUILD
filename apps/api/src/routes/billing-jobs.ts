@@ -5,6 +5,7 @@ import { Hono, type Context } from 'hono';
 import { pendingWebhookEvents, processWebhookEvent } from '../lib/billing/webhook-store.js';
 import { reconcileBilling } from '../lib/billing/reconcile.js';
 import { recheckDomains } from '../lib/domain-recheck.js';
+import { runScheduledChecks } from '../lib/sync/scheduler.js';
 import { flushPendingDeliveries } from '../lib/integration/outbound.js';
 import { ok } from '../lib/http.js';
 import type { AppBindings } from '../types.js';
@@ -33,6 +34,44 @@ export function billingJobRoutes() {
   // A Vercel Cron dispara GET; o POST existe para acionar o job a mao.
   app.post('/reconcile', async (c) => executarJob(c));
   app.get('/reconcile', async (c) => executarJob(c));
+
+  return app;
+}
+
+/**
+ * Verificacao das fontes de sincronizacao, em rota propria.
+ *
+ * A passagem ja acontece dentro do job diario (passo 6 de `executarJob`), que
+ * e o que faz a funcionalidade rodar hoje sem mudar plano nem configuracao.
+ * Esta rota existe para quem quiser **cadencia maior**: um agendamento a mais
+ * na Vercel (plano pago) ou qualquer agendador externo apontando para
+ * `/api/sync/run`, com o mesmo segredo do job.
+ *
+ * Sem ela, escolher "a cada 6 horas" no painel continuaria sendo atendido so
+ * uma vez por dia -- e a tela diz isso ao cliente em vez de prometer o que
+ * nao entrega.
+ */
+export function syncJobRoutes() {
+  const app = new Hono<AppBindings>();
+
+  const executar = async (c: Context<AppBindings>) => {
+    const ctx = c.get('ctx');
+    assertJobSecret(c.req.header('authorization'), ctx.env.BILLING_RECONCILIATION_SECRET);
+
+    const url = new URL(c.req.url);
+    const limitParam = Number(url.searchParams.get('limit') ?? '');
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : undefined;
+
+    const report = await runScheduledChecks(
+      { db: ctx.db, fetcher: ctx.siteFetcher, now: ctx.now },
+      limit !== undefined ? { limit } : {},
+    );
+
+    return ok(c, report);
+  };
+
+  app.post('/run', executar);
+  app.get('/run', executar);
 
   return app;
 }
@@ -110,7 +149,31 @@ async function executarJob(c: Context<AppBindings>) {
     console.warn(`[webhook] ${deliveries.exhausted} entrega(s) esgotaram as tentativas.`);
   }
 
-  return ok(c, { ...report, deliveries, domains, housekeeping });
+  /**
+   * 6. Fontes de sincronizacao vencidas.
+   *
+   * Entra aqui pelo mesmo motivo que as tarefas acima: o plano permite um
+   * agendamento, uma vez por dia. E isto que faz a sincronizacao funcionar
+   * sem aba aberta e sem servico novo. Falha aqui nao pode impedir a resposta
+   * do resto do job -- e, dentro dela, a falha de uma fonte nao afeta as
+   * outras (ver `checkOneSource`).
+   */
+  const sync = await runScheduledChecks({
+    db: ctx.db,
+    fetcher: ctx.siteFetcher,
+    now: ctx.now,
+  }).catch((error: unknown) => {
+    console.error('[sync] falha na passagem agendada:', error instanceof Error ? error.message : error);
+    return null;
+  });
+
+  if (sync && sync.budgetExhausted) {
+    console.warn(
+      `[sync] orçamento de tempo esgotado: ${sync.checked} de ${sync.claimed} fonte(s) verificadas nesta passagem.`,
+    );
+  }
+
+  return ok(c, { ...report, deliveries, domains, housekeeping, sync });
 }
 
 /**

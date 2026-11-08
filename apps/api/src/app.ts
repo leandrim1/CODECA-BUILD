@@ -12,10 +12,11 @@ import { snapshotMetrics } from './lib/runtime-metrics.js';
 import { cors, securityHeaders } from './middleware/security.js';
 import { analyticsOAuthRoutes, analyticsRoutes } from './routes/analytics.js';
 import { siteImportRoutes } from './routes/site-import.js';
+import { siteSyncRoutes } from './routes/site-sync.js';
 import { authRoutes } from './routes/auth.js';
 import { bannerRoutes } from './routes/banners.js';
 import { billingRoutes } from './routes/billing.js';
-import { billingJobRoutes } from './routes/billing-jobs.js';
+import { billingJobRoutes, syncJobRoutes } from './routes/billing-jobs.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { contentRoutes } from './routes/content.js';
 import { domainRoutes } from './routes/domains.js';
@@ -139,6 +140,8 @@ export function createApp(options: CreateAppOptions = {}) {
 
   // Job de reconciliacao, protegido por segredo proprio (Vercel Cron).
   app.route('/billing', billingJobRoutes());
+  // Verificacao das fontes de sincronizacao, para cadencia maior que a diaria.
+  app.route('/sync', syncJobRoutes());
 
   // Painel da empresa: sessao obrigatoria e empresa resolvida pela rota.
   //
@@ -185,6 +188,7 @@ export function createApp(options: CreateAppOptions = {}) {
   tenantScoped.route('/', billingRoutes());
   tenantScoped.route('/', analyticsRoutes());
   tenantScoped.route('/', siteImportRoutes());
+  tenantScoped.route('/', siteSyncRoutes());
   app.route('/tenants', tenantScoped);
 
   // Painel mestre da plataforma.

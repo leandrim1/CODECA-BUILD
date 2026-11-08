@@ -1,16 +1,19 @@
-import { and, desc, eq, gte, isNull, schema, sql } from '@codeca/database';
+import { and, desc, eq, gte, isNull, schema, sql, type Database } from '@codeca/database';
 import {
   AppError,
   updateTenantContactSchema,
   updateTenantSchema,
   type ContentUsageView,
   type TenantOverview,
+  syncNoticeMessage,
+  type SyncNotice,
 } from '@codeca/shared';
 import { Hono } from 'hono';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
 import { ok, parseJsonBody } from '../lib/http.js';
 import { loadContentUsage } from '../lib/content-usage.js';
+import { countPending, loadSource } from '../lib/sync/store.js';
 import { loadEffectivePlan, loadPlanStatus } from '../lib/plan-limits.js';
 import { requireCapability } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
@@ -231,6 +234,18 @@ export function tenantRoutes() {
       domains,
       plan: planStatus.plan,
       usage: planStatus.usage,
+      /**
+       * Aviso da sincronizacao.
+       *
+       * Uma consulta a mais na visao geral, contra um indice -- e o preco de
+       * o cliente descobrir que ha conteudo esperando por ele sem precisar
+       * abrir outra tela. `null` quando nao ha nada pendente: um aviso com
+       * zero nao e informacao.
+       */
+      syncNotice: await buildSyncNotice(ctx.db, {
+        tenantId,
+        siteId: tenant.siteId,
+      }),
     };
 
     return ok(c, resposta);
@@ -325,4 +340,24 @@ export function tenantRoutes() {
   });
 
   return app;
+}
+
+/**
+ * Aviso da sincronizacao para a visao geral.
+ *
+ * Devolve `null` quando nao ha fonte conectada ou nao ha pendencia -- e o que
+ * mantem o painel limpo para quem nao usa a funcionalidade.
+ */
+async function buildSyncNotice(
+  db: Database,
+  input: { tenantId: string; siteId: string },
+): Promise<SyncNotice | null> {
+  const source = await loadSource(db, input);
+  if (source === null) return null;
+
+  const counts = await countPending(db, input);
+  const message = syncNoticeMessage(counts);
+  if (message === null) return null;
+
+  return { ...counts, state: source.state, message };
 }

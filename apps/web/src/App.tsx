@@ -45,6 +45,7 @@ const CustomDocumentPage = lazyRoute(['/painel/p'], () => import('./dashboard/Cu
 const BannersPage = lazyRoute(['/painel/banners'], () => import('./dashboard/BannersPage.js').then((m) => ({ default: m.BannersPage })));
 const MediaPage = lazyRoute(['/painel/midia'], () => import('./dashboard/MediaPage.js').then((m) => ({ default: m.MediaPage })));
 const ImportSitePage = lazyRoute(['/painel/importar'], () => import('./dashboard/ImportSitePage.js').then((m) => ({ default: m.ImportSitePage })));
+const SyncPage = lazyRoute(['/painel/sincronizacao'], () => import('./dashboard/SyncPage.js').then((m) => ({ default: m.SyncPage })));
 const PropertiesPage = lazyRoute(['/painel/imoveis'], () => import('./dashboard/PropertiesPage.js').then((m) => ({ default: m.PropertiesPage })));
 const ProjectsPage = lazyRoute(['/painel/obras'], () => import('./dashboard/ProjectsPage.js').then((m) => ({ default: m.ProjectsPage })));
 const ServicesPage = lazyRoute(['/painel/servicos'], () => import('./dashboard/ServicesPage.js').then((m) => ({ default: m.ServicesPage })));
@@ -124,6 +125,11 @@ export function App() {
               que pode entrar e o servidor, modulo por modulo.
             */}
             <Route path="importar" element={<ImportSitePage />} />
+            {/*
+              Sem `RequireModule`, como a importacao: sincronizar nao e um
+              modulo do site, e um jeito de manter os modulos que ele ja tem.
+            */}
+            <Route path="sincronizacao" element={<SyncPage />} />
             {/*
               Uma rota para todos os modulos criados para o site.
               `/painel/p/:moduleKey` -- o prefixo `p/` separa o que e deste

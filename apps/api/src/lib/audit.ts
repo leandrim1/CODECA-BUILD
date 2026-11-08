@@ -109,6 +109,20 @@ export const AUDIT_ACTIONS = {
   siteImportStarted: 'site_import.started',
   siteImportConfirmed: 'site_import.confirmed',
   siteImportReverted: 'site_import.reverted',
+  /**
+   * Sincronizacao com o site de origem.
+   *
+   * Mesma razao das acoes da importacao: depois do fato a pergunta e "quem
+   * ligou a sincronizacao", "quem autorizou gravar isso" e "quem desfez".
+   * Nenhuma linha carrega conteudo do site de origem -- so endereco, numeros
+   * e quem agiu.
+   */
+  syncConnected: 'site_sync.connected',
+  syncUpdated: 'site_sync.updated',
+  syncDisconnected: 'site_sync.disconnected',
+  syncChecked: 'site_sync.checked',
+  syncApplied: 'site_sync.applied',
+  syncReverted: 'site_sync.reverted',
   segmentCreated: 'platform.segment_created',
   segmentUpdated: 'platform.segment_updated',
   segmentDeleted: 'platform.segment_deleted',

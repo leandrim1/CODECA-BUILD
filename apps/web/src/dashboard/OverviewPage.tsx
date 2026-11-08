@@ -206,6 +206,31 @@ export function OverviewPage() {
       ) : null}
 
       {/*
+        Aviso da sincronizacao.
+        
+        Fica aqui, e nao so na tela de Sincronizacao, porque o cliente nao tem
+        motivo para abrir aquela tela todo dia -- e a plataforma verifica o
+        site de origem sozinha. Sem este aviso, uma alteracao encontrada
+        poderia ficar semanas esperando sem ninguem saber. O servidor devolve
+        `null` quando nao ha nada pendente, entao nao ha aviso com zero.
+      */}
+      {overview.data?.syncNotice ? (
+        <Alert
+          tone={overview.data.syncNotice.conflicts > 0 ? 'warning' : 'info'}
+          title="Atualizações no seu site de origem"
+          action={
+            <Link to="/painel/sincronizacao">
+              <Button variant="outline" size="sm">
+                Revisar
+              </Button>
+            </Link>
+          }
+        >
+          {overview.data.syncNotice.message}
+        </Alert>
+      ) : null}
+
+      {/*
         Os cartoes de indicador dependem dos modulos do site. Se aparecessem
         quando a configuracao chega -- depois do resumo -- empurrariam tudo o
         que esta abaixo. Entao a tela espera os dois e, enquanto isso, reserva
