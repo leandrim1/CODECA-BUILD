@@ -105,7 +105,7 @@ export function syncJobRoutes() {
       (c.req.header('idempotency-key') ?? url.searchParams.get('chave') ?? '').trim();
 
     const resultado = await runSchedulerPass(
-      { db: ctx.db, fetcher: ctx.siteFetcher, now: ctx.now },
+      { db: ctx.db, fetcher: ctx.siteFetcher, renderer: ctx.renderer, now: ctx.now },
       {
         origin: detectarOrigem(c),
         ...(chave !== '' ? { idempotencyKey: chave } : {}),
@@ -237,7 +237,7 @@ async function executarJob(c: Context<AppBindings>) {
    * outras (ver `checkOneSource`).
    */
   const syncPass = await runSchedulerPass(
-    { db: ctx.db, fetcher: ctx.siteFetcher, now: ctx.now },
+    { db: ctx.db, fetcher: ctx.siteFetcher, renderer: ctx.renderer, now: ctx.now },
     { origin: 'vercel' },
   ).catch((error: unknown) => {
     console.error('[sync] falha na passagem agendada:', error instanceof Error ? error.message : error);

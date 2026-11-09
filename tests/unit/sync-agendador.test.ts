@@ -7,7 +7,10 @@ import {
   effectiveSchedulerMinutes,
   frequencyExceedsScheduler,
   schedulerNote,
+  syncRunOutcome,
+  syncRunOutcomeLabel,
   type SyncRunOrigin,
+  type SyncRunSummary,
 } from '@codeca/shared';
 
 /**
@@ -165,5 +168,66 @@ describe('intervalo escrito para uma pessoa', () => {
     expect(describeInterval(6 * 60 + 5)).toBe('6h05');
     expect(describeInterval(24 * 60)).toBe('um dia');
     expect(describeInterval(48 * 60)).toBe('2 dias');
+  });
+});
+
+/**
+ * Zero sites verificados nao e um numero: sao tres situacoes diferentes.
+ *
+ * O caso que motivou isto foi reportado como defeito: "execucoes que
+ * aparecem como concluidas, mas verificam zero sites quando existem sites
+ * conectados". A causa nao era uma falha -- com frequencia semanal e
+ * agendamento diario, seis de cada sete passagens nao tem nada a fazer --,
+ * mas o historico nao dava como distinguir isso de uma falha de verdade.
+ */
+describe('o que uma passagem de fato fez', () => {
+  const passagem = (parcial: Partial<SyncRunSummary> = {}): SyncRunSummary => ({
+    id: 'r1',
+    origin: 'vercel',
+    state: 'concluida',
+    startedAt: '2026-03-10T05:23:00.000Z',
+    finishedAt: '2026-03-10T05:23:01.000Z',
+    durationMs: 1000,
+    sourcesConnected: 0,
+    sourcesPaused: 0,
+    sourcesDue: 0,
+    sourcesClaimed: 0,
+    sourcesChecked: 0,
+    sourcesFailed: 0,
+    changesFound: 0,
+    error: '',
+    ...parcial,
+  });
+
+  it('sem nenhuma fonte conectada', () => {
+    expect(syncRunOutcome(passagem())).toBe('sem_fontes');
+  });
+
+  it('com fontes conectadas e nenhuma vencida -- o caso que parecia defeito', () => {
+    const run = passagem({ sourcesConnected: 3, sourcesDue: 0 });
+    expect(syncRunOutcome(run)).toBe('nada_vencido');
+    // A frase diz o denominador, que e o que faltava no historico.
+    expect(syncRunOutcomeLabel(run)).toContain('3 sites conectados');
+    expect(syncRunOutcomeLabel(run)).toContain('nenhum vencido');
+  });
+
+  it('com fontes vencidas e nenhuma verificada -- este sim e problema', () => {
+    const run = passagem({ sourcesConnected: 3, sourcesDue: 2, sourcesChecked: 0 });
+    expect(syncRunOutcome(run)).toBe('vencidas_nao_processadas');
+    expect(syncRunOutcomeLabel(run)).toContain('2 sites estavam vencidos');
+  });
+
+  it('com trabalho feito', () => {
+    const run = passagem({ sourcesConnected: 3, sourcesDue: 2, sourcesChecked: 2, changesFound: 5 });
+    expect(syncRunOutcome(run)).toBe('verificou');
+    expect(syncRunOutcomeLabel(run)).toContain('2 sites verificados');
+  });
+
+  it('passagem que morreu no meio nunca conta como sem trabalho', () => {
+    const expirada = passagem({ state: 'expirada', sourcesConnected: 3 });
+    expect(syncRunOutcome(expirada)).toBe('falhou');
+    const falhou = passagem({ state: 'falhou', error: 'Banco indisponível.' });
+    expect(syncRunOutcome(falhou)).toBe('falhou');
+    expect(syncRunOutcomeLabel(falhou)).toBe('Banco indisponível.');
   });
 });

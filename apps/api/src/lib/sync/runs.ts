@@ -38,6 +38,9 @@ export interface SyncRunRow {
   startedAt: Date;
   finishedAt: Date | null;
   durationMs: number | null;
+  sourcesConnected: number;
+  sourcesPaused: number;
+  sourcesDue: number;
   sourcesClaimed: number;
   sourcesChecked: number;
   sourcesFailed: number;
@@ -60,6 +63,9 @@ export function toSummary(row: SyncRunRow): SyncRunSummary {
     startedAt: row.startedAt.toISOString(),
     finishedAt: row.finishedAt ? row.finishedAt.toISOString() : null,
     durationMs: row.durationMs,
+    sourcesConnected: row.sourcesConnected,
+    sourcesPaused: row.sourcesPaused,
+    sourcesDue: row.sourcesDue,
     sourcesClaimed: row.sourcesClaimed,
     sourcesChecked: row.sourcesChecked,
     sourcesFailed: row.sourcesFailed,
@@ -186,6 +192,9 @@ export async function finishRun(
   input: {
     runId: string;
     state: Extract<SyncRunState, 'concluida' | 'falhou'>;
+    sourcesConnected?: number;
+    sourcesPaused?: number;
+    sourcesDue?: number;
     sourcesClaimed?: number;
     sourcesChecked?: number;
     sourcesFailed?: number;
@@ -204,6 +213,9 @@ export async function finishRun(
       state: input.state,
       finishedAt: input.now,
       durationMs: Math.max(0, input.now.getTime() - input.startedAt.getTime()),
+      sourcesConnected: input.sourcesConnected ?? 0,
+      sourcesPaused: input.sourcesPaused ?? 0,
+      sourcesDue: input.sourcesDue ?? 0,
       sourcesClaimed: input.sourcesClaimed ?? 0,
       sourcesChecked: input.sourcesChecked ?? 0,
       sourcesFailed: input.sourcesFailed ?? 0,
@@ -309,6 +321,9 @@ function mapRow(linha: typeof schema.syncRuns.$inferSelect): SyncRunRow {
     startedAt: linha.startedAt,
     finishedAt: linha.finishedAt,
     durationMs: linha.durationMs,
+    sourcesConnected: linha.sourcesConnected,
+    sourcesPaused: linha.sourcesPaused,
+    sourcesDue: linha.sourcesDue,
     sourcesClaimed: linha.sourcesClaimed,
     sourcesChecked: linha.sourcesChecked,
     sourcesFailed: linha.sourcesFailed,

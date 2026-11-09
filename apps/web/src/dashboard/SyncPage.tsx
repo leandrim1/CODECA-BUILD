@@ -18,6 +18,8 @@ import {
   SYNC_FREQUENCIES,
   SYNC_FREQUENCY_LABELS,
   SYNC_RUN_ORIGIN_LABELS,
+  syncRunOutcome,
+  syncRunOutcomeLabel,
   SYNC_SOURCE_STATE_LABELS,
   checkImportUrl,
   formatDateTime,
@@ -679,6 +681,7 @@ function Info({ rotulo, valor }: { rotulo: string; valor: string }) {
 function CadenciaDoAgendador(props: { scheduler: NonNullable<SyncOverviewView['scheduler']> }) {
   const { scheduler } = props;
   const ultima = scheduler.lastRun;
+  const resultado = ultima !== null ? syncRunOutcome(ultima) : null;
 
   return (
     <Card>
@@ -744,23 +747,44 @@ function CadenciaDoAgendador(props: { scheduler: NonNullable<SyncOverviewView['s
                 <History size={16} aria-hidden />
                 <span>{quando(ultima.startedAt)}</span>
                 <Badge tone="neutral">{SYNC_RUN_ORIGIN_LABELS[ultima.origin]}</Badge>
-                {ultima.state === 'concluida' ? (
-                  <Badge tone="success">concluída</Badge>
-                ) : ultima.state === 'executando' ? (
+                {/*
+                  O rotulo vem do que a passagem **fez**, nao do estado
+                  tecnico dela. Uma passagem que termina bem sem ter feito
+                  nada -- porque nada venceu -- nao e sucesso nem falha, e
+                  mostra-la como "concluida" ao lado de "0 sites" fazia o
+                  historico parecer quebrado quando estava correto.
+                */}
+                {ultima.state === 'executando' ? (
                   <Badge tone="warning">em andamento</Badge>
-                ) : ultima.state === 'expirada' ? (
-                  <Badge tone="warning">não terminou</Badge>
-                ) : (
+                ) : resultado === 'falhou' ? (
                   <Badge tone="danger">falhou</Badge>
+                ) : resultado === 'vencidas_nao_processadas' ? (
+                  <Badge tone="danger">não processou os vencidos</Badge>
+                ) : resultado === 'verificou' ? (
+                  <Badge tone="success">verificou</Badge>
+                ) : (
+                  <Badge tone="neutral">sem trabalho</Badge>
                 )}
               </p>
               <p className="text-xs text-[color:var(--muted-foreground)]">
                 {ultima.durationMs !== null ? `Durou ${duracao(ultima.durationMs)}. ` : ''}
-                {ultima.sourcesChecked} site(s) verificado(s)
-                {ultima.sourcesFailed > 0 ? `, ${ultima.sourcesFailed} com falha` : ''}
-                {ultima.changesFound > 0 ? `, ${ultima.changesFound} alteração(ões) encontrada(s)` : ''}
-                .
+                {syncRunOutcomeLabel(ultima)}
+                {ultima.sourcesFailed > 0
+                  ? ` ${ultima.sourcesFailed} com falha de leitura.`
+                  : ''}
               </p>
+              {resultado === 'nada_vencido' ? (
+                <p className="text-xs text-[color:var(--muted-foreground)]">
+                  Isso é o normal: cada site é verificado na frequência que você escolheu, e a
+                  plataforma passa pela fila todo dia para ver quem venceu.
+                </p>
+              ) : null}
+              {resultado === 'vencidas_nao_processadas' ? (
+                <Alert tone="danger" title="A verificação não processou os sites vencidos">
+                  Havia {ultima.sourcesDue} site(s) vencido(s) e nenhum foi verificado. Isso é
+                  falha operacional, não ausência de trabalho.
+                </Alert>
+              ) : null}
               {ultima.error !== '' ? (
                 <p className="text-xs text-[color:var(--danger,#b91c1c)]">{ultima.error}</p>
               ) : null}

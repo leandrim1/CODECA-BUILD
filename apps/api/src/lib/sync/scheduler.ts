@@ -1,10 +1,12 @@
 import type { Database } from '@codeca/database';
 import { SYNC_LIMITS, type SyncRunOrigin, type SyncRunSummary } from '@codeca/shared';
 import type { SiteFetcher } from '../import/fetcher.js';
+import type { PageRenderer } from '../import/renderer.js';
 import { runCheck } from './checker.js';
 import { finishRun, startRun } from './runs.js';
 import {
   claimDueSources,
+  countSourceQueue,
   createCheck,
   finishCheck,
   scheduleNext,
@@ -52,10 +54,16 @@ import {
 export interface SchedulerContext {
   db: Database;
   fetcher: SiteFetcher;
+  /** O mesmo navegador da importacao, quando configurado. Ver `checker.ts`. */
+  renderer?: PageRenderer;
   now: () => Date;
 }
 
 export interface SchedulerReport {
+  /** A fila no instante da passagem, para explicar um zero. */
+  connected: number;
+  paused: number;
+  due: number;
   /** Fontes reservadas nesta passagem. */
   claimed: number;
   checked: number;
@@ -82,9 +90,20 @@ export async function runScheduledChecks(
   const orcamento = options.budgetMs ?? SYNC_LIMITS.runBudgetMs;
   const inicio = ctx.now().getTime();
 
+  /**
+   * O censo vem **antes** da reserva, de proposito.
+   *
+   * Depois dela os vencimentos ja foram empurrados para a frente, e o
+   * numero de vencidas apareceria como zero mesmo numa passagem cheia de
+   * trabalho -- justamente o dado que se quer registrar.
+   */
+  const fila = await countSourceQueue(ctx.db, ctx.now());
   const fontes = await claimDueSources(ctx.db, { now: ctx.now(), limit: limite });
 
   const report: SchedulerReport = {
+    connected: fila.connected,
+    paused: fila.paused,
+    due: fila.due,
     claimed: fontes.length,
     checked: 0,
     failed: 0,
@@ -155,7 +174,12 @@ export async function checkOneSource(
 
   try {
     const resultado = await runCheck(
-      { db: ctx.db, fetcher: ctx.fetcher, now: ctx.now },
+      {
+        db: ctx.db,
+        fetcher: ctx.fetcher,
+        ...(ctx.renderer !== undefined ? { renderer: ctx.renderer } : {}),
+        now: ctx.now,
+      },
       { source, checkId, ...(input.budgetMs !== undefined ? { budgetMs: input.budgetMs } : {}) },
     );
 
@@ -336,6 +360,9 @@ export async function runSchedulerPass(
     const run = await finishRun(ctx.db, {
       runId: abertura.runId,
       state: 'concluida',
+      sourcesConnected: report.connected,
+      sourcesPaused: report.paused,
+      sourcesDue: report.due,
       sourcesClaimed: report.claimed,
       sourcesChecked: report.checked,
       sourcesFailed: report.failed,
@@ -386,6 +413,9 @@ function toSummary0(id: string, origin: SyncRunOrigin, startedAt: Date): SyncRun
     startedAt: startedAt.toISOString(),
     finishedAt: null,
     durationMs: null,
+    sourcesConnected: 0,
+    sourcesPaused: 0,
+    sourcesDue: 0,
     sourcesClaimed: 0,
     sourcesChecked: 0,
     sourcesFailed: 0,

@@ -135,11 +135,74 @@ export const SYNC_RUN_ORIGIN_LABELS: Record<SyncRunOrigin, string> = {
 export const SYNC_RUN_STATES = ['executando', 'concluida', 'falhou', 'expirada'] as const;
 export type SyncRunState = (typeof SYNC_RUN_STATES)[number];
 
+/**
+ * O que uma passagem de fato fez.
+ *
+ * Separar isto do estado tecnico (`SyncRunState`) e o que conserta a leitura
+ * do historico. Uma passagem pode terminar **bem** sem ter feito nada --
+ * porque nada venceu --, e isso nao e sucesso nem falha: e uma terceira
+ * coisa, e so nomeando-a da para a tela parar de mostrar "concluida, 0
+ * sites" como se fosse problema, ou como se fosse trabalho.
+ */
+export type SyncRunOutcome =
+  /** Nao ha fonte conectada em lugar nenhum. */
+  | 'sem_fontes'
+  /** Ha fontes, nenhuma venceu ainda. Normal, e o caso mais comum. */
+  | 'nada_vencido'
+  /** Fontes venceram e foram verificadas. */
+  | 'verificou'
+  /** Fontes venceram e **nao** foram verificadas. Isto e problema. */
+  | 'vencidas_nao_processadas'
+  /** A passagem nao chegou ao fim. */
+  | 'falhou';
+
+/**
+ * Deduz o que a passagem fez, a partir dos numeros que ela gravou.
+ *
+ * Funcao pura, no pacote compartilhado, para a tela e o servidor nunca
+ * divergirem sobre o que "concluida com zero" significa.
+ */
+export function syncRunOutcome(run: SyncRunSummary): SyncRunOutcome {
+  if (run.state === 'falhou' || run.state === 'expirada') return 'falhou';
+  if (run.sourcesChecked > 0) return 'verificou';
+  if (run.sourcesConnected === 0) return 'sem_fontes';
+  if (run.sourcesDue === 0) return 'nada_vencido';
+  // Havia fonte vencida e ninguem a verificou: o unico caso que merece alarme.
+  return 'vencidas_nao_processadas';
+}
+
+/** Frase do resultado, com os numeros reais. */
+export function syncRunOutcomeLabel(run: SyncRunSummary): string {
+  switch (syncRunOutcome(run)) {
+    case 'falhou':
+      return run.error !== '' ? run.error : 'A verificação não foi concluída.';
+    case 'sem_fontes':
+      return 'Nenhum site de origem conectado ainda.';
+    case 'nada_vencido':
+      return `Nada a verificar: ${run.sourcesConnected} ${
+        run.sourcesConnected === 1 ? 'site conectado' : 'sites conectados'
+      }, nenhum vencido neste horário.`;
+    case 'vencidas_nao_processadas':
+      return `${run.sourcesDue} ${
+        run.sourcesDue === 1 ? 'site estava vencido' : 'sites estavam vencidos'
+      } e não foram verificados.`;
+    case 'verificou':
+    default:
+      return `${run.sourcesChecked} ${
+        run.sourcesChecked === 1 ? 'site verificado' : 'sites verificados'
+      }${run.changesFound > 0 ? `, ${run.changesFound} alteração(ões) encontrada(s)` : ', sem alterações'}.`;
+  }
+}
+
 /** Retrato de uma passagem, para a tela. */
 export interface SyncRunSummary {
   id: string;
   origin: SyncRunOrigin;
   state: SyncRunState;
+  /** A fila no instante da passagem. Da denominador ao zero. */
+  sourcesConnected: number;
+  sourcesPaused: number;
+  sourcesDue: number;
   startedAt: string;
   finishedAt: string | null;
   durationMs: number | null;

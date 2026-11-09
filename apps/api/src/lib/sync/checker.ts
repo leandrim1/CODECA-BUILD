@@ -20,9 +20,11 @@ import {
   type PageExtract,
   type SyncChangeType,
   type SyncTarget,
+  IMPORT_LIMITS,
 } from '@codeca/shared';
 import { enabledModuleKeys, loadSiteModules } from '../modules.js';
 import { SiteFetchError, type SiteFetcher } from '../import/fetcher.js';
+import { createNullRenderer, type PageRenderer } from '../import/renderer.js';
 import {
   canCompare,
   comparedFieldsOf,
@@ -70,6 +72,19 @@ import {
 export interface CheckContext {
   db: Database;
   fetcher: SiteFetcher;
+  /**
+   * O mesmo navegador da importacao, quando ha um configurado.
+   *
+   * Nao e simetria por elegancia: e correcao de um defeito grave. A
+   * importacao pode ter lido o site **com** navegador e trazido dezenas de
+   * paragrafos; se a verificacao le o mesmo site **sem** navegador, ela
+   * enxerga a casca vazia, conclui que o conteudo sumiu da origem e propoe
+   * **remover tudo**. O cliente receberia uma fila de exclusoes para algo
+   * que nunca mudou.
+   *
+   * As duas pontas precisam ler do mesmo jeito. Ver `import/renderer.ts`.
+   */
+  renderer?: PageRenderer;
   now: () => Date;
 }
 
@@ -148,6 +163,8 @@ async function visitPages(
   const seenUrls = new Set<string>();
   let checked = 0;
   let descobertas = 0;
+  const renderer = ctx.renderer ?? createNullRenderer();
+  let renderizadas = 0;
 
   while (fila.length > 0 && checked < SYNC_LIMITS.maxChangesPerCheck) {
     if (expirou()) break;
@@ -216,7 +233,36 @@ async function visitPages(
         continue;
       }
 
-      const extract = extractPage({ html: resource.body, url: resource.url, homeUrl: home });
+      let extract = extractPage({ html: resource.body, url: resource.url, homeUrl: home });
+
+      /**
+       * Mesma cascata da importacao, pela mesma razao.
+       *
+       * Primeiro o HTML; depois o estado serializado, que `extractPage` ja
+       * tenta sozinho; e so entao o navegador, se houver um configurado.
+       * Ler diferente da importacao e o que faria a comparacao inventar
+       * remocoes.
+       */
+      if (
+        extract.renderedByScript
+        && extract.fromEmbeddedState !== true
+        && renderer.kind !== 'nenhum'
+        && renderizadas < IMPORT_LIMITS.maxRenderedPages
+      ) {
+        renderizadas += 1;
+        const montada = await renderer.render(resource.url);
+        if (montada !== null) {
+          const comNavegador = extractPage({
+            html: montada.html,
+            url: montada.finalUrl,
+            homeUrl: home,
+          });
+          if (comNavegador.textLength > extract.textLength) {
+            extract = { ...comNavegador, renderedWithBrowser: true };
+          }
+        }
+      }
+
       const hash = hashExtract(extract);
       seenUrls.add(canonical);
 

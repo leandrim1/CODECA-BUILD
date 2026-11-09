@@ -893,3 +893,38 @@ function toChangeRow(row: typeof schema.syncChanges.$inferSelect): SyncChangeRow
 }
 
 export { syncTargetLabel };
+
+/**
+ * A fila, no instante em que a passagem comeca.
+ *
+ * Existe para dar denominador ao zero. "0 fontes verificadas" sozinho nao
+ * diz nada -- pode ser que nada tenha vencido, o que e o normal com
+ * frequencia semanal e agendamento diario, ou que algo tenha vencido e nao
+ * tenha sido processado, que e problema. Com os tres numeros, o historico
+ * responde sozinho qual dos dois foi.
+ *
+ * Conta **todas** as empresas de proposito: e o retrato da plataforma, nao
+ * de um cliente. O recorte por empresa continua em `sync_checks`.
+ */
+export async function countSourceQueue(
+  db: Database,
+  now: Date,
+): Promise<{ connected: number; paused: number; due: number }> {
+  const [linha] = await db
+    .select({
+      connected: sql<number>`count(*)::int`,
+      paused: sql<number>`count(*) filter (where ${schema.syncSources.state} = 'pausada')::int`,
+      due: sql<number>`count(*) filter (
+        where ${schema.syncSources.nextCheckAt} is not null
+          and ${schema.syncSources.nextCheckAt} <= ${now}
+          and ${schema.syncSources.state} <> 'pausada'
+      )::int`,
+    })
+    .from(schema.syncSources);
+
+  return {
+    connected: linha?.connected ?? 0,
+    paused: linha?.paused ?? 0,
+    due: linha?.due ?? 0,
+  };
+}

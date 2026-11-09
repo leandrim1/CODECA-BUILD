@@ -305,7 +305,7 @@ export function siteSyncRoutes() {
      * implementacoes parecidas -- que divergiriam no primeiro ajuste.
      */
     const resultado = await checkOneSource(
-      { db: ctx.db, fetcher: ctx.siteFetcher, now: ctx.now },
+      { db: ctx.db, fetcher: ctx.siteFetcher, renderer: ctx.renderer, now: ctx.now },
       { source, trigger: 'manual' },
     );
 

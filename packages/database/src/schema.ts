@@ -2543,6 +2543,17 @@ export const syncRuns = pgTable(
     startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     durationMs: integer('duration_ms'),
+    /**
+     * A fila no instante da passagem, para explicar um zero.
+     *
+     * "0 verificadas" sozinho nao diz nada: pode ser que nada tenha vencido
+     * -- normal com frequencia semanal e agendamento diario -- ou que algo
+     * tenha vencido e nao tenha sido processado, que e problema. Guardar o
+     * denominador separa os dois casos sem precisar adivinhar depois.
+     */
+    sourcesConnected: integer('sources_connected').notNull().default(0),
+    sourcesPaused: integer('sources_paused').notNull().default(0),
+    sourcesDue: integer('sources_due').notNull().default(0),
     sourcesClaimed: integer('sources_claimed').notNull().default(0),
     sourcesChecked: integer('sources_checked').notNull().default(0),
     sourcesFailed: integer('sources_failed').notNull().default(0),
