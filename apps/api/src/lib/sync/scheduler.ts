@@ -16,17 +16,22 @@ import {
  *
  * ## Como isto roda sem aba aberta
  *
- * O plano da Vercel em uso permite **um** agendamento, uma vez por dia, e ele
- * ja existe (`/api/billing/reconcile`). Em vez de inventar infraestrutura, a
- * verificacao das fontes entrou nesse mesmo job -- que e exatamente o que o
- * comentario daquele arquivo ja previa ao reunir tarefas independentes num
- * cron so.
+ * Dois gatilhos, ambos no servidor, nenhum dependendo de alguem com o painel
+ * aberto:
  *
- * Consequencia que a tela nao esconde: a cadencia real e diaria. Uma fonte
- * configurada para 6 horas vence a cada 6 horas e entra na fila, mas so e
- * atendida na passagem seguinte do agendador. Para cadencia real menor basta
- * um agendamento a mais apontando para `/api/sync/run` -- o endpoint existe e
- * e protegido pelo mesmo segredo do job. Ver `docs/sincronizacao-de-sites.md`.
+ * - o cron `/api/sync/run`, de 6 em 6 horas (`vercel.json`), que e o que
+ *   cumpre a cadencia prometida na tela -- a menor frequencia oferecida la e
+ *   justamente 6 horas;
+ * - o job diario de reconciliacao, que chama a mesma passagem como rede de
+ *   seguranca, caso o cron de 6 horas falhe ou seja removido.
+ *
+ * Rodar pelos dois nao duplica trabalho: a reserva da fila e atomica e uma
+ * fonte que ainda nao venceu simplesmente nao e selecionada.
+ *
+ * Se a instalacao estiver num plano da Vercel que so dispara uma vez ao dia,
+ * tudo continua funcionando -- so mais devagar --, e
+ * `SCHEDULER_INTERVAL_MINUTES` precisa voltar para `24 * 60` para a tela
+ * seguir dizendo a verdade ao cliente. Ver `docs/sincronizacao-de-sites.md`.
  *
  * ## Isolamento entre clientes
  *

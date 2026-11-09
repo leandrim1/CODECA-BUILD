@@ -78,41 +78,49 @@ conflito para sempre.
 
 ---
 
-## 3. A frequência: o que a plataforma entrega hoje
+## 3. A frequência
 
-**O plano da Vercel em uso permite um agendamento, uma vez por dia**, e ele já
-existe (`/api/billing/reconcile`, às 05:23). A verificação das fontes entrou
-nesse mesmo job — que é o que faz a funcionalidade rodar **hoje**, sem aba
-aberta, sem serviço novo e sem mudar configuração.
-
-Consequência, dita com todas as letras:
-
-> As opções "a cada 6 horas" e "a cada 12 horas" **não executam nessa cadência
-> na infraestrutura atual**. A fonte realmente vence a cada 6 horas e entra na
-> fila, mas só é atendida na passagem seguinte do agendador — ou seja, uma vez
-> por dia.
-
-Isso não fica escondido. A tela mostra o aviso ao lado da frequência escolhida
-(`schedulerNote`), e `frequencyExceedsScheduler` decide quando exibi-lo. O
-cliente que escolhe 6 horas sabe o que vai receber.
-
-**Como obter a cadência real.** O endpoint `/api/sync/run` já existe e é
-protegido pelo mesmo segredo. Basta um agendamento a mais apontando para ele:
+O agendador passa **de 6 em 6 horas**, pelo cron declarado em `vercel.json`:
 
 ```json
 {
   "crons": [
     { "path": "/api/billing/reconcile", "schedule": "23 5 * * *" },
-    { "path": "/api/sync/run", "schedule": "17 */6 * * *" }
+    { "path": "/api/sync/run",          "schedule": "47 */6 * * *" }
   ]
 }
 ```
 
-Isso exige um plano da Vercel que permita mais de um cron e execução
-infra-diária. Qualquer agendador externo serve igualmente — a chamada é um
-`POST` com `Authorization: Bearer <BILLING_RECONCILIATION_SECRET>`.
+Com ele, **todas as frequências oferecidas na tela são atendidas na cadência
+escolhida** — a menor delas é justamente 6 horas. O minuto 47 evita a hora
+cheia (onde se concentra o tráfego agendado) e não colide com a reconciliação
+das 05:23.
 
-Nenhuma linha de código muda nos dois casos.
+A verificação continua acontecendo **também** dentro do job diário de
+reconciliação. Não é redundância inútil: é rede de segurança se o cron de 6
+horas falhar ou for removido. Rodar duas vezes não duplica nada — a reserva da
+fila é atômica e uma fonte que não venceu simplesmente não é selecionada.
+
+### Autenticação
+
+Nenhuma configuração nova. O cron usa o mesmo segredo do job de reconciliação:
+a Vercel envia `Authorization: Bearer <CRON_SECRET>`, e a instalação já define
+`CRON_SECRET` com o mesmo valor de `BILLING_RECONCILIATION_SECRET` (ver
+`.env.example`). Qualquer agendador externo serve igualmente — é um `POST`
+para `/api/sync/run` com esse cabeçalho.
+
+### Se o plano não permitir cron infra-diário
+
+Planos mais baixos da Vercel limitam a quantidade de crons e disparam no
+máximo uma vez por dia. Nesse caso o cron acima é disparado uma vez ao dia, e
+a sincronização continua funcionando — só mais devagar.
+
+Se for esse o caso da instalação, **ajuste `SCHEDULER_INTERVAL_MINUTES` em
+`packages/shared/src/sync/types.ts` de volta para `24 * 60`**. A tela usa essa
+constante para decidir se avisa o cliente de que a cadência real é menor que a
+escolhida (`frequencyExceedsScheduler`); deixá-la em 6 horas num plano diário
+faria a tela prometer o que não entrega. Há um teste unitário guardando as
+duas pontas.
 
 ---
 
@@ -248,7 +256,9 @@ ciclo seguinte, sem precisar de limpeza.
 
 ## 7. Limitações conhecidas
 
-- **Cadência infra-diária exige configuração.** Ver a seção 3.
+- **A cadência de 6 horas depende do plano da Vercel.** O cron está
+  declarado; planos que só disparam uma vez ao dia o executam nessa
+  frequência. Ver a seção 3.
 - **Site renderizado no navegador.** A análise não executa JavaScript —
   mesma limitação da importação, documentada em `docs/importacao-de-sites.md`.
 - **Renomear conteúdo na origem aparece como removido + novo.** A identidade de

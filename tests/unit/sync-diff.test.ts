@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   MISSING,
+  SCHEDULER_INTERVAL_MINUTES,
+  SYNC_FREQUENCIES,
   SYNC_FREQUENCY_MINUTES,
   compareThreeWay,
   fingerprint,
@@ -269,16 +271,30 @@ describe('frequencia e agendador', () => {
   });
 
   /**
-   * Honestidade do produto: o agendador da plataforma roda uma vez por dia
-   * (um unico cron no plano em uso). Pedir 6 horas e legitimo, mas a tela
-   * precisa dizer que a entrega e diaria.
+   * O agendador passa de 6 em 6 horas (cron `/api/sync/run` em
+   * `vercel.json`), e 6 horas e a menor frequencia oferecida na tela. Logo,
+   * nenhuma preferencia fica a descoberto -- e por isso o aviso nao aparece.
+   *
+   * O teste guarda as duas pontas: a constante do agendador e a conclusao que
+   * a tela tira dela. Se um dia a instalacao voltar para um plano que so
+   * dispara uma vez ao dia, `SCHEDULER_INTERVAL_MINUTES` volta para 1440 e
+   * este teste falha -- que e exatamente o lembrete de que a tela precisa
+   * voltar a avisar o cliente.
    */
-  it('avisa quando a preferencia pede mais do que o agendador entrega', () => {
-    expect(frequencyExceedsScheduler('6h')).toBe(true);
-    expect(frequencyExceedsScheduler('12h')).toBe(true);
-    expect(frequencyExceedsScheduler('diaria')).toBe(false);
-    expect(frequencyExceedsScheduler('semanal')).toBe(false);
-    expect(frequencyExceedsScheduler('manual')).toBe(false);
+  it('nenhuma frequência oferecida fica a descoberto pelo agendador', () => {
+    expect(SCHEDULER_INTERVAL_MINUTES).toBe(6 * 60);
+
+    for (const freq of SYNC_FREQUENCIES) {
+      expect(frequencyExceedsScheduler(freq), freq).toBe(false);
+    }
+
+    // A menor frequencia oferecida e exatamente o intervalo do agendador.
+    const menor = Math.min(
+      ...SYNC_FREQUENCIES.map((f) => SYNC_FREQUENCY_MINUTES[f]).filter(
+        (m): m is number => m !== null,
+      ),
+    );
+    expect(menor).toBe(SCHEDULER_INTERVAL_MINUTES);
   });
 });
 

@@ -58,6 +58,10 @@
     {
       "path": "/api/billing/reconcile",
       "schedule": "23 5 * * *"
+    },
+    {
+      "path": "/api/sync/run",
+      "schedule": "47 */6 * * *"
     }
   ]
 }

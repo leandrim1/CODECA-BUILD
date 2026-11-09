@@ -41,10 +41,12 @@ export function toSourceView(input: {
     /**
      * O aviso so aparece quando ha o que avisar.
      *
-     * Pedir "a cada 6 horas" e legitimo, e a fonte realmente vence a cada 6
-     * horas -- mas o agendador da plataforma passa uma vez por dia. Dizer
-     * isso na tela e a diferenca entre uma expectativa cumprida e um cliente
-     * achando que a plataforma esta quebrada.
+     * Com o cron de 6 em 6 horas, nenhuma frequencia oferecida fica a
+     * descoberto e o aviso nao aparece. Ele continua aqui porque o intervalo
+     * do agendador depende do plano da Vercel: numa instalacao que so dispara
+     * uma vez ao dia, `SCHEDULER_INTERVAL_MINUTES` volta para 1440 e a tela
+     * precisa avisar de novo. Dizer isso e a diferenca entre uma expectativa
+     * cumprida e um cliente achando que a plataforma esta quebrada.
      */
     schedulerNote: frequencyExceedsScheduler(source.frequency) ? SCHEDULER_NOTE : null,
     lastCheckedAt: source.lastCheckedAt?.toISOString() ?? null,
