@@ -362,8 +362,19 @@ export function ImportSitePage() {
             <Alert tone="warning" title="Esse site monta o conteúdo no navegador">
               O endereço informado entrega uma página praticamente vazia e preenche o conteúdo depois,
               por JavaScript. A análise lê o que vem no endereço, sem executar scripts, então
-              encontramos pouco. O que aparece abaixo é o que estava mesmo no endereço; o restante
-              precisa ser cadastrado pelo painel.
+              encontramos pouco.{' '}
+              {/*
+                As fotos precisam ser ditas com todas as letras.
+
+                O aviso falava so de "conteudo", e biblioteca de imagens vazia e
+                o sintoma mais visivel de todos -- quem ve zero fotos conclui que
+                a importacao quebrou, nao que o site nao entrega foto nenhuma no
+                endereco. Dizer isso aqui evita o diagnostico errado.
+              */}
+              <strong>As fotos seguem a mesma regra:</strong> imagem que o site carrega por
+              JavaScript não está no endereço e não chega à biblioteca. Só vêm as declaradas no
+              próprio HTML, como a imagem de compartilhamento. O que aparece abaixo é o que estava
+              mesmo no endereço; o restante precisa ser cadastrado pelo painel.
             </Alert>
           ) : null}
 
