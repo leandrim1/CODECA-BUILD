@@ -66,27 +66,31 @@ export function nextCheckAt(
 /**
  * O que a plataforma consegue cumprir, e por que.
  *
- * O agendador passa de 6 em 6 horas, no minuto 47: e o cron `/api/sync/run`
- * declarado em `vercel.json`. Com ele, todas as frequencias oferecidas na
- * tela sao atendidas na cadencia escolhida -- a menor delas e justamente 6
- * horas. A verificacao tambem continua acontecendo no job diario de
- * reconciliacao, que serve de rede de seguranca se o cron de 6 horas falhar.
+ * O plano da Vercel em uso e o gratuito, que dispara cada agendamento **uma
+ * vez por dia**. Sao dois, o teto do plano: a reconciliacao as 05:23 (que
+ * tambem roda uma passagem da sincronizacao) e `/api/sync/run` as 17:47. Na
+ * pratica as fontes sao olhadas duas vezes ao dia, mas o que esta **garantido**
+ * e uma -- e e o numero garantido que vale aqui, porque esta constante decide
+ * o que a tela promete ao cliente.
+ *
+ * Consequencia que a tela nao esconde: escolher "a cada 6 horas" ou "a cada 12
+ * horas" continua valendo como preferencia -- a fonte vence no prazo pedido e
+ * entra na fila --, mas e atendida na passagem seguinte do agendador. O aviso
+ * de `frequencyExceedsScheduler` existe exatamente para dizer isso.
  *
  * Este numero e o do **agendador**, nao o da preferencia do cliente: uma fonte
  * configurada para semanal continua vencendo a cada sete dias. O que ele diz e
  * de quanto em quanto tempo a plataforma olha a fila.
  *
- * Depende do plano da Vercel aceitar agendamento mais frequente que diario. Se
- * a instalacao estiver num plano que so dispara uma vez ao dia, esta constante
- * precisa voltar para `24 * 60` -- senao a tela deixa de avisar o cliente de
- * que a cadencia real e menor que a escolhida. Ver
- * `docs/sincronizacao-de-sites.md`.
+ * Num plano que aceite agendamento infra-diario, sao duas linhas: o
+ * `schedule` do cron em `vercel.json` passa a `47 *` + `/6 * * *`, e esta
+ * constante vai para `6 * 60`. Ver `docs/sincronizacao-de-sites.md`.
  */
 export const SCHEDULER_NOTE =
-  'A plataforma verifica as fontes a cada 6 horas. Frequências menores que isso entram na fila e são atendidas na verificação seguinte.';
+  'A plataforma verifica as fontes uma vez por dia. Frequências menores entram na fila e são atendidas na verificação seguinte.';
 
 /** Intervalo real entre passagens do agendador, em minutos. */
-export const SCHEDULER_INTERVAL_MINUTES = 6 * 60;
+export const SCHEDULER_INTERVAL_MINUTES = 24 * 60;
 
 /** `true` quando a preferencia pede mais do que o agendador entrega. */
 export function frequencyExceedsScheduler(frequency: SyncFrequency): boolean {

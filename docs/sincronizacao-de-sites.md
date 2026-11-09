@@ -78,28 +78,37 @@ conflito para sempre.
 
 ---
 
-## 3. A frequência
+## 3. A frequência: o que o plano atual entrega
 
-O agendador passa **de 6 em 6 horas**, pelo cron declarado em `vercel.json`:
+A instalação roda no **plano gratuito da Vercel**, que permite 2 agendamentos
+e dispara cada um **uma vez por dia**. Os dois estão em uso:
 
 ```json
 {
   "crons": [
     { "path": "/api/billing/reconcile", "schedule": "23 5 * * *" },
-    { "path": "/api/sync/run",          "schedule": "47 */6 * * *" }
+    { "path": "/api/sync/run",          "schedule": "47 17 * * *" }
   ]
 }
 ```
 
-Com ele, **todas as frequências oferecidas na tela são atendidas na cadência
-escolhida** — a menor delas é justamente 6 horas. O minuto 47 evita a hora
-cheia (onde se concentra o tráfego agendado) e não colide com a reconciliação
-das 05:23.
+A reconciliação das 05:23 também executa uma passagem da sincronização, então
+na prática as fontes são olhadas **duas vezes ao dia** — de manhã cedo e no
+fim da tarde. O que está *garantido* pelo plano é uma vez; é esse o número que
+a plataforma promete ao cliente.
 
-A verificação continua acontecendo **também** dentro do job diário de
-reconciliação. Não é redundância inútil: é rede de segurança se o cron de 6
-horas falhar ou for removido. Rodar duas vezes não duplica nada — a reserva da
-fila é atômica e uma fonte que não venceu simplesmente não é selecionada.
+O minuto 47 evita a hora cheia, onde se concentra o tráfego agendado.
+
+> As opções "a cada 6 horas" e "a cada 12 horas" **não executam nessa cadência
+> neste plano**. A fonte realmente vence no prazo escolhido e entra na fila,
+> mas só é atendida na passagem seguinte do agendador.
+
+Isso não fica escondido: a tela mostra o aviso ao lado da frequência escolhida
+(`schedulerNote`), e `frequencyExceedsScheduler` decide quando exibi-lo. Quem
+escolhe 6 horas sabe o que vai receber.
+
+Rodar pelos dois gatilhos não duplica trabalho: a reserva da fila é atômica, e
+uma fonte que ainda não venceu simplesmente não é selecionada.
 
 ### Autenticação
 
@@ -109,18 +118,25 @@ a Vercel envia `Authorization: Bearer <CRON_SECRET>`, e a instalação já defin
 `.env.example`). Qualquer agendador externo serve igualmente — é um `POST`
 para `/api/sync/run` com esse cabeçalho.
 
-### Se o plano não permitir cron infra-diário
+### Para obter a cadência real de 6 horas
 
-Planos mais baixos da Vercel limitam a quantidade de crons e disparam no
-máximo uma vez por dia. Nesse caso o cron acima é disparado uma vez ao dia, e
-a sincronização continua funcionando — só mais devagar.
+São **duas linhas**, e nenhuma delas é de lógica:
 
-Se for esse o caso da instalação, **ajuste `SCHEDULER_INTERVAL_MINUTES` em
-`packages/shared/src/sync/types.ts` de volta para `24 * 60`**. A tela usa essa
-constante para decidir se avisa o cliente de que a cadência real é menor que a
-escolhida (`frequencyExceedsScheduler`); deixá-la em 6 horas num plano diário
-faria a tela prometer o que não entrega. Há um teste unitário guardando as
-duas pontas.
+1. em `vercel.json`, o `schedule` do cron `/api/sync/run` passa a
+   `47 */6 * * *`;
+2. em `packages/shared/src/sync/types.ts`,
+   `SCHEDULER_INTERVAL_MINUTES` passa a `6 * 60`.
+
+A segunda não é opcional: é ela que a tela usa para decidir se avisa o cliente
+de que a cadência real é menor que a escolhida. Deixá-la em 1440 com o cron de
+6 horas ativo faria a tela avisar sem motivo; o inverso faria a tela prometer
+o que não entrega. Um teste unitário guarda as duas pontas e falha se só uma
+mudar.
+
+Isso exige um plano da Vercel que aceite agendamento infra-diário. Como
+alternativa sem trocar de plano, qualquer agendador externo (um cron numa
+máquina sua, um serviço de ping) pode chamar `/api/sync/run` de 6 em 6 horas
+com o mesmo cabeçalho — aí só o passo 2 é necessário.
 
 ---
 
@@ -256,9 +272,8 @@ ciclo seguinte, sem precisar de limpeza.
 
 ## 7. Limitações conhecidas
 
-- **A cadência de 6 horas depende do plano da Vercel.** O cron está
-  declarado; planos que só disparam uma vez ao dia o executam nessa
-  frequência. Ver a seção 3.
+- **Cadência infra-diária exige outro plano (ou agendador externo).** O
+  gratuito da Vercel dispara cada cron uma vez por dia. Ver a seção 3.
 - **Site renderizado no navegador.** A análise não executa JavaScript —
   mesma limitação da importação, documentada em `docs/importacao-de-sites.md`.
 - **Renomear conteúdo na origem aparece como removido + novo.** A identidade de

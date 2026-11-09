@@ -271,30 +271,33 @@ describe('frequencia e agendador', () => {
   });
 
   /**
-   * O agendador passa de 6 em 6 horas (cron `/api/sync/run` em
-   * `vercel.json`), e 6 horas e a menor frequencia oferecida na tela. Logo,
-   * nenhuma preferencia fica a descoberto -- e por isso o aviso nao aparece.
+   * Honestidade do produto, amarrada ao plano real.
+   *
+   * O plano gratuito da Vercel dispara cada agendamento uma vez por dia, e e
+   * nele que a plataforma roda. Pedir 6 ou 12 horas e legitimo -- a fonte
+   * vence no prazo --, mas a entrega e diaria, e a tela precisa dizer isso.
    *
    * O teste guarda as duas pontas: a constante do agendador e a conclusao que
-   * a tela tira dela. Se um dia a instalacao voltar para um plano que so
-   * dispara uma vez ao dia, `SCHEDULER_INTERVAL_MINUTES` volta para 1440 e
-   * este teste falha -- que e exatamente o lembrete de que a tela precisa
-   * voltar a avisar o cliente.
+   * a tela tira dela. Mudar uma sem a outra quebra aqui -- que e o lembrete
+   * de que, ao migrar para um plano com cron infra-diario, a constante
+   * tambem muda.
    */
-  it('nenhuma frequência oferecida fica a descoberto pelo agendador', () => {
-    expect(SCHEDULER_INTERVAL_MINUTES).toBe(6 * 60);
+  it('avisa quando a preferência pede mais do que o agendador entrega', () => {
+    expect(SCHEDULER_INTERVAL_MINUTES).toBe(24 * 60);
 
+    expect(frequencyExceedsScheduler('6h')).toBe(true);
+    expect(frequencyExceedsScheduler('12h')).toBe(true);
+    expect(frequencyExceedsScheduler('diaria')).toBe(false);
+    expect(frequencyExceedsScheduler('semanal')).toBe(false);
+    // `manual` nao agenda nada: nunca ha o que avisar.
+    expect(frequencyExceedsScheduler('manual')).toBe(false);
+
+    // Toda frequência abaixo do intervalo do agendador é avisada, sem exceção.
     for (const freq of SYNC_FREQUENCIES) {
-      expect(frequencyExceedsScheduler(freq), freq).toBe(false);
+      const minutos = SYNC_FREQUENCY_MINUTES[freq];
+      const esperado = minutos !== null && minutos < SCHEDULER_INTERVAL_MINUTES;
+      expect(frequencyExceedsScheduler(freq), freq).toBe(esperado);
     }
-
-    // A menor frequencia oferecida e exatamente o intervalo do agendador.
-    const menor = Math.min(
-      ...SYNC_FREQUENCIES.map((f) => SYNC_FREQUENCY_MINUTES[f]).filter(
-        (m): m is number => m !== null,
-      ),
-    );
-    expect(menor).toBe(SCHEDULER_INTERVAL_MINUTES);
   });
 });
 

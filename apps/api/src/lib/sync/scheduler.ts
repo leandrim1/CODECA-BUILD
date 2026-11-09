@@ -19,19 +19,17 @@ import {
  * Dois gatilhos, ambos no servidor, nenhum dependendo de alguem com o painel
  * aberto:
  *
- * - o cron `/api/sync/run`, de 6 em 6 horas (`vercel.json`), que e o que
- *   cumpre a cadencia prometida na tela -- a menor frequencia oferecida la e
- *   justamente 6 horas;
- * - o job diario de reconciliacao, que chama a mesma passagem como rede de
- *   seguranca, caso o cron de 6 horas falhe ou seja removido.
+ * - o cron `/api/sync/run` (`vercel.json`), as 17:47;
+ * - o job diario de reconciliacao, as 05:23, que chama a mesma passagem.
  *
- * Rodar pelos dois nao duplica trabalho: a reserva da fila e atomica e uma
+ * Sao dois porque o plano gratuito da Vercel permite dois agendamentos e
+ * dispara cada um uma vez por dia: juntos, cobrem a fila de manha e a tarde.
+ * Rodar pelos dois nao duplica trabalho -- a reserva da fila e atomica e uma
  * fonte que ainda nao venceu simplesmente nao e selecionada.
  *
- * Se a instalacao estiver num plano da Vercel que so dispara uma vez ao dia,
- * tudo continua funcionando -- so mais devagar --, e
- * `SCHEDULER_INTERVAL_MINUTES` precisa voltar para `24 * 60` para a tela
- * seguir dizendo a verdade ao cliente. Ver `docs/sincronizacao-de-sites.md`.
+ * Num plano com cron infra-diario, o `schedule` do primeiro muda e
+ * `SCHEDULER_INTERVAL_MINUTES` acompanha, para a tela seguir dizendo a
+ * verdade ao cliente. Ver `docs/sincronizacao-de-sites.md`.
  *
  * ## Isolamento entre clientes
  *

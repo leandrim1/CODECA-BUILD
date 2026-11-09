@@ -62,7 +62,7 @@ import { siteSyncApi } from '../services/endpoints.js';
  * ## Por que ela nao fica consultando o servidor
  *
  * Diferente da tela de importacao, aqui nao ha processo em andamento no
- * navegador: quem verifica e o agendador do backend, de 6 em 6 horas. A tela
+ * navegador: quem verifica e o agendador do backend, uma vez por dia. A tela
  * le o estado quando abre e depois de cada acao. "Verificar agora" apenas
  * antecipa uma passagem -- o mesmo caminho que o cron usa.
  */

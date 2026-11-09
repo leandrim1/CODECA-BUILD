@@ -61,7 +61,7 @@
     },
     {
       "path": "/api/sync/run",
-      "schedule": "47 */6 * * *"
+      "schedule": "47 17 * * *"
     }
   ]
 }
