@@ -371,7 +371,13 @@ export function ImportSitePage() {
             <EmptyState
               icon={<FileSearch size={28} />}
               title="Nada que corresponda aos módulos do seu painel"
-              description="Lemos as páginas, mas não encontramos conteúdo que caiba nos módulos deste site. Você pode cadastrar manualmente pelo menu ao lado."
+              description={
+                'Lemos as páginas, mas não encontramos conteúdo que caiba nos módulos deste site. '
+                + 'Sites que montam o conteúdo no navegador costumam dar neste resultado: o endereço responde, '
+                + 'mas o texto só aparece depois que o JavaScript roda, e a análise não executa scripts. '
+                + 'Use "Descartar e analisar outro endereço" acima para tentar outro site, '
+                + 'ou cadastre o conteúdo pelo menu ao lado.'
+              }
             />
           ) : (
             <div className="grid gap-4">
@@ -537,10 +543,23 @@ function Progresso({
       <CardHeader
         title={falhou ? 'A análise não foi concluída' : 'Análise do site'}
         description={run.sourceUrl}
+        /**
+         * Sair daqui tem de ser sempre possivel.
+         *
+         * Enquanto o botao so aparecia com a analise em andamento, uma
+         * analise **terminada e aguardando revisao** deixava a tela sem
+         * saida: o formulario de endereco fica escondido nesse estado, para
+         * nao abrir duas analises sobre o mesmo site, e nao havia como
+         * descartar a que estava parada. Quem analisou o endereco errado --
+         * ou cujo site nao rendeu nada -- ficava presa olhando o resultado,
+         * sem conseguir tentar de novo.
+         *
+         * A API ja aceitava descartar neste estado; faltava a porta na tela.
+         */
         actions={
-          run.working ? (
+          run.working || run.state === 'analisada' ? (
             <Button variant="ghost" size="sm" onClick={onCancelar} loading={cancelando} icon={<X size={14} />}>
-              Cancelar
+              {run.working ? 'Cancelar' : 'Descartar e analisar outro endereço'}
             </Button>
           ) : null
         }

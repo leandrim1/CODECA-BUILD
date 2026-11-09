@@ -1186,4 +1186,47 @@ describe('historico e auditoria', () => {
     });
     expect(nova.status).toBe(201);
   });
+
+  it('analise terminada e aguardando revisao tambem pode ser descartada', async () => {
+    /**
+     * O beco sem saida que isto impede.
+     *
+     * Uma analise que **terminou** e espera revisao esconde o formulario de
+     * endereco, para nao abrir duas analises sobre o mesmo site. Se ela
+     * tambem nao pudesse ser descartada, quem analisou o endereco errado --
+     * ou cujo site nao rendeu nada -- ficaria preso olhando o resultado, sem
+     * conseguir tentar outro endereco. Sem saida nenhuma na tela.
+     *
+     * O caso apareceu em producao, com um site que monta o conteudo no
+     * navegador: a analise concluiu, nao achou nada, e nao havia como sair.
+     */
+    await habilitarTodosOsModulos(empresa);
+    await usarPlanoComEspaco(empresa);
+
+    const { run } = await analisar(empresa);
+    expect(run.state).toBe('analisada');
+    expect(run.working).toBe(false);
+
+    /**
+     * Descartar e aceito neste estado -- e e o que a tela precisa.
+     *
+     * A API por si so nem exigiria isso: `loadRunningRun` guarda apenas os
+     * estados de trabalho, entao abrir outra analise com uma em revisao
+     * passaria. Quem segura e a tela, de proposito: comecar outra analise
+     * abandonaria em silencio os candidatos que a pessoa ja estava
+     * revisando. Por isso a saida e explicita, e por isso ela precisa
+     * existir.
+     */
+    const descartar = await empresa.client.post(
+      `/api/tenants/${empresa.tenantId}/site-import/${run.id}/cancelar`,
+      {},
+    );
+    expect(descartar.status, descartar.errorMessage ?? '').toBe(200);
+    expect(descartar.body.run.state).toBe('erro');
+
+    const nova = await empresa.client.post(`/api/tenants/${empresa.tenantId}/site-import`, {
+      url: 'https://clinicasorriso.com.br/',
+    });
+    expect(nova.status, nova.errorMessage ?? '').toBe(201);
+  });
 });
