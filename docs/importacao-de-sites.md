@@ -133,6 +133,40 @@ chutar por classe erraria feio — em Tailwind, `hidden md:block` quer dizer
 *visível no computador*, e pular esse texto perderia conteúdo de verdade. Só
 vale o que o próprio elemento declara.
 
+### SVG é limpo, não recusado
+
+Um JPEG é um retângulo de pixels. Um **SVG é um documento que o navegador
+executa**: pode conter `<script>`, `onload`, `<foreignObject>` com HTML
+dentro e referências externas. Servir um de origem desconhecida a partir do
+domínio do cliente é publicar código de terceiro com a confiança do domínio
+dele — um XSS armazenado.
+
+Até aqui a importação recusava todos. Era seguro, e custava caro no caso mais
+comum e mais inocente: **o logotipo**, que boa parte dos sites tem em SVG e é
+justamente a imagem que o cliente mais quer trazer.
+
+Agora o arquivo passa por `sanitizeSvg`, que reconstrói o documento por
+**lista de permissão**: cada tag e cada atributo são copiados do zero, e o que
+não estiver explicitamente autorizado não chega à saída. Lista de bloqueio
+seria o caminho errado — bastaria um elemento novo no padrão para reabrir o
+buraco.
+
+O que sai: `script`, `foreignObject`, `animate`, `set`, `handler`, qualquer
+atributo `on*`, `javascript:`, `data:text/html`, `DOCTYPE` (que pode declarar
+entidades) e qualquer `url(...)` que não aponte para dentro do próprio
+arquivo — um `fill="url(https://…)"` faria o navegador de cada visitante
+buscar um recurso de fora, entregando o IP dele a um terceiro.
+
+O que fica: o desenho. E com a **grafia exata** que o SVG exige: XML é
+sensível a maiúsculas, e um `viewbox` minúsculo faria a imagem perder o
+viewport e renderizar no tamanho errado.
+
+Quando a limpeza não deixa desenho nenhum, volta a recusa com o pedido de
+envio manual — melhor nenhuma imagem do que uma imagem que executa.
+
+Medido no logotipo real de `codecaia.vercel.app`: passa inteiro, **nada
+removido**. Era seguro desde sempre; só estava sendo recusado por categoria.
+
 ### Outras proteções
 
 - **Nenhum script do site é executado.** O leitor de HTML
@@ -269,6 +303,66 @@ mesmo limite de conteúdo do plano e pela mesma política de campos por site.
 As duas tabelas novas (`site_imports`, `site_import_items`) registram a
 **operação**, não o conteúdo. Nada nelas é lido pela API pública nem pelo site
 do cliente.
+
+---
+
+## 4b. Sites que montam o conteúdo no navegador
+
+A análise tenta três estratégias, da mais segura para a menos:
+
+| | Estratégia | Executa script? | Resolve |
+|---|---|---|---|
+| 1 | HTTP + leitura das tags | não | HTML tradicional, WordPress, Wix |
+| 2 | Estado serializado no próprio HTML | não | Next.js, Nuxt, Apollo/Redux, RSC |
+| 3 | Navegador headless | **sim** | o resto |
+
+A segunda é a que mais rende sem custo: frameworks serializam os dados da
+página dentro do HTML para o buscador indexar, e ler esse bloco é análise de
+JSON como texto — nunca avaliação. Medido numa casca Next típica: 4 frases e 2
+imagens onde antes vinha zero, com `buildId` e `chunkHash` descartados.
+
+### O navegador, e por que ele é opcional
+
+A seção 2 do pedido quer Playwright; a seção 9 proíbe executar scripts do site
+analisado. As duas não valem juntas — renderizar é executar. A saída foi deixar
+o navegador **desligado por padrão** e ligá-lo por configuração explícita, de
+modo que quem o liga está aceitando conscientemente rodar código de terceiros.
+
+| Variável | Valores |
+|---|---|
+| `IMPORT_RENDER_MODE` | `nenhum` (padrão), `remoto`, `local` |
+| `IMPORT_RENDER_URL` | endpoint do serviço, no modo `remoto` |
+| `IMPORT_RENDER_SECRET` | enviado em `Authorization: Bearer` |
+| `IMPORT_RENDER_MODULE` | pacote a carregar no modo `local` (padrão `playwright`) |
+
+**O Chromium não entra no pacote da função da Vercel.** O pacote tem teto de
+tamanho, e somar um navegador arrisca estourá-lo e derrubar o deploy do site
+inteiro. Por isso:
+
+- `remoto` chama um serviço próprio por HTTP. Zero peso no pacote. É o caminho
+  na Vercel. O contrato é mínimo: entra `{ url }`, sai `{ html }`.
+- `local` usa Playwright no processo, por `import()` dinâmico com o nome do
+  módulo em variável — nem o compilador nem o empacotador o resolvem, então ele
+  só é procurado onde existir. Serve para self-hosted e desenvolvimento.
+
+Limite de `maxRenderedPages` (8) por análise, e a renderização só substitui a
+leitura simples **quando rende mais**: um navegador que devolve a mesma casca
+vazia não pode piorar o que já havia.
+
+Medido contra `codecaia.vercel.app`, com navegador real: HTML de 2.741 para
+70.658 bytes, texto visível de 0 para 6.612 caracteres, 23 títulos e 34
+parágrafos onde antes não havia nenhum.
+
+### Segmento sugerido, nunca aplicado
+
+A análise estima o ramo da empresa a partir dos dados estruturados (peso
+maior), das palavras do título e dos cabeçalhos, e dos papéis das páginas. A
+confiança sai da **distância para o segundo colocado**, não do total de
+pontos: um site com muitos pontos em dois ramos é um site ambíguo, e dizer
+"alta confiança" ali configuraria o painel errado.
+
+O palpite nunca é aplicado sozinho — trocar o segmento muda os módulos que o
+painel abre, e essa decisão é de quem conhece o negócio.
 
 ---
 

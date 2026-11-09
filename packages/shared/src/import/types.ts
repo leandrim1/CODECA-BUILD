@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { SegmentGuess } from './segment.js';
 import { MODULE_KEYS, MODULE_REGISTRY } from '../modules/registry.js';
 
 /**
@@ -226,6 +227,18 @@ export interface ImportSummary {
   duplicates: number;
   /** Texto encontrado que nao foi atribuido a nenhum campo. */
   unmapped: number;
+  /**
+   * Ramo sugerido para a empresa, com a confianca e os sinais.
+   *
+   * Sugestao, nunca aplicacao: trocar o segmento mexe nos modulos que o
+   * painel abre, e isso e decisao de quem conhece o negocio. Ver
+   * `guessSegment`.
+   */
+  segment?: SegmentGuess | null;
+  /** Paginas que precisaram de navegador para render conteudo. */
+  renderedPages?: number;
+  /** Paginas cujo conteudo veio do estado serializado no HTML. */
+  embeddedPages?: number;
 }
 
 export function emptySummary(): ImportSummary {

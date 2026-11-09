@@ -3,6 +3,7 @@ import {
   MEDIA_TARGET,
   candidateKey,
   emptySummary,
+  guessSegment,
   importTargetLabel,
   isModuleKey,
   mapToModules,
@@ -183,6 +184,16 @@ async function identifyAndPersist(
   summary.pages = cursor.pages.filter((page) => page.error === undefined).length;
   summary.pagesFailed = cursor.pages.filter((page) => page.error !== undefined).length;
   summary.unmapped = unmapped.length;
+  /**
+   * O ramo e apurado sobre **todas** as paginas de uma vez.
+   *
+   * Pagina a pagina, uma pagina de contato parece de qualquer ramo. O sinal
+   * do negocio aparece no conjunto -- e por isso o palpite sai aqui, depois
+   * do rastreamento, e nao durante.
+   */
+  summary.segment = guessSegment(cursor.extracts);
+  summary.renderedPages = cursor.pages.filter((page) => page.renderedWithBrowser === true).length;
+  summary.embeddedPages = cursor.pages.filter((page) => page.fromEmbeddedState === true).length;
 
   const linhas: {
     candidate: ImportCandidate;

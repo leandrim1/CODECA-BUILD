@@ -6,6 +6,7 @@ import {
   isAllowedMimeType,
   mediaKindFor,
   safeFileName,
+  sanitizeSvg,
   type AllowedMimeType,
 } from '@codeca/shared';
 import { buildBlobPathname } from '../blob.js';
@@ -230,19 +231,34 @@ export async function importImage(
   }
 
   /**
-   * SVG de terceiro nao entra pela importacao.
+   * SVG passa por limpeza, nao por recusa.
    *
-   * O painel aceita SVG enviado por uma pessoa, que escolheu o arquivo. Aqui o
-   * arquivo vem de um site que ninguem conferiu, e SVG e documento: carrega
-   * `<script>` e referencia externa. Trazer centenas deles automaticamente
-   * seria publicar codigo de origem desconhecida no armazenamento da empresa.
-   * O cliente continua podendo enviar o SVG dele pelo painel.
+   * Recusar era seguro e simples, mas custava caro no caso mais comum e mais
+   * inocente: o **logotipo**, que boa parte dos sites tem em SVG, e que e
+   * justamente a imagem que o cliente mais quer trazer.
+   *
+   * SVG e documento que o navegador executa -- `<script>`, `onload`,
+   * `<foreignObject>`, referencia externa. Servir um de origem desconhecida
+   * a partir do dominio do cliente seria publicar codigo de terceiro com a
+   * confianca do dominio dele. Entao o arquivo e reconstruido por lista de
+   * permissao em `sanitizeSvg`: o que nao for desenho reconhecido nao chega
+   * a saida. Quando nao sobra desenho, volta a recusa e o pedido de envio
+   * manual -- melhor nenhuma imagem do que uma imagem que executa.
    */
   if (sniffed === 'image/svg+xml') {
-    throw new ImageImportError(
-      'svg_recusado',
-      'Arquivos SVG não são importados automaticamente por segurança. Envie pela Biblioteca de imagens.',
-    );
+    const original = Buffer.from(bytes).toString('utf-8');
+    const limpeza = sanitizeSvg(original);
+    if (!limpeza.ok) {
+      throw new ImageImportError('svg_recusado', limpeza.message);
+    }
+    // Os bytes gravados sao os limpos, nunca os originais -- inclusive para
+    // o hash de duplicidade, que deve identificar o que foi de fato salvo.
+    bytes = new Uint8Array(Buffer.from(limpeza.svg, 'utf-8'));
+    if (limpeza.removed.length > 0) {
+      console.info(
+        `[import] SVG higienizado (${input.url}): removidos ${limpeza.removed.join(', ')}`,
+      );
+    }
   }
 
   const mimeType = sniffed as AllowedMimeType;
