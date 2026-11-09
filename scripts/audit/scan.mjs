@@ -95,8 +95,19 @@ for (const rota of ROTAS) {
     });
 
     try {
-      await pagina.goto(`${BASE}${rota}`, { waitUntil: 'networkidle', timeout: 25_000 });
-      await pagina.waitForTimeout(350);
+      /**
+       * `domcontentloaded`, e nao `networkidle`.
+       *
+       * O painel faz polling -- a tela de importacao consulta o progresso de
+       * tempo em tempo -- e uma pagina que consulta sozinha **nunca** fica
+       * ociosa. Com `networkidle` cada uma dessas gastava os 25 s inteiros do
+       * timeout, e a varredura das 396 combinacoes nao terminava em tempo
+       * nenhum. Aqui basta o DOM pronto mais uma pausa curta para o React
+       * montar e o primeiro carregamento de dados chegar.
+       */
+      await pagina.goto(`${BASE}${rota}`, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+      await pagina.waitForLoadState('load', { timeout: 10_000 }).catch(() => undefined);
+      await pagina.waitForTimeout(900);
 
       const medida = await pagina.evaluate(() => {
         const de = document.documentElement;
@@ -109,15 +120,28 @@ for (const rota of ROTAS) {
           const r = el.getBoundingClientRect();
           if (r.width === 0 || r.height === 0) continue;
           if (r.right <= largura + 1) continue;
-          // Um ancestral com rolagem propria torna o transbordo intencional.
+          /**
+           * Transbordo que um ancestral resolve nao e problema.
+           *
+           * Duas formas, e a segunda custou um falso positivo em todas as
+           * paginas publicas: um ancestral que **rola** (`auto`/`scroll`),
+           * como uma tabela larga de proposito; e um ancestral que
+           * **recorta** (`hidden`/`clip`), que e como todo enfeite de fundo
+           * -- aquele borrao com `pointer-events-none absolute` -- e mantido
+           * maior que a tela sem vazar. Olhar so a rolagem acusava cada
+           * enfeite como defeito, e a pagina nem tinha barra horizontal.
+           */
           let pai = el.parentElement;
-          let dentroDeRolagem = false;
+          let contido = false;
           while (pai) {
             const ov = getComputedStyle(pai).overflowX;
-            if (ov === 'auto' || ov === 'scroll') { dentroDeRolagem = true; break; }
+            if (ov === 'auto' || ov === 'scroll' || ov === 'hidden' || ov === 'clip') {
+              contido = true;
+              break;
+            }
             pai = pai.parentElement;
           }
-          if (dentroDeRolagem) continue;
+          if (contido) continue;
           fora.push(`${el.tagName.toLowerCase()}${el.className && typeof el.className === 'string' ? '.' + el.className.split(' ').slice(0, 2).join('.') : ''} (${Math.round(r.right - largura)}px)`);
           if (fora.length >= 5) break;
         }
@@ -145,6 +169,17 @@ for (const rota of ROTAS) {
     verificadas += 1;
     await pagina.close();
   }
+
+  /**
+   * Progresso por rota, e gravacao a cada rota.
+   *
+   * A primeira versao so imprimia no fim. Quando a varredura foi interrompida
+   * pelo tempo, nao sobrou **nada** -- nem os achados das rotas ja
+   * percorridas. Resultado parcial vale muito mais que resultado nenhum.
+   */
+  const comProblema = achados.filter((a) => a.rota === rota).length;
+  console.log(`[${String(verificadas).padStart(3)}/${ROTAS.length * VIEWPORTS.length}] ${rota} -- ${comProblema > 0 ? `${comProblema} com problema` : 'ok'}`);
+  writeFileSync(`${SAIDA}/achados.json`, JSON.stringify(achados, null, 2));
 }
 
 await contexto.close();
