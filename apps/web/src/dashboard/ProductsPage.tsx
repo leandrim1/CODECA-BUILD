@@ -129,7 +129,15 @@ export function ProductsPage() {
                       </div>
                     )}
 
-                    <div className="min-w-0 flex-1">
+                    {/*
+                      Mesmo padrao do cartao de banner, e mesmo defeito.
+                      Miniatura `flex-none` + coluna `flex-1 min-w-0` deixa a
+                      coluna encolher em vez de quebrar para a linha de baixo.
+                      Aqui a miniatura tem 80px em vez de 128, entao a pressao
+                      e menor -- 50px de transbordo em 360 em vez de 98 --, mas
+                      a causa e a mesma e a correcao tambem.
+                    */}
+                    <div className="min-w-0 flex-1 basis-64">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium text-slate-900">{produto.title}</p>
                         <Badge tone={publicationTone(produto.publicationStatus)}>

@@ -180,8 +180,27 @@ for (const rota of ROTAS) {
            * que fica recortado ate receber foco -- e toda secao com enfeite
            * maior que ela apareciam como defeito.
            */
-          const ov = getComputedStyle(el).overflowX;
-          if (ov === 'auto' || ov === 'scroll' || ov === 'hidden' || ov === 'clip') continue;
+          /**
+           * A contencao pode estar em **qualquer** ancestral.
+           *
+           * Quarta vez que o mesmo engano aparece, agora em tabela: uma
+           * `td` nao declara overflow nenhum, mas o invólucro da tabela rola
+           * -- que e o caso que o proprio pedido excetua ("tabelas
+           * extensas"). Olhar so o elemento acusava 521px de transbordo numa
+           * tabela que funciona exatamente como projetada.
+           *
+           * O detector de borda ja subia a arvore; este nao subia. Agora os
+           * dois fazem a mesma pergunta: alguem acima resolve isto?
+           */
+          let contido = false;
+          for (let no = el; no !== null; no = no.parentElement) {
+            const ov = getComputedStyle(no).overflowX;
+            if (ov === 'auto' || ov === 'scroll' || ov === 'hidden' || ov === 'clip') {
+              contido = true;
+              break;
+            }
+          }
+          if (contido) continue;
           if (Array.from(el.children).some((f) => f.scrollWidth - f.clientWidth >= LIMIAR)) continue;
           /**
            * Rolador intencional dentro, ou sangria ate a borda.
