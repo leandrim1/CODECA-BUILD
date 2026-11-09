@@ -207,6 +207,50 @@ describe('banners', () => {
     expect(removido.status).toBe(204);
   });
 
+  it('editar um banner existente funciona', async () => {
+    /**
+     * O defeito que isto guarda apareceu em producao: **toda** edicao de
+     * banner falhava com "estes campos sao mantidos pela CODECA IA e nao
+     * podem ser alterados aqui: id, tenantId, siteId, createdAt,
+     * updatedAt".
+     *
+     * A causa estava na comparacao da politica de campos: ela recebia a
+     * linha inteira do banco de um lado -- com as colunas de sistema -- e
+     * so os campos de conteudo do outro, entao cada coluna de sistema
+     * aparecia como "alterada" e era recusada por nao constar do registro
+     * de modulos.
+     *
+     * Nunca foi pego porque havia teste de criar, listar e excluir, e
+     * nenhum de **editar**.
+     */
+    const criado = await empresa.client.post(`/api/tenants/${empresa.tenantId}/banners`, {
+      title: 'Campanha de verão',
+      subtitle: 'Condições especiais até março.',
+    });
+    expect(criado.status, criado.errorMessage ?? '').toBe(201);
+    const bannerId = criado.body.banner.id as string;
+
+    const editado = await empresa.client.patch(
+      `/api/tenants/${empresa.tenantId}/banners/${bannerId}`,
+      {
+        title: 'Campanha de outono',
+        subtitle: 'Condições especiais até junho.',
+        isActive: true,
+        sortOrder: 2,
+      },
+    );
+
+    expect(editado.status, editado.errorMessage ?? '').toBe(200);
+    expect(editado.body.banner.title).toBe('Campanha de outono');
+    expect(editado.body.banner.subtitle).toBe('Condições especiais até junho.');
+    expect(editado.body.banner.isActive).toBe(true);
+    expect(editado.body.banner.sortOrder).toBe(2);
+
+    // E as colunas de sistema seguem intactas, que e o que a politica
+    // protege de verdade.
+    expect(editado.body.banner.id).toBe(bannerId);
+  });
+
   it('exige o link quando ha texto no botao', async () => {
     const response = await empresa.client.post(`/api/tenants/${empresa.tenantId}/banners`, {
       title: 'Sem link',

@@ -60,18 +60,46 @@ export function isFieldEditable(
 }
 
 /**
+ * Colunas que existem em todo registro e nunca sao conteudo.
+ *
+ * Nao sao campos do modulo: sao a identidade e o carimbo de tempo da linha.
+ * Ninguem as envia num formulario, e ninguem as edita -- a gravacao as
+ * define sozinha.
+ *
+ * Precisam ser nomeadas aqui porque a comparacao da politica recebe, de um
+ * lado, a **linha inteira do banco** e, de outro, apenas os campos de
+ * conteudo validados. Sem esta lista, cada coluna de sistema aparecia como
+ * "alterada" (valor na linha, ausente no envio) e era recusada por nao
+ * constar do registro de modulos -- o que quebrava **toda** edicao de
+ * registro, nao um caso raro.
+ */
+export const SYSTEM_COLUMNS: readonly string[] = [
+  'id',
+  'tenantId',
+  'siteId',
+  'createdAt',
+  'updatedAt',
+];
+
+/**
  * Campos que o cliente tentou alterar e nao pode.
  *
  * Recebe apenas as chaves que **mudaram de valor**, nao o corpo inteiro: um
  * formulario reenvia todos os campos, e recusar por reenviar o mesmo valor
  * tornaria a tela impossivel de usar.
+ *
+ * Coluna de sistema nunca entra na conta: ela nao e campo, e a diferenca
+ * entre a linha do banco e o corpo validado nao significa que alguem tentou
+ * altera-la.
  */
 export function blockedFields(
   moduleKey: ModuleKey,
   changedKeys: readonly string[],
   overrides: FieldPolicyOverrides = {},
 ): string[] {
-  return changedKeys.filter((key) => !isFieldEditable(moduleKey, key, overrides));
+  return changedKeys
+    .filter((key) => !SYSTEM_COLUMNS.includes(key))
+    .filter((key) => !isFieldEditable(moduleKey, key, overrides));
 }
 
 /** Chaves cujo valor mudou entre o registro atual e o enviado. */
