@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import {
   IMPORT_PROGRESS_STEPS,
+  DEFAULT_SEGMENTS,
   checkImportUrl,
   formatDateTime,
   importTargetLabel,
@@ -358,6 +359,8 @@ export function ImportSitePage() {
         <>
           <Resumo run={run} />
 
+          {run.summary.segment ? <SegmentoSugerido palpite={run.summary.segment} /> : null}
+
           {run.likelyClientRendered ? (
             <Alert tone="warning" title="Esse site monta o conteúdo no navegador">
               O endereço informado entrega uma página praticamente vazia e preenche o conteúdo depois,
@@ -392,6 +395,21 @@ export function ImportSitePage() {
             />
           ) : (
             <div className="grid gap-4">
+              {/*
+                Acoes sobre tudo de uma vez.
+                Com oito ou dez modulos, marcar grupo a grupo e trabalhoso
+                justamente no caso bom -- quando a analise acertou quase
+                tudo e a pessoa so quer confirmar. "Validos" exclui o que
+                nao da para importar: modulo desabilitado e conflito, que
+                exige uma escolha consciente de quem revisa.
+              */}
+              {emRevisao ? (
+                <AcoesEmMassa
+                  itens={run.items}
+                  onDecidirGrupo={decidirGrupo}
+                />
+              ) : null}
+
               {grupos.map((grupo) => (
                 <GrupoDeCandidatos
                   key={grupo.target}
@@ -671,8 +689,134 @@ const PAPEL_LABEL: Record<string, string> = {
 };
 
 /** Resumo com os numeros reais da analise. */
+/**
+ * O ramo sugerido pela analise.
+ *
+ * Mostra confianca e **sinais**, nao so o palpite. Um rotulo sozinho ("este
+ * site e de uma clinica") nao da a quem le como julgar se esta certo; com os
+ * sinais, a pessoa confere em dois segundos e discorda quando for o caso.
+ *
+ * Nao ha botao de aplicar aqui de proposito: trocar o segmento muda os
+ * modulos que o painel abre para o site inteiro, e essa configuracao e
+ * mantida pela CODECA IA. A tela diz o que encontrou e a quem pedir.
+ */
+/**
+ * Marcar e desmarcar tudo, de uma vez.
+ *
+ * O conceito de "valido" aqui e o que a importacao consegue gravar **sem
+ * precisar de uma decisao**: fora o modulo desabilitado, que nao tem onde
+ * entrar, e fora o conflito, que por regra do produto nunca e resolvido no
+ * atacado -- substituir conteudo ja cadastrado e sempre escolha item a item.
+ */
+function AcoesEmMassa({
+  itens,
+  onDecidirGrupo,
+}: {
+  itens: readonly ImportItemView[];
+  onDecidirGrupo: (items: ImportItemView[], decision: 'selecionado' | 'ignorado') => void | Promise<void>;
+}) {
+  const validos = itens.filter((item) => !item.targetDisabled && !item.conflict);
+  const marcaveis = itens.filter((item) => !item.targetDisabled);
+  const marcados = marcaveis.filter((item) => item.decision === 'selecionado');
+
+  if (marcaveis.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[color:var(--border)] p-3">
+      <span className="mr-auto text-sm text-[color:var(--muted)]">
+        {marcados.length} de {marcaveis.length} {marcaveis.length === 1 ? 'item marcado' : 'itens marcados'}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={validos.length === 0}
+        onClick={() => void onDecidirGrupo(validos, 'selecionado')}
+      >
+        Marcar os {validos.length} sem conflito
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={marcados.length === 0}
+        onClick={() => void onDecidirGrupo(marcaveis, 'ignorado')}
+      >
+        Desmarcar tudo
+      </Button>
+    </div>
+  );
+}
+
+function SegmentoSugerido({
+  palpite,
+}: {
+  palpite: NonNullable<ImportDetailView['summary']['segment']>;
+}) {
+  const rotulo = SEGMENT_LABELS[palpite.code] ?? palpite.code;
+  const tom = palpite.level === 'alta' ? 'success' : palpite.level === 'media' ? 'warning' : 'neutral';
+
+  return (
+    <Card>
+      <CardHeader
+        title="Ramo identificado"
+        description="A partir do que o site declara e do conteúdo encontrado."
+      />
+      <CardBody>
+        <div className="grid gap-3">
+          <p className="flex flex-wrap items-center gap-2 text-sm">
+            <strong className="text-base">{rotulo}</strong>
+            <Badge tone={tom}>confiança {palpite.level}</Badge>
+          </p>
+
+          {palpite.signals.length > 0 ? (
+            <div className="grid gap-1">
+              <p className="text-xs text-[color:var(--muted)]">No que nos baseamos:</p>
+              <ul className="grid gap-0.5 text-xs text-[color:var(--muted)]">
+                {palpite.signals.map((sinal) => (
+                  <li key={sinal} className="grid grid-cols-[1rem_minmax(0,1fr)] gap-2">
+                    <Info size={12} className="mt-0.5" />
+                    <span className="[overflow-wrap:anywhere]">{sinal}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {palpite.level === 'baixa' ? (
+            <Alert tone="info" title="Sinal fraco">
+              O conteúdo do site não aponta um ramo com clareza. Trate isto como um palpite, não
+              como uma conclusão.
+            </Alert>
+          ) : null}
+
+          <p className="text-xs text-[color:var(--muted)]">
+            O ramo decide quais módulos o seu painel abre, e por isso não é alterado
+            automaticamente. Se quiser mudá-lo, fale com a CODECA IA.
+          </p>
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+/** Nome em portugues de cada segmento, para a tela. */
+const SEGMENT_LABELS: Record<string, string> = Object.fromEntries(
+  DEFAULT_SEGMENTS.map((segmento) => [segmento.code, segmento.name]),
+);
+
 function Resumo({ run }: { run: ImportDetailView }) {
   const { summary } = run;
+
+  /**
+   * Nome da empresa, tirado do proprio achado.
+   *
+   * Nao ha campo separado no resumo: o nome e um candidato como qualquer
+   * outro. Lê-lo daqui evita duplicar no servidor um dado que ja viaja.
+   */
+  const nomeEncontrado = run.items.find(
+    (item) => item.kind === 'documento_campo' && item.fieldKey === 'companyName',
+  );
+  const nomeEmpresa =
+    nomeEncontrado && typeof nomeEncontrado.value === 'string' ? nomeEncontrado.value : '';
   const blocos: { label: string; valor: number; icon: typeof Globe }[] = [
     { label: summary.pages === 1 ? 'página lida' : 'páginas lidas', valor: summary.pages, icon: Globe },
     { label: summary.images === 1 ? 'imagem' : 'imagens', valor: summary.images, icon: ImageIcon },
@@ -692,6 +836,28 @@ function Resumo({ run }: { run: ImportDetailView }) {
       <CardHeader title="O que encontramos" description={run.message} />
       <CardBody>
         <div className="grid gap-4">
+          {nomeEmpresa !== '' ? (
+            <p className="text-sm">
+              Empresa identificada: <strong>{nomeEmpresa}</strong>
+            </p>
+          ) : null}
+
+          {/*
+            Como as paginas foram lidas.
+            So aparece quando houve algo além da leitura simples -- num site
+            comum o dado nao acrescenta nada e viraria ruido.
+          */}
+          {(summary.embeddedPages ?? 0) > 0 || (summary.renderedPages ?? 0) > 0 ? (
+            <p className="text-xs text-[color:var(--muted)]">
+              {(summary.embeddedPages ?? 0) > 0
+                ? `${summary.embeddedPages} ${summary.embeddedPages === 1 ? 'página teve' : 'páginas tiveram'} o conteúdo lido dos dados que o próprio site embute no HTML. `
+                : ''}
+              {(summary.renderedPages ?? 0) > 0
+                ? `${summary.renderedPages} ${summary.renderedPages === 1 ? 'página precisou' : 'páginas precisaram'} ser montada por um navegador.`
+                : ''}
+            </p>
+          ) : null}
+
           <div className="grid gap-2 sm:grid-cols-3">
             {blocos.map((bloco) => (
               <div
