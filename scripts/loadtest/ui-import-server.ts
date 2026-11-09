@@ -172,8 +172,50 @@ const siteFetcher: SiteFetcher = {
 
 // ------------------------------------------------------------- aplicacao
 
-const pool = new pg.Pool({ connectionString: URL_DB, max: 10, connectionTimeoutMillis: 10_000 });
-const db = drizzle(pool, { schema, casing: 'snake_case' }) as unknown as Database;
+/**
+ * Postgres de verdade, ou PGlite quando nao houver um.
+ *
+ * A conferencia visual nao deveria exigir um servico externo: quem for rodar
+ * uma auditoria de interface quer abrir o painel, nao provisionar banco. O
+ * PGlite e o mesmo Postgres que a suite de testes ja usa, em processo, e com
+ * ele o servidor sobe em qualquer maquina -- e em CI.
+ *
+ * Com `DATABASE_URL` definida, usa o banco indicado, que continua sendo o
+ * caminho para conferir contra dados de verdade.
+ */
+const usaPostgres = process.env.DATABASE_URL !== undefined && process.env.DATABASE_URL !== '';
+
+const { db, executarSql, encerrar } = await (async () => {
+  if (usaPostgres) {
+    const pool = new pg.Pool({ connectionString: URL_DB, max: 10, connectionTimeoutMillis: 10_000 });
+    return {
+      db: drizzle(pool, { schema, casing: 'snake_case' }) as unknown as Database,
+      executarSql: async (texto: string) => {
+        await pool.query(texto);
+      },
+      encerrar: async () => {
+        await pool.end();
+      },
+    };
+  }
+
+  const { PGlite } = await import('@electric-sql/pglite');
+  const { drizzle: drizzlePglite } = await import('drizzle-orm/pglite');
+  const client = new PGlite();
+  return {
+    db: drizzlePglite(client, { schema, casing: 'snake_case' }) as unknown as Database,
+    // PGlite nao aceita varias instrucoes num `query` so.
+    executarSql: async (texto: string) => {
+      for (const instrucao of texto.split(';').map((t) => t.trim()).filter((t) => t !== '')) {
+        await client.exec(instrucao);
+      }
+    },
+    encerrar: async () => {
+      await client.close();
+    },
+  };
+})();
+void encerrar;
 
 const env = parseEnv({
   NODE_ENV: 'test',
@@ -197,7 +239,7 @@ const context = createContext({
 const app = createApp({ context });
 
 async function semear(): Promise<{ sessionToken: string; csrfToken: string }> {
-  await pool.query(
+  await executarSql(
     'drop schema if exists public cascade; create schema public; drop schema if exists drizzle cascade;',
   );
   await runMigrations(db);
