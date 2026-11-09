@@ -735,23 +735,55 @@ describe('sessao, logout e coexistencia com a senha', () => {
     expect(await api.db.select().from(schema.tenants)).toHaveLength(0);
   });
 
+  /**
+   * Sobe uma API propria com e-mail configurado: a recuperacao de senha depende
+   * dele, e o resto deste arquivo roda de proposito SEM provedor, para exercitar
+   * o Google sem a etapa do codigo.
+   */
   it('quem so tem o Google define uma senha pelo fluxo de recuperacao e passa a ter os dois metodos', async () => {
-    await googleUser();
-    const sem = await api.client().post('/api/auth/login', { email: 'maria@gmail.com', password: 'qualquer-coisa-123' });
-    expect(sem.status).toBe(401);
-
-    await api.client().post('/api/auth/forgot-password', { email: 'maria@gmail.com' });
-    const mensagem = [...api.outbox].reverse().find((m) => m.kind === 'reset_password')!;
-    const reset = await api.client().post('/api/auth/reset-password', {
-      token: extractToken(mensagem.text),
-      password: 'novaSenhaSegura123',
+    const comEmail = await createTestApi({
+      now: () => clock,
+      fetch: google.fetch,
+      env: { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, RESEND_API_KEY: 'chave-de-teste' },
     });
-    expect(reset.status).toBe(200);
+    try {
+      // Entra pelo Google: com e-mail configurado o retorno pede o codigo.
+      const entrada = comEmail.client();
+      const vindo = await signInWithGoogle(entrada, google, MARIA);
+      expect(vindo.location).toBe('/entrar?etapa=codigo');
+      const primeiro = [...comEmail.outbox].reverse().find((m) => m.kind === 'login_code')!;
+      const conf = await entrada.post('/api/auth/code/verify', { code: primeiro.text.match(/\n(\d{6})\n/)![1]! });
+      expect(conf.status).toBe(200);
 
-    const com = api.client();
-    const login = await com.post('/api/auth/login', { email: 'maria@gmail.com', password: 'novaSenhaSegura123' });
-    expect(login.status).toBe(200);
-    expect(login.body.session.user).toMatchObject({ hasPassword: true, google: { email: 'maria@gmail.com' } });
-    expect(await usersCount()).toBe(1);
+      // Ainda nao tem senha.
+      const sem = await comEmail
+        .client()
+        .post('/api/auth/login', { email: 'maria@gmail.com', password: 'qualquer-coisa-123' });
+      expect(sem.status).toBe(401);
+
+      await comEmail.client().post('/api/auth/forgot-password', { email: 'maria@gmail.com' });
+      const mensagem = [...comEmail.outbox].reverse().find((m) => m.kind === 'reset_password')!;
+      expect(mensagem).toBeDefined();
+      const reset = await comEmail.client().post('/api/auth/reset-password', {
+        token: extractToken(mensagem.text),
+        password: 'novaSenhaSegura123',
+      });
+      expect(reset.status).toBe(200);
+
+      // A senha nova e aceita: o login avanca para a 2a etapa em vez de recusar.
+      const com = comEmail.client();
+      const login = await com.post('/api/auth/login', { email: 'maria@gmail.com', password: 'novaSenhaSegura123' });
+      expect(login.status).toBe(200);
+      expect(login.body.status).toBe('code_required');
+
+      const segundo = [...comEmail.outbox].reverse().find((m) => m.kind === 'login_code')!;
+      const entrou = await com.post('/api/auth/code/verify', { code: segundo.text.match(/\n(\d{6})\n/)![1]! });
+      expect(entrou.status).toBe(200);
+      // Os dois metodos convivem na mesma conta, sem duplicar usuario.
+      expect(entrou.body.session.user).toMatchObject({ hasPassword: true, google: { email: 'maria@gmail.com' } });
+      expect(await comEmail.db.select().from(schema.users)).toHaveLength(1);
+    } finally {
+      await comEmail.close();
+    }
   });
 });

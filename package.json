@@ -23,6 +23,7 @@
     "clean": "rm -rf apps/*/dist packages/*/dist apps/web/.tsbuild && find . -name '*.tsbuildinfo' -not -path './node_modules/*' -delete",
     "db:deploy": "pnpm --filter @codeca/database run prepare-db",
     "sdk:check": "pnpm --filter @codeca/sdk build && node packages/sdk/scripts/prepublish.mjs --require-build",
+    "validate:email": "node scripts/validate/email.mjs",
     "sdk:pack": "pnpm --filter @codeca/sdk build && cd packages/sdk && pnpm publish --dry-run --no-git-checks"
   },
   "dependencies": {

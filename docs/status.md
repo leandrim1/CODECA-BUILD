@@ -33,8 +33,9 @@ Legenda:
 | --- | --- | --- |
 | Cadastro de empresa + proprietario | Pronto | cria empresa, site com os modulos do segmento padrao e assinatura de avaliacao |
 | Login, logout, sessoes ativas, encerrar outras sessoes | Pronto | token opaco, cookie HttpOnly |
-| Verificacao de e-mail | Pronto, depende de credencial | sem `RESEND_API_KEY` o link vai para o log do servidor |
-| Recuperacao de senha | Pronto, depende de credencial | idem |
+| Verificacao de e-mail | Pronto, depende de credencial | sem `RESEND_API_KEY` o link vai para o log do servidor; o **reenvio** da confirmacao recusa com `501` em vez de prometer o que nao envia |
+| Recuperacao de senha | Pronto, depende de credencial | sem `RESEND_API_KEY` a rota **recusa com `501`**: antes respondia "enviado", o link ficava no log e a pessoa ficava trancada fora da conta |
+| Diagnostico do envio de e-mail (painel mestre) | Pronto | cartao na visao geral da plataforma: veredito do provedor, dominios com situacao de verificacao e teste de envio para o proprio e-mail de quem clica. Mais `pnpm run validate:email`, que fala com o provedor de verdade |
 | Convite de colaboradores | Pronto, depende de credencial | o vinculo e criado no banco; o e-mail depende da chave |
 | Papeis `owner`/`admin`/`editor`/`viewer` | Pronto | capacidades verificadas no backend |
 | `platform_admin` separado dos papeis de empresa | Pronto | ser admin de empresa nao da acesso global |
@@ -42,7 +43,8 @@ Legenda:
 | Acesso de suporte explicito, temporario e auditado | Pronto | `support_access_grants`, somente leitura |
 | Autenticacao em dois fatores | Nao implementado | — |
 | Login com Google ("Continuar com Google") | Pronto, depende de credencial | OAuth 2.0 com PKCE, `state` amarrado ao navegador e `id_token` validado no servidor (RS256, emissor, audiencia, expiracao, nonce). Usuario novo cria so a conta e cadastra a empresa pelo fluxo normal; **e-mail ja cadastrado nunca e vinculado so por ser igual** -- vincular exige a senha. Ver [google-oauth.md](google-oauth.md) |
-| Verificacao por e-mail em duas etapas (senha ou Google, depois codigo) | Pronto, depende de credencial | todo login termina com codigo de 6 digitos enviado ao e-mail: 10 min, uso unico, 5 tentativas, hash com segredo, 60 s entre reenvios; o codigo so e aceito de quem venceu a 1a etapa. Nao ha entrada so por codigo. **Precisa de `RESEND_API_KEY` com dominio verificado; em producao use `LOGIN_CODE_REQUIRED=true`. O envio real nao foi exercitado sem a chave.** Ver [login-por-codigo.md](login-por-codigo.md) |
+| Entrar so com o e-mail (codigo, sem senha) | Pronto, depende de credencial | `POST /api/auth/code/start`: resposta **identica** exista ou nao a conta (e-mail sem conta gera codigo que nunca abre sessao e nao recebe mensagem), cotas por IP e por e-mail aplicadas antes da busca, reenvio que nao escreve para terceiros. Nao cria conta. Ver [login-por-codigo.md](login-por-codigo.md) |
+| Verificacao por e-mail em duas etapas (senha ou Google, depois codigo) | Pronto, depende de credencial | todo login termina com codigo de 6 digitos enviado ao e-mail: 10 min, uso unico, 5 tentativas, hash com segredo, 60 s entre reenvios; o codigo so e aceito de quem venceu a 1a etapa. Nao ha entrada so por codigo. **Precisa de `RESEND_API_KEY` com dominio verificado; em producao use `LOGIN_CODE_REQUIRED=true`.** A chave foi validada contra a Resend (aceita); **nenhum dominio esta cadastrado na conta do provedor**, e sem dominio verificado o envio e recusado para qualquer destinatario que nao o dono da conta. Ver [login-por-codigo.md](login-por-codigo.md) |
 
 ## Página inicial
 
@@ -205,7 +207,7 @@ substituem as que descreviam o modelo antigo.
 | Vercel Blob | `BLOB_READ_WRITE_TOKEN` | biblioteca de imagens recusa envios com aviso |
 | Dominios na Vercel | `VERCEL_API_TOKEN`, `VERCEL_TEAM_ID` (o projeto e de cada site, no painel mestre) | dominios **gerenciados** ficam em "Aguardando DNS" e nunca viram ativos; os registrados nao dependem disto |
 | Alvos de DNS | `DOMAIN_A_RECORD_IP`, `DOMAIN_CNAME_TARGET` | instrucoes mostram os valores padrao da Vercel, que podem estar desatualizados |
-| E-mail transacional | `RESEND_API_KEY`, `MAIL_FROM` | confirmacao, redefinicao e convites vao para o log do servidor |
+| E-mail transacional | `RESEND_API_KEY`, `MAIL_FROM` | a confirmacao do cadastro e os convites vao para o log do servidor; **recuperacao de senha, reenvio da confirmacao e entrada por codigo recusam com `501`** em vez de fingir que enviaram. Confira com `pnpm run validate:email` ou pelo cartao "Envio de e-mail" no painel mestre |
 | Pagamentos ValidaPay | `VALIDAPAY_CLIENT_ID`, `VALIDAPAY_CLIENT_SECRET`, `VALIDAPAY_BASE_URL` | a contratacao de planos e recusada com mensagem explicita |
 | Webhooks de pagamento | `VALIDAPAY_WEBHOOK_SECRET` | os eventos sao **recusados** (401) e a ativacao dependeria so da reconciliacao |
 | Reconciliacao automatica | `BILLING_RECONCILIATION_SECRET` (+ `CRON_SECRET` na Vercel) | o job responde 501 e nada roda periodicamente |

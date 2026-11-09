@@ -52,11 +52,30 @@ export async function issueLoginCode(
   // Limpeza oportunista: sem tarefa agendada, cada pedido apaga o que venceu ha mais de um dia.
   await db.delete(schema.loginCodes).where(lt(schema.loginCodes.expiresAt, new Date(now.getTime() - 24 * 3600_000)));
 
-  // Intervalo minimo entre pedidos. Vale igual para qualquer e-mail, exista conta ou nao.
+  /*
+   * Intervalo minimo entre pedidos. Vale igual para qualquer e-mail, exista
+   * conta ou nao.
+   *
+   * So conta o ultimo codigo que AINDA SERVE (nao usado e nao vencido). Olhar o
+   * ultimo codigo qualquer tem uma consequencia ruim: quem entra, sai e entra de
+   * novo dentro de 60 s nao recebe codigo novo -- porque existe um "recente" --
+   * e o recente ja foi consumido na primeira entrada. A pessoa ficaria presa por
+   * um minuto vendo "codigo incorreto" sem nada ter chegado.
+   *
+   * O intervalo existe para nao enviar dois codigos enquanto um vale; sem codigo
+   * valendo, enviar e justamente o certo. A cota por e-mail (5 por hora) segue
+   * sendo o que limita o volume.
+   */
   const [latest] = await db
     .select({ createdAt: schema.loginCodes.createdAt })
     .from(schema.loginCodes)
-    .where(eq(schema.loginCodes.email, email))
+    .where(
+      and(
+        eq(schema.loginCodes.email, email),
+        isNull(schema.loginCodes.usedAt),
+        gt(schema.loginCodes.expiresAt, now),
+      ),
+    )
     .orderBy(desc(schema.loginCodes.createdAt))
     .limit(1);
   if (latest) {
@@ -159,14 +178,16 @@ export async function verifyLoginCode(
 // -------------------------------------------- comprovante da 1a etapa
 
 /**
- * Comprovante de que a PRIMEIRA etapa do login (senha correta, ou Google
- * autorizado) foi vencida e falta so o codigo.
+ * Comprovante da etapa em andamento do login.
  *
- * E o que impede "e-mail + codigo" de ser um jeito de entrar: o codigo so e
- * aceito de quem apresenta este comprovante, e ele so e emitido depois da
- * senha. Vai em cookie HttpOnly assinado (nada em `localStorage`, nada que o
- * JavaScript da pagina leia). O e-mail, o usuario e o destino saem DAQUI, nunca
- * do corpo da requisicao.
+ * Vai em cookie HttpOnly assinado (nada em `localStorage`, nada que o JavaScript
+ * da pagina leia). O e-mail, o usuario e o destino saem DAQUI, nunca do corpo da
+ * requisicao -- senao bastaria trocar o e-mail no corpo para usar o codigo de
+ * outra pessoa.
+ *
+ * Tres caminhos emitem o comprovante, e e `method` que os distingue:
+ * `password` e `google` depois de vencida a primeira etapa, e `email` no login
+ * so com o e-mail, em que o codigo E a autenticacao.
  */
 export const LOGIN_PENDING_COOKIE = 'codeca_login_pending';
 export const LOGIN_PENDING_COOKIE_PATH = '/api/auth/code';
@@ -174,9 +195,17 @@ export const LOGIN_PENDING_TTL_MINUTES = 15;
 
 export interface PendingLogin {
   email: string;
+  /**
+   * Conta a que o codigo se refere, ou vazio quando NAO existe conta com este
+   * e-mail (`method: 'email'`).
+   *
+   * O vazio e o que permite a rota publica responder igual exista ou nao a
+   * conta, sem revelar cadastro: o codigo e emitido do mesmo jeito, mas a
+   * validacao nao encontra usuario e para no mesmo erro de codigo invalido.
+   */
   userId: string;
-  /** Como a primeira etapa foi vencida; so informativo (auditoria). */
-  method: 'password' | 'google';
+  /** Qual caminho emitiu o comprovante. */
+  method: 'password' | 'google' | 'email';
   /** "Manter conectado" marcado na primeira etapa. */
   rememberMe: boolean;
   /** Destino depois de entrar (ja validado como caminho interno). */
@@ -203,7 +232,7 @@ export function readPendingLogin(env: Env, value: string | null | undefined, now
     if (
       typeof p.email !== 'string' ||
       typeof p.userId !== 'string' ||
-      (p.method !== 'password' && p.method !== 'google') ||
+      (p.method !== 'password' && p.method !== 'google' && p.method !== 'email') ||
       typeof p.rememberMe !== 'boolean' ||
       typeof p.next !== 'string' ||
       typeof p.x !== 'number' ||

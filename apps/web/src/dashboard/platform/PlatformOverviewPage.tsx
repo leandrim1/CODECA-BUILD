@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { Building2, FileText, Globe, HardDrive, Users } from 'lucide-react';
+import { Building2, FileText, Globe, HardDrive, Mail, Users } from 'lucide-react';
 import { formatBytes, formatDateTime } from '@codeca/shared';
-import { Badge, Card, CardBody, CardHeader, PageHeader } from '@codeca/ui';
-import { useResource } from '../../hooks/useResource.js';
+import { Alert, Badge, Button, Card, CardBody, CardHeader, PageHeader, useToast } from '@codeca/ui';
+import { useMutation, useResource } from '../../hooks/useResource.js';
 import { platformApi } from '../../services/endpoints.js';
 import { ResourcePanel } from '../../components/ResourcePanel.js';
 import { tenantTone } from '../../utils/labels.js';
@@ -17,6 +17,8 @@ export function PlatformOverviewPage() {
         title="Visão geral da plataforma"
         description="Números agregados de todas as empresas. Para ver o conteúdo de uma empresa é necessária uma concessão de suporte."
       />
+
+      <EnvioDeEmail />
 
       <ResourcePanel resource={overview}>
         {(data) => (
@@ -81,6 +83,91 @@ export function PlatformOverviewPage() {
         )}
       </ResourcePanel>
     </div>
+  );
+}
+
+/**
+ * O envio de e-mail funciona?
+ *
+ * Esta pergunta merece um lugar fixo aqui porque dela dependem recuperacao de
+ * senha, convite de usuario e codigo de acesso -- e porque nada no produto avisa
+ * sozinho quando ela passa a ser "nao". A sonda consulta o provedor em leitura;
+ * o teste envia uma mensagem, e so para o e-mail de quem clicou.
+ *
+ * Os dois motivos reais de "o e-mail nao chega" aparecem separados: chave
+ * recusada e dominio do remetente nao verificado.
+ */
+function EnvioDeEmail() {
+  const toast = useToast();
+  const status = useResource('platformApi.emailStatus', () => platformApi.emailStatus(), []);
+
+  const testar = useMutation(() => platformApi.emailTest(), {
+    onSuccess: (result) => {
+      if (result.delivered) toast.success('Mensagem enviada', `Confira a caixa de entrada de ${result.to}.`);
+      else toast.error('O provedor não aceitou', result.reason ?? 'Sem detalhes.');
+    },
+    onError: (error) => toast.error('Não foi possível enviar', error.message),
+  });
+
+  return (
+    <Card>
+      <CardHeader
+        title="Envio de e-mail"
+        description="Recuperação de senha, convites e código de acesso dependem deste caminho."
+      />
+      <CardBody className="grid gap-4">
+        <ResourcePanel resource={status}>
+          {(data) => {
+            const recusado = data.configured && data.probe?.ok === false;
+            const semVerificacao = data.senderVerified === false;
+            return (
+              <div className="grid gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Mail aria-hidden="true" className="size-4 shrink-0 text-slate-400" />
+                  {!data.configured ? (
+                    <Badge tone="warning">Não configurado</Badge>
+                  ) : recusado ? (
+                    <Badge tone="danger">Chave recusada</Badge>
+                  ) : semVerificacao ? (
+                    <Badge tone="warning">Domínio não verificado</Badge>
+                  ) : (
+                    <Badge tone="success">Provedor respondendo</Badge>
+                  )}
+                  <span className="min-w-0 text-sm text-slate-600 [overflow-wrap:anywhere]">{data.from}</span>
+                </div>
+
+                {data.hint ? <Alert tone="warning">{data.hint}</Alert> : null}
+                {recusado && data.probe?.reason ? <Alert tone="danger">{data.probe.reason}</Alert> : null}
+
+                {data.probe?.domains && data.probe.domains.length > 0 ? (
+                  <ul className="grid gap-1 text-sm">
+                    {data.probe.domains.map((item) => (
+                      <li key={item.name} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                        <span className="min-w-0 text-slate-700 [overflow-wrap:anywhere]">{item.name}</span>
+                        <Badge tone={item.status.toLowerCase() === 'verified' ? 'success' : 'warning'}>
+                          {item.status}
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                {data.configured ? (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button variant="outline" size="sm" loading={testar.loading} onClick={() => void testar.run(undefined)}>
+                      Enviar teste para mim
+                    </Button>
+                    <span className="text-xs text-slate-500">
+                      A mensagem vai somente para o e-mail da sua conta.
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            );
+          }}
+        </ResourcePanel>
+      </CardBody>
+    </Card>
   );
 }
 

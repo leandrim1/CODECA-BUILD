@@ -119,3 +119,90 @@ export function createMemoryMailer(): Mailer & { outbox: MailMessage[] } {
     },
   };
 }
+
+// ------------------------------------------------- sonda do provedor
+
+/**
+ * Situacao do provedor de e-mail, como o painel mestre a mostra.
+ *
+ * Nenhum campo carrega a chave: a sonda devolve so o veredito e os dominios
+ * cadastrados, que sao dados publicos do remetente.
+ */
+export interface MailProviderProbe {
+  /** `true` quando a chave foi aceita pelo provedor. */
+  ok: boolean;
+  /** Motivo legivel quando nao esta ok. Nunca inclui a chave. */
+  reason?: string;
+  /** Codigo HTTP da resposta do provedor, quando houve resposta. */
+  status?: number;
+  /** Dominios cadastrados no provedor, com a situacao de verificacao. */
+  domains?: Array<{ name: string; status: string; region?: string }>;
+}
+
+/**
+ * Pergunta ao provedor se a chave vale e quais dominios estao verificados.
+ *
+ * E a unica forma honesta de responder "o envio funciona?" sem disparar um
+ * e-mail de verdade: uma chave invalida, uma conta suspensa ou um dominio ainda
+ * nao verificado aparecem aqui, antes de o primeiro cliente esquecer a senha.
+ *
+ * Usa uma rota de LEITURA do provedor (`GET /domains`), que nao envia nada e
+ * nao cria nada.
+ */
+export async function probeMailProvider(
+  apiKey: string,
+  /** Cliente HTTP; os testes passam o deles, para nao tocar a rede. */
+  fetchImpl: typeof globalThis.fetch = globalThis.fetch,
+): Promise<MailProviderProbe> {
+  try {
+    const response = await fetchImpl('https://api.resend.com/domains', {
+      headers: { authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(MAIL_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: response.status,
+        reason:
+          response.status === 401 || response.status === 403
+            ? 'O provedor recusou a chave (401/403). Confira RESEND_API_KEY.'
+            : `O provedor respondeu ${response.status}.`,
+      };
+    }
+    const payload = (await response.json()) as { data?: unknown };
+    const lista = Array.isArray(payload.data) ? payload.data : [];
+    return {
+      ok: true,
+      status: response.status,
+      domains: lista.flatMap((item) => {
+        if (typeof item !== 'object' || item === null) return [];
+        const row = item as Record<string, unknown>;
+        if (typeof row.name !== 'string') return [];
+        return [
+          {
+            name: row.name,
+            status: typeof row.status === 'string' ? row.status : 'desconhecido',
+            ...(typeof row.region === 'string' ? { region: row.region } : {}),
+          },
+        ];
+      }),
+    };
+  } catch (error) {
+    // Prazo vencido ou rede: nao e veredito sobre a chave, e sobre o alcance.
+    return {
+      ok: false,
+      reason:
+        error instanceof Error && error.name === 'TimeoutError'
+          ? `O provedor não respondeu em ${MAIL_TIMEOUT_MS / 1000}s.`
+          : 'Não foi possível contatar o provedor de e-mail.',
+    };
+  }
+}
+
+/** Dominio do remetente configurado em `MAIL_FROM`, em minusculas. */
+export function senderDomain(mailFrom: string): string | null {
+  const match = mailFrom.match(/<([^>]+)>/);
+  const address = (match?.[1] ?? mailFrom).trim();
+  const domain = address.split('@')[1]?.trim().toLowerCase();
+  return domain && domain.length > 0 ? domain : null;
+}

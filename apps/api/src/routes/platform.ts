@@ -31,6 +31,7 @@ import { z } from 'zod';
 import { AUDIT_ACTIONS, listAuditLogs } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
 import { created, noContent, ok, parseJsonBody, parseJsonPatch, parseParams, parseQuery } from '../lib/http.js';
+import { probeMailProvider, senderDomain } from '../lib/mailer.js';
 import { loadPlanStatus } from '../lib/plan-limits.js';
 import { buildActionUrl, issueUserToken } from '../lib/tokens.js';
 import { requireAuth, requirePlatform, sessionOf } from '../middleware/auth.js';
@@ -48,6 +49,89 @@ import type { AppBindings } from '../types.js';
 export function platformRoutes() {
   const app = new Hono<AppBindings>();
   app.use('*', requireAuth());
+
+  // ------------------------------------------------- diagnostico do e-mail
+  /**
+   * O envio de e-mail funciona?
+   *
+   * Nenhum recurso da plataforma avisa sozinho que o e-mail parou, e e dele que
+   * dependem recuperacao de senha, convite e codigo de acesso. Esta rota
+   * pergunta ao provedor, em leitura, se a chave vale e se o dominio do
+   * remetente esta verificado -- os dois motivos reais de "o e-mail nao chega".
+   *
+   * A chave NUNCA aparece na resposta: so o veredito e os dominios cadastrados.
+   */
+  app.get('/email-status', requirePlatform('platform:overview'), async (c) => {
+    const ctx = c.get('ctx');
+    const from = ctx.env.MAIL_FROM;
+    const dominio = senderDomain(from);
+
+    if (!ctx.features.transactionalEmail) {
+      return ok(c, {
+        configured: false,
+        from,
+        senderDomain: dominio,
+        probe: null,
+        senderVerified: null,
+        hint: 'Defina RESEND_API_KEY e MAIL_FROM nas variáveis de ambiente do projeto.',
+      });
+    }
+
+    const probe = await probeMailProvider(ctx.env.RESEND_API_KEY!, ctx.fetch);
+    // Verificado = o dominio do remetente aparece na conta do provedor como
+    // verificado. Sem isso o provedor aceita a chave e recusa o envio.
+    const senderVerified = probe.ok && probe.domains
+      ? probe.domains.some((d) => d.name.toLowerCase() === dominio && d.status.toLowerCase() === 'verified')
+      : null;
+
+    return ok(c, {
+      configured: true,
+      from,
+      senderDomain: dominio,
+      probe,
+      senderVerified,
+      hint:
+        senderVerified === false
+          ? `O domínio ${dominio ?? 'do remetente'} não está verificado no provedor; `
+            + 'o envio será recusado até a verificação dos registros DNS.'
+          : null,
+    });
+  });
+
+  /**
+   * Envia uma mensagem de teste -- SO para o proprio e-mail de quem pediu.
+   *
+   * Destino fixo de proposito: uma rota que aceitasse destinatario arbitrario
+   * transformaria o painel mestre em disparador de e-mail em nome da
+   * plataforma.
+   */
+  app.post('/email-test', requirePlatform('platform:overview'), async (c) => {
+    const ctx = c.get('ctx');
+    const session = sessionOf(c);
+    if (!ctx.features.transactionalEmail) {
+      throw AppError.notConfigured('O envio de e-mail não está configurado nesta instalação.');
+    }
+
+    const delivery = await ctx.mailer.send({
+      to: session.user.email,
+      kind: 'verify_email',
+      subject: `Teste de envio - ${ctx.env.PLATFORM_NAME}`,
+      text:
+        'Esta é uma mensagem de teste do painel mestre do CODECA Build.\n\n'
+        + 'Se você recebeu, o envio transacional está funcionando: recuperação de senha, '
+        + 'convites e código de acesso usam exatamente este caminho.\n\n'
+        + `Enviada em ${ctx.now().toISOString()}.\n`,
+    });
+
+    await auditFromContext(c, {
+      action: AUDIT_ACTIONS.platformEmailTested,
+      entityType: 'user',
+      entityId: session.user.id,
+      metadata: { delivered: delivery.delivered },
+    });
+
+    return ok(c, { delivered: delivery.delivered, reason: delivery.reason ?? null, to: session.user.email });
+  });
 
   // ------------------------------------------------------------- resumo
   app.get('/overview', requirePlatform('platform:overview'), async (c) => {

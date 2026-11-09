@@ -44,6 +44,26 @@ import type { AppBindings } from '../types.js';
 const MAX_FAILED_LOGINS = 5;
 const LOCK_MINUTES = 15;
 
+/**
+ * Recusa, de forma explicita, o que depende de um e-mail que ninguem vai receber.
+ *
+ * Sem provedor configurado o envio cai no log do servidor. Para o cadastro isso
+ * e tolerave: a conta nasce com sessao e a confirmacao pode esperar. Para
+ * "esqueci minha senha" nao e: a tela diria "verifique sua caixa de entrada", o
+ * link ficaria no log de uma funcao serverless e a pessoa ficaria trancada fora
+ * da propria conta sem nunca saber por que. Melhor dizer a verdade.
+ *
+ * A recusa nao revela cadastro nenhum: ela depende so da configuracao do
+ * servidor, identica para qualquer e-mail digitado.
+ */
+function assertMailerConfigured(ctx: { features: { transactionalEmail: boolean } }): void {
+  if (ctx.features.transactionalEmail) return;
+  throw AppError.notConfigured(
+    'O envio de e-mail ainda não está configurado nesta instalação, '
+      + 'então não há como entregar o link. Procure o suporte da CODECA IA.',
+  );
+}
+
 export function authRoutes() {
   const app = new Hono<AppBindings>();
   app.use('*', sessionMiddleware());
@@ -368,6 +388,7 @@ export function authRoutes() {
   app.post('/resend-verification', async (c) => {
     const ctx = c.get('ctx');
     const ip = clientIp(c);
+    assertMailerConfigured(ctx);
     await enforceRateLimit(
       ctx.db,
       RATE_LIMITS.emailVerification,
@@ -403,6 +424,7 @@ export function authRoutes() {
   app.post('/forgot-password', async (c) => {
     const ctx = c.get('ctx');
     const ip = clientIp(c);
+    assertMailerConfigured(ctx);
     await enforceRateLimit(
       ctx.db,
       RATE_LIMITS.passwordReset,

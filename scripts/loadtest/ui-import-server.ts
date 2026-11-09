@@ -224,6 +224,11 @@ const env = parseEnv({
   APP_URL: `http://localhost:${PORT}`,
   PLATFORM_HOSTS: 'localhost',
   COOKIE_SECURE: 'false',
+  // Liga as telas que dependem de e-mail (entrada por codigo, cartao de
+  // diagnostico no painel mestre). O envio e a caixa de saida em memoria; a
+  // chave aqui so existe para a bandeira `emailCodeAuth` ficar verdadeira.
+  RESEND_API_KEY: 'chave-da-conferencia-visual',
+  MAIL_FROM: 'CODECA Build <nao-responda@codecabuild.com>',
 });
 
 const context = createContext({
@@ -238,7 +243,12 @@ const context = createContext({
 
 const app = createApp({ context });
 
-async function semear(): Promise<{ sessionToken: string; csrfToken: string }> {
+interface Sessao {
+  sessionToken: string;
+  csrfToken: string;
+}
+
+async function semear(): Promise<{ cliente: Sessao; plataforma: Sessao }> {
   await executarSql(
     'drop schema if exists public cascade; create schema public; drop schema if exists drizzle cascade;',
   );
@@ -292,8 +302,38 @@ async function semear(): Promise<{ sessionToken: string; csrfToken: string }> {
     userAgent: 'conferencia-visual',
   });
 
+  /*
+   * Uma SEGUNDA conta, administradora da plataforma.
+   *
+   * Sem ela as rotas `/plataforma/*` respondem "Area restrita" e a varredura
+   * visual aprova nove telas que nunca chegou a ver -- foi o que aconteceu ate
+   * aqui. Uma conta so, com os dois papeis, tambem nao serve: o menu lateral do
+   * cliente mudaria, e as outras rotas deixariam de ser conferidas como o
+   * cliente as ve.
+   */
+  const [adminPlataforma] = await db
+    .insert(schema.users)
+    .values({
+      email: 'operacao@codecaia.test',
+      name: 'Operação CODECA IA',
+      passwordHash: senha,
+      emailVerifiedAt: new Date(),
+      platformRole: 'platform_admin',
+    })
+    .returning({ id: schema.users.id });
+
+  const sessaoPlataforma = await createSession(db, env, {
+    userId: adminPlataforma!.id,
+    rememberMe: true,
+    ip: '127.0.0.1',
+    userAgent: 'conferencia-visual',
+  });
+
   console.log(`[ui] empresa ${company.tenantId} pronta, com todos os modulos.`);
-  return { sessionToken: session.sessionToken, csrfToken: session.csrfToken };
+  return {
+    cliente: { sessionToken: session.sessionToken, csrfToken: session.csrfToken },
+    plataforma: { sessionToken: sessaoPlataforma.sessionToken, csrfToken: sessaoPlataforma.csrfToken },
+  };
 }
 
 const sessao = await semear();
@@ -326,13 +366,17 @@ serve({
      * recusada, que e exatamente o que a protecao deve fazer.
      */
     if (url.pathname === '/__entrar') {
+      // `?plataforma=1` entra como administrador do painel mestre.
+      const mestre = url.searchParams.get('plataforma') === '1';
+      const atual = mestre ? sessao.plataforma : sessao.cliente;
       const headers = new Headers({ 'content-type': 'text/html; charset=utf-8' });
       headers.append(
         'set-cookie',
-        `codeca_session=${sessao.sessionToken}; Path=/; HttpOnly; SameSite=Lax`,
+        `codeca_session=${atual.sessionToken}; Path=/; HttpOnly; SameSite=Lax`,
       );
-      headers.append('set-cookie', `codeca_csrf=${sessao.csrfToken}; Path=/; SameSite=Lax`);
-      return new Response('<meta http-equiv="refresh" content="0;url=/painel/importar">', {
+      headers.append('set-cookie', `codeca_csrf=${atual.csrfToken}; Path=/; SameSite=Lax`);
+      const destino = mestre ? '/plataforma' : '/painel/importar';
+      return new Response(`<meta http-equiv="refresh" content="0;url=${destino}">`, {
         status: 200,
         headers,
       });
@@ -363,4 +407,5 @@ serve({
 });
 
 console.log(`[ui] painel em http://localhost:${PORT}/__entrar`);
-console.log(`[ui] csrf: ${sessao.csrfToken}`);
+console.log(`[ui] csrf: ${sessao.cliente.csrfToken}`);
+console.log(`[ui] painel mestre em http://localhost:${PORT}/__entrar?plataforma=1`);

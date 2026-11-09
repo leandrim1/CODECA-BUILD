@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq, schema } from '@codeca/database';
-import type { MailMessage, Mailer } from '@codeca/api';
+import { hashLoginCode, type MailMessage, type Mailer } from '@codeca/api';
 import {
   createTestApi,
   registerAccount,
@@ -771,3 +771,191 @@ describe('o codigo nao vaza em lugar nenhum', () => {
   });
 });
 
+
+describe('entrar so com o e-mail (sem senha)', () => {
+  const start = (client: TestClient, email: string, rememberMe = false) =>
+    client.post(`${CODE}/start`, { email, rememberMe });
+
+  /** O codigo gravado para este e-mail, lido do banco (nao do e-mail). */
+  async function codeRowsFor(email: string) {
+    return api.db.select().from(schema.loginCodes).where(eq(schema.loginCodes.email, email));
+  }
+
+  it('pede o codigo, digita, e a sessao nasce -- sem passar pela senha', async () => {
+    const conta = await cliente();
+    const client = api.client();
+
+    const pedido = await start(client, conta.email, true);
+    expect(pedido.status).toBe(200);
+    expect(pedido.body.email).toBe(conta.email);
+    // Ainda nao ha sessao: o codigo e que autentica.
+    expect(client.sessionCookie).toBeNull();
+
+    const response = await verify(client, codeSentTo(conta.email));
+    expect(response.status).toBe(200);
+    expect(response.body.session.user.email).toBe(conta.email);
+    expect(client.sessionCookie).not.toBeNull();
+    expect(await audit('user.code_logged_in')).not.toHaveLength(0);
+  });
+
+  it('e-mail sem conta: resposta identica a de quem tem conta, e nenhum e-mail sai', async () => {
+    const conta = await cliente();
+
+    const comConta = await start(api.client(), conta.email);
+    const semConta = await start(api.client(), 'nao-existe@empresa.com.br');
+
+    expect(semConta.status).toBe(comConta.status);
+    expect(Object.keys(semConta.body).sort()).toEqual(Object.keys(comConta.body).sort());
+    expect(semConta.body.sent).toBe(comConta.body.sent);
+    expect(semConta.body.expiresInSeconds).toBe(comConta.body.expiresInSeconds);
+    expect(semConta.body.resendAfterSeconds).toBe(comConta.body.resendAfterSeconds);
+    expect(semConta.body.email).toBe('nao-existe@empresa.com.br');
+
+    // O codigo existe no banco (para as cotas e o intervalo se comportarem
+    // igual), mas nenhuma mensagem foi enviada para aquele endereco.
+    expect(await codeRowsFor('nao-existe@empresa.com.br')).toHaveLength(1);
+    expect(mailsTo('nao-existe@empresa.com.br')).toHaveLength(0);
+    expect(mailsTo(conta.email)).toHaveLength(1);
+  });
+
+  it('o codigo de um e-mail sem conta nao abre sessao, nem sabendo o codigo', async () => {
+    await cliente();
+    const client = api.client();
+    await start(client, 'nao-existe@empresa.com.br');
+
+    const [row] = await codeRowsFor('nao-existe@empresa.com.br');
+    expect(row).toBeDefined();
+    // Fixa um codigo conhecido na linha: e o pior caso: alguem que de fato
+    // acerte o codigo de um e-mail sem conta. Ainda assim nao entra.
+    await api.db
+      .update(schema.loginCodes)
+      .set({ codeHash: hashLoginCode(api.env, 'nao-existe@empresa.com.br', '424242') })
+      .where(eq(schema.loginCodes.id, row!.id));
+
+    const response = await verify(client, '424242');
+    expect(response.status).toBe(401);
+    expect(response.errorMessage).toContain('Código incorreto ou expirado');
+    expect(client.sessionCookie).toBeNull();
+    // Nenhuma conta foi criada por tabela.
+    expect(await usersCount()).toBe(2);
+  });
+
+  it('a cota por e-mail vale igual para e-mail sem conta (nao da para sondar cadastro pela recusa)', async () => {
+    const recusas: number[] = [];
+    for (const email of ['nao-existe@empresa.com.br']) {
+      for (let i = 0; i < 6; i += 1) {
+        const response = await start(api.client(), email);
+        if (response.status !== 200) recusas.push(response.status);
+      }
+    }
+    // Cinco pedidos passam, o sexto e recusado -- exatamente como em uma conta real.
+    expect(recusas).toEqual([429]);
+  });
+
+  it('reenviar o codigo de um e-mail sem conta nao manda nada para aquele endereco', async () => {
+    const client = api.client();
+    await start(client, 'alvo@terceiro.com.br');
+    advance(61);
+    const reenvio = await resend(client);
+    expect(reenvio.status).toBe(200);
+    // O reenvio responde normalmente, mas a plataforma nao escreve para quem
+    // nao tem conta: senao o formulario seria um disparador contra terceiros.
+    expect(mailsTo('alvo@terceiro.com.br')).toHaveLength(0);
+  });
+
+  it('conta bloqueada por erros de senha ainda entra pelo codigo (como a recuperacao de senha)', async () => {
+    const conta = await cliente();
+    for (let i = 0; i < 5; i += 1) await login(api.client(), conta.email, 'senhaErrada123');
+    // A senha agora e recusada por bloqueio.
+    expect((await login(api.client(), conta.email)).status).toBe(429);
+
+    const client = api.client();
+    expect((await start(client, conta.email)).status).toBe(200);
+    const response = await verify(client, codeSentTo(conta.email));
+    expect(response.status).toBe(200);
+    expect(client.sessionCookie).not.toBeNull();
+  });
+
+  it('sem provedor de e-mail a rota recusa com 501, em vez de prometer um codigo que nao chega', async () => {
+    const semEmail = await createTestApi({ now: () => clock });
+    try {
+      const conta = await registerAccount(semEmail, { email: 'cliente@empresa.com.br', companyName: 'Empresa' });
+      const response = await semEmail.client().post(`${CODE}/start`, { email: conta.email, rememberMe: false });
+      expect(response.status).toBe(501);
+      expect(response.errorCode).toBe('integration_not_configured');
+    } finally {
+      await semEmail.close();
+    }
+  });
+
+  it('o codigo de uma conta nao serve para outra, mesmo trocando o e-mail no caminho', async () => {
+    const uma = await cliente('uma@empresa.com.br', 'Empresa Uma');
+    const outra = await cliente('outra@empresa.com.br', 'Empresa Outra');
+
+    const client = api.client();
+    await start(client, outra.email);
+    // Digita, na sessao de "outra", o codigo que foi enviado para "uma".
+    await start(api.client(), uma.email);
+    const response = await verify(client, codeSentTo(uma.email));
+    expect(response.status).toBe(401);
+    expect(client.sessionCookie).toBeNull();
+  });
+});
+
+describe('entrar de novo logo depois de sair', () => {
+  /**
+   * O defeito que este bloco guarda: o intervalo minimo de 60 s entre envios
+   * olhava o ultimo codigo QUALQUER, inclusive um ja consumido. Resultado: quem
+   * entrava, saia e entrava de novo dentro de um minuto nao recebia codigo novo
+   * (existia um "recente") e o recente ja estava gasto -- a pessoa via "codigo
+   * incorreto" sem nada ter chegado, por ate um minuto.
+   */
+  it('recebe um codigo novo, porque o anterior ja foi usado', async () => {
+    const conta = await cliente();
+
+    const primeira = api.client();
+    await login(primeira, conta.email);
+    const codigoUm = codeSentTo(conta.email);
+    expect((await verify(primeira, codigoUm)).status).toBe(200);
+    await primeira.post('/api/auth/logout');
+
+    // Menos de 60 s depois: entra de novo.
+    advance(5);
+    const segunda = api.client();
+    const relogin = await login(segunda, conta.email);
+    expect(relogin.body.status).toBe('code_required');
+
+    // Um codigo NOVO saiu, e o antigo nao serve mais.
+    expect(mailsTo(conta.email)).toHaveLength(2);
+    const codigoDois = codeSentTo(conta.email);
+    expect(codigoDois).not.toBe(codigoUm);
+    expect((await verify(segunda, codigoUm)).status).toBe(401);
+    expect((await verify(api.client(), codigoDois)).status).toBe(401); // sem comprovante
+    expect((await verify(segunda, codigoDois)).status).toBe(200);
+  });
+
+  it('com um codigo ainda valendo, o intervalo continua valendo (nao envia dois)', async () => {
+    const conta = await cliente();
+
+    await login(api.client(), conta.email);
+    expect(mailsTo(conta.email)).toHaveLength(1);
+
+    // Nao verificou: o codigo continua valendo. Entrar de novo nao reenvia.
+    advance(5);
+    await login(api.client(), conta.email);
+    expect(mailsTo(conta.email)).toHaveLength(1);
+  });
+
+  it('codigo vencido tambem libera um novo envio imediato', async () => {
+    const conta = await cliente();
+    await login(api.client(), conta.email);
+    expect(mailsTo(conta.email)).toHaveLength(1);
+
+    // Passa a validade (10 min) e entra de novo: nao ha codigo valendo.
+    advance(11 * 60);
+    const client = api.client();
+    await login(client, conta.email);
+    expect(mailsTo(conta.email)).toHaveLength(2);
+    expect((await verify(client, codeSentTo(conta.email))).status).toBe(200);
+  });
+});

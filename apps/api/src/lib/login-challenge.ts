@@ -18,11 +18,15 @@ import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from './ratelim
 import type { AppBindings } from '../types.js';
 
 /**
- * Segunda etapa do login: envia o codigo por e-mail e abre o comprovante.
+ * Emite o codigo por e-mail e abre o comprovante da etapa.
  *
- * Chamada depois que a PRIMEIRA etapa foi vencida -- senha correta, ou Google
- * autorizado --, nunca antes. Quem chega aqui ja provou algo; o codigo prova que
- * tambem controla a caixa de entrada.
+ * Dois usos, e o chamador escolhe:
+ *
+ * - depois da PRIMEIRA etapa vencida (senha correta, ou Google autorizado): o
+ *   codigo prova que quem acertou a senha tambem controla a caixa de entrada;
+ * - no login so com o e-mail: o codigo E a autenticacao. Nesse caso a rota
+ *   publica ja aplicou as cotas e diz, por `deliver`, se existe conta para
+ *   receber a mensagem.
  */
 
 export interface ChallengeInfo {
@@ -41,14 +45,30 @@ export async function startLoginChallenge(
      * minimo vira erro com a espera.
      */
     reuseRecentCode: boolean;
+    /** As cotas por IP e por e-mail ja foram aplicadas pelo chamador. */
+    alreadyRateLimited?: boolean;
+    /**
+     * `false` emite o codigo mas NAO envia e-mail: e o caso do e-mail sem conta
+     * na rota publica, em que o codigo existe apenas para que o intervalo de
+     * reenvio, as cotas e a resposta sejam identicos aos de uma conta real.
+     * Padrao `true`.
+     */
+    deliver?: boolean;
   },
 ): Promise<ChallengeInfo> {
   const ctx = c.get('ctx');
   const now = ctx.now();
   const ip = clientIp(c);
 
-  await enforceRateLimit(ctx.db, RATE_LIMITS.loginCodeRequestIp, rateLimitSubjectFromIp(ip, ctx.env.AUTH_SECRET), now);
-  await enforceRateLimit(ctx.db, RATE_LIMITS.loginCodeRequestEmail, hashToken(pending.email, ctx.env.AUTH_SECRET), now);
+  if (options.alreadyRateLimited !== true) {
+    await enforceRateLimit(ctx.db, RATE_LIMITS.loginCodeRequestIp, rateLimitSubjectFromIp(ip, ctx.env.AUTH_SECRET), now);
+    await enforceRateLimit(
+      ctx.db,
+      RATE_LIMITS.loginCodeRequestEmail,
+      hashToken(pending.email, ctx.env.AUTH_SECRET),
+      now,
+    );
+  }
 
   const issued = await issueLoginCode(ctx.db, ctx.env, {
     email: pending.email,
@@ -64,6 +84,11 @@ export async function startLoginChallenge(
       });
     }
     resendAfterSeconds = issued.retryAfterSeconds;
+  } else if (options.deliver === false) {
+    // Nada sai. O codigo fica valendo no banco so para o intervalo de reenvio e
+    // as cotas se comportarem como em uma conta real; ninguem o recebe, e a
+    // validacao nao encontra usuario para abrir sessao.
+    resendAfterSeconds = LOGIN_CODE_RESEND_SECONDS;
   } else {
     const message = loginCodeMessage(issued.code);
     const delivery = await ctx.mailer.send({

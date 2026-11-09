@@ -7,11 +7,15 @@ export {
 } from './config-error.js';
 export { parseEnv, envSchema, featureFlags, platformHosts, type Env, type FeatureFlags } from './env.js';
 export { deploymentInfo, type DeploymentInfo } from './lib/deployment.js';
+export { hashLoginCode } from './lib/login-code.js';
 export { probeDatabase, type DatabaseProbe, type ProbeResult } from './lib/db-probe.js';
 export {
   createMemoryMailer,
   createMailer,
   createResendMailer,
+  probeMailProvider,
+  senderDomain,
+  type MailProviderProbe,
   type Mailer,
   type MailMessage,
 } from './lib/mailer.js';

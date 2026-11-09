@@ -138,9 +138,25 @@ export const LOGIN_CODE_MAX_ATTEMPTS = 5;
 export const LOGIN_CODE_RESEND_SECONDS = 60;
 
 /**
+ * Pedido de codigo para entrar so com o e-mail (sem senha).
+ *
+ * E uma forma de autenticacao, nao um atalho: quem digita o codigo prova que
+ * controla a caixa de entrada daquele endereco -- a mesma prova que a
+ * recuperacao de senha ja aceita hoje para TROCAR a senha. Por isso nao abre
+ * nenhuma porta que nao existisse.
+ *
+ * A resposta e identica exista ou nao conta com este e-mail (ver a rota).
+ */
+export const requestLoginCodeSchema = z.object({
+  email: emailSchema,
+  rememberMe: z.boolean().default(false),
+});
+export type RequestLoginCodeInput = z.infer<typeof requestLoginCodeSchema>;
+
+/**
  * O codigo digitado. O e-mail NAO vem no corpo: o servidor o le do comprovante
- * da etapa anterior (cookie HttpOnly, emitido so depois da senha ou do Google),
- * para que "e-mail + codigo" nunca baste para entrar.
+ * emitido ao iniciar o login (cookie HttpOnly), nunca da requisicao -- senao
+ * bastaria trocar o e-mail no corpo para usar o codigo de outra pessoa.
  */
 export const verifyLoginCodeSchema = z.object({
   code: z

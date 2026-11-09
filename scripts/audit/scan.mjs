@@ -61,20 +61,41 @@ const PLATAFORMA = [
 ];
 const OUTRAS = ['/rota-que-nao-existe'];
 
-const ROTAS = [...PUBLICAS, ...AUTENTICACAO, ...PAINEL, ...PLATAFORMA, ...OUTRAS];
+/**
+ * `AUDIT_ROUTES` limita a varredura a rotas especificas (separadas por virgula),
+ * para reconferir so o que mudou sem pagar as 378 combinacoes inteiras.
+ */
+const ROTAS = process.env.AUDIT_ROUTES
+  ? process.env.AUDIT_ROUTES.split(',').map((rota) => rota.trim()).filter(Boolean)
+  : [...PUBLICAS, ...AUTENTICACAO, ...PAINEL, ...PLATAFORMA, ...OUTRAS];
 
 const navegador = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const contexto = await navegador.newContext({ locale: 'pt-BR' });
 
-// Entra uma vez: o cookie vale para todas as rotas protegidas.
-const entrada = await contexto.newPage();
-await entrada.goto(`${BASE}/__entrar`, { waitUntil: 'domcontentloaded' });
-await entrada.close();
+/**
+ * Duas sessoes, trocadas conforme a rota.
+ *
+ * As telas `/plataforma/*` exigem o papel de administrador da plataforma. Com a
+ * conta do cliente elas respondem "Area restrita" -- e a varredura aprovaria
+ * nove rotas sem nunca ter visto o conteudo delas.
+ */
+let papelAtual = null;
+async function entrarComo(papel) {
+  if (papelAtual === papel) return;
+  const entrada = await contexto.newPage();
+  const alvo = papel === 'plataforma' ? `${BASE}/__entrar?plataforma=1` : `${BASE}/__entrar`;
+  await entrada.goto(alvo, { waitUntil: 'domcontentloaded' });
+  await entrada.close();
+  papelAtual = papel;
+}
+
+const papelDaRota = (rota) => (rota.startsWith('/plataforma') ? 'plataforma' : 'cliente');
 
 const achados = [];
 let verificadas = 0;
 
 for (const rota of ROTAS) {
+  await entrarComo(papelDaRota(rota));
   for (const vp of VIEWPORTS) {
     const pagina = await contexto.newPage();
     await pagina.setViewportSize({ width: vp.w, height: vp.h });

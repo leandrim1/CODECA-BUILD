@@ -266,15 +266,38 @@ describe('confirmacao de e-mail', () => {
   });
 });
 
+/**
+ * Recuperacao de senha.
+ *
+ * Sem provedor de e-mail configurado o link de redefinicao nao chega a ninguem:
+ * a rota recusa de forma explicita, em vez de dizer "verifique sua caixa de
+ * entrada" e deixar a pessoa trancada fora da conta esperando um e-mail que
+ * nunca sai. Por isso este bloco sobe uma API com e-mail configurado.
+ */
 describe('recuperacao de senha', () => {
-  it('redefine a senha e encerra as sessoes antigas', async () => {
-    const account = await registerAccount(api, { email: 'reset@a.com.br', companyName: 'Alpha' });
+  let comEmail: TestApi;
 
-    const anonymous = api.client();
+  beforeAll(async () => {
+    comEmail = await createTestApi({ env: { RESEND_API_KEY: 'chave-de-teste' } });
+  });
+
+  afterAll(async () => {
+    await comEmail.close();
+  });
+
+  beforeEach(async () => {
+    await comEmail.reset();
+    await seedPlatformAdmin(comEmail);
+  });
+
+  it('redefine a senha e encerra as sessoes antigas', async () => {
+    const account = await registerAccount(comEmail, { email: 'reset@a.com.br', companyName: 'Alpha' });
+
+    const anonymous = comEmail.client();
     const requested = await anonymous.post('/api/auth/forgot-password', { email: 'reset@a.com.br' });
     expect(requested.status).toBe(200);
 
-    const message = api.outbox.find((m) => m.kind === 'reset_password');
+    const message = comEmail.outbox.find((m) => m.kind === 'reset_password');
     expect(message).toBeDefined();
     const token = extractToken(message!.text);
 
@@ -285,18 +308,45 @@ describe('recuperacao de senha', () => {
     const stale = await account.client.get(`/api/tenants/${account.tenantId}`);
     expect(stale.status).toBe(401);
 
-    const relogin = await api.client().post('/api/auth/login', {
+    // Com e-mail configurado o login tem a 2a etapa: a senha nova e aceita e o
+    // codigo e enviado, o que prova que a senha trocou.
+    const relogin = await comEmail.client().post('/api/auth/login', {
       email: 'reset@a.com.br',
       password: 'novaSenha4567',
     });
     expect(relogin.status).toBe(200);
+    expect(relogin.body.status).toBe('code_required');
   });
 
   it('responde igual para e-mail inexistente', async () => {
-    const client = api.client();
+    const client = comEmail.client();
     const response = await client.post('/api/auth/forgot-password', { email: 'ninguem@a.com.br' });
     expect(response.status).toBe(200);
-    expect(api.outbox.filter((m) => m.kind === 'reset_password')).toHaveLength(0);
+    expect(comEmail.outbox.filter((m) => m.kind === 'reset_password')).toHaveLength(0);
+  });
+
+  it('sem provedor de e-mail, recusa em vez de prometer um link que ninguem recebe', async () => {
+    await registerAccount(api, { email: 'preso@a.com.br', companyName: 'Alpha' });
+
+    const response = await api.client().post('/api/auth/forgot-password', { email: 'preso@a.com.br' });
+    expect(response.status).toBe(501);
+    expect(response.errorCode).toBe('integration_not_configured');
+    // Nenhum token de redefinicao foi criado: nao ha link de troca de senha
+    // esquecido no log de uma funcao serverless.
+    const tokens = await api.db
+      .select()
+      .from(schema.userTokens)
+      .where(eq(schema.userTokens.type, 'password_reset'));
+    expect(tokens).toHaveLength(0);
+    // A recusa nao depende do e-mail digitado, logo nao revela cadastro.
+    const inexistente = await api.client().post('/api/auth/forgot-password', { email: 'ninguem@a.com.br' });
+    expect(inexistente.status).toBe(501);
+    expect(inexistente.errorCode).toBe(response.errorCode);
+  });
+
+  it('o reenvio da confirmacao segue a mesma regra', async () => {
+    const response = await api.client().post('/api/auth/resend-verification', { email: 'preso@a.com.br' });
+    expect(response.status).toBe(501);
   });
 });
 

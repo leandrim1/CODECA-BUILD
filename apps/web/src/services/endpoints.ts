@@ -109,8 +109,20 @@ export const authApi = {
   googleStart: (body: { intent: 'continue'; next?: string } | { intent: 'link'; password: string }) =>
     api.post<{ authorizationUrl: string }>('/api/auth/google/start', body),
   /**
-   * 2a etapa do login: o codigo enviado por e-mail. Todas estas rotas exigem o
-   * comprovante da 1a etapa (cookie HttpOnly) e nenhuma resposta traz o codigo.
+   * Entrar so com o e-mail: pede o codigo de acesso.
+   *
+   * A resposta e a mesma exista ou nao conta com este e-mail -- de proposito,
+   * para a tela nao poder ser usada para descobrir cadastros. Se nao existir,
+   * nenhum e-mail sai e a digitacao do codigo falha como codigo invalido.
+   */
+  codeStart: (body: { email: string; rememberMe: boolean }) =>
+    api.post<{ sent: boolean; email: string; resendAfterSeconds: number; expiresInSeconds: number }>(
+      '/api/auth/code/start',
+      body,
+    ),
+  /**
+   * O codigo enviado por e-mail. Todas estas rotas exigem o comprovante da etapa
+   * em andamento (cookie HttpOnly) e nenhuma resposta traz o codigo.
    */
   codeVerify: (body: { code: string }) =>
     api.post<{ status: 'authenticated'; session: SessionPayload | null; csrfToken: string; next: string }>(
@@ -445,6 +457,29 @@ export const platformApi = {
       byPlan: Array<{ planCode: string; planName: string; tenants: number }>;
       recentTenants: Array<{ id: string; displayName: string; slug: string; status: string; createdAt: string }>;
     }>('/api/platform/overview'),
+  /**
+   * O envio de e-mail funciona? Pergunta ao provedor, em leitura.
+   *
+   * Nenhum campo traz a chave: so o veredito, o remetente e os dominios
+   * cadastrados no provedor.
+   */
+  emailStatus: () =>
+    api.get<{
+      configured: boolean;
+      from: string;
+      senderDomain: string | null;
+      senderVerified: boolean | null;
+      hint: string | null;
+      probe: {
+        ok: boolean;
+        reason?: string;
+        status?: number;
+        domains?: Array<{ name: string; status: string; region?: string }>;
+      } | null;
+    }>('/api/platform/email-status'),
+  /** Envia uma mensagem de teste para o proprio e-mail de quem pediu. */
+  emailTest: () =>
+    api.post<{ delivered: boolean; reason: string | null; to: string }>('/api/platform/email-test'),
   tenants: (params: Record<string, string | number | undefined> = {}) =>
     api.get<Paginated<PlatformTenantRow>>(`/api/platform/tenants${query(params)}`),
   tenantDetail: (tenantId: string) =>

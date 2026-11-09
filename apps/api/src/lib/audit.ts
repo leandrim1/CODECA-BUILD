@@ -130,6 +130,7 @@ export const AUDIT_ACTIONS = {
   supportAccessGranted: 'platform.support_access_granted',
   supportAccessRevoked: 'platform.support_access_revoked',
   supportAccessUsed: 'platform.support_access_used',
+  platformEmailTested: 'platform.email_tested',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

@@ -7,6 +7,7 @@ import {
   createUnconfiguredDomainProvider,
   parseEnv,
   type DomainProvider,
+  type Env,
   type Mailer,
   type MailMessage,
   type MemoryBillingProvider,
@@ -98,6 +99,8 @@ export const TEST_JOB_SECRET = 'segredo-do-job-de-reconciliacao-de-teste';
 
 export interface TestApi {
   db: Database;
+  /** Configuracao efetiva deste cenario (AUTH_SECRET, flags, limites). */
+  env: Env;
   /** Entregas de webhook capturadas no lugar da rede. */
   webhooks: WebhookSink;
   database: TestDatabase;
@@ -156,6 +159,7 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
 
   return {
     db: database.db,
+    env,
     database,
     webhooks,
     app,

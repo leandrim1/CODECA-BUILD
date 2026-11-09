@@ -4,6 +4,7 @@ import {
   LOGIN_CODE_INVALID_MESSAGE,
   LOGIN_CODE_RESEND_SECONDS,
   LOGIN_CODE_TTL_MINUTES,
+  requestLoginCodeSchema,
   verifyLoginCodeSchema,
 } from '@codeca/shared';
 import { hashToken } from '@codeca/shared/server';
@@ -27,29 +28,98 @@ import { createSession, resolveSession, serializeSession } from '../lib/session.
 import type { AppBindings } from '../types.js';
 
 /**
- * Segunda etapa do login: o codigo enviado por e-mail.
+ * O codigo enviado por e-mail: como segunda etapa, e como forma de entrar.
  *
- * ## O codigo NAO e uma porta de entrada
+ * ## Dois caminhos chegam aqui
  *
- * Toda rota daqui exige o comprovante da primeira etapa (cookie HttpOnly emitido
- * depois da senha correta, ou do Google). Sem ele nada funciona: nao ha rota
- * publica para "pedir um codigo para este e-mail" e "e-mail + codigo" nunca
- * autentica. Isso tambem fecha os dois abusos que um pedido publico de codigo
- * traria: encher a caixa de entrada de qualquer pessoa e testar quais e-mails
- * tem conta.
+ * - **Depois da senha, ou do Google**: o codigo e a segunda etapa. Quem chega ja
+ *   provou algo; o codigo prova que tambem controla a caixa de entrada.
+ * - **Direto, so com o e-mail** (`POST /start`): o codigo E a autenticacao.
+ *   Nao e um enfraquecimento: provar controle da caixa de entrada ja basta hoje
+ *   para TROCAR a senha pela recuperacao, entao esta rota nao abre porta que nao
+ *   existisse -- ela so evita a volta pelo e-mail de redefinicao.
+ *
+ * Os dois abusos que uma rota publica de codigo traria estao fechados:
+ *
+ * 1. **Descobrir quais e-mails tem conta**: a resposta de `/start` e identica
+ *    exista ou nao a conta. Um e-mail sem conta tambem gera codigo (que ninguem
+ *    recebe) e tambem consome cota, para que intervalo de reenvio e recusa por
+ *    cota nao denunciem a diferenca. A unica diferenca observavel que resta e o
+ *    tempo da chamada ao provedor de e-mail, a mesma que `/forgot-password` ja
+ *    tem.
+ * 2. **Encher a caixa de entrada de terceiros**: cota por IP e por e-mail,
+ *    intervalo minimo de 60 s entre envios, e reenvio que NAO envia nada quando
+ *    o e-mail nao tem conta.
  *
  * ## O codigo nunca aparece
  *
  * Nem na resposta, nem em log (o mailer de console o omite), nem na auditoria.
  *
+ * ## O e-mail vem do comprovante, nunca do corpo
+ *
+ * `/verify` le o e-mail do cookie HttpOnly assinado. Sem isso, trocar o e-mail
+ * no corpo usaria o codigo de outra pessoa.
+ *
  * ## Mesma sessao
  *
- * Vencida a segunda etapa, a sessao nasce em `createSession`, o mesmo caminho de
+ * Vencido o codigo, a sessao nasce em `createSession`, o mesmo caminho de
  * qualquer entrada: mesmo cookie, mesma expiracao, mesmo logout.
  */
 
 export function codeAuthRoutes() {
   const app = new Hono<AppBindings>();
+
+  // ------------------------------------------------- entrar so com o e-mail
+  /**
+   * Pede um codigo de acesso informando apenas o e-mail.
+   *
+   * Responde SEMPRE a mesma coisa: nao diz se existe conta, nao diz se o e-mail
+   * saiu. Quem tem conta recebe o codigo; quem nao tem recebe silencio, e a
+   * digitacao do codigo falha com a mensagem unica de codigo invalido.
+   */
+  app.post('/start', async (c) => {
+    const ctx = c.get('ctx');
+    assertSameOrigin(c, ctx.env);
+    if (!ctx.features.emailCodeAuth) {
+      throw AppError.notConfigured(
+        'A entrada por código de e-mail depende do envio de e-mail, que não está configurado nesta instalação.',
+      );
+    }
+
+    const input = await parseJsonBody(c, requestLoginCodeSchema);
+    const now = ctx.now();
+    const ip = clientIp(c);
+
+    // As cotas sao aplicadas ANTES de saber se a conta existe, e por isso valem
+    // igual nos dois casos: e o que impede usar a recusa por cota para descobrir
+    // quais e-mails tem conta.
+    await enforceRateLimit(ctx.db, RATE_LIMITS.loginCodeRequestIp, rateLimitSubjectFromIp(ip, ctx.env.AUTH_SECRET), now);
+    await enforceRateLimit(ctx.db, RATE_LIMITS.loginCodeRequestEmail, hashToken(input.email, ctx.env.AUTH_SECRET), now);
+
+    const [user] = await ctx.db
+      .select({ id: schema.users.id, email: schema.users.email })
+      .from(schema.users)
+      .where(eq(schema.users.email, input.email));
+
+    // Conta bloqueada por erros de SENHA continua podendo entrar por aqui, de
+    // proposito: o bloqueio existe contra forca bruta de senha, e o codigo tem
+    // os seus proprios limites. A recuperacao de senha ja funciona assim.
+    const info = await startLoginChallenge(
+      c,
+      {
+        email: input.email,
+        // Vazio quando nao existe conta: o codigo nasce, mas nao abre sessao.
+        userId: user?.id ?? '',
+        method: 'email',
+        rememberMe: input.rememberMe,
+        next: '',
+      },
+      { reuseRecentCode: true, alreadyRateLimited: true, deliver: user !== undefined },
+    );
+
+    c.header('cache-control', 'no-store');
+    return ok(c, { sent: true, email: input.email, ...info });
+  });
 
   // ---------------------------------------------------------- situacao atual
   // A tela chega aqui vindo do Google (um redirecionamento, sem corpo de resposta
@@ -79,7 +149,12 @@ export function codeAuthRoutes() {
     const ctx = c.get('ctx');
     assertSameOrigin(c, ctx.env);
     const pending = requirePending(c);
-    const info = await startLoginChallenge(c, pending, { reuseRecentCode: false });
+    // Comprovante de e-mail sem conta: reenviar enviaria mensagem da plataforma
+    // para um endereco qualquer, a pedido de quem o digitou. Nada sai.
+    const info = await startLoginChallenge(c, pending, {
+      reuseRecentCode: false,
+      deliver: pending.userId !== '',
+    });
     return ok(c, { sent: true, ...info });
   });
 
@@ -97,7 +172,7 @@ export function codeAuthRoutes() {
 
     const result = await verifyLoginCode(ctx.db, ctx.env, { email: pending.email, code: input.code, now });
     if (!result.ok) {
-      if (result.reason === 'exhausted') {
+      if (result.reason === 'exhausted' && pending.userId !== '') {
         await recordAudit(ctx.db, ctx.env, {
           actorUserId: pending.userId,
           actorEmail: pending.email,
@@ -110,6 +185,14 @@ export function codeAuthRoutes() {
         });
       }
       // A mesma mensagem para codigo errado, vencido, usado ou inexistente.
+      throw AppError.unauthenticated(LOGIN_CODE_INVALID_MESSAGE);
+    }
+
+    // Comprovante de e-mail sem conta: o codigo conferiu, mas nao ha quem
+    // autenticar. Mesma mensagem de codigo invalido -- a resposta nao revela que
+    // a diferenca estava na existencia da conta, e nao no codigo.
+    if (pending.userId === '') {
+      clearPending(c);
       throw AppError.unauthenticated(LOGIN_CODE_INVALID_MESSAGE);
     }
 
