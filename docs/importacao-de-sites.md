@@ -110,6 +110,29 @@ A correção trouxe junto uma robustez que faltava: a conexão agora recebe
 registros A deixa de depender da sorte da ordem do DNS, e a barreira continua
 igual — a conexão só alcança endereços que nós aprovamos.
 
+#### Texto que ninguém vê não é conteúdo
+
+Assim que a busca voltou a funcionar, um segundo defeito ficou visível: o
+extrator lia texto escondido como se fosse conteúdo do site.
+
+Ao ler `codecabuild.vercel.app`, o único `<h1>` do HTML servido era **"Não
+foi possível carregar o painel"** — a mensagem de falha do carregamento, que
+fica dentro de um `display:none` e só aparece quando o bundle não executa. A
+importação proporia essa frase como texto institucional da empresa.
+
+Não é um caso isolado: página moderna carrega aviso de cookie, modal fechado
+e aba inativa no HTML, tudo escondido. Importar isso é pior do que não
+importar nada, porque entra no painel do cliente parecendo conteúdo dele.
+
+Agora `textOf`, os blocos, os títulos, os parágrafos e as imagens pulam
+elemento (e subárvore) marcado com o atributo `hidden`, `display:none` ou
+`visibility:hidden`.
+
+O que **não** é adivinhado: nome de classe. Não há folha de estilo aqui, e
+chutar por classe erraria feio — em Tailwind, `hidden md:block` quer dizer
+*visível no computador*, e pular esse texto perderia conteúdo de verdade. Só
+vale o que o próprio elemento declara.
+
 ### Outras proteções
 
 - **Nenhum script do site é executado.** O leitor de HTML

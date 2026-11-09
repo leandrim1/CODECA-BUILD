@@ -292,6 +292,33 @@ export function findFirst(root: HtmlElement, tag: string): HtmlElement | null {
 const NON_CONTENT_TAGS = new Set(['script', 'style', 'noscript', 'template', 'svg', 'iframe', 'object']);
 
 /**
+ * `true` quando o proprio elemento declara que ninguem o ve.
+ *
+ * Nao e preciosismo. Pagina moderna carrega texto escondido no HTML que nunca
+ * chega aos olhos de ninguem: mensagem de erro que so aparece se o aplicativo
+ * nao carregar, aviso de cookie, conteudo de modal fechado, aba inativa.
+ * Importar isso e pior do que nao importar nada -- entra no painel do cliente
+ * como se fosse texto institucional da empresa dele.
+ *
+ * Foi exatamente o que aconteceu ao ler `codecabuild.vercel.app`: o unico
+ * `h1` do HTML e "Nao foi possivel carregar o painel", dentro de um
+ * `display:none` que so vira visivel quando o bundle falha. Sem este desvio,
+ * a importacao proporia essa frase como conteudo do site.
+ *
+ * Confere so o que o **proprio elemento** declara -- atributo `hidden` e
+ * `style` embutido. Nao ha folha de estilo aqui, e adivinhar por nome de
+ * classe erraria feio: em Tailwind, `hidden md:block` quer dizer *visivel no
+ * computador*, e pular esse texto perderia conteudo de verdade.
+ */
+function isHiddenByAttributes(element: HtmlElement): boolean {
+  if ('hidden' in element.attrs) return true;
+  const style = (element.attrs['style'] ?? '').toLowerCase();
+  if (style === '') return false;
+  return /(?:^|;)\s*display\s*:\s*none/.test(style)
+    || /(?:^|;)\s*visibility\s*:\s*hidden/.test(style);
+}
+
+/**
  * Texto visivel de um elemento, com espacos colapsados.
  *
  * Insere espaco entre blocos para `<p>Um</p><p>Dois</p>` nao virar "UmDois" --
@@ -305,6 +332,7 @@ export function textOf(node: HtmlNode): string {
       return;
     }
     if (NON_CONTENT_TAGS.has(current.tag)) return;
+    if (isHiddenByAttributes(current)) return;
     if (current.tag === 'br') {
       parts.push('\n');
       return;
@@ -364,4 +392,20 @@ export function isInside(element: HtmlElement, tags: readonly string[]): boolean
 
 export function attr(element: HtmlElement, name: string): string {
   return element.attrs[name.toLowerCase()] ?? '';
+}
+
+/**
+ * `true` quando o elemento, ou algum ancestral dele, esta escondido.
+ *
+ * O par de `isHiddenByAttributes`, para quem percorre a arvore elemento a
+ * elemento em vez de pedir o texto de um no. Precisa olhar os ancestrais:
+ * o que esconde o `h1` do erro nao e o `h1`, e a `div` que o envolve.
+ */
+export function isHidden(element: HtmlElement): boolean {
+  let node: HtmlElement | null = element;
+  while (node !== null) {
+    if (isHiddenByAttributes(node)) return true;
+    node = node.parent;
+  }
+  return false;
 }

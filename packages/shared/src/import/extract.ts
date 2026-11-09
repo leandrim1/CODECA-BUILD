@@ -7,6 +7,7 @@ import {
   isInside,
   normalizeSpace,
   parseHtml,
+  isHidden,
   textOf,
   walk,
   type HtmlElement,
@@ -443,6 +444,9 @@ function extractImages(root: HtmlElement, pageUrl: string): ExtractedImage[] {
 
   const register = (url: string, alt: string, placement: ExtractedImage['placement'], element: HtmlElement | null): void => {
     if (url === '' || seen.has(url)) return;
+    // Imagem de modal fechado ou de aba inativa nao esta no site que o
+    // visitante ve, e nao deve entrar na biblioteca do cliente.
+    if (element !== null && isHidden(element)) return;
     // `data:` nao e arquivo no site do cliente, e nao vale importar.
     if (/^data:/i.test(url)) return;
     seen.add(url);
@@ -520,6 +524,9 @@ function extractBlocks(root: HtmlElement): ExtractedBlock[] {
   let current: ExtractedBlock | null = null;
 
   for (const element of walk(root)) {
+    // Texto que ninguem ve nao e conteudo do site. Ver `isHidden`.
+    if (isHidden(element)) continue;
+
     const heading = /^h([1-6])$/.exec(element.tag);
     if (heading?.[1]) {
       // Cabecalho de menu ou rodape nao abre secao de conteudo.
@@ -891,6 +898,7 @@ export function extractPage(input: { html: string; url: string; homeUrl: string 
   for (const element of walk(body)) {
     const match = /^h([1-6])$/.exec(element.tag);
     if (!match?.[1]) continue;
+    if (isHidden(element)) continue;
     const text = inlineTextOf(element);
     if (text === '' || text.length > 200) continue;
     headings.push({ level: Number(match[1]), text });
@@ -902,6 +910,7 @@ export function extractPage(input: { html: string; url: string; homeUrl: string 
   for (const element of findAll(body, 'p')) {
     if (paragraphs.length >= MAX_PARAGRAPHS) break;
     if (isInside(element, CHROME_TAGS)) continue;
+    if (isHidden(element)) continue;
     const text = inlineTextOf(element);
     if (!looksLikeContent(text, 25)) continue;
     paragraphs.push(text.slice(0, 5000));

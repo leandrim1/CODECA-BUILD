@@ -911,3 +911,105 @@ describe('sites de segmentos diferentes', () => {
     expect(urls).not.toContain('https://galeriafotos.com.br/e-400.webp');
   });
 });
+
+/**
+ * Texto que ninguem ve nao e conteudo do site.
+ *
+ * Pagina moderna carrega bastante texto no HTML que nunca chega aos olhos de
+ * ninguem: mensagem de erro que so aparece se o aplicativo nao carregar,
+ * aviso de cookie, modal fechado, aba inativa. Importar isso e pior do que
+ * nao importar nada -- entra no painel do cliente como se fosse texto
+ * institucional da empresa dele.
+ *
+ * O caso que revelou a falha foi real: ao ler `codecabuild.vercel.app` depois
+ * de a busca voltar a funcionar, o unico `h1` do HTML era "Nao foi possivel
+ * carregar o painel", dentro de um `display:none` que so vira visivel quando
+ * o bundle falha. A importacao proporia essa frase como conteudo do site.
+ */
+describe('conteudo escondido nao e importado', () => {
+  const paginaComFallback = `<!doctype html><html lang="pt-BR"><head>
+    <title>Marcenaria Horizonte</title>
+    <meta name="description" content="Móveis sob medida em madeira maciça.">
+  </head><body>
+    <main>
+      <h1>Móveis sob medida</h1>
+      <p>Projetamos e fabricamos móveis em madeira maciça, com entrega em até 40 dias corridos.</p>
+      <img src="/img/oficina.jpg" alt="Oficina">
+    </main>
+    <div style="display:none">
+      <h1>Não foi possível carregar a página</h1>
+      <p>Os arquivos da aplicação não chegaram ao navegador. Recarregue sem cache.</p>
+      <img src="/img/erro.png" alt="Erro">
+    </div>
+    <div hidden>
+      <h2>Aviso de cookies</h2>
+      <p>Este site usa cookies para melhorar a sua experiência de navegação aqui.</p>
+    </div>
+    <div style="visibility: hidden">
+      <p>Conteúdo de uma aba que o visitante não abriu neste momento da visita.</p>
+    </div>
+  </body></html>`;
+
+  const extrato = extractPage({
+    html: paginaComFallback,
+    url: 'https://marcenariahorizonte.com.br/',
+    homeUrl: 'https://marcenariahorizonte.com.br/',
+  });
+
+  it('não traz o texto do fallback de erro', () => {
+    const tudo = JSON.stringify(extrato);
+    expect(tudo).not.toContain('Não foi possível carregar');
+    expect(tudo).not.toContain('não chegaram ao navegador');
+  });
+
+  it('não traz aviso de cookies nem aba fechada', () => {
+    const tudo = JSON.stringify(extrato);
+    expect(tudo).not.toContain('Aviso de cookies');
+    expect(tudo).not.toContain('aba que o visitante não abriu');
+  });
+
+  it('o conteúdo de verdade continua inteiro', () => {
+    expect(extrato.title).toBe('Marcenaria Horizonte');
+    expect(extrato.headings.map((h) => h.text)).toEqual(['Móveis sob medida']);
+    expect(extrato.paragraphs.some((p) => p.includes('madeira maciça'))).toBe(true);
+    expect(extrato.blocks).toHaveLength(1);
+    expect(extrato.blocks[0]?.heading).toBe('Móveis sob medida');
+  });
+
+  it('imagem de bloco escondido não entra na biblioteca', () => {
+    const urls = extrato.images.map((img) => img.url);
+    expect(urls).toContain('https://marcenariahorizonte.com.br/img/oficina.jpg');
+    expect(urls).not.toContain('https://marcenariahorizonte.com.br/img/erro.png');
+  });
+
+  it('reconhece o site montado no navegador quando só resta o invólucro', () => {
+    /**
+     * O caso do `codecabuild.vercel.app`: o HTML servido tem apenas o
+     * esqueleto e um fallback escondido. Descontado o que ninguém vê, não
+     * sobra texto -- e é isso que a tela precisa dizer a quem revisa, em vez
+     * de entregar campos vazios sem explicação.
+     */
+    const spa = `<!doctype html><html lang="pt-BR"><head>
+      <title>Painel</title><meta name="description" content="Plataforma de conteúdo.">
+    </head><body><div id="root">
+      <p>Carregando...</p>
+      <div style="display:none">
+        <h1>Não foi possível carregar o painel</h1>
+        <p>Os arquivos da aplicação não chegaram ao navegador, provavelmente por cache antigo.</p>
+      </div>
+    </div></body></html>`;
+
+    const resultado = extractPage({
+      html: spa,
+      url: 'https://exemplo.com.br/',
+      homeUrl: 'https://exemplo.com.br/',
+    });
+
+    expect(resultado.renderedByScript).toBe(true);
+    expect(resultado.headings).toHaveLength(0);
+    // O que veio dos metadados continua valendo: não é invenção, é o que o
+    // próprio site declara para buscadores e prévias de link.
+    expect(resultado.title).toBe('Painel');
+    expect(resultado.metaDescription).toBe('Plataforma de conteúdo.');
+  });
+});
