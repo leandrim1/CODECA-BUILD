@@ -176,8 +176,10 @@ export function DomainsPage() {
                   <Card key={domain.id}>
                     <CardHeader
                       title={
-                        <span className="flex flex-wrap items-center gap-2">
-                          {domain.hostname}
+                        <span className="flex min-w-0 flex-wrap items-center gap-2">
+                          {/* Mesmo motivo da visao geral: dominio longo nao
+                              tem onde quebrar sozinho. */}
+                          <span className="min-w-0 [overflow-wrap:anywhere]">{domain.hostname}</span>
                           {domain.isPrimary ? <Badge tone="brand">Principal</Badge> : null}
                           <Badge tone={domainTone(domain.status)}>
                             {domain.statusLabel ?? DOMAIN_STATUS_LABELS[domain.status]}

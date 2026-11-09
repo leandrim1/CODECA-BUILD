@@ -112,7 +112,13 @@ export function BannersPage() {
                         <p className="mt-1 line-clamp-2 text-sm text-slate-600">{banner.subtitle}</p>
                       ) : null}
                       {banner.buttonLabel ? (
-                        <p className="mt-1 text-xs text-slate-500">
+                        /*
+                          A URL do botao e o pior texto desta tela: endereco de
+                          campanha com `utm_*` passa de 150 caracteres sem um
+                          espaco. Sem `anywhere` ela empurrava o cartao 200px
+                          alem da largura do celular.
+                        */
+                        <p className="mt-1 text-xs text-slate-500 [overflow-wrap:anywhere]">
                           Botão: {banner.buttonLabel} - {banner.buttonUrl}
                         </p>
                       ) : null}

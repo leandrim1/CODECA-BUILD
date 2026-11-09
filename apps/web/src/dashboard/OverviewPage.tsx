@@ -356,9 +356,20 @@ export function OverviewPage() {
                       {primaryDomain ? (
                         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
                           <div className="min-w-0">
+                            {/*
+                              Nome de dominio nao tem onde quebrar.
+                              `agendamento.clinicasorrisoperfeito.com.br` nao
+                              tem um espaco sequer, e item de flex nao encolhe
+                              abaixo do proprio conteudo por padrao -- o texto
+                              empurrava o cartao e a pagina inteira ganhava
+                              rolagem horizontal no celular. `min-w-0` libera o
+                              encolhimento e `anywhere` da onde quebrar.
+                            */}
                             <p className="flex items-center gap-2 font-medium text-slate-800">
-                              <Globe aria-hidden="true" className="size-4 text-slate-400" />
-                              {primaryDomain.hostname}
+                              <Globe aria-hidden="true" className="size-4 shrink-0 text-slate-400" />
+                              <span className="min-w-0 [overflow-wrap:anywhere]">
+                                {primaryDomain.hostname}
+                              </span>
                             </p>
                             {/*
                               "HTTPS: pendente" num dominio so registrado diria

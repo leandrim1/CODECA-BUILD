@@ -146,13 +146,46 @@ for (const rota of ROTAS) {
           if (fora.length >= 5) break;
         }
 
+        /**
+         * Conteudo que transborda **por dentro** do proprio contêiner.
+         *
+         * Era o ponto cego do detector, e justamente o defeito mais comum:
+         * um dominio ou uma URL sem espaco nao passa da borda da tela --
+         * ela encolhe o elemento ate o limite e o texto vaza para dentro,
+         * com `scrollWidth > clientWidth`. Olhar so a posicao da borda nao
+         * via nada; a pagina rolava e o detector dizia que estava tudo bem.
+         *
+         * Reporta so a folha: o ancestral esticado e consequencia, nao causa.
+         */
+        const vazando = [];
+        for (const el of Array.from(document.querySelectorAll('body *'))) {
+          if (el.scrollWidth <= el.clientWidth + 1) continue;
+          if (el.clientWidth === 0) continue;
+          /**
+           * `hidden` e `clip` tambem sao contencao deliberada.
+           *
+           * Mesma licao que o detector de borda ja tinha aprendido, e que
+           * esta checagem repetiu: quem recorta esta dizendo "contenho isto
+           * de proposito". Sem o desvio, o atalho "Ir para o conteudo" --
+           * que fica recortado ate receber foco -- e toda secao com enfeite
+           * maior que ela apareciam como defeito.
+           */
+          const ov = getComputedStyle(el).overflowX;
+          if (ov === 'auto' || ov === 'scroll' || ov === 'hidden' || ov === 'clip') continue;
+          if (Array.from(el.children).some((f) => f.scrollWidth > f.clientWidth + 1)) continue;
+          const trecho = (el.textContent ?? '').trim().slice(0, 45);
+          vazando.push(`${el.tagName.toLowerCase()} +${el.scrollWidth - el.clientWidth}px "${trecho}"`);
+          if (vazando.length >= 3) break;
+        }
+
         const texto = (document.body.innerText ?? '').trim();
-        return { transborda, excesso: de.scrollWidth - largura, fora, vazia: texto.length < 20 };
+        return { transborda, excesso: de.scrollWidth - largura, fora, vazando, vazia: texto.length < 20 };
       });
 
       const problemas = [];
       if (medida.transborda) problemas.push(`rolagem horizontal (+${medida.excesso}px)`);
       if (medida.fora.length > 0) problemas.push(`fora da viewport: ${medida.fora.join('; ')}`);
+      if (medida.vazando.length > 0) problemas.push(`texto sem quebra: ${medida.vazando.join('; ')}`);
       if (medida.vazia) problemas.push('página sem conteúdo visível');
       if (consoleErros.length > 0) problemas.push(`console: ${consoleErros.slice(0, 2).join(' | ')}`);
       if (redeErros.length > 0) problemas.push(`rede: ${redeErros.slice(0, 2).join(' | ')}`);
