@@ -2506,3 +2506,80 @@ export const syncChanges = pgTable(
     }).onDelete('cascade'),
   ],
 );
+
+/**
+ * Cada passagem do agendador, com origem e resultado.
+ *
+ * ## Por que isto existe
+ *
+ * A sincronizacao pode ser disparada por tres caminhos -- os dois
+ * agendamentos da Vercel, um agendador externo e o disparo a mao. Sem um
+ * registro proprio nao da para responder as perguntas que a operacao faz
+ * todo dia: *rodou?*, *quando?*, *por quem?*, *demorou quanto?*, *o
+ * agendador externo que eu configurei esta mesmo chamando?*
+ *
+ * E e esse ultimo ponto que manda: a tela so anuncia cadencia de 6 horas
+ * depois de **ver** 6 horas acontecer, e e aqui que ela ve.
+ *
+ * ## Por que nao tem `tenant_id`
+ *
+ * Uma passagem nao pertence a uma empresa: ela percorre a fila de todas. O
+ * recorte por empresa continua sendo `sync_checks`, que grava a verificacao
+ * de cada fonte. Pendurar um tenant aqui criaria um dono falso.
+ */
+export const syncRuns = pgTable(
+  'sync_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Ver `SYNC_RUN_ORIGINS`: vercel, externo ou manual. */
+    origin: text('origin').notNull(),
+    /** Ver `SYNC_RUN_STATES`. */
+    state: text('state').notNull().default('executando'),
+    /**
+     * Chave enviada por quem chamou, para nao processar a mesma entrega duas
+     * vezes. Vazia quando o chamador nao mandou nenhuma.
+     */
+    idempotencyKey: text('idempotency_key').notNull().default(''),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    durationMs: integer('duration_ms'),
+    sourcesClaimed: integer('sources_claimed').notNull().default(0),
+    sourcesChecked: integer('sources_checked').notNull().default(0),
+    sourcesFailed: integer('sources_failed').notNull().default(0),
+    changesFound: integer('changes_found').notNull().default(0),
+    autoPaused: integer('auto_paused').notNull().default(0),
+    /** `true` quando a passagem parou pelo tempo, nao por falta de fonte. */
+    budgetExhausted: boolean('budget_exhausted').notNull().default(false),
+    /** Motivo da falha, em portugues e sem rastro de pilha nem segredo. */
+    error: text('error').notNull().default(''),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    /**
+     * Uma passagem por vez, garantido pelo banco.
+     *
+     * Parcial sobre `state`: so as linhas `executando` entram no indice, e
+     * como todas elas teriam o mesmo valor, a unicidade do indice significa
+     * "no maximo uma passagem em andamento". Duas chamadas simultaneas --
+     * a Vercel e o cron-job.org caindo no mesmo minuto -- viram uma execucao
+     * e uma recusa, decidido pelo banco e nao por uma checagem em memoria que
+     * duas instancias fariam ao mesmo tempo.
+     */
+    uniqueIndex('sync_runs_uma_execucao')
+      .on(table.state)
+      .where(sql`${table.state} = 'executando'`),
+    /**
+     * A mesma entrega nunca roda duas vezes.
+     *
+     * Parcial porque chave vazia e o caso comum (agendador que nao manda
+     * nenhuma) e nao deve colidir consigo mesma.
+     */
+    uniqueIndex('sync_runs_idempotencia')
+      .on(table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} <> ''`),
+    /** Historico e apuracao da cadencia observada. */
+    index('sync_runs_started_idx').on(table.startedAt),
+    index('sync_runs_origin_started_idx').on(table.origin, table.startedAt),
+  ],
+);

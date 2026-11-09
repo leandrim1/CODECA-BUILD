@@ -1,7 +1,8 @@
 import type { Database } from '@codeca/database';
-import { SYNC_LIMITS } from '@codeca/shared';
+import { SYNC_LIMITS, type SyncRunOrigin, type SyncRunSummary } from '@codeca/shared';
 import type { SiteFetcher } from '../import/fetcher.js';
 import { runCheck } from './checker.js';
+import { finishRun, startRun } from './runs.js';
 import {
   claimDueSources,
   createCheck,
@@ -16,20 +17,22 @@ import {
  *
  * ## Como isto roda sem aba aberta
  *
- * Dois gatilhos, ambos no servidor, nenhum dependendo de alguem com o painel
+ * Tres gatilhos, todos no servidor, nenhum dependendo de alguem com o painel
  * aberto:
  *
  * - o cron `/api/sync/run` (`vercel.json`), as 17:47;
- * - o job diario de reconciliacao, as 05:23, que chama a mesma passagem.
+ * - o job diario de reconciliacao, as 05:23, que chama a mesma passagem;
+ * - um agendador externo (cron-job.org e afins) chamando `/api/sync/run`
+ *   com o mesmo segredo, para cadencia maior que a diaria.
  *
- * Sao dois porque o plano gratuito da Vercel permite dois agendamentos e
- * dispara cada um uma vez por dia: juntos, cobrem a fila de manha e a tarde.
- * Rodar pelos dois nao duplica trabalho -- a reserva da fila e atomica e uma
- * fonte que ainda nao venceu simplesmente nao e selecionada.
+ * Os dois primeiros sao o teto do plano gratuito da Vercel, que dispara cada
+ * agendamento uma vez por dia; juntos cobrem a fila de manha e a tarde, e
+ * esse e o piso garantido. Rodar por varios nao duplica trabalho -- a reserva
+ * da fila e atomica e uma fonte que ainda nao venceu simplesmente nao e
+ * selecionada.
  *
- * Num plano com cron infra-diario, o `schedule` do primeiro muda e
- * `SCHEDULER_INTERVAL_MINUTES` acompanha, para a tela seguir dizendo a
- * verdade ao cliente. Ver `docs/sincronizacao-de-sites.md`.
+ * A cadencia que a tela anuncia sai do historico real das passagens, nunca de
+ * configuracao: ver `runSchedulerPass` e `lib/sync/runs.ts`.
  *
  * ## Isolamento entre clientes
  *
@@ -281,4 +284,112 @@ export async function checkOneSource(
 
     return { changesFound: 0, conflicts: 0, failed: true, autoPaused: pausar, message: mensagem };
   }
+}
+
+/**
+ * Uma passagem **registrada**: com trava, idempotencia e historico.
+ *
+ * Esta e a porta pela qual todo disparador entra -- os dois agendamentos da
+ * Vercel, o agendador externo e o disparo a mao. `runScheduledChecks`
+ * continua existindo como o miolo sem bookkeeping, usado por quem ja esta
+ * dentro de uma passagem.
+ *
+ * Passar todos pela mesma porta e o que torna a cadencia **mensuravel**: a
+ * tela so anuncia 6 horas depois de ver 6 horas acontecer, e ela ve pelas
+ * linhas que esta funcao grava. Um disparador que escapasse daqui ficaria
+ * invisivel na medida e faria a tela subestimar a propria cadencia.
+ */
+export async function runSchedulerPass(
+  ctx: SchedulerContext,
+  input: {
+    origin: SyncRunOrigin;
+    idempotencyKey?: string;
+    limit?: number;
+    budgetMs?: number;
+  },
+): Promise<
+  | { status: 'concluida'; run: SyncRunSummary; report: SchedulerReport }
+  | { status: 'falhou'; run: SyncRunSummary | null; message: string }
+  | { status: 'em_andamento'; startedAt: string }
+  | { status: 'duplicada'; run: SyncRunSummary }
+> {
+  const inicio = ctx.now();
+  const abertura = await startRun(ctx.db, {
+    origin: input.origin,
+    ...(input.idempotencyKey !== undefined ? { idempotencyKey: input.idempotencyKey } : {}),
+    now: inicio,
+  });
+
+  if (abertura.status === 'em_andamento') {
+    return { status: 'em_andamento', startedAt: abertura.startedAt.toISOString() };
+  }
+  if (abertura.status === 'duplicada') {
+    return { status: 'duplicada', run: abertura.run };
+  }
+
+  try {
+    const report = await runScheduledChecks(ctx, {
+      ...(input.limit !== undefined ? { limit: input.limit } : {}),
+      ...(input.budgetMs !== undefined ? { budgetMs: input.budgetMs } : {}),
+    });
+
+    const run = await finishRun(ctx.db, {
+      runId: abertura.runId,
+      state: 'concluida',
+      sourcesClaimed: report.claimed,
+      sourcesChecked: report.checked,
+      sourcesFailed: report.failed,
+      changesFound: report.changesFound,
+      autoPaused: report.autoPaused,
+      budgetExhausted: report.budgetExhausted,
+      startedAt: inicio,
+      now: ctx.now(),
+    });
+
+    return { status: 'concluida', run: run ?? toSummary0(abertura.runId, input.origin, inicio), report };
+  } catch (error) {
+    /**
+     * Falha da passagem inteira, nao de uma fonte.
+     *
+     * Falha de fonte ja morre dentro de `checkOneSource` e nao chega aqui --
+     * e e assim que um cliente com o site fora do ar nao interrompe a fila
+     * dos outros. O que chega aqui e problema da plataforma: banco fora,
+     * erro inesperado. A linha e fechada como `falhou` de qualquer jeito,
+     * porque uma passagem que fica `executando` para sempre travaria todas
+     * as seguintes ate o arrendamento vencer.
+     *
+     * A mensagem gravada e em portugues e nao carrega o detalhe tecnico: o
+     * rastro vai para o log do servidor, que nao e resposta de API.
+     */
+    const detalhe = error instanceof Error ? error.message : String(error);
+    console.error('[sync] falha na passagem do agendador:', detalhe);
+
+    const mensagem = 'A passagem do agendador não pôde ser concluída.';
+    const run = await finishRun(ctx.db, {
+      runId: abertura.runId,
+      state: 'falhou',
+      error: mensagem,
+      startedAt: inicio,
+      now: ctx.now(),
+    }).catch(() => null);
+
+    return { status: 'falhou', run, message: mensagem };
+  }
+}
+
+/** Retrato minimo, para o caso raro de a linha sumir entre abrir e fechar. */
+function toSummary0(id: string, origin: SyncRunOrigin, startedAt: Date): SyncRunSummary {
+  return {
+    id,
+    origin,
+    state: 'concluida',
+    startedAt: startedAt.toISOString(),
+    finishedAt: null,
+    durationMs: null,
+    sourcesClaimed: 0,
+    sourcesChecked: 0,
+    sourcesFailed: 0,
+    changesFound: 0,
+    error: '',
+  };
 }

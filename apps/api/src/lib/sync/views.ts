@@ -1,16 +1,22 @@
 import type { schema } from '@codeca/database';
 import {
+  SCHEDULER_BASELINE_MINUTES,
   SCHEDULER_NOTE,
   fingerprint,
   SYNC_CHANGE_TYPE_LABELS,
   SYNC_FREQUENCY_LABELS,
   SYNC_LIMITS,
+  describeInterval,
+  effectiveSchedulerMinutes,
   frequencyExceedsScheduler,
   isImageChange,
   previewOf,
+  schedulerNote,
   syncTargetLabel,
+  type SchedulerStatus,
   type SyncChangeView,
   type SyncCheckView,
+  type SyncOverviewView,
   type SyncPageView,
   type SyncSourceView,
 } from '@codeca/shared';
@@ -29,8 +35,13 @@ export function toSourceView(input: {
   source: SyncSourceRow;
   pages: readonly SyncPageStateRow[];
   counts: { pending: number; conflicts: number; removals: number; found: number };
+  /** O que foi medido sobre o agendador. Sem ele vale o piso. */
+  scheduler?: SchedulerStatus;
 }): SyncSourceView {
   const { source } = input;
+  const intervalo = input.scheduler
+    ? effectiveSchedulerMinutes(input.scheduler)
+    : SCHEDULER_BASELINE_MINUTES;
 
   return {
     id: source.id,
@@ -42,11 +53,15 @@ export function toSourceView(input: {
      * O aviso so aparece quando ha o que avisar.
      *
      * Pedir "a cada 6 horas" e legitimo, e a fonte realmente vence a cada 6
-     * horas -- mas o plano da Vercel em uso dispara cada agendamento uma vez
-     * por dia. Dizer isso na tela e a diferenca entre uma expectativa
-     * cumprida e um cliente achando que a plataforma esta quebrada.
+     * horas. O que pode nao acompanhar e a cadencia com que a plataforma olha
+     * a fila -- e essa agora e **medida**, nao suposta: com um agendador
+     * externo comprovadamente chamando de 6 em 6 horas, nao ha o que avisar e
+     * o aviso some sozinho. Enquanto nao houver medida, vale o piso da Vercel
+     * e o cliente ouve a verdade em vez de uma promessa.
      */
-    schedulerNote: frequencyExceedsScheduler(source.frequency) ? SCHEDULER_NOTE : null,
+    schedulerNote: frequencyExceedsScheduler(source.frequency, intervalo)
+      ? (input.scheduler ? schedulerNote(input.scheduler) : SCHEDULER_NOTE)
+      : null,
     lastCheckedAt: source.lastCheckedAt?.toISOString() ?? null,
     lastSyncedAt: source.lastSyncedAt?.toISOString() ?? null,
     nextCheckAt: source.nextCheckAt?.toISOString() ?? null,
@@ -179,3 +194,20 @@ export const SYNC_VIEW_LIMITS = {
 } as const;
 
 export { SCHEDULER_NOTE };
+
+/**
+ * O bloco do agendador que a tela mostra.
+ *
+ * Carrega os dois numeros com nomes separados -- piso garantido e intervalo
+ * observado -- porque a tela precisa poder dizer "garantimos X, estamos
+ * entregando Y" sem que um vire o outro.
+ */
+export function toSchedulerView(status: SchedulerStatus): SyncOverviewView['scheduler'] {
+  const efetivo = effectiveSchedulerMinutes(status);
+  return {
+    ...status,
+    effectiveMinutes: efetivo,
+    effectiveLabel: describeInterval(efetivo),
+    baselineLabel: describeInterval(status.baselineMinutes),
+  };
+}

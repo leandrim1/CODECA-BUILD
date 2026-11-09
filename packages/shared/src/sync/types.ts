@@ -64,39 +64,254 @@ export function nextCheckAt(
 }
 
 /**
- * O que a plataforma consegue cumprir, e por que.
+ * O que a plataforma consegue cumprir, e como ela sabe disso.
+ *
+ * ## O piso, que nao depende de ninguem
  *
  * O plano da Vercel em uso e o gratuito, que dispara cada agendamento **uma
  * vez por dia**. Sao dois, o teto do plano: a reconciliacao as 05:23 (que
  * tambem roda uma passagem da sincronizacao) e `/api/sync/run` as 17:47. Na
- * pratica as fontes sao olhadas duas vezes ao dia, mas o que esta **garantido**
- * e uma -- e e o numero garantido que vale aqui, porque esta constante decide
- * o que a tela promete ao cliente.
+ * pratica as fontes sao olhadas duas vezes ao dia; o que esta **garantido** e
+ * uma. Esse e o piso, e vale sempre.
  *
- * Consequencia que a tela nao esconde: escolher "a cada 6 horas" ou "a cada 12
- * horas" continua valendo como preferencia -- a fonte vence no prazo pedido e
- * entra na fila --, mas e atendida na passagem seguinte do agendador. O aviso
- * de `frequencyExceedsScheduler` existe exatamente para dizer isso.
+ * ## A cadencia maior, que precisa ser provada
  *
- * Este numero e o do **agendador**, nao o da preferencia do cliente: uma fonte
- * configurada para semanal continua vencendo a cada sete dias. O que ele diz e
- * de quanto em quanto tempo a plataforma olha a fila.
+ * Um agendador externo (cron-job.org e afins) pode chamar `/api/sync/run` de
+ * 6 em 6 horas. Mas ele vive fora daqui: pode nunca ter sido configurado,
+ * pode ter sido apagado, pode estar com a conta suspensa. Por isso a
+ * plataforma **nao acredita em configuracao, ela mede**. Cada passagem grava
+ * uma linha em `sync_runs` com a origem; a cadencia anunciada ao cliente sai
+ * do historico real dessas linhas, nunca de um valor que alguem digitou.
  *
- * Num plano que aceite agendamento infra-diario, sao duas linhas: o
- * `schedule` do cron em `vercel.json` passa a `47 *` + `/6 * * *`, e esta
- * constante vai para `6 * 60`. Ver `docs/sincronizacao-de-sites.md`.
+ * A consequencia e a regra que importa: enquanto nao houver execucoes
+ * externas suficientes e recentes, a tela continua dizendo "uma vez por dia".
+ * Ela so passa a falar em 6 horas depois de ter visto 6 horas acontecer.
+ *
+ * ## O que este numero nao e
+ *
+ * Nao e a preferencia do cliente: uma fonte em "semanal" continua vencendo a
+ * cada sete dias. O que ele diz e de quanto em quanto tempo a plataforma olha
+ * a fila.
  */
+
+/** Piso garantido pelos dois agendamentos da Vercel, sozinhos. Em minutos. */
+export const SCHEDULER_BASELINE_MINUTES = 24 * 60;
+
+/**
+ * Nome antigo do piso, mantido para nao quebrar quem ja importava.
+ *
+ * Quem decide o que a tela mostra agora e `effectiveSchedulerMinutes`, que
+ * leva em conta o que foi medido.
+ */
+export const SCHEDULER_INTERVAL_MINUTES = SCHEDULER_BASELINE_MINUTES;
+
+/** Regras para aceitar que o agendador externo existe de verdade. */
+export const SCHEDULER_VALIDATION = {
+  /** Execucoes externas bem sucedidas necessarias para confiar na medida. */
+  minRuns: 3,
+  /** Janela de observacao. Execucao velha nao prova cadencia de hoje. */
+  windowDays: 7,
+} as const;
+
+// ------------------------------------------------- execucoes do agendador
+
+/** Quem disparou uma passagem do agendador. */
+export const SYNC_RUN_ORIGINS = ['vercel', 'externo', 'manual'] as const;
+export type SyncRunOrigin = (typeof SYNC_RUN_ORIGINS)[number];
+
+export const SYNC_RUN_ORIGIN_LABELS: Record<SyncRunOrigin, string> = {
+  vercel: 'Agendamento da Vercel',
+  externo: 'Agendador externo',
+  manual: 'Disparo manual',
+};
+
+/**
+ * Situacao de uma passagem.
+ *
+ * `expirada` e a passagem que comecou e nunca terminou -- a funcao morreu no
+ * meio. Nao e sucesso nem falha de verificacao: e ausencia de resposta, e
+ * precisa de nome proprio para nao contar como nenhuma das duas na cadencia.
+ */
+export const SYNC_RUN_STATES = ['executando', 'concluida', 'falhou', 'expirada'] as const;
+export type SyncRunState = (typeof SYNC_RUN_STATES)[number];
+
+/** Retrato de uma passagem, para a tela. */
+export interface SyncRunSummary {
+  id: string;
+  origin: SyncRunOrigin;
+  state: SyncRunState;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+  sourcesClaimed: number;
+  sourcesChecked: number;
+  sourcesFailed: number;
+  changesFound: number;
+  error: string;
+}
+
+/**
+ * O que a tela precisa saber sobre o agendador.
+ *
+ * Separa com todas as letras o que e **garantido** do que foi **observado**,
+ * porque a tela mostra os dois e eles querem dizer coisas diferentes.
+ */
+export interface SchedulerStatus {
+  /** Piso dos agendamentos da Vercel. Sempre verdadeiro. */
+  baselineMinutes: number;
+  /** Maior intervalo medido entre passagens recentes. `null` sem historico. */
+  observedMinutes: number | null;
+  /** Execucoes externas bem sucedidas na janela. */
+  externalRuns: number;
+  /** `true` quando ha medida suficiente para confiar no intervalo observado. */
+  externalValidated: boolean;
+  lastRun: SyncRunSummary | null;
+}
+
+/**
+ * O intervalo que a plataforma pode afirmar, em minutos.
+ *
+ * Sem medida validada, devolve o piso -- nunca a promessa. Com medida, devolve
+ * a **pior** das duas, porque uma cadencia so vale pelo seu pior intervalo:
+ * um agendador que roda de 6 em 6 horas mas pulou uma noite entregou 12, e e
+ * 12 que o cliente precisa ouvir.
+ */
+export function effectiveSchedulerMinutes(status: SchedulerStatus): number {
+  if (!status.externalValidated || status.observedMinutes === null) {
+    return status.baselineMinutes;
+  }
+  return Math.min(status.baselineMinutes, status.observedMinutes);
+}
+
+/**
+ * `true` quando a preferencia pede mais do que o agendador entrega.
+ *
+ * O segundo parametro e o intervalo real; sem ele vale o piso, que e a
+ * resposta certa para quem nao tem como medir (o painel antes de carregar, um
+ * teste de unidade sobre a tabela de frequencias).
+ */
+export function frequencyExceedsScheduler(
+  frequency: SyncFrequency,
+  schedulerMinutes: number = SCHEDULER_BASELINE_MINUTES,
+): boolean {
+  const minutos = SYNC_FREQUENCY_MINUTES[frequency];
+  return minutos !== null && minutos < schedulerMinutes;
+}
+
+/** Intervalo em minutos escrito como a tela fala. */
+export function describeInterval(minutes: number): string {
+  if (minutes < 60) return `${Math.round(minutes)} minutos`;
+  const horas = minutes / 60;
+  if (horas < 24) {
+    const inteiras = Math.floor(horas);
+    const resto = Math.round((horas - inteiras) * 60);
+    if (resto === 0) return inteiras === 1 ? 'uma hora' : `${inteiras} horas`;
+    return `${inteiras}h${String(resto).padStart(2, '0')}`;
+  }
+  const dias = Math.round((horas / 24) * 10) / 10;
+  return dias === 1 ? 'um dia' : `${dias} dias`.replace('.', ',');
+}
+
+/**
+ * A frase que a tela mostra sobre a cadencia.
+ *
+ * Nunca anuncia o que nao foi medido: sem agendador externo validado, fala do
+ * piso e diz o que falta para a cadencia maior valer.
+ */
+export function schedulerNote(status: SchedulerStatus): string {
+  const efetivo = effectiveSchedulerMinutes(status);
+  if (!status.externalValidated) {
+    return (
+      `A plataforma verifica as fontes ${
+        describeInterval(status.baselineMinutes) === 'um dia'
+          ? 'uma vez por dia'
+          : `a cada ${describeInterval(status.baselineMinutes)}`
+      }. Frequências menores entram na fila e são atendidas na verificação seguinte.`
+    );
+  }
+  return (
+    `A plataforma verifica as fontes a cada ${describeInterval(efetivo)}, `
+    + `medido nas últimas ${status.externalRuns} execuções do agendador externo. `
+    + 'Frequências menores que isso entram na fila e são atendidas na verificação seguinte.'
+  );
+}
+
+/**
+ * Apura o estado do agendador a partir das passagens ja gravadas.
+ *
+ * ## Por que o **pior** intervalo, e nao a media
+ *
+ * Cadencia e uma promessa de teto, nao de media. Um agendador que roda de 6
+ * em 6 horas mas pulou uma noite entregou 12 horas naquele dia, e e 12 que o
+ * cliente precisa ouvir -- a media de 6h30 esconderia exatamente o buraco que
+ * importa.
+ *
+ * ## Por que o intervalo ate agora conta como um intervalo
+ *
+ * Sem isso, um agendador externo que parou ontem continuaria exibindo "a cada
+ * 6 horas" para sempre, apoiado em execucoes antigas. Contando o tempo desde
+ * a ultima passagem, a medida se degrada sozinha: o buraco cresce, o
+ * intervalo observado passa do piso, e a tela volta a dizer "uma vez por dia"
+ * sem ninguem precisar desligar nada.
+ *
+ * Recebe apenas as passagens **concluidas** da janela; as que falharam ou
+ * expiraram nao provam cadencia nenhuma, e sao justamente elas que precisam
+ * abrir um buraco na medida.
+ */
+export function computeSchedulerStatus(input: {
+  now: Date;
+  /** Passagens concluidas na janela, em qualquer ordem. */
+  runs: readonly { origin: SyncRunOrigin; startedAt: Date }[];
+  lastRun: SyncRunSummary | null;
+  baselineMinutes?: number;
+}): SchedulerStatus {
+  const baselineMinutes = input.baselineMinutes ?? SCHEDULER_BASELINE_MINUTES;
+  const inicioJanela = new Date(
+    input.now.getTime() - SCHEDULER_VALIDATION.windowDays * 24 * 60 * 60_000,
+  );
+
+  const naJanela = input.runs
+    .filter((run) => run.startedAt >= inicioJanela && run.startedAt <= input.now)
+    .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+
+  const externalRuns = naJanela.filter((run) => run.origin === 'externo').length;
+
+  const base: SchedulerStatus = {
+    baselineMinutes,
+    observedMinutes: null,
+    externalRuns,
+    externalValidated: false,
+    lastRun: input.lastRun,
+  };
+
+  if (naJanela.length < SCHEDULER_VALIDATION.minRuns) return base;
+
+  let piorMs = 0;
+  for (let i = 1; i < naJanela.length; i += 1) {
+    const anterior = naJanela[i - 1];
+    const atual = naJanela[i];
+    if (!anterior || !atual) continue;
+    piorMs = Math.max(piorMs, atual.startedAt.getTime() - anterior.startedAt.getTime());
+  }
+
+  // O tempo desde a ultima passagem tambem e um intervalo, e e o que faz a
+  // medida envelhecer sozinha quando o agendador externo para.
+  const ultima = naJanela[naJanela.length - 1];
+  if (ultima) piorMs = Math.max(piorMs, input.now.getTime() - ultima.startedAt.getTime());
+
+  const observedMinutes = Math.round(piorMs / 60_000);
+
+  return {
+    ...base,
+    observedMinutes,
+    externalValidated:
+      externalRuns >= SCHEDULER_VALIDATION.minRuns && observedMinutes < baselineMinutes,
+  };
+}
+
+/** Frase do piso, para quem ainda nao carregou o estado do agendador. */
 export const SCHEDULER_NOTE =
   'A plataforma verifica as fontes uma vez por dia. Frequências menores entram na fila e são atendidas na verificação seguinte.';
-
-/** Intervalo real entre passagens do agendador, em minutos. */
-export const SCHEDULER_INTERVAL_MINUTES = 24 * 60;
-
-/** `true` quando a preferencia pede mais do que o agendador entrega. */
-export function frequencyExceedsScheduler(frequency: SyncFrequency): boolean {
-  const minutos = SYNC_FREQUENCY_MINUTES[frequency];
-  return minutos !== null && minutos < SCHEDULER_INTERVAL_MINUTES;
-}
 
 // --------------------------------------------------------------- estados
 
@@ -385,6 +600,21 @@ export interface SyncOverviewView {
   };
   /** Explicacao do agendador, sempre visivel na tela. */
   schedulerNote: string;
+  /**
+   * O que foi **medido** sobre o agendador, nao o que foi configurado.
+   *
+   * A tela mostra os dois numeros com nomes diferentes de proposito: o piso
+   * que a Vercel garante sozinha, e o intervalo que o historico comprova. Sem
+   * agendador externo validado os dois sao iguais, e nada de 6 horas e
+   * anunciado.
+   */
+  scheduler: SchedulerStatus & {
+    /** O intervalo que a plataforma pode afirmar hoje, em minutos. */
+    effectiveMinutes: number;
+    /** O mesmo, escrito como a tela fala. */
+    effectiveLabel: string;
+    baselineLabel: string;
+  };
 }
 
 /** Resultado de aplicar as alteracoes aprovadas. */

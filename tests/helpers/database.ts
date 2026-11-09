@@ -55,6 +55,15 @@ const DATA_TABLES = [
    * para o teste seguinte. `seedDatabase` repoe os tres no `reset`.
    */
   'segments',
+  /**
+   * Passagens do agendador de sincronizacao.
+   *
+   * Precisa estar aqui por nao ter `tenant_id`: as outras tabelas da
+   * sincronizacao somem no CASCADE de `tenants`, esta nao -- e uma linha
+   * `executando` deixada por um teste travaria a trava de concorrencia de
+   * todos os seguintes.
+   */
+  'sync_runs',
 ] as const;
 
 export interface TestDatabase extends DatabaseHandle {

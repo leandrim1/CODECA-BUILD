@@ -82,6 +82,34 @@ Prova disso em `tests/unit/import-fetcher.test.ts`: um servidor HTTP real
 escutando em `127.0.0.1`, que responde 200 a um `fetch` comum, é recusado pela
 busca da importação.
 
+#### O contrato do `lookup`, e o defeito que ele escondeu
+
+A opção `lookup` tem uma armadilha que custou a funcionalidade inteira em
+produção. O Node chama essa função com `options.all`, e **o formato da
+resposta muda conforme esse sinalizador**: com `all: false` espera
+`(erro, endereço, família)`; com `all: true` espera
+`(erro, [{ address, family }])`. Desde o Node 20 o `autoSelectFamily` (Happy
+Eyeballs) vem ligado por padrão, e com ele a conexão sempre pede `all: true`.
+
+A primeira versão respondia sempre no formato de endereço solto. O resultado
+não era um erro de rede: o soquete morria com `ERR_INVALID_IP_ADDRESS` antes
+de qualquer pacote sair, e a mensagem que chegava ao cliente era o genérico
+"Não foi possível acessar o site". **Nenhum site era lido**, nem na
+importação nem na sincronização — e o painel mostrava "0 páginas, 1 com
+problema" para sites que estavam perfeitamente no ar.
+
+Nada disso aparecia nos testes, e a razão importa mais que o defeito: os
+testes de ponta a ponta usam `createMemorySiteFetcher`, que não toca a rede,
+e os testes de barreira recusam o endereço **antes** de conectar. O caminho
+de conexão real não tinha teste nenhum. Hoje tem: `addressLookup` responde
+nos dois formatos, e três testes cobrem o contrato — incluindo uma requisição
+de verdade a um servidor local, que só chega se a conexão acontecer.
+
+A correção trouxe junto uma robustez que faltava: a conexão agora recebe
+**todos** os endereços validados, não só o primeiro. Um nome com dois
+registros A deixa de depender da sorte da ordem do DNS, e a barreira continua
+igual — a conexão só alcança endereços que nós aprovamos.
+
 ### Outras proteções
 
 - **Nenhum script do site é executado.** O leitor de HTML

@@ -218,11 +218,62 @@ async function readCapped(
   return { bytes: new Uint8Array(Buffer.concat(chunks)), truncated };
 }
 
+/** Um endereco de destino ja validado como publico. */
+export interface ResolvedAddress {
+  address: string;
+  family: number;
+}
+
+/**
+ * O `lookup` que entregamos a conexao, com os enderecos ja validados.
+ *
+ * ## O contrato que nos derrubou
+ *
+ * Node chama esta funcao com `options.all`, e o formato da resposta **muda
+ * conforme esse sinalizador**: com `all: false` espera `(erro, endereco,
+ * familia)`; com `all: true` espera `(erro, [{ address, family }])`. A partir
+ * do Node 20 o `autoSelectFamily` (Happy Eyeballs) vem ligado por padrao, e
+ * com ele a conexao sempre pede `all: true`. Responder a string nesse caso
+ * nao conecta em lugar nenhum: o soquete morre com `ERR_INVALID_IP_ADDRESS`
+ * antes de qualquer pacote sair -- toda busca falhava com "Nao foi possivel
+ * acessar o site", em qualquer site.
+ *
+ * Por isso aqui se responde nos **dois** formatos, conforme o que foi pedido.
+ *
+ * ## Por que todos os enderecos, e nao o primeiro
+ *
+ * `resolvePublicAddresses` ja reprovou o nome inteiro se **qualquer** registro
+ * for privado, entao todos os que chegam aqui sao publicos. Entregar a lista
+ * toda nao afrouxa a barreira -- a conexao continua presa aos enderecos que
+ * nos validamos, nunca ao que um segundo DNS devolveria -- e ganha de graca a
+ * tentativa no endereco seguinte quando o primeiro nao responde. Um nome com
+ * dois A, como `codecabuild.vercel.app`, deixa de depender da sorte da ordem.
+ */
+export function addressLookup(addresses: readonly ResolvedAddress[]) {
+  return ((_hostname: string, options: { all?: boolean }, callback: unknown) => {
+    const first = addresses[0];
+    if (!first) {
+      (callback as (error: NodeJS.ErrnoException) => void)(
+        Object.assign(new Error('sem endereço validado'), { code: 'ENOTFOUND' }),
+      );
+      return;
+    }
+    if (options.all === true) {
+      (callback as (error: null, result: ResolvedAddress[]) => void)(null, [...addresses]);
+      return;
+    }
+    (callback as (error: null, address: string, family: number) => void)(
+      null,
+      first.address,
+      first.family,
+    );
+  }) as never;
+}
+
 /** Uma requisicao, sem seguir redirecionamento. */
 function requestOnce(input: {
   url: URL;
-  address: string;
-  family: number;
+  addresses: readonly ResolvedAddress[];
   accept: NonNullable<FetchOptions['accept']>;
   timeoutMs: number;
   ifNoneMatch?: string;
@@ -255,19 +306,14 @@ function requestOnce(input: {
         // dependem dele.
         ...(isHttps ? { servername: input.url.hostname } : {}),
         /**
-         * O IP ja validado, entregue a conexao.
+         * Os IPs ja validados, entregues a conexao.
          *
-         * E aqui que a protecao se fecha: a conexao usa este endereco, e nao o
-         * que uma segunda consulta ao DNS devolveria. Sem isto, validar o IP
-         * seria um aviso, nao uma barreira.
+         * E aqui que a protecao se fecha: a conexao usa estes enderecos, e nao
+         * o que uma segunda consulta ao DNS devolveria. Sem isto, validar o IP
+         * seria um aviso, nao uma barreira. Ver `addressLookup` para o
+         * contrato dos dois formatos de resposta.
          */
-        lookup: (_hostname, _options, callback) => {
-          (callback as (err: NodeJS.ErrnoException | null, address: string, family: number) => void)(
-            null,
-            input.address,
-            input.family,
-          );
-        },
+        lookup: addressLookup(input.addresses),
         timeout: input.timeoutMs,
       },
       (response) => resolve({ response }),
@@ -362,13 +408,13 @@ export function createSiteFetcher(): SiteFetcher {
 
         // Segunda barreira: resolve e valida o IP deste salto.
         const addresses = await resolvePublicAddresses(url.hostname);
-        const target = addresses[0];
-        if (!target) throw new SiteFetchError('dns', 'Não foi possível encontrar esse endereço.');
+        if (addresses.length === 0) {
+          throw new SiteFetchError('dns', 'Não foi possível encontrar esse endereço.');
+        }
 
         const { response } = await requestOnce({
           url,
-          address: target.address,
-          family: target.family,
+          addresses,
           accept,
           timeoutMs,
           ...(options.ifNoneMatch ? { ifNoneMatch: options.ifNoneMatch } : {}),

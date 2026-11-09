@@ -1,11 +1,11 @@
 import { pruneExpiredRecords } from '../lib/housekeeping.js';
-import { AppError } from '@codeca/shared';
+import { AppError, type SyncRunOrigin } from '@codeca/shared';
 import { timingSafeEqual } from 'node:crypto';
 import { Hono, type Context } from 'hono';
 import { pendingWebhookEvents, processWebhookEvent } from '../lib/billing/webhook-store.js';
 import { reconcileBilling } from '../lib/billing/reconcile.js';
 import { recheckDomains } from '../lib/domain-recheck.js';
-import { runScheduledChecks } from '../lib/sync/scheduler.js';
+import { runSchedulerPass } from '../lib/sync/scheduler.js';
 import { flushPendingDeliveries } from '../lib/integration/outbound.js';
 import { ok } from '../lib/http.js';
 import type { AppBindings } from '../types.js';
@@ -39,17 +39,50 @@ export function billingJobRoutes() {
 }
 
 /**
+ * De onde veio esta chamada.
+ *
+ * A Vercel marca as proprias chamadas de cron com `x-vercel-cron` e com um
+ * `user-agent` proprio; qualquer outra coisa que apresente o segredo e um
+ * agendador externo. A distincao nao e decorativa: e ela que permite a tela
+ * dizer "o agendador externo esta mesmo chamando" em vez de pedir que o
+ * cliente acredite na configuracao.
+ *
+ * `?origem=manual` existe para o disparo a mao -- um teste de implantacao nao
+ * deve entrar na conta da cadencia como se fosse agendamento. Nao e um furo
+ * de seguranca: quem chega aqui ja apresentou o segredo do job, e mentir a
+ * propria origem so prejudicaria a leitura do proprio painel.
+ */
+function detectarOrigem(c: Context<AppBindings>): SyncRunOrigin {
+  const declarada = new URL(c.req.url).searchParams.get('origem');
+  if (declarada === 'manual') return 'manual';
+  if (declarada === 'externo') return 'externo';
+  if (declarada === 'vercel') return 'vercel';
+
+  if (c.req.header('x-vercel-cron') !== undefined) return 'vercel';
+  if (/^vercel-cron/i.test(c.req.header('user-agent') ?? '')) return 'vercel';
+  return 'externo';
+}
+
+/**
  * Verificacao das fontes de sincronizacao, em rota propria.
  *
  * A passagem ja acontece dentro do job diario (passo 6 de `executarJob`), que
- * e o que faz a funcionalidade rodar hoje sem mudar plano nem configuracao.
- * Esta rota existe para quem quiser **cadencia maior**: um agendamento a mais
- * na Vercel (plano pago) ou qualquer agendador externo apontando para
- * `/api/sync/run`, com o mesmo segredo do job.
+ * e o que faz a funcionalidade rodar sem mudar plano nem configuracao. Esta
+ * rota existe para **cadencia maior**: um agendador externo (cron-job.org e
+ * afins) chamando `/api/sync/run` de 6 em 6 horas com o mesmo segredo do job.
  *
- * Sem ela, escolher "a cada 6 horas" no painel continuaria sendo atendido so
- * uma vez por dia -- e a tela diz isso ao cliente em vez de prometer o que
- * nao entrega.
+ * ## Por que 200, e nao 409, quando ja ha uma passagem rodando
+ *
+ * Duas chamadas se cruzarem e o funcionamento normal de dois agendadores
+ * independentes, nao um erro: a Vercel as 17:47 atrasa um pouco e encontra o
+ * cron externo das 18:00. A trava faz o que tem de fazer -- uma passagem so
+ * --, e responder 409 encheria o historico do cron-job.org de falhas
+ * vermelhas para algo que funcionou como projetado, o que treina o operador
+ * a ignorar o alarme. O corpo diz `resultado: "em_andamento"` para quem
+ * quiser olhar.
+ *
+ * Resposta sem segredo nenhum, em nenhum caminho: nem o valor recebido, nem o
+ * esperado, nem o cabecalho de onde veio.
  */
 export function syncJobRoutes() {
   const app = new Hono<AppBindings>();
@@ -62,12 +95,57 @@ export function syncJobRoutes() {
     const limitParam = Number(url.searchParams.get('limit') ?? '');
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : undefined;
 
-    const report = await runScheduledChecks(
+    /**
+     * Chave de idempotencia do chamador.
+     *
+     * Aceita no cabecalho padrao de fato (`idempotency-key`) e tambem em
+     * `?chave=`, porque nem todo agendador deixa configurar cabecalho.
+     */
+    const chave =
+      (c.req.header('idempotency-key') ?? url.searchParams.get('chave') ?? '').trim();
+
+    const resultado = await runSchedulerPass(
       { db: ctx.db, fetcher: ctx.siteFetcher, now: ctx.now },
-      limit !== undefined ? { limit } : {},
+      {
+        origin: detectarOrigem(c),
+        ...(chave !== '' ? { idempotencyKey: chave } : {}),
+        ...(limit !== undefined ? { limit } : {}),
+      },
     );
 
-    return ok(c, report);
+    if (resultado.status === 'em_andamento') {
+      return ok(c, {
+        resultado: 'em_andamento',
+        mensagem: 'Outra passagem já está em andamento. Esta chamada não fez nada.',
+        iniciadaEm: resultado.startedAt,
+      });
+    }
+
+    if (resultado.status === 'duplicada') {
+      return ok(c, {
+        resultado: 'duplicada',
+        mensagem: 'Esta entrega já havia sido processada. Nada foi feito de novo.',
+        execucao: resultado.run,
+      });
+    }
+
+    if (resultado.status === 'falhou') {
+      // 503: o chamador pode tentar de novo, e a proxima tentativa nao
+      // duplica nada -- a fila ja foi reservada de forma atomica.
+      return c.json(
+        {
+          error: { code: 'unavailable', message: resultado.message },
+          execucao: resultado.run,
+        },
+        503,
+      );
+    }
+
+    return ok(c, {
+      resultado: 'concluida',
+      execucao: resultado.run,
+      ...resultado.report,
+    });
   };
 
   app.post('/run', executar);
@@ -158,14 +236,17 @@ async function executarJob(c: Context<AppBindings>) {
    * do resto do job -- e, dentro dela, a falha de uma fonte nao afeta as
    * outras (ver `checkOneSource`).
    */
-  const sync = await runScheduledChecks({
-    db: ctx.db,
-    fetcher: ctx.siteFetcher,
-    now: ctx.now,
-  }).catch((error: unknown) => {
+  const syncPass = await runSchedulerPass(
+    { db: ctx.db, fetcher: ctx.siteFetcher, now: ctx.now },
+    { origin: 'vercel' },
+  ).catch((error: unknown) => {
     console.error('[sync] falha na passagem agendada:', error instanceof Error ? error.message : error);
     return null;
   });
+
+  // A reconciliacao responde o relatorio da sincronizacao como sempre; os
+  // estados novos (trava e repeticao) nao sao falha e nao tem relatorio.
+  const sync = syncPass?.status === 'concluida' ? syncPass.report : null;
 
   if (sync && sync.budgetExhausted) {
     console.warn(

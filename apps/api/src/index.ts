@@ -71,8 +71,10 @@ export { SESSION_COOKIE, CSRF_COOKIE, CSRF_HEADER } from './lib/cookies.js';
 export {
   createSiteFetcher,
   createMemorySiteFetcher,
+  addressLookup,
   SiteFetchError,
   type SiteFetcher,
   type FetchedResource,
   type FetchOptions,
+  type ResolvedAddress,
 } from './lib/import/fetcher.js';

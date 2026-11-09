@@ -1,7 +1,7 @@
 import { and, eq, inArray, schema, sql, type Database } from '@codeca/database';
 import {
   AppError,
-  SCHEDULER_NOTE,
+  schedulerNote as schedulerNoteDe,
   applyChangesSchema,
   checkImportUrl,
   connectSourceSchema,
@@ -19,6 +19,7 @@ import { ok, parseJsonBody, parseParams } from '../lib/http.js';
 import { RATE_LIMITS, enforceRateLimit } from '../lib/ratelimit.js';
 import { applyApproved, revertChange } from '../lib/sync/applier.js';
 import { checkOneSource } from '../lib/sync/scheduler.js';
+import { schedulerStatus } from '../lib/sync/runs.js';
 import {
   countPending,
   createSource,
@@ -30,7 +31,13 @@ import {
   updateChangeDecision,
   updateSource,
 } from '../lib/sync/store.js';
-import { SYNC_VIEW_LIMITS, toChangeView, toCheckView, toSourceView } from '../lib/sync/views.js';
+import {
+  SYNC_VIEW_LIMITS,
+  toChangeView,
+  toCheckView,
+  toSchedulerView,
+  toSourceView,
+} from '../lib/sync/views.js';
 import { loadMediaUrls } from '../lib/sync/codeca-side.js';
 import { requireCapability, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
@@ -75,13 +82,18 @@ export function siteSyncRoutes() {
       siteId: tenant.siteId,
     });
 
+    // Medido, nao configurado: e daqui que sai a cadencia que a tela
+    // anuncia. Ver `lib/sync/runs.ts`.
+    const agendador = await schedulerStatus(ctx.db, ctx.now());
+
     if (!source) {
       return ok(c, {
         source: null,
         checks: [],
         changes: [],
         limits: SYNC_VIEW_LIMITS,
-        schedulerNote: SCHEDULER_NOTE,
+        schedulerNote: schedulerNoteDe(agendador),
+        scheduler: toSchedulerView(agendador),
       });
     }
 
@@ -118,6 +130,7 @@ export function siteSyncRoutes() {
         source,
         pages,
         counts: { ...counts, found: changes.length },
+        scheduler: agendador,
       }),
       checks: checks.map((check) =>
         toCheckView(check, {
@@ -132,7 +145,8 @@ export function siteSyncRoutes() {
         }),
       ),
       limits: SYNC_VIEW_LIMITS,
-      schedulerNote: SCHEDULER_NOTE,
+      schedulerNote: schedulerNoteDe(agendador),
+      scheduler: toSchedulerView(agendador),
     });
   });
 

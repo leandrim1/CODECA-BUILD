@@ -916,6 +916,218 @@ describe('agendador', () => {
   });
 });
 
+describe('agendador externo', () => {
+  /**
+   * O cron-job.org chamando `/api/sync/run` de 6 em 6 horas.
+   *
+   * O que estes testes defendem nao e a passagem em si -- essa ja tem testes
+   * acima --, e sim o que **so aparece quando existe mais de um disparador**:
+   * duas chamadas se cruzando, a mesma entrega chegando duas vezes, e a
+   * plataforma sabendo distinguir quem chamou.
+   */
+
+  async function chamar(
+    headers: Record<string, string> = {},
+    query = '',
+  ) {
+    const { TEST_JOB_SECRET } = await import('../helpers/api.js');
+    return empresa.client.post(
+      `/api/sync/run${query}`,
+      {},
+      { headers: { authorization: `Bearer ${TEST_JOB_SECRET}`, ...headers } },
+    );
+  }
+
+  it('registra a execução com origem, horário e duração', async () => {
+    await importarEConectar(empresa);
+    await api.db.update(schema.syncSources).set({ nextCheckAt: new Date(Date.now() - 1000) });
+
+    const resposta = await chamar();
+    expect(resposta.status, resposta.errorMessage ?? '').toBe(200);
+    expect(resposta.body.resultado).toBe('concluida');
+
+    const execucao = resposta.body.execucao;
+    // Sem cabecalho da Vercel, quem chamou e um agendador externo.
+    expect(execucao.origin).toBe('externo');
+    expect(execucao.state).toBe('concluida');
+    expect(execucao.durationMs).toBeGreaterThanOrEqual(0);
+    expect(typeof execucao.startedAt).toBe('string');
+    expect(execucao.finishedAt).not.toBeNull();
+
+    const [linha] = await api.db.select().from(schema.syncRuns);
+    expect(linha?.origin).toBe('externo');
+    expect(linha?.state).toBe('concluida');
+  });
+
+  it('reconhece a chamada da própria Vercel', async () => {
+    await importarEConectar(empresa);
+    const resposta = await chamar({ 'x-vercel-cron': '1' });
+
+    expect(resposta.status).toBe(200);
+    expect(resposta.body.execucao.origin).toBe('vercel');
+  });
+
+  it('o disparo manual não entra na conta da cadência', async () => {
+    await importarEConectar(empresa);
+    const resposta = await chamar({}, '?origem=manual');
+
+    expect(resposta.status).toBe(200);
+    expect(resposta.body.execucao.origin).toBe('manual');
+  });
+
+  it('a mesma entrega não roda duas vezes', async () => {
+    await importarEConectar(empresa);
+    await api.db.update(schema.syncSources).set({ nextCheckAt: new Date(Date.now() - 1000) });
+
+    const primeira = await chamar({ 'idempotency-key': 'entrega-abc-123' });
+    expect(primeira.body.resultado).toBe('concluida');
+
+    // O agendador nao recebeu a resposta e tentou de novo com a mesma chave.
+    const repetida = await chamar({ 'idempotency-key': 'entrega-abc-123' });
+    expect(repetida.status).toBe(200);
+    expect(repetida.body.resultado).toBe('duplicada');
+    expect(repetida.body.execucao.id).toBe(primeira.body.execucao.id);
+
+    // E uma linha so no historico: a repeticao nao percorreu a fila.
+    const linhas = await api.db.select().from(schema.syncRuns);
+    expect(linhas).toHaveLength(1);
+  });
+
+  it('chave diferente é execução diferente', async () => {
+    await importarEConectar(empresa);
+
+    const a = await chamar({ 'idempotency-key': 'entrega-1' });
+    const b = await chamar({ 'idempotency-key': 'entrega-2' });
+
+    expect(a.body.resultado).toBe('concluida');
+    expect(b.body.resultado).toBe('concluida');
+    expect(b.body.execucao.id).not.toBe(a.body.execucao.id);
+  });
+
+  it('duas passagens ao mesmo tempo viram uma só', async () => {
+    await importarEConectar(empresa);
+    await api.db.update(schema.syncSources).set({ nextCheckAt: new Date(Date.now() - 1000) });
+
+    /**
+     * A trava e do banco, por indice unico parcial. Para exercita-la sem
+     * depender de duas requisicoes caindo no mesmo milissegundo, deixa-se
+     * uma passagem aberta e chama-se a rota: e exatamente o estado que a
+     * Vercel e o cron externo produzem quando se cruzam.
+     */
+    await api.db.insert(schema.syncRuns).values({ origin: 'vercel', state: 'executando' });
+
+    const resposta = await chamar();
+    expect(resposta.status).toBe(200);
+    expect(resposta.body.resultado).toBe('em_andamento');
+    expect(typeof resposta.body.iniciadaEm).toBe('string');
+
+    // A fonte continua vencida: a chamada recusada nao consumiu a fila.
+    const [fonte] = await api.db.select().from(schema.syncSources);
+    expect(fonte?.nextCheckAt?.getTime()).toBeLessThan(Date.now());
+  });
+
+  it('execução abandonada não trava o agendador para sempre', async () => {
+    await importarEConectar(empresa);
+
+    // Uma passagem que comecou ha muito tempo e nunca terminou: a funcao
+    // morreu no meio. Sem a expiracao, a trava acima seria permanente.
+    await api.db.insert(schema.syncRuns).values({
+      origin: 'externo',
+      state: 'executando',
+      startedAt: new Date(Date.now() - 30 * 60_000),
+    });
+
+    const resposta = await chamar();
+    expect(resposta.body.resultado).toBe('concluida');
+
+    const linhas = await api.db.select().from(schema.syncRuns);
+    const expirada = linhas.find((linha) => linha.state === 'expirada');
+    expect(expirada).toBeDefined();
+  });
+
+  it('o segredo nunca aparece na resposta, nem quando está errado', async () => {
+    const { TEST_JOB_SECRET } = await import('../helpers/api.js');
+
+    const recusada = await empresa.client.post(
+      '/api/sync/run',
+      {},
+      { headers: { authorization: 'Bearer chute-errado' } },
+    );
+    expect(recusada.status).toBe(401);
+    const textoRecusa = JSON.stringify(recusada.body ?? {}) + (recusada.errorMessage ?? '');
+    expect(textoRecusa).not.toContain(TEST_JOB_SECRET);
+    expect(textoRecusa).not.toContain('chute-errado');
+
+    await importarEConectar(empresa);
+    const aceita = await chamar();
+    expect(JSON.stringify(aceita.body)).not.toContain(TEST_JOB_SECRET);
+  });
+
+  it('a tela só anuncia cadência maior depois de medir o agendador externo', async () => {
+    await importarEConectar(empresa);
+
+    // Antes de qualquer execucao externa: vale o piso, e nada de 6 horas.
+    const antes = await estado(empresa);
+    expect(antes.scheduler.externalValidated).toBe(false);
+    expect(antes.scheduler.effectiveMinutes).toBe(24 * 60);
+    expect(antes.schedulerNote).toContain('uma vez por dia');
+
+    // Um agendador externo que vem chamando de 6 em 6 horas ha dois dias.
+    const agora = Date.now();
+    for (let i = 0; i < 8; i += 1) {
+      const quandoRodou = new Date(agora - i * 6 * 60 * 60_000);
+      await api.db.insert(schema.syncRuns).values({
+        origin: 'externo',
+        state: 'concluida',
+        startedAt: quandoRodou,
+        finishedAt: quandoRodou,
+        durationMs: 1200,
+      });
+    }
+
+    const depois = await estado(empresa);
+    expect(depois.scheduler.externalValidated).toBe(true);
+    expect(depois.scheduler.observedMinutes).toBe(6 * 60);
+    expect(depois.scheduler.effectiveMinutes).toBe(6 * 60);
+    expect(depois.schedulerNote).toContain('6 horas');
+  });
+
+  it('a última execução aparece na tela, com origem e duração', async () => {
+    await importarEConectar(empresa);
+    await chamar({ 'x-vercel-cron': '1' });
+
+    const corpo = await estado(empresa);
+    expect(corpo.scheduler.lastRun).not.toBeNull();
+    expect(corpo.scheduler.lastRun.origin).toBe('vercel');
+    expect(corpo.scheduler.lastRun.state).toBe('concluida');
+    expect(corpo.scheduler.lastRun.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('o site de um cliente fora do ar não interrompe a fila dos outros', async () => {
+    await importarEConectar(empresa);
+
+    const outra = await registerAccount(api, {
+      email: 'contato@terceiraclinica.com.br',
+      companyName: 'Terceira Clínica',
+    });
+    await verifyEmail(api, outra);
+    await habilitarModulos(outra);
+    await usarPlanoComEspaco(outra);
+    await importarEConectar(outra);
+
+    // Vence as duas fontes e derruba o site de origem de todo mundo menos
+    // o conteudo que a segunda empresa ja tem: a primeira falha, a segunda
+    // tem de ser verificada do mesmo jeito.
+    await api.db.update(schema.syncSources).set({ nextCheckAt: new Date(Date.now() - 1000) });
+
+    const resposta = await chamar();
+    expect(resposta.body.resultado).toBe('concluida');
+    expect(resposta.body.claimed).toBe(2);
+    // As duas foram verificadas: nenhuma exceção escapou de uma para a outra.
+    expect(resposta.body.checked).toBe(2);
+  });
+});
+
 describe('cenário 14: dois clientes ao mesmo tempo', () => {
   it('cada empresa só vê e aplica o que é dela', async () => {
     await importarEConectar(empresa);

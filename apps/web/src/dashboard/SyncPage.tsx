@@ -17,6 +17,7 @@ import {
   REMOVAL_ACTION_LABELS,
   SYNC_FREQUENCIES,
   SYNC_FREQUENCY_LABELS,
+  SYNC_RUN_ORIGIN_LABELS,
   SYNC_SOURCE_STATE_LABELS,
   checkImportUrl,
   formatDateTime,
@@ -62,7 +63,8 @@ import { siteSyncApi } from '../services/endpoints.js';
  * ## Por que ela nao fica consultando o servidor
  *
  * Diferente da tela de importacao, aqui nao ha processo em andamento no
- * navegador: quem verifica e o agendador do backend, uma vez por dia. A tela
+ * navegador: quem verifica e o agendador do backend, na cadencia que o
+ * cartao "Verificacao automatica" mostra medida. A tela
  * le o estado quando abre e depois de cada acao. "Verificar agora" apenas
  * antecipa uma passagem -- o mesmo caminho que o cron usa.
  */
@@ -316,6 +318,8 @@ export function SyncPage() {
           {erro}
         </Alert>
       ) : null}
+
+      {data?.scheduler ? <CadenciaDoAgendador scheduler={data.scheduler} /> : null}
 
       {source === null ? (
         <ConectarFonte
@@ -656,6 +660,126 @@ function Info({ rotulo, valor }: { rotulo: string; valor: string }) {
       <dd className="text-sm font-medium [overflow-wrap:anywhere]">{valor}</dd>
     </div>
   );
+}
+
+/**
+ * O que a plataforma garante, e o que ela esta entregando.
+ *
+ * Os dois numeros aparecem com nomes separados de proposito. O **garantido**
+ * vem dos dois agendamentos da Vercel e vale sempre. O **observado** sai do
+ * historico real das passagens, e so aparece como cadencia depois de o
+ * agendador externo ter sido visto funcionando -- configurar o cron-job.org
+ * nao basta, ele precisa ter chamado.
+ *
+ * Essa separacao e a razao de o cartao existir. Um unico numero obrigaria a
+ * escolher entre prometer 6 horas sem prova (e o cliente descobrir sozinho
+ * que nao era verdade) ou esconder a cadencia maior depois de ela passar a
+ * funcionar de fato.
+ */
+function CadenciaDoAgendador(props: { scheduler: NonNullable<SyncOverviewView['scheduler']> }) {
+  const { scheduler } = props;
+  const ultima = scheduler.lastRun;
+
+  return (
+    <Card>
+      <CardHeader
+        title="Verificação automática"
+        description="Com que frequência a plataforma olha os sites de origem"
+      />
+      <CardBody className="grid gap-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-[color:var(--border)] p-3">
+            <p className="text-xs text-[color:var(--muted-foreground)]">Garantida pela plataforma</p>
+            <p className="mt-1 flex items-center gap-2 text-sm font-medium">
+              <Clock size={16} aria-hidden />
+              {scheduler.baselineLabel === 'um dia'
+                ? 'Uma vez por dia'
+                : `A cada ${scheduler.baselineLabel}`}
+            </p>
+            <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
+              Dois agendamentos da Vercel. Não depende de nenhum serviço externo.
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-[color:var(--border)] p-3">
+            <p className="text-xs text-[color:var(--muted-foreground)]">Medida no histórico</p>
+            {scheduler.externalValidated ? (
+              <>
+                <p className="mt-1 flex items-center gap-2 text-sm font-medium">
+                  <CheckCircle2 size={16} aria-hidden />A cada {scheduler.effectiveLabel}
+                </p>
+                <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
+                  Agendador externo confirmado: {scheduler.externalRuns}{' '}
+                  {scheduler.externalRuns === 1 ? 'execução' : 'execuções'} nos últimos 7 dias.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 flex items-center gap-2 text-sm font-medium">
+                  <AlertTriangle size={16} aria-hidden />
+                  Sem agendador externo confirmado
+                </p>
+                <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
+                  {scheduler.externalRuns === 0
+                    ? 'Nenhuma chamada externa registrada. Vale a frequência garantida acima.'
+                    : `${scheduler.externalRuns} chamada(s) externa(s) registrada(s) — ainda não é histórico suficiente para anunciar uma cadência maior.`}
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/*
+          A ultima execucao responde a pergunta que o cliente faz primeiro
+          quando desconfia: "isso rodou mesmo?". Com horario, origem e
+          duracao, a resposta nao depende de acreditar em ninguem.
+        */}
+        <div className="rounded-lg border border-[color:var(--border)] p-3">
+          <p className="text-xs text-[color:var(--muted-foreground)]">Última execução</p>
+          {ultima === null ? (
+            <p className="mt-1 text-sm">Nenhuma execução registrada ainda.</p>
+          ) : (
+            <div className="mt-1 grid gap-1 text-sm">
+              <p className="flex flex-wrap items-center gap-2">
+                <History size={16} aria-hidden />
+                <span>{quando(ultima.startedAt)}</span>
+                <Badge tone="neutral">{SYNC_RUN_ORIGIN_LABELS[ultima.origin]}</Badge>
+                {ultima.state === 'concluida' ? (
+                  <Badge tone="success">concluída</Badge>
+                ) : ultima.state === 'executando' ? (
+                  <Badge tone="warning">em andamento</Badge>
+                ) : ultima.state === 'expirada' ? (
+                  <Badge tone="warning">não terminou</Badge>
+                ) : (
+                  <Badge tone="danger">falhou</Badge>
+                )}
+              </p>
+              <p className="text-xs text-[color:var(--muted-foreground)]">
+                {ultima.durationMs !== null ? `Durou ${duracao(ultima.durationMs)}. ` : ''}
+                {ultima.sourcesChecked} site(s) verificado(s)
+                {ultima.sourcesFailed > 0 ? `, ${ultima.sourcesFailed} com falha` : ''}
+                {ultima.changesFound > 0 ? `, ${ultima.changesFound} alteração(ões) encontrada(s)` : ''}
+                .
+              </p>
+              {ultima.error !== '' ? (
+                <p className="text-xs text-[color:var(--danger,#b91c1c)]">{ultima.error}</p>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+/** Duracao em milissegundos escrita como a tela fala. */
+function duracao(ms: number): string {
+  if (ms < 1000) return `${ms} ms`;
+  const segundos = ms / 1000;
+  if (segundos < 60) return `${segundos.toFixed(1).replace('.', ',')} s`;
+  const minutos = Math.floor(segundos / 60);
+  const resto = Math.round(segundos % 60);
+  return `${minutos} min ${resto} s`;
 }
 
 function quando(iso: string | null): string {

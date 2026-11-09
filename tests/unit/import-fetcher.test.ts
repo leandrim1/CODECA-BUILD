@@ -1,7 +1,8 @@
-import { createServer, type Server } from 'node:http';
+import { createServer, request as httpRequest, type Server } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   SiteFetchError,
+  addressLookup,
   createMemorySiteFetcher,
   createSiteFetcher,
 } from '@codeca/api';
@@ -147,6 +148,99 @@ describe('redirecionamento', () => {
     await expect(fetcher.fetch('https://exemplo.com/a')).rejects.toMatchObject({
       reason: 'muitos_redirecionamentos',
     });
+  });
+});
+
+/**
+ * O contrato do `lookup`, que derrubou a funcionalidade inteira em producao.
+ *
+ * A busca entrega a conexao o IP que acabou de validar, por `options.lookup`.
+ * O formato da resposta **muda conforme o `options.all` que o Node pede**, e
+ * esse detalhe nao aparece em nenhuma asercao sobre strings: a versao
+ * anterior respondia sempre `(null, endereco, familia)`, o Node 20+ pede
+ * `all: true` por causa do `autoSelectFamily`, e o soquete morria com
+ * `ERR_INVALID_IP_ADDRESS` antes de qualquer pacote sair. Nenhum site era
+ * lido, nem na importacao nem na sincronizacao.
+ *
+ * Nada disso era visivel nos testes porque os de ponta a ponta usam o
+ * `createMemorySiteFetcher`, que nao toca a rede, e os de barreira recusam o
+ * endereco **antes** de conectar. O caminho de conexao real nao tinha teste.
+ *
+ * Por isso estes testes conectam de verdade: um servidor local, o `lookup` da
+ * busca, e uma resposta que so chega se a conexao acontecer.
+ */
+describe('o lookup entrega os enderecos validados a conexao', () => {
+  it('responde em lista quando o Node pede `all` -- o caso que quebrou', async () => {
+    const recebido = await new Promise<unknown>((resolve) => {
+      addressLookup([{ address: '127.0.0.1', family: 4 }])(
+        'exemplo.invalido',
+        { all: true },
+        (_erro: unknown, resultado: unknown) => resolve(resultado),
+      );
+    });
+    expect(recebido).toEqual([{ address: '127.0.0.1', family: 4 }]);
+  });
+
+  it('responde em endereco solto quando o Node nao pede `all`', async () => {
+    const recebido = await new Promise<unknown[]>((resolve) => {
+      addressLookup([{ address: '127.0.0.1', family: 4 }])(
+        'exemplo.invalido',
+        { all: false },
+        (_erro: unknown, endereco: unknown, familia: unknown) => resolve([endereco, familia]),
+      );
+    });
+    expect(recebido).toEqual(['127.0.0.1', 4]);
+  });
+
+  it('uma requisicao de verdade chega ao servidor usando esse lookup', async () => {
+    // Prova de ponta a ponta do contrato: o nome nao existe no DNS, entao a
+    // resposta so chega se a conexao tiver usado o endereco que entregamos.
+    const corpo = await new Promise<string>((resolve, reject) => {
+      const req = httpRequest(
+        {
+          hostname: 'nome-que-nao-existe.invalido',
+          port: portaLocal,
+          path: '/',
+          method: 'GET',
+          headers: { host: 'nome-que-nao-existe.invalido' },
+          lookup: addressLookup([{ address: '127.0.0.1', family: 4 }]),
+          timeout: 5_000,
+        },
+        (res) => {
+          let texto = '';
+          res.setEncoding('utf-8');
+          res.on('data', (parte) => {
+            texto += parte;
+          });
+          res.on('end', () => resolve(texto));
+        },
+      );
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('tempo esgotado'));
+      });
+      req.end();
+    });
+
+    expect(corpo).toContain('Serviço interno');
+  });
+
+  it('entrega todos os enderecos validados, para a conexao tentar o seguinte', async () => {
+    // Um nome com varios A nao pode depender da ordem que o DNS devolveu: o
+    // primeiro endereco aqui nao atende, e a resposta so chega pelo segundo.
+    const recebido = await new Promise<unknown>((resolve) => {
+      addressLookup([
+        { address: '192.0.2.1', family: 4 },
+        { address: '127.0.0.1', family: 4 },
+      ])('exemplo.invalido', { all: true }, (_erro: unknown, resultado: unknown) =>
+        resolve(resultado),
+      );
+    });
+    expect(recebido).toEqual([
+      { address: '192.0.2.1', family: 4 },
+      { address: '127.0.0.1', family: 4 },
+    ]);
   });
 });
 

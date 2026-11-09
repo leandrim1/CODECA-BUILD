@@ -78,7 +78,7 @@ conflito para sempre.
 
 ---
 
-## 3. A frequência: o que o plano atual entrega
+## 3. A frequência: medida, não configurada
 
 A instalação roda no **plano gratuito da Vercel**, que permite 2 agendamentos
 e dispara cada um **uma vez por dia**. Os dois estão em uso:
@@ -93,50 +93,152 @@ e dispara cada um **uma vez por dia**. Os dois estão em uso:
 ```
 
 A reconciliação das 05:23 também executa uma passagem da sincronização, então
-na prática as fontes são olhadas **duas vezes ao dia** — de manhã cedo e no
-fim da tarde. O que está *garantido* pelo plano é uma vez; é esse o número que
-a plataforma promete ao cliente.
+na prática as fontes são olhadas **duas vezes ao dia**. O que está *garantido*
+pelo plano é uma vez: esse é o piso, e ele vale sempre, sem depender de
+nenhum serviço de fora. O minuto 47 evita a hora cheia, onde se concentra o
+tráfego agendado.
 
-O minuto 47 evita a hora cheia, onde se concentra o tráfego agendado.
+Para cadência maior existe um terceiro caminho: um **agendador externo**
+chamando `/api/sync/run` de 6 em 6 horas. E aqui está a decisão de projeto
+que governa o resto desta seção.
 
-> As opções "a cada 6 horas" e "a cada 12 horas" **não executam nessa cadência
-> neste plano**. A fonte realmente vence no prazo escolhido e entra na fila,
-> mas só é atendida na passagem seguinte do agendador.
+### A plataforma não acredita em configuração — ela mede
 
-Isso não fica escondido: a tela mostra o aviso ao lado da frequência escolhida
-(`schedulerNote`), e `frequencyExceedsScheduler` decide quando exibi-lo. Quem
-escolhe 6 horas sabe o que vai receber.
+Um agendador externo vive fora da plataforma. Pode nunca ter sido
+configurado, pode ter sido apagado, a conta pode ter expirado. Uma tela que
+anunciasse "a cada 6 horas" porque *alguém marcou uma caixa* estaria mentindo
+em todos esses casos — e mentindo de forma invisível, porque tudo continua
+parecendo funcionar: só o conteúdo é que chega atrasado, e a culpa cai na
+CODECA Build.
 
-Rodar pelos dois gatilhos não duplica trabalho: a reserva da fila é atômica, e
-uma fonte que ainda não venceu simplesmente não é selecionada.
+Por isso cada passagem grava uma linha em `sync_runs` com a origem, e a
+cadência anunciada sai desse histórico:
+
+| | De onde vem | Quando aparece |
+|---|---|---|
+| **Garantida** | Os dois crons da Vercel | Sempre |
+| **Medida** | Histórico real de `sync_runs` | Após ≥ 3 execuções externas em 7 dias, e só se o intervalo medido for menor que o piso |
+
+Duas regras fazem a medida ser honesta nas duas direções:
+
+- **vale o pior intervalo, não a média.** Um agendador que roda de 6 em 6
+  horas mas pulou uma noite entregou 18 horas naquele intervalo. A média
+  diria 7h; o cliente precisa ouvir 18, porque é isso que ele vai sentir.
+- **o tempo desde a última passagem conta como um intervalo.** Sem isso, um
+  cron externo apagado ontem continuaria exibindo "a cada 6 horas" para
+  sempre, apoiado em história antiga. Contando, a medida se degrada sozinha:
+  o buraco cresce, passa do piso, e a tela volta a dizer "uma vez por dia"
+  sem ninguém precisar desligar nada.
+
+A tela mostra os dois números com nomes separados, mais a última execução com
+horário, origem, duração e resultado.
 
 ### Autenticação
 
-Nenhuma configuração nova. O cron usa o mesmo segredo do job de reconciliação:
-a Vercel envia `Authorization: Bearer <CRON_SECRET>`, e a instalação já define
-`CRON_SECRET` com o mesmo valor de `BILLING_RECONCILIATION_SECRET` (ver
-`.env.example`). Qualquer agendador externo serve igualmente — é um `POST`
-para `/api/sync/run` com esse cabeçalho.
+Nenhuma configuração nova. O mesmo segredo do job de reconciliação:
+`Authorization: Bearer <CRON_SECRET>`, e a instalação já define `CRON_SECRET`
+com o mesmo valor de `BILLING_RECONCILIATION_SECRET` (ver `.env.example`).
 
-### Para obter a cadência real de 6 horas
+A comparação é em tempo constante (`assertJobSecret`). Sem segredo
+configurado a rota fica **indisponível**, não aberta. E o segredo nunca
+aparece em resposta nenhuma — nem o valor recebido, nem o esperado —, o que
+tem teste próprio.
 
-São **duas linhas**, e nenhuma delas é de lógica:
+### Configurar o cron-job.org
 
-1. em `vercel.json`, o `schedule` do cron `/api/sync/run` passa a
-   `47 */6 * * *`;
-2. em `packages/shared/src/sync/types.ts`,
-   `SCHEDULER_INTERVAL_MINUTES` passa a `6 * 60`.
+1. Crie a conta em <https://cron-job.org> e vá em **Cronjobs → Create cronjob**.
+2. **Title:** `CODECA Build — sincronização`.
+3. **URL:** `https://codecabuild.vercel.app/api/sync/run`
+4. **Schedule:** *Every 6 hours*. Escolha um minuto fora da hora cheia (por
+   exemplo `:17`) e evite 05:23 e 17:47, que são os horários dos crons da
+   Vercel — não quebra nada se coincidir (a trava resolve), mas a passagem
+   seria desperdiçada.
+5. Em **Advanced**:
+   - **Request method:** `POST`
+   - **Headers:** adicione `Authorization` com o valor
+     `Bearer SEU_CRON_SECRET`
+   - **Request timeout:** `60` segundos, para acompanhar o `maxDuration` da
+     função
+   - **Treat redirects as success:** desligado
+6. Salve e use **Run now** para a primeira execução.
 
-A segunda não é opcional: é ela que a tela usa para decidir se avisa o cliente
-de que a cadência real é menor que a escolhida. Deixá-la em 1440 com o cron de
-6 horas ativo faria a tela avisar sem motivo; o inverso faria a tela prometer
-o que não entrega. Um teste unitário guarda as duas pontas e falha se só uma
-mudar.
+Quem não puder configurar cabeçalho pode usar `?chave=` para a idempotência,
+mas **o segredo vai sempre no cabeçalho** — nunca na URL, que fica gravada em
+log de servidor, histórico e referer.
 
-Isso exige um plano da Vercel que aceite agendamento infra-diário. Como
-alternativa sem trocar de plano, qualquer agendador externo (um cron numa
-máquina sua, um serviço de ping) pode chamar `/api/sync/run` de 6 em 6 horas
-com o mesmo cabeçalho — aí só o passo 2 é necessário.
+### Testar a autenticação e a execução real
+
+Recusa sem segredo (esperado `401`):
+
+```bash
+curl -i -X POST https://codecabuild.vercel.app/api/sync/run
+```
+
+Recusa com segredo errado (esperado `401`, e a resposta não ecoa nada):
+
+```bash
+curl -i -X POST https://codecabuild.vercel.app/api/sync/run -H "Authorization: Bearer errado"
+```
+
+Execução real (esperado `200` com `"resultado":"concluida"`):
+
+```bash
+curl -s -X POST "https://codecabuild.vercel.app/api/sync/run?origem=manual" -H "Authorization: Bearer $CRON_SECRET"
+```
+
+A resposta traz a execução registrada:
+
+```json
+{
+  "data": {
+    "resultado": "concluida",
+    "execucao": {
+      "origin": "manual",
+      "state": "concluida",
+      "durationMs": 1842,
+      "sourcesChecked": 3,
+      "changesFound": 1
+    },
+    "claimed": 3, "checked": 3, "failed": 0, "changesFound": 1
+  }
+}
+```
+
+Use `?origem=manual` nos testes à mão: assim o disparo **não entra na conta
+da cadência**, e a medida continua refletindo só o agendador de verdade.
+
+Idempotência (a segunda chamada responde `"duplicada"` e não percorre a fila):
+
+```bash
+curl -s -X POST https://codecabuild.vercel.app/api/sync/run -H "Authorization: Bearer $CRON_SECRET" -H "Idempotency-Key: teste-001"
+```
+
+Depois de rodar, confirme no painel em **Sincronização → Verificação
+automática**: a última execução deve aparecer com horário, origem e duração.
+A cadência medida só passa a 6 horas após a terceira execução externa — por
+construção, não por atraso.
+
+### Proteções com mais de um disparador
+
+| Situação | O que acontece |
+|---|---|
+| Duas chamadas se cruzam | Índice único parcial em `sync_runs` (`state = 'executando'`): uma roda, a outra responde `200` com `"resultado":"em_andamento"` e não faz nada |
+| Mesma entrega repetida | Com `Idempotency-Key`, a segunda devolve o resultado da primeira. Sem chave, a reserva atômica da fila já garante que nada seja processado duas vezes |
+| Execução que morreu no meio | Passagem `executando` com mais de 5 min vira `expirada` na chamada seguinte; a trava nunca fica permanente |
+| Falha da passagem | Responde `503`, a linha é fechada como `falhou`, e a tentativa seguinte não duplica nada |
+| Um site de cliente fora do ar | Morre dentro de `checkOneSource`: a fila dos outros clientes continua |
+
+O `200` em `em_andamento` é deliberado: dois agendadores independentes se
+cruzarem é funcionamento normal, não erro. Responder `409` encheria o
+histórico do cron-job.org de falhas vermelhas para algo que funcionou como
+projetado — e isso treina o operador a ignorar o alarme.
+
+### Se preferir o cron da própria Vercel
+
+Num plano que aceite agendamento infra-diário, são duas linhas: o `schedule`
+do cron em `vercel.json` passa a `47 */6 * * *`, e o piso
+`SCHEDULER_BASELINE_MINUTES` em `packages/shared/src/sync/types.ts` passa a
+`6 * 60`. A medida continua valendo por cima disso.
 
 ---
 
@@ -273,7 +375,9 @@ ciclo seguinte, sem precisar de limpeza.
 ## 7. Limitações conhecidas
 
 - **Cadência infra-diária exige outro plano (ou agendador externo).** O
-  gratuito da Vercel dispara cada cron uma vez por dia. Ver a seção 3.
+  gratuito da Vercel dispara cada cron uma vez por dia. Um agendador externo
+  levanta esse teto, e a tela só anuncia a cadência maior depois de medi-la.
+  Ver a seção 3.
 - **Site renderizado no navegador.** A análise não executa JavaScript —
   mesma limitação da importação, documentada em `docs/importacao-de-sites.md`.
 - **Renomear conteúdo na origem aparece como removido + novo.** A identidade de
