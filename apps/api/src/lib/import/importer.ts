@@ -4,6 +4,7 @@ import {
   type DocumentModuleKey,
   type ImportResultView,
   type ImportTarget,
+  MODULE_REGISTRY,
 } from '@codeca/shared';
 import type { Database } from '@codeca/database';
 import type { BlobStorage } from '../blob.js';
@@ -230,7 +231,12 @@ export async function runImport(
 
     const moduleKey = item.target as DocumentModuleKey;
     const grupo = porDocumento.get(moduleKey) ?? { fields: {}, items: [] };
-    grupo.fields[item.fieldKey] = resolverImagens(item.value, imagensPorUrl);
+    grupo.fields[item.fieldKey] = resolverImagens(
+      moduleKey,
+      item.fieldKey,
+      item.value,
+      imagensPorUrl,
+    );
     grupo.items.push(item);
     porDocumento.set(moduleKey, grupo);
   }
@@ -375,21 +381,55 @@ async function marcarHash(
     .where(and(eq(schema.siteImportItems.id, itemId), eq(schema.siteImportItems.tenantId, tenantId)));
 }
 
+/** `true` para endereco que aponta um arquivo de imagem. */
+const ENDERECO_DE_IMAGEM = /^https?:\/\/.*\.(png|jpe?g|webp|avif|gif|svg)(\?|$)/i;
+
 /**
  * Troca endereco de imagem por identificador da biblioteca.
  *
- * Vale para os campos de documento que guardam imagem (`logoImageId`,
- * `coverImageId`). Quando a imagem nao foi importada, o campo fica nulo em vez
- * de apontar para o site antigo -- e o requisito de nao depender das URLs
- * antigas.
+ * Vale para os campos de documento que guardam imagem: um so (`logoImageId`,
+ * `coverImageId`) ou uma lista (`galleryImageIds`). Quando a imagem nao foi
+ * importada, o campo fica **nulo** em vez de apontar para o site antigo -- e
+ * o requisito de o site novo parar de depender do antigo. Gravar a URL de
+ * terceiro ali seria pior que gravar nada: o site do cliente continuaria
+ * servindo imagem de um dominio que ele nao controla e que pode sair do ar.
  */
-function resolverImagens(value: unknown, imagens: Map<string, string>): unknown {
+function resolverImagens(
+  moduleKey: DocumentModuleKey,
+  fieldKey: string,
+  value: unknown,
+  imagens: Map<string, string>,
+): unknown {
+  /**
+   * Quem decide e o **tipo declarado do campo**, nao a forma do valor.
+   *
+   * Adivinhar pela forma ja custou caro: tratar toda lista como lista de
+   * imagens zerou `values` -- que e uma lista de palavras ("Cuidado",
+   * "Transparência") -- porque nenhuma delas estava no mapa de imagens. O
+   * registro de modulos sabe o tipo de cada campo; perguntar a ele e exato
+   * e nao depende de heuristica nenhuma.
+   */
+  const tipo = MODULE_REGISTRY[moduleKey].fields.find((campo) => campo.key === fieldKey)?.type;
+
+  if (tipo === 'imageList') {
+    if (!Array.isArray(value)) return value;
+    const ids: string[] = [];
+    for (const item of value) {
+      if (typeof item !== 'string') continue;
+      const id = imagens.get(item);
+      if (id !== undefined && !ids.includes(id)) ids.push(id);
+    }
+    return ids;
+  }
+
+  if (tipo !== 'image') return value;
+
   if (typeof value !== 'string') return value;
   const id = imagens.get(value);
   if (id !== undefined) return id;
   // Endereco de imagem que nao virou arquivo da biblioteca nao serve como
   // valor de campo de imagem.
-  if (/^https?:\/\//i.test(value) && /\.(png|jpe?g|webp|avif|gif)(\?|$)/i.test(value)) return null;
+  if (ENDERECO_DE_IMAGEM.test(value)) return null;
   return value;
 }
 

@@ -282,6 +282,56 @@ function mapInstitucional(pages: readonly PageExtract[]): ImportCandidate[] {
   }
 
   /**
+   * Imagem de destaque: o banner da inicial.
+   *
+   * A escolha e a mesma que um visitante faria -- a imagem grande que abre o
+   * site. Nao se inventa um destaque a partir de foto de conteudo: sem banner
+   * declarado, o campo fica vazio, que e o comportamento certo quando nao ha
+   * evidencia.
+   */
+  const destaque = pages
+    .flatMap((page) => page.images.map((image) => ({ page, image })))
+    .find((entry) => entry.image.placement === 'banner');
+  if (destaque) {
+    candidates.push({
+      kind: 'documento_campo',
+      target: 'institucional',
+      fieldKey: 'coverImageId',
+      label: 'Imagem de destaque',
+      value: destaque.image.url,
+      evidence: evidence(destaque.page.url, 'imagem', destaque.image.alt || 'Imagem de destaque'),
+    });
+  }
+
+  /**
+   * Galeria do institucional: as fotos de conteudo da inicial e da Sobre.
+   *
+   * So dessas duas paginas, e de proposito. Varrer o site inteiro encheria a
+   * galeria institucional com foto de produto e de imovel, que tem modulo
+   * proprio -- o cliente teria de limpar a mao o que a importacao bagunçou.
+   */
+  const institucionais = pages
+    .filter((page) => page.role === 'inicial' || page.role === 'sobre')
+    .flatMap((page) => page.images.map((image) => ({ page, image })))
+    .filter((entry) => entry.image.placement === 'conteudo' || entry.image.placement === 'galeria');
+
+  const galeria = dedupePorUrl(institucionais).slice(0, 12);
+  if (galeria.length > 0) {
+    candidates.push({
+      kind: 'documento_campo',
+      target: 'institucional',
+      fieldKey: 'galleryImageIds',
+      label: 'Galeria',
+      value: galeria.map((entry) => entry.image.url),
+      evidence: evidence(
+        galeria[0]?.page.url ?? pages[0]?.url ?? '',
+        'imagem',
+        `${galeria.length} ${galeria.length === 1 ? 'imagem' : 'imagens'} da página inicial e da página Sobre`,
+      ),
+    });
+  }
+
+  /**
    * Ano de fundacao: somente da inicial ou da pagina Sobre.
    *
    * Qualquer pagina pode conter "desde 2005" sem falar da empresa -- numa
@@ -307,6 +357,48 @@ function mapInstitucional(pages: readonly PageExtract[]): ImportCandidate[] {
 }
 
 /** Acrescenta so se ainda nao houver candidato para o mesmo campo. */
+/**
+ * `areaServed` do JSON-LD, que vem em varias formas.
+ *
+ * O padrao aceita texto, objeto com `name`, ou lista de qualquer um dos
+ * dois. Tratar so a string perderia a maioria dos casos reais.
+ */
+function areaServedDe(node: Record<string, unknown>): string {
+  const bruto = node['areaServed'];
+  const nomes: string[] = [];
+
+  const recolher = (valor: unknown): void => {
+    if (typeof valor === 'string') {
+      const texto = valor.trim();
+      if (texto !== '') nomes.push(texto);
+      return;
+    }
+    if (Array.isArray(valor)) {
+      for (const item of valor) recolher(item);
+      return;
+    }
+    if (valor !== null && typeof valor === 'object') {
+      const nome = (valor as Record<string, unknown>)['name'];
+      if (typeof nome === 'string' && nome.trim() !== '') nomes.push(nome.trim());
+    }
+  };
+
+  recolher(bruto);
+  return [...new Set(nomes)].slice(0, 20).join(', ');
+}
+
+/** Tira repetidas pela URL, preservando a ordem em que apareceram. */
+function dedupePorUrl<T extends { image: { url: string } }>(entradas: readonly T[]): T[] {
+  const vistas = new Set<string>();
+  const saida: T[] = [];
+  for (const entrada of entradas) {
+    if (vistas.has(entrada.image.url)) continue;
+    vistas.add(entrada.image.url);
+    saida.push(entrada);
+  }
+  return saida;
+}
+
 function pushOnce(list: ImportCandidate[], candidate: DocumentFieldCandidate): void {
   const existe = list.some(
     (item) =>
@@ -350,6 +442,17 @@ function mapContato(pages: readonly PageExtract[]): ImportCandidate[] {
       if (!jsonLdIsType(node, 'Organization', 'LocalBusiness', 'Store', 'Dentist', 'MedicalClinic', 'MedicalBusiness', 'RealEstateAgent', 'HomeAndConstructionBusiness', 'ProfessionalService', 'Restaurant')) {
         continue;
       }
+      /**
+       * Area de atuacao, quando o site a declara.
+       *
+       * So de `areaServed`, que e o campo padronizado para isso. Deduzir de
+       * texto corrido ("atendemos toda a regiao") daria uma frase de
+       * marketing no lugar de um dado -- e inventar area de cobertura e
+       * exatamente o tipo de erro que custa caro para quem recebe a ligacao.
+       */
+      const area = areaServedDe(node);
+      if (area !== '') add('serviceArea', 'Área de atuação', area.slice(0, 1000), page, 'json_ld', area);
+
       const email = jsonLdString(node, 'email').replace(/^mailto:/i, '');
       if (email.includes('@')) add('email', 'E-mail', email.toLowerCase(), page, 'json_ld', email);
       const phone = jsonLdString(node, 'telephone');

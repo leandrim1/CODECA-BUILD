@@ -494,6 +494,37 @@ function extractImages(root: HtmlElement, pageUrl: string): ExtractedImage[] {
     register(url, alt, placementOf(image, url, alt), image);
   }
 
+  /**
+   * Imagem de fundo declarada no `style` do proprio elemento.
+   *
+   * Muito site poe a foto de abertura como `background-image`, e nao como
+   * `<img>`. Sem isto, a imagem mais visivel da pagina -- justamente a que o
+   * cliente quer -- ficava de fora, e a analise parecia nao ter achado nada.
+   *
+   * So o `style` embutido: folha de estilo externa exigiria baixar e
+   * interpretar CSS, com todas as regras de cascata e media query, para
+   * ganhar pouco a mais.
+   */
+  for (const elemento of walk(root)) {
+    if (found.length >= MAX_IMAGES_PER_PAGE) break;
+    const style = attr(elemento, 'style');
+    if (style === '' || !/background(-image)?\s*:/i.test(style)) continue;
+
+    for (const achado of style.matchAll(/url\(\s*['"]?([^)'"]+)['"]?\s*\)/gi)) {
+      const bruto = (achado[1] ?? '').trim();
+      if (bruto === '' || /^data:/i.test(bruto)) continue;
+      let absoluto = '';
+      try {
+        absoluto = new URL(bruto, pageUrl).toString();
+      } catch {
+        continue;
+      }
+      if (!/\.(png|jpe?g|webp|avif|gif|svg)(\?|$)/i.test(absoluto)) continue;
+      // Sem `alt`: o CSS nao tem onde declarar um, e inventar seria inventar.
+      register(absoluto, '', placementOf(elemento, absoluto, ''), elemento);
+    }
+  }
+
   // `<source>` dentro de `<picture>`: traz formatos melhores (avif, webp).
   for (const source of findAll(root, 'source')) {
     if (found.length >= MAX_IMAGES_PER_PAGE) break;

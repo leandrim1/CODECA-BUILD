@@ -4,6 +4,7 @@ import {
   extractPage,
   guessSegment,
   harvestEmbedded,
+  mapToModules,
   pareceFrase,
   sanitizeSvg,
 } from '@codeca/shared';
@@ -245,5 +246,102 @@ describe('higienizacao de SVG', () => {
     expect(r.removed).toHaveLength(0);
     expect(r.svg).toContain('<rect');
     expect(r.svg).toContain('CODECA');
+  });
+});
+
+// ------------------------------------------- novas fontes e novos campos
+
+/**
+ * Mais campos preenchidos, sem inventar nenhum.
+ *
+ * O pedido chama isto de "principal alteracao": o cliente nao deve ter de
+ * recadastrar o que ja existe no site antigo. O limite continua o mesmo --
+ * campo sem evidencia fica vazio.
+ */
+describe('cobertura de campos e de imagens', () => {
+  const pagina = (html: string, url = 'https://x.com.br/') =>
+    extractPage({ html, url, homeUrl: 'https://x.com.br/' });
+
+  it('imagem de fundo declarada no style tambem e encontrada', () => {
+    /**
+     * Muito site poe a foto de abertura como `background-image`, nao como
+     * `<img>`. Sem isto, a imagem mais visivel da pagina ficava de fora e a
+     * analise parecia nao ter achado nada.
+     */
+    const extrato = pagina(`<html><head><title>Pousada</title></head><body><main>
+      <section style="background-image: url('/img/fachada.jpg'); min-height: 60vh">
+        <h1>Bem-vindo</h1>
+      </section>
+      <div style="background:url(/img/piscina.webp) center/cover"></div>
+      <div style="background-image: url(data:image/png;base64,AAAA)"></div>
+      </main></body></html>`);
+
+    const urls = extrato.images.map((img) => img.url);
+    expect(urls).toContain('https://x.com.br/img/fachada.jpg');
+    expect(urls).toContain('https://x.com.br/img/piscina.webp');
+    // `data:` nao e arquivo no site do cliente.
+    expect(urls.some((u) => u.startsWith('data:'))).toBe(false);
+  });
+
+  it('nao traz imagem de fundo de bloco escondido', () => {
+    const extrato = pagina(`<html><head><title>X</title></head><body><main>
+      <div style="display:none;background-image:url(/img/modal.jpg)"></div>
+      <div style="background-image:url(/img/real.jpg)"></div>
+      </main></body></html>`);
+
+    const urls = extrato.images.map((img) => img.url);
+    expect(urls).toContain('https://x.com.br/img/real.jpg');
+    expect(urls).not.toContain('https://x.com.br/img/modal.jpg');
+  });
+
+  it('area de atuacao vem do campo padronizado, nunca de texto de marketing', () => {
+    const comArea = pagina(`<html><head><title>Elétrica Silva</title>
+      <script type="application/ld+json">{"@context":"https://schema.org","@type":"ProfessionalService",
+      "name":"Elétrica Silva","areaServed":["Uberlândia","Araguari",{"@type":"City","name":"Uberaba"}]}</script>
+      </head><body><main><p>Atendemos toda a região do Triângulo Mineiro com rapidez e garantia.</p></main></body></html>`);
+
+    const candidatos = mapToModules([comArea]).candidates;
+    const area = candidatos.find(
+      (c) => c.kind === 'documento_campo' && c.fieldKey === 'serviceArea',
+    );
+    expect(area).toBeDefined();
+    expect(area?.kind === 'documento_campo' ? area.value : '').toBe(
+      'Uberlândia, Araguari, Uberaba',
+    );
+  });
+
+  it('sem areaServed declarado, o campo fica vazio', () => {
+    const semArea = pagina(`<html><head><title>Elétrica Silva</title>
+      <script type="application/ld+json">{"@context":"https://schema.org","@type":"ProfessionalService","name":"Elétrica Silva"}</script>
+      </head><body><main><p>Atendemos toda a região do Triângulo Mineiro com rapidez e garantia.</p></main></body></html>`);
+
+    const candidatos = mapToModules([semArea]).candidates;
+    expect(
+      candidatos.some((c) => c.kind === 'documento_campo' && c.fieldKey === 'serviceArea'),
+    ).toBe(false);
+  });
+});
+
+/**
+ * Uma lista de palavras nao e uma lista de imagens.
+ *
+ * O caso que o teste guarda aconteceu de verdade nesta sessao: ao passar a
+ * tratar campo de lista como lista de imagens, o campo `values` -- que e uma
+ * lista de palavras como "Cuidado" e "Transparência" -- foi zerado, porque
+ * nenhuma delas estava no mapa de imagens. A licao virou regra: quem decide e
+ * o **tipo declarado do campo** no registro de modulos, nunca a forma do
+ * valor.
+ */
+describe('tipo do campo decide o tratamento, nao a forma do valor', () => {
+  it('o registro distingue lista de imagens de lista de palavras', async () => {
+    const { MODULE_REGISTRY } = await import('@codeca/shared');
+    const institucional = MODULE_REGISTRY.institucional.fields;
+
+    const galeria = institucional.find((campo) => campo.key === 'galleryImageIds');
+    const valores = institucional.find((campo) => campo.key === 'values');
+
+    // As duas sao listas, e e justamente por isso que a forma nao basta.
+    expect(galeria?.type).toBe('imageList');
+    expect(valores?.type).toBe('tags');
   });
 });
