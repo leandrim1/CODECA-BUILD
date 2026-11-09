@@ -180,6 +180,10 @@ export interface AnalyzedPage {
    * importacao vazia sem explicacao.
    */
   renderedByScript?: boolean;
+  /** Conteudo veio do estado serializado no HTML, sem navegador. */
+  fromEmbeddedState?: boolean;
+  /** Pagina lida depois de um navegador montar o conteudo. */
+  renderedWithBrowser?: boolean;
 }
 
 /**
@@ -265,6 +269,14 @@ export const IMPORT_LIMITS = {
   sliceBudgetMs: 20_000,
   /** Saltos de redirecionamento, cada um validado de novo. */
   maxRedirects: 3,
+  /**
+   * Paginas que podem passar pelo navegador numa analise.
+   *
+   * Baixo de proposito, e nao por economia: renderizar executa o codigo de
+   * terceiros, entao quanto menos vezes, melhor. Gasta-se nas paginas que a
+   * leitura sem navegador nao resolveu, que sao poucas quando existem.
+   */
+  maxRenderedPages: 8,
   /** Paginas buscadas em paralelo. Baixo de proposito: e o site de um cliente. */
   concurrency: 3,
   /** Registros candidatos por modulo de colecao. */

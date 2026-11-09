@@ -122,6 +122,29 @@ export const envSchema = z.object({
   MAX_CONCURRENT_REQUESTS: z.coerce.number().int().min(0).max(10_000).default(0),
   /** Requisicoes mais lentas que isto (ms) vao para o log como `slow_request`. */
   SLOW_REQUEST_MS: z.coerce.number().int().min(50).max(60_000).default(1000),
+
+  /**
+   * Como renderizar site que monta o conteudo no navegador.
+   *
+   * `nenhum` (padrao): nao renderiza. A analise usa HTTP e o estado
+   * serializado que o framework deixou no HTML -- nenhum script e executado,
+   * que e a regra de seguranca da importacao.
+   *
+   * `remoto`: chama um servico proprio de renderizacao por HTTP
+   * (`IMPORT_RENDER_URL`). E o caminho na Vercel: nao soma um Chromium ao
+   * pacote da funcao, que tem teto de tamanho.
+   *
+   * `local`: Playwright no proprio processo. Para self-hosted e
+   * desenvolvimento.
+   *
+   * Ligar qualquer um dos dois ultimos e aceitar conscientemente executar o
+   * JavaScript do site analisado. Ver `lib/import/renderer.ts`.
+   */
+  IMPORT_RENDER_MODE: z.enum(['nenhum', 'remoto', 'local']).default('nenhum'),
+  IMPORT_RENDER_URL: z.string().optional(),
+  IMPORT_RENDER_SECRET: z.string().optional(),
+  /** Pacote a carregar no modo `local`. Padrao `playwright`. */
+  IMPORT_RENDER_MODULE: z.string().optional(),
   /** `true` registra TODA requisicao no log (diagnostico; em producao custa I/O). */
   LOG_ALL_REQUESTS: z
     .string()

@@ -11,6 +11,7 @@ import {
   type PageRole,
 } from '@codeca/shared';
 import { SiteFetchError, type SiteFetcher } from './fetcher.js';
+import { createNullRenderer, type PageRenderer } from './renderer.js';
 
 /**
  * Rastreamento do site, em fatias.
@@ -46,6 +47,8 @@ export interface CrawlCursor {
   visited: string[];
   /** `true` depois de consultar sitemap e robots -- so acontece uma vez. */
   sitemapChecked: boolean;
+  /** Paginas que ja passaram pelo navegador nesta analise. */
+  rendered: number;
   /** Paginas lidas, com o resumo de cada uma. */
   pages: AnalyzedPage[];
   /**
@@ -66,6 +69,7 @@ export function createCursor(homeUrl: string): CrawlCursor {
     queue: [{ url: canonical, depth: 0, priority: 0 }],
     visited: [],
     sitemapChecked: false,
+    rendered: 0,
     pages: [],
     extracts: [],
   };
@@ -126,6 +130,8 @@ export interface SliceResult {
  */
 export async function crawlSlice(input: {
   fetcher: SiteFetcher;
+  /** Navegador, quando quem opera configurou um. Ver `renderer.ts`. */
+  renderer?: PageRenderer;
   cursor: CrawlCursor;
   now: () => Date;
   budgetMs?: number;
@@ -133,11 +139,14 @@ export async function crawlSlice(input: {
 }): Promise<SliceResult> {
   const cursor: CrawlCursor = {
     ...input.cursor,
+    // Cursor gravado por uma versao anterior nao tem o contador.
+    rendered: input.cursor.rendered ?? 0,
     queue: [...input.cursor.queue],
     visited: [...input.cursor.visited],
     pages: [...input.cursor.pages],
     extracts: [...input.cursor.extracts],
   };
+  const renderer = input.renderer ?? createNullRenderer();
   const budgetMs = input.budgetMs ?? IMPORT_LIMITS.sliceBudgetMs;
   const maxPages = input.maxPages ?? IMPORT_LIMITS.maxPages;
   const startedAt = input.now().getTime();
@@ -194,7 +203,52 @@ export async function crawlSlice(input: {
         continue;
       }
 
-      const extract = extractPage({ html: resource.body, url: resource.url, homeUrl: cursor.homeUrl });
+      let extract = extractPage({ html: resource.body, url: resource.url, homeUrl: cursor.homeUrl });
+
+      /**
+       * Terceira tentativa, e so entao: o navegador.
+       *
+       * A ordem e deliberada. Primeiro o HTML, que nao executa nada. Depois o
+       * estado serializado que o framework deixou no proprio HTML (dentro de
+       * `extractPage`), que tambem nao executa nada e resolve Next e Nuxt. So
+       * quando as duas falham -- pagina sem texto e sem estado embutido -- e
+       * que vale pagar o preco de rodar JavaScript de terceiros, e ainda
+       * assim apenas se quem opera tiver configurado um renderizador.
+       *
+       * O teto de paginas renderizadas por analise e baixo pelo mesmo
+       * motivo: cada renderizacao e uma execucao de codigo que nao e nosso.
+       */
+      const precisaRenderizar = extract.renderedByScript && extract.fromEmbeddedState !== true;
+
+      if (
+        precisaRenderizar
+        && renderer.kind !== 'nenhum'
+        && cursor.rendered < IMPORT_LIMITS.maxRenderedPages
+      ) {
+        cursor.rendered += 1;
+        const renderizada = await renderer.render(resource.url);
+        if (renderizada !== null) {
+          const comNavegador = extractPage({
+            html: renderizada.html,
+            url: renderizada.finalUrl,
+            homeUrl: cursor.homeUrl,
+          });
+          /**
+           * So troca se rendeu mais.
+           *
+           * Um navegador que devolve a mesma casca vazia -- site fora do ar,
+           * bloqueio por bot, erro de script -- nao pode piorar o que a
+           * leitura simples ja tinha conseguido.
+           */
+          if (
+            comNavegador.textLength > extract.textLength
+            || comNavegador.images.length > extract.images.length
+          ) {
+            extract = { ...comNavegador, renderedWithBrowser: true };
+          }
+        }
+      }
+
       cursor.extracts.push(extract);
       cursor.pages.push({
         url: canonical,
@@ -204,6 +258,8 @@ export async function crawlSlice(input: {
         textLength: extract.textLength,
         imageCount: extract.images.length,
         ...(extract.renderedByScript ? { renderedByScript: true } : {}),
+        ...(extract.fromEmbeddedState === true ? { fromEmbeddedState: true } : {}),
+        ...(extract.renderedWithBrowser === true ? { renderedWithBrowser: true } : {}),
       });
 
       // Links internos, enquanto houver profundidade.

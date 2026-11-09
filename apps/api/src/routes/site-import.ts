@@ -196,6 +196,7 @@ export function siteImportRoutes() {
             {
               db: ctx.db,
               fetcher: ctx.siteFetcher,
+              renderer: ctx.renderer,
               now: ctx.now,
               tenantId: tenant.tenantId,
               siteId: tenant.siteId,

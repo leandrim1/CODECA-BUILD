@@ -13,6 +13,7 @@ import {
   type HtmlElement,
 } from './html.js';
 import { canonicalPageUrl, resolveInternalLink, stripWww } from './url.js';
+import { extractEmbeddedState, harvestEmbedded } from './embedded.js';
 import { PAGE_ROLES, type PageRole } from './types.js';
 
 /**
@@ -95,6 +96,16 @@ export interface PageExtract {
   textLength: number;
   /** HTML quase sem texto: o conteudo provavelmente entra por JavaScript. */
   renderedByScript: boolean;
+  /**
+   * Conteudo veio do estado serializado que o framework deixou no HTML.
+   *
+   * Importa para a tela: um resultado vindo daqui e legitimo, mas costuma vir
+   * sem a estrutura de titulos e secoes que a leitura normal da -- e por isso
+   * merece revisao mais atenta de quem confirma.
+   */
+  fromEmbeddedState?: boolean;
+  /** Pagina lida depois de um navegador montar o conteudo. */
+  renderedWithBrowser?: boolean;
   /** Ano de fundacao, so quando a pagina diz explicitamente. */
   foundedYear: number | null;
 }
@@ -1022,6 +1033,48 @@ export function extractPage(input: { html: string; url: string; homeUrl: string 
   const renderedByScript =
     visibleText.length < 240 && paragraphs.length === 0 && headings.length <= 1;
 
+  /**
+   * Ultimo recurso sem navegador: o estado que o framework serializou.
+   *
+   * So entra quando a leitura normal nao achou nada. Num site comum, o HTML
+   * ja tem o conteudo, e misturar o JSON interno traria duplicata e lixo de
+   * configuracao -- o remedio seria pior que a doenca. Ver `embedded.ts`.
+   */
+  let fromEmbeddedState = false;
+  if (renderedByScript) {
+    const colhido = harvestEmbedded(extractEmbeddedState(input.html));
+    if (colhido.texts.length > 0 || colhido.images.length > 0) {
+      fromEmbeddedState = true;
+
+      for (const texto of colhido.texts) {
+        if (paragraphs.length >= MAX_PARAGRAPHS) break;
+        paragraphs.push(texto);
+      }
+
+      const jaTem = new Set(images.map((imagem) => imagem.url));
+      for (const bruto of colhido.images) {
+        if (images.length >= MAX_IMAGES_PER_PAGE) break;
+        let absoluto: string;
+        try {
+          absoluto = new URL(bruto, pageUrl).toString();
+        } catch {
+          continue;
+        }
+        if (jaTem.has(absoluto)) continue;
+        jaTem.add(absoluto);
+        images.push({
+          url: absoluto,
+          // Sem alt: o JSON nao diz. Inventar legenda seria inventar dado.
+          alt: '',
+          width: null,
+          height: null,
+          placement: 'conteudo',
+          caption: '',
+        });
+      }
+    }
+  }
+
   return {
     url: pageUrl,
     lang,
@@ -1042,6 +1095,7 @@ export function extractPage(input: { html: string; url: string; homeUrl: string 
     role,
     textLength: visibleText.length,
     renderedByScript,
+    ...(fromEmbeddedState ? { fromEmbeddedState: true } : {}),
     foundedYear: extractFoundedYear(visibleText),
   };
 }

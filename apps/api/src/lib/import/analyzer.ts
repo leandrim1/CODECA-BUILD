@@ -14,6 +14,7 @@ import {
 import type { Database } from '@codeca/database';
 import { enabledModuleKeys, loadSiteModules } from '../modules.js';
 import { crawlSlice, type CrawlCursor } from './crawler.js';
+import type { PageRenderer } from './renderer.js';
 import type { SiteFetcher } from './fetcher.js';
 import { hasContent, loadDocument, canApplyCollection } from './apply.js';
 import {
@@ -45,6 +46,8 @@ import {
 export interface AnalyzeContext {
   db: Database;
   fetcher: SiteFetcher;
+  /** Navegador, quando configurado. Ver `renderer.ts`. */
+  renderer?: PageRenderer;
   now: () => Date;
   tenantId: string;
   siteId: string;
@@ -94,6 +97,7 @@ export async function advanceAnalysis(
 
   const slice = await crawlSlice({
     fetcher: ctx.fetcher,
+    ...(ctx.renderer !== undefined ? { renderer: ctx.renderer } : {}),
     cursor,
     now: ctx.now,
     ...(options.budgetMs !== undefined ? { budgetMs: options.budgetMs } : {}),

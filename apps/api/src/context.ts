@@ -6,6 +6,7 @@ import { createDomainProvider, type DomainProvider } from './lib/vercel-domains.
 import { createMailer, type Mailer } from './lib/mailer.js';
 import { createBillingProvider, type BillingProvider } from './lib/validapay/provider.js';
 import { createSiteFetcher, type SiteFetcher } from './lib/import/fetcher.js';
+import { createRendererFromEnv, type PageRenderer } from './lib/import/renderer.js';
 
 /**
  * Dependencias da API reunidas em um unico objeto.
@@ -45,6 +46,13 @@ export interface AppContext {
    * barrado pela propria protecao que se quer ter.
    */
   siteFetcher: SiteFetcher;
+  /**
+   * Navegador para sites que montam o conteudo no cliente.
+   *
+   * Sem configuracao, e o que nao renderiza -- e o padrao, porque renderizar
+   * executa o JavaScript do site analisado. Ver `lib/import/renderer.ts`.
+   */
+  renderer: PageRenderer;
 }
 
 export interface CreateContextOptions {
@@ -57,6 +65,7 @@ export interface CreateContextOptions {
   now?: () => Date;
   fetch?: typeof globalThis.fetch;
   siteFetcher?: SiteFetcher;
+  renderer?: PageRenderer;
 }
 
 export function createContext(options: CreateContextOptions = {}): AppContext {
@@ -82,5 +91,6 @@ export function createContext(options: CreateContextOptions = {}): AppContext {
     now,
     fetch: options.fetch ?? ((...args) => globalThis.fetch(...args)),
     siteFetcher: options.siteFetcher ?? createSiteFetcher(),
+    renderer: options.renderer ?? createRendererFromEnv(env),
   };
 }
