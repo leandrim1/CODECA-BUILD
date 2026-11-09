@@ -30,7 +30,9 @@ import {
 import { assertMediaBelongsToTenant, loadMediaByIds } from '../lib/media-refs.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
 import { requireCapability } from '../middleware/auth.js';
-import { assertModuleEnabled, lerAlteracao, lerCriacao } from '../lib/modules.js';
+import {
+  loadSiteModules,
+  assertEditablePatch, assertModuleEnabled, lerAlteracao, lerCriacao } from '../lib/modules.js';
 import {
   queueContentPublished,
   visibilityChanged,
@@ -517,6 +519,28 @@ export function contentRoutes() {
     const tenant = c.get('tenant');
     const { faqId } = parseParams(c, z.object({ tenantId: uuidSchema, faqId: uuidSchema }));
     const input = await parseJsonBody(c, faqInputSchema);
+
+    const [atual] = await ctx.db
+      .select()
+      .from(schema.faqs)
+      .where(and(eq(schema.faqs.id, faqId), eq(schema.faqs.tenantId, tenant.tenantId)));
+    if (!atual) throw AppError.notFound('Pergunta não encontrada.');
+
+    /**
+     * A unica colecao que escrevia sem passar pela politica de campos.
+     *
+     * Hoje o modulo `faq` nao tem campo travado, entao isto nao muda nada na
+     * pratica -- e justamente por isso valia corrigir agora: no dia em que a
+     * CODECA IA travar um campo de FAQ, a trava vai valer sozinha, em vez de
+     * falhar em silencio porque esta rota foi a esquecida.
+     */
+    const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
+    assertEditablePatch(
+      'faq',
+      atual as unknown as Record<string, unknown>,
+      input as unknown as Record<string, unknown>,
+      overrides,
+    );
 
     const [row] = await ctx.db
       .update(schema.faqs)

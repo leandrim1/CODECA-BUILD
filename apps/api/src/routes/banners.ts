@@ -15,7 +15,7 @@ import {
 } from '../lib/http.js';
 import { assertMediaBelongsToTenant } from '../lib/media-refs.js';
 import {
-  assertEditableChanges,
+  assertEditablePatch,
   assertEditableCreate,
   assertModuleEnabled,
   loadSiteModules,
@@ -100,8 +100,21 @@ export function bannerRoutes() {
     const input = await parseJsonBody(c, bannerInputSchema);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.imageId]);
 
+    /**
+     * A mesma via das outras colecoes: `assertEditablePatch`.
+     *
+     * A versao anterior usava `assertEditableChanges`, que compara os dois
+     * objetos **inteiros**. De um lado vinha a linha do banco, com `id`,
+     * `tenantId`, `siteId`, `createdAt` e `updatedAt`; do outro, so os
+     * campos de conteudo validados. Cada coluna de sistema aparecia como
+     * alterada e era recusada -- o que quebrava **toda** edicao de banner.
+     *
+     * `assertEditablePatch` restringe a comparacao as chaves enviadas e
+     * ainda normaliza `Date` contra texto, que e o caso de `startsAt` e
+     * `endsAt`. Banners era a unica colecao fora desse caminho; agora nao e.
+     */
     const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
-    const alterados = assertEditableChanges(
+    const alterados = assertEditablePatch(
       'banners',
       atual as unknown as Record<string, unknown>,
       input as unknown as Record<string, unknown>,
