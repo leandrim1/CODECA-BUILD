@@ -100,7 +100,18 @@ export function BannersPage() {
                       </div>
                     )}
 
-                    <div className="min-w-0 flex-1">
+                    {/*
+                      `basis-64` e o que faz o `flex-wrap` do cartao
+                      funcionar de verdade.
+                      Com `flex-1` e `min-w-0` sozinhos, a coluna de texto
+                      encolhia em vez de quebrar: em 360px sobravam 42px para
+                      ela, ao lado da miniatura de 128px e dos botoes, e o
+                      titulo vazava 98px para fora do cartao. Uma base
+                      declarada diz ao flex que abaixo de 16rem nao vale a
+                      pena espremer -- e melhor descer para a linha seguinte,
+                      embaixo da miniatura.
+                    */}
+                    <div className="min-w-0 flex-1 basis-64">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium text-slate-900">{banner.title}</p>
                         <Badge tone={banner.isActive ? 'success' : 'neutral'}>

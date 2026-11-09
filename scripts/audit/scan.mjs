@@ -157,9 +157,19 @@ for (const rota of ROTAS) {
          *
          * Reporta so a folha: o ancestral esticado e consequencia, nao causa.
          */
+        /**
+         * Um limiar, porque 2px nao e defeito.
+         *
+         * Layout fracionario arredonda: um `h3` com `scrollWidth` 2px maior
+         * que o `clientWidth` e ruido de sub-pixel, nao texto cortado. Sem
+         * limiar a lista vinha com 78 ocorrencias, quase todas de 2 a 6px, e
+         * as poucas reais -- de 98px -- se perdiam no meio. 16px e cerca de
+         * um caractere: abaixo disso ninguem ve.
+         */
+        const LIMIAR = 16;
         const vazando = [];
         for (const el of Array.from(document.querySelectorAll('body *'))) {
-          if (el.scrollWidth <= el.clientWidth + 1) continue;
+          if (el.scrollWidth - el.clientWidth < LIMIAR) continue;
           if (el.clientWidth === 0) continue;
           /**
            * `hidden` e `clip` tambem sao contencao deliberada.
@@ -172,7 +182,22 @@ for (const rota of ROTAS) {
            */
           const ov = getComputedStyle(el).overflowX;
           if (ov === 'auto' || ov === 'scroll' || ov === 'hidden' || ov === 'clip') continue;
-          if (Array.from(el.children).some((f) => f.scrollWidth > f.clientWidth + 1)) continue;
+          if (Array.from(el.children).some((f) => f.scrollWidth - f.clientWidth >= LIMIAR)) continue;
+          /**
+           * Rolador intencional dentro, ou sangria ate a borda.
+           *
+           * A faixa de abas da landing rola de proposito (`overflow-x-auto`)
+           * e usa margem negativa para sangrar alem do pai. O pai, que nao
+           * declara overflow nenhum, aparecia transbordando -- mas quem
+           * decide ali e o filho, e a pagina nao rola. Terceiro caso da
+           * mesma familia: conter de proposito nao e defeito.
+           */
+          if (
+            Array.from(el.children).some((f) => {
+              const ov = getComputedStyle(f).overflowX;
+              return ov === 'auto' || ov === 'scroll';
+            })
+          ) continue;
           const trecho = (el.textContent ?? '').trim().slice(0, 45);
           vazando.push(`${el.tagName.toLowerCase()} +${el.scrollWidth - el.clientWidth}px "${trecho}"`);
           if (vazando.length >= 3) break;
