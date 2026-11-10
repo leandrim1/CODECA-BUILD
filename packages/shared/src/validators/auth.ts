@@ -168,3 +168,23 @@ export type VerifyLoginCodeInput = z.infer<typeof verifyLoginCodeSchema>;
 
 /** Mensagem unica para qualquer falha de validacao: nao diz se o e-mail existe. */
 export const LOGIN_CODE_INVALID_MESSAGE = 'Código incorreto ou expirado. Confira os números ou peça um novo código.';
+
+// ---------------------------------------------- exclusao da empresa (LGPD)
+
+/**
+ * Pedido de exclusao da empresa e de tudo o que pertence a ela.
+ *
+ * Duas barreiras, e cada uma contra um erro diferente:
+ *
+ * - `confirmacao` exige o **nome exato da empresa**. E contra o clique
+ *   distraido: quem digita o nome inteiro sabe o que esta apagando.
+ * - `password` exige a senha de quem pede. E contra a sessao esquecida aberta
+ *   -- sem isso, bastaria um computador destravado para apagar a empresa de
+ *   alguem. Contas que entram so pelo Google nao tem senha, e para elas o
+ *   campo nao e exigido (ver a rota).
+ */
+export const deleteTenantSchema = z.object({
+  confirmacao: z.string().trim().min(1, 'Digite o nome da empresa para confirmar.').max(200),
+  password: z.string().max(200).optional(),
+});
+export type DeleteTenantInput = z.infer<typeof deleteTenantSchema>;

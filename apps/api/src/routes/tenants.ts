@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, isNull, schema, sql, type Database } from '@codeca/database';
 import {
   AppError,
+  deleteTenantSchema,
   updateTenantContactSchema,
   updateTenantSchema,
   type ContentUsageView,
@@ -8,14 +9,22 @@ import {
   syncNoticeMessage,
   type SyncNotice,
 } from '@codeca/shared';
+import { verifyPassword } from '@codeca/shared/server';
 import { Hono } from 'hono';
-import { AUDIT_ACTIONS } from '../lib/audit.js';
+import { AUDIT_ACTIONS, recordAudit } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
-import { ok, parseJsonBody } from '../lib/http.js';
+import { clearSessionCookies } from '../lib/cookies.js';
+import { clientIp, ok, parseJsonBody, userAgent } from '../lib/http.js';
+import {
+  confirmacaoConfere,
+  deleteTenant,
+  deletionPreview,
+  exportTenantData,
+} from '../lib/privacidade.js';
 import { loadContentUsage } from '../lib/content-usage.js';
 import { countPending, loadSource } from '../lib/sync/store.js';
 import { loadEffectivePlan, loadPlanStatus } from '../lib/plan-limits.js';
-import { requireCapability } from '../middleware/auth.js';
+import { requireCapability, sessionOf } from '../middleware/auth.js';
 import type { AppBindings } from '../types.js';
 
 /** Dados da empresa, identidade visual, SEO e visao geral do painel. */
@@ -252,6 +261,111 @@ export function tenantRoutes() {
   });
 
   // ------------------------------------------------- dados da empresa
+  // ------------------------------------------- direitos do titular (LGPD)
+  /**
+   * Levar os dados embora (LGPD, art. 18, V).
+   *
+   * Um JSON com o conteudo, as imagens, os interessados, os dominios e as
+   * pessoas da equipe. Sem segredo: a chave de integracao aparece pelo nome e
+   * pelo tipo, nunca pelo valor, e nao ha hash de senha nem token.
+   */
+  app.get('/:tenantId/dados', requireCapability('tenant:export'), async (c) => {
+    const ctx = c.get('ctx');
+    const tenant = c.get('tenant');
+
+    const dados = await exportTenantData(ctx.db, tenant.tenantId);
+
+    await auditFromContext(c, {
+      action: AUDIT_ACTIONS.tenantExported,
+      entityType: 'tenant',
+      entityId: tenant.tenantId,
+      metadata: { interessados: dados.interessados.length, imagens: dados.imagens.length },
+    });
+
+    // Baixa como arquivo: e um pedido de portabilidade, nao uma tela.
+    const nome = `codeca-build-${tenant.tenantId}-${new Date().toISOString().slice(0, 10)}.json`;
+    c.header('content-disposition', `attachment; filename="${nome}"`);
+    c.header('cache-control', 'no-store');
+    return ok(c, dados);
+  });
+
+  /** O que a exclusao vai levar, para a tela dizer antes de perguntar. */
+  app.get('/:tenantId/exclusao/resumo', requireCapability('tenant:delete'), async (c) => {
+    const ctx = c.get('ctx');
+    const tenant = c.get('tenant');
+    const [row] = await ctx.db
+      .select({ displayName: schema.tenants.displayName })
+      .from(schema.tenants)
+      .where(eq(schema.tenants.id, tenant.tenantId));
+    return ok(c, {
+      displayName: row?.displayName ?? '',
+      removidos: await deletionPreview(ctx.db, tenant.tenantId),
+    });
+  });
+
+  /**
+   * Apagar a empresa e tudo o que pertence a ela (LGPD, art. 18, VI).
+   *
+   * Nao ha desfazer. Por isso sao tres barreiras: so o proprietario chega
+   * aqui, o nome da empresa tem que ser digitado inteiro, e quem tem senha
+   * precisa informa-la.
+   *
+   * O registro da exclusao e gravado ANTES, e com `tenantId: null` -- se fosse
+   * gravado com a empresa, a propria cascata o levaria junto, e nao restaria
+   * prova de quem pediu o que.
+   */
+  app.delete('/:tenantId', requireCapability('tenant:delete'), async (c) => {
+    const ctx = c.get('ctx');
+    const tenant = c.get('tenant');
+    const session = sessionOf(c);
+    const input = await parseJsonBody(c, deleteTenantSchema);
+
+    const [empresa] = await ctx.db
+      .select({ displayName: schema.tenants.displayName, slug: schema.tenants.slug })
+      .from(schema.tenants)
+      .where(eq(schema.tenants.id, tenant.tenantId));
+    if (!empresa) throw AppError.notFound('Empresa não encontrada.');
+
+    if (!confirmacaoConfere(input.confirmacao, empresa.displayName)) {
+      throw AppError.badRequest(
+        `Para confirmar, digite exatamente o nome da empresa: ${empresa.displayName}.`,
+      );
+    }
+
+    const [usuario] = await ctx.db
+      .select({ passwordHash: schema.users.passwordHash })
+      .from(schema.users)
+      .where(eq(schema.users.id, session.user.id));
+    if (usuario?.passwordHash) {
+      const senhaConfere = await verifyPassword(input.password ?? '', usuario.passwordHash);
+      if (!senhaConfere) throw AppError.unauthenticated('Senha incorreta.');
+    }
+
+    const resumo = await deletionPreview(ctx.db, tenant.tenantId);
+    await recordAudit(ctx.db, ctx.env, {
+      // Sem `tenantId`: este registro precisa sobreviver a exclusao.
+      tenantId: null,
+      actorUserId: session.user.id,
+      actorEmail: session.user.email,
+      action: AUDIT_ACTIONS.tenantDeleted,
+      entityType: 'tenant',
+      entityId: tenant.tenantId,
+      metadata: { slug: empresa.slug, displayName: empresa.displayName, removidos: resumo },
+      ip: clientIp(c),
+      userAgent: userAgent(c),
+    });
+
+    const resultado = await deleteTenant(ctx.db, ctx.blob, {
+      tenantId: tenant.tenantId,
+      requesterUserId: session.user.id,
+    });
+
+    ctx.caches.invalidateAll();
+    if (resultado.contaRemovida) clearSessionCookies(c, ctx.env);
+
+    return ok(c, resultado);
+  });
+
   app.patch('/:tenantId', requireCapability('tenant:update'), async (c) => {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');

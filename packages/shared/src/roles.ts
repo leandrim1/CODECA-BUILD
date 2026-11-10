@@ -21,6 +21,14 @@ export const TENANT_CAPABILITIES = [
   'tenant:read',
   'tenant:update',
   'tenant:delete',
+  /**
+   * Levar os dados da empresa embora (LGPD, art. 18, V).
+   *
+   * So o proprietario: a exportacao reune, num arquivo so, todos os
+   * interessados que deixaram contato e o e-mail de cada pessoa da equipe.
+   * Quem edita conteudo nao precisa disso para trabalhar.
+   */
+  'tenant:export',
   'members:read',
   'members:invite',
   'members:update',
@@ -91,7 +99,7 @@ const ADMIN: TenantCapability[] = [
   'analytics:manage',
 ];
 
-const OWNER: TenantCapability[] = [...ADMIN, 'tenant:delete', 'billing:manage'];
+const OWNER: TenantCapability[] = [...ADMIN, 'tenant:delete', 'tenant:export', 'billing:manage'];
 
 const CAPABILITIES_BY_TENANT_ROLE: Record<TenantRole, ReadonlySet<TenantCapability>> = {
   viewer: new Set(READ_ONLY),

@@ -163,6 +163,24 @@ export const tenantApi = {
   contentUsage: (tenantId: string) =>
     api.get<ContentUsageView>(`${tenantBase(tenantId)}/content-usage`),
   update: (tenantId: string, body: unknown) => api.patch<unknown>(tenantBase(tenantId), body),
+  /**
+   * Direitos do titular (LGPD): levar os dados embora, e mandar apagar.
+   *
+   * A exportacao devolve o JSON inteiro; a tela o transforma em arquivo. A
+   * exclusao nao tem volta, e por isso pede o nome da empresa digitado e a
+   * senha de quem pede.
+   */
+  exportData: (tenantId: string) => api.get<Record<string, unknown>>(`${tenantBase(tenantId)}/dados`),
+  deletionPreview: (tenantId: string) =>
+    api.get<{ displayName: string; removidos: Record<string, number> }>(
+      `${tenantBase(tenantId)}/exclusao/resumo`,
+    ),
+  remove: (tenantId: string, body: { confirmacao: string; password?: string }) =>
+    api.delete<{
+      removidos: Record<string, number>;
+      arquivos: { apagados: number; falharam: number };
+      contaRemovida: boolean;
+    }>(tenantBase(tenantId), body),
   updateContact: (tenantId: string, body: unknown) => api.patch<unknown>(`${tenantBase(tenantId)}/contact`, body),
   plan: (tenantId: string) =>
     api.get<{

@@ -200,8 +200,9 @@ export function OverviewPage() {
             </Link>
           }
         >
-          Os convites de equipe e a conexão de domínio ficam liberados após a confirmação do
-          e-mail.
+          A <strong>contratação de plano</strong>, os convites de equipe, a conexão de domínio e as
+          estatísticas ficam liberados após a confirmação do e-mail. Importar e editar conteúdo
+          continuam liberados.
         </Alert>
       ) : null}
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Save } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Download, Save, Trash2 } from 'lucide-react';
 import {
   BRAZIL_STATES,
   SOCIAL_NETWORKS,
@@ -171,6 +171,9 @@ export function CompanyPage() {
           { id: 'empresa', label: 'Empresa' },
           { id: 'contato', label: 'Contato e WhatsApp' },
           { id: 'conta', label: 'Minha conta' },
+          ...(can('tenant:export') || can('tenant:delete')
+            ? [{ id: 'dados', label: 'Dados e privacidade' }]
+            : []),
         ]}
         active={tab}
         onChange={setTab}
@@ -411,6 +414,8 @@ export function CompanyPage() {
             ) : null}
 
             {tab === 'conta' ? <AccountSection onSaved={() => void refresh()} email={user?.email ?? ''} /> : null}
+
+            {tab === 'dados' ? <DadosEPrivacidade nomeDaEmpresa={data.tenant.displayName} /> : null}
           </>
         )}
       </ResourcePanel>
@@ -638,6 +643,179 @@ function AccountSection({ email, onSaved }: { email: string; onSaved: () => void
           </ResourcePanel>
         </CardBody>
       </Card>
+    </div>
+  );
+}
+
+/**
+ * Dados e privacidade: levar embora, e mandar apagar.
+ *
+ * A LGPD garante os dois direitos (art. 18, V e VI), e ate aqui eles eram
+ * atendidos a mao, pelo canal de contato -- o que nao escala e deixa o prazo
+ * legal na memoria de alguem.
+ *
+ * A exclusao e a unica acao do painel que nao tem desfazer. O desenho reflete
+ * isso: ela fica por ultimo, separada, em vermelho, so para o proprietario,
+ * diz **antes** quanta coisa vai sumir, e exige o nome da empresa digitado
+ * inteiro mais a senha. Nenhuma dessas barreiras e enfeite -- cada uma impede
+ * um jeito diferente de apagar sem querer.
+ */
+/**
+ * Rotulos do resumo da exclusao.
+ *
+ * As chaves vem da API sem acento, porque sao identificadores. Mostrar a chave
+ * crua deixava "Conteudos" e "Dominios" na tela, em portugues errado.
+ */
+const ROTULOS_DA_EXCLUSAO: Record<string, string> = {
+  conteudos: 'Conteúdos cadastrados',
+  imagens: 'Imagens na biblioteca',
+  interessados: 'Interessados que deixaram contato',
+  dominios: 'Domínios conectados',
+  pessoas: 'Pessoas com acesso',
+};
+
+function DadosEPrivacidade({ nomeDaEmpresa }: { nomeDaEmpresa: string }) {
+  const tenantId = useTenantId();
+  const { can } = useAuth();
+  const toast = useToast();
+  const navigate = useNavigate();
+  const [confirmacao, setConfirmacao] = useState('');
+  const [senha, setSenha] = useState('');
+  const [aberto, setAberto] = useState(false);
+
+  const resumo = useResource(
+    'tenantApi.deletionPreview',
+    () => (can('tenant:delete') ? tenantApi.deletionPreview(tenantId) : Promise.resolve(null)),
+    [tenantId],
+  );
+
+  const exportar = useMutation(() => tenantApi.exportData(tenantId), {
+    onSuccess: (dados) => {
+      // O arquivo nasce no navegador: o JSON ja veio na resposta, e baixa-lo
+      // de novo por uma URL exigiria expor os dados numa rota sem sessao.
+      const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `codeca-build-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('Download iniciado', 'O arquivo tem todo o conteúdo da empresa.');
+    },
+    onError: (error) => toast.error('Não foi possível exportar', error.message),
+  });
+
+  const excluir = useMutation(
+    () => tenantApi.remove(tenantId, { confirmacao, ...(senha ? { password: senha } : {}) }),
+    {
+      onSuccess: (resultado) => {
+        toast.success(
+          'Empresa excluída',
+          resultado.contaRemovida
+            ? 'Sua conta também foi removida. Até logo.'
+            : 'Os dados foram removidos.',
+        );
+        navigate('/', { replace: true });
+      },
+      onError: (error) => toast.error('Não foi possível excluir', error.message),
+    },
+  );
+
+  return (
+    <div className="grid gap-6">
+      {can('tenant:export') ? (
+        <Card>
+          <CardHeader
+            title="Levar seus dados"
+            description="Um arquivo com o conteúdo, as imagens, os interessados e a equipe da empresa."
+          />
+          <CardBody className="grid gap-3">
+            <p className="text-sm text-slate-600">
+              O arquivo sai em JSON e não contém senhas nem o segredo das chaves de integração. É o
+              direito de portabilidade previsto na LGPD (art. 18, V).
+            </p>
+            <div>
+              <Button variant="outline" loading={exportar.loading} onClick={() => void exportar.run(undefined)}>
+                <Download aria-hidden="true" className="size-4" />
+                Baixar meus dados
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      {can('tenant:delete') ? (
+        <Card className="border-rose-200">
+          <CardHeader
+            title="Excluir a empresa e todos os dados"
+            description="Esta ação não tem volta."
+          />
+          <CardBody className="grid gap-4">
+            <Alert tone="danger" title="Nada disso pode ser recuperado depois">
+              O site sai do ar, o conteúdo some, as imagens são apagadas do armazenamento e os
+              interessados que deixaram contato são removidos. Baixe seus dados antes, se quiser
+              guardá-los.
+            </Alert>
+
+            {resumo.data ? (
+              <ul className="grid gap-1 text-sm text-slate-700">
+                {Object.entries(resumo.data.removidos).map(([chave, valor]) => (
+                  <li key={chave} className="flex flex-wrap items-center justify-between gap-x-3">
+                    <span>{ROTULOS_DA_EXCLUSAO[chave] ?? chave}</span>
+                    <strong className="tabular-nums">{valor}</strong>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {!aberto ? (
+              <div>
+                <Button variant="outline" onClick={() => setAberto(true)}>
+                  <Trash2 aria-hidden="true" className="size-4" />
+                  Quero excluir
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                <TextInput
+                  label="Digite o nome da empresa para confirmar"
+                  hint={nomeDaEmpresa}
+                  value={confirmacao}
+                  onChange={(event) => setConfirmacao(event.target.value)}
+                />
+                <TextInput
+                  label="Sua senha"
+                  type="password"
+                  autoComplete="current-password"
+                  hint="Quem entra apenas pelo Google pode deixar em branco."
+                  value={senha}
+                  onChange={(event) => setSenha(event.target.value)}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setAberto(false);
+                      setConfirmacao('');
+                      setSenha('');
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="danger"
+                    loading={excluir.loading}
+                    disabled={confirmacao.trim() === ''}
+                    onClick={() => void excluir.run(undefined)}
+                  >
+                    Excluir definitivamente
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      ) : null}
     </div>
   );
 }

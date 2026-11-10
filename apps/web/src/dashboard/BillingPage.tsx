@@ -34,7 +34,8 @@ import {
 } from '@codeca/ui';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { PaymentSettings } from './PaymentSettings.js';
-import { useTenantId } from '../hooks/useAuth.js';
+import { Link } from 'react-router-dom';
+import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useResource } from '../hooks/useResource.js';
 import { billingApi } from '../services/endpoints.js';
 import { ApiError } from '../services/api.js';
@@ -49,6 +50,7 @@ import type { BillingPlanOption, ChargeView } from '../types/index.js';
  */
 export function BillingPage() {
   const tenantId = useTenantId();
+  const { user } = useAuth();
   const toast = useToast();
   const billing = useResource('billingApi.overview', () => billingApi.overview(tenantId), [tenantId]);
 
@@ -285,6 +287,29 @@ export function BillingPage() {
               <Alert tone="warning" title="Contratação indisponível">
                 A integração de pagamento não está configurada no servidor. Fale com a equipe da
                 plataforma: enquanto isso, nenhuma contratação pode ser concluída.
+              </Alert>
+            ) : null}
+
+            {/*
+              A contratacao exige e-mail confirmado (`requireVerifiedEmail` na
+              rota de checkout). Sem este aviso, quem acabou de criar a conta
+              escolhe o plano, escolhe a forma de pagamento e so entao leva um
+              erro -- que e onde o onboarding de quem chega sozinho trava.
+            */}
+            {user && !user.emailVerified ? (
+              <Alert
+                tone="warning"
+                title="Confirme seu e-mail para contratar"
+                action={
+                  <Link to="/confirmar-email">
+                    <Button variant="outline" size="sm">
+                      Reenviar confirmação
+                    </Button>
+                  </Link>
+                }
+              >
+                A contratação de plano exige e-mail confirmado, assim como os convites de equipe e a
+                conexão de domínio.
               </Alert>
             ) : null}
 

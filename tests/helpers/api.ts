@@ -318,8 +318,14 @@ export class TestClient {
   put<T = any>(path: string, body?: unknown, options?: Parameters<TestClient['request']>[2]) {
     return this.request<T>('PUT', path, { ...options, ...(body !== undefined ? { body } : {}) });
   }
-  delete<T = any>(path: string, options?: Parameters<TestClient['request']>[2]) {
-    return this.request<T>('DELETE', path, options);
+  /**
+   * `DELETE` com corpo opcional.
+   *
+   * Nao e capricho: a exclusao da empresa pede o nome digitado e a senha, e
+   * mandar isso na query string deixaria a senha no log de acesso.
+   */
+  delete<T = any>(path: string, body?: unknown, options?: Parameters<TestClient['request']>[2]) {
+    return this.request<T>('DELETE', path, { ...options, ...(body !== undefined ? { body } : {}) });
   }
 }
 

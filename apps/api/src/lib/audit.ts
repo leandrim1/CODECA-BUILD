@@ -31,6 +31,10 @@ export const AUDIT_ACTIONS = {
   userPasswordChanged: 'user.password_changed',
   tenantCreated: 'tenant.created',
   tenantUpdated: 'tenant.updated',
+  /** Exportacao dos dados da empresa pelo proprietario (LGPD, art. 18, V). */
+  tenantExported: 'tenant.exported',
+  /** Exclusao da empresa a pedido do titular (LGPD, art. 18, VI). */
+  tenantDeleted: 'tenant.deleted',
   tenantStatusChanged: 'tenant.status_changed',
   tenantPlanChanged: 'tenant.plan_changed',
   memberInvited: 'member.invited',

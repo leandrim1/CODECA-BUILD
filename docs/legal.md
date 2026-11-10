@@ -68,10 +68,10 @@ no texto.
 
 ## 5. O que a plataforma ainda não faz (e o texto não promete)
 
-- **Sem exclusão de conta/empresa nem exportação de dados pelo painel.** Os direitos
-  do titular são atendidos pelo canal de contato. Existe a capacidade
-  `tenant:delete`, mas nenhuma rota a usa. Interessados e arquivos podem ser
-  excluídos no painel.
+- **Portabilidade e exclusão existem no painel** desde a etapa de LGPD:
+  Configurações > Empresa > Dados e privacidade. Ver [lgpd.md](lgpd.md) para os
+  papéis de controlador e operador, a lista de suboperadores e a avaliação do
+  DPA.
 - **Sem prazo automático de retenção** para interessados e auditoria.
 - **Sem novo aceite** quando os textos mudam.
 

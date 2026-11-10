@@ -223,8 +223,14 @@ export const api = {
     request<T>(path, { ...options, method: 'PATCH', ...(body !== undefined ? { body } : {}) }),
   put: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) =>
     request<T>(path, { ...options, method: 'PUT', ...(body !== undefined ? { body } : {}) }),
-  delete: <T>(path: string, options?: Omit<RequestOptions, 'method'>) =>
-    request<T>(path, { ...options, method: 'DELETE' }),
+  /**
+   * `DELETE` com corpo opcional.
+   *
+   * A exclusao da empresa manda o nome digitado e a senha. Em query string
+   * isso cairia no log de acesso do servidor; no corpo, nao.
+   */
+  delete: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) =>
+    request<T>(path, { ...options, method: 'DELETE', ...(body !== undefined ? { body } : {}) }),
   upload: <T>(path: string, formData: FormData) => request<T>(path, { method: 'POST', formData }),
 };
 

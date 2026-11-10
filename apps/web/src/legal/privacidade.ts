@@ -230,6 +230,9 @@ export const PRIVACIDADE: Documento = {
         p(
           'Parte dos dados pode ser corrigida ou excluída diretamente no painel pelos usuários com permissão (por exemplo, dados da empresa, arquivos de mídia e interessados). Pedidos que dependam da CODECA IA são atendidos pelo canal de contato.',
         ),
+        p(
+          'Dois desses direitos são exercidos pelo próprio painel, sem depender de pedido: em Configurações > Empresa > Dados e privacidade, o proprietário pode baixar um arquivo com todo o conteúdo da empresa (portabilidade) e pode excluir a empresa e os dados dela (eliminação). A exclusão pede o nome da empresa digitado e a senha, e não tem desfazer.',
+        ),
       ],
     },
     {
@@ -245,7 +248,10 @@ export const PRIVACIDADE: Documento = {
           'Cópias de segurança e histórico mantidos pelos provedores de infraestrutura podem conservar dados por um período limitado depois da exclusão.',
         ),
         p(
-          'Para solicitar a exclusão da conta ou da empresa, use o contato da seção 12. Atenderemos o pedido, ressalvadas as hipóteses de conservação previstas em lei.',
+          'A exclusão da empresa é feita pelo proprietário no painel, em Configurações > Empresa > Dados e privacidade. Ela remove o site, o conteúdo, os arquivos do armazenamento, os interessados, os vínculos da equipe e a assinatura; a conta de quem pediu também é removida quando não resta nenhuma outra empresa vinculada a ela. Ficam preservados o registro da própria exclusão e os eventos recebidos do provedor de pagamento, nos termos do art. 16 da LGPD.',
+        ),
+        p(
+          'Se preferir, ou se precisar de algo além disso, use o contato da seção 12. Atenderemos o pedido, ressalvadas as hipóteses de conservação previstas em lei.',
         ),
       ],
     },
