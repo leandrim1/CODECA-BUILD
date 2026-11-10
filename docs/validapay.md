@@ -328,7 +328,53 @@ VALIDAPAY_BASE_URL=https://api.validapay.com.br
 Rotacao de credencial: crie a nova, troque a variavel, implante, e so depois
 remova a antiga — a remocao e imediata e derruba quem ainda a usa.
 
+## 8b. Conformidade com o contrato publicado
+
+`tests/integration/billing-webhooks-contrato.test.ts` usa os corpos **copiados
+da documentacao da ValidaPay**, e nao o formato do nosso helper. A diferenca
+importa: um teste com payload proprio prova que o nosso codigo e coerente
+consigo mesmo, e nada sobre o que a ValidaPay de fato envia.
+
+As armadilhas que a propria documentacao aponta, e como estamos em cada uma:
+
+| Armadilha do contrato | Situacao |
+|---|---|
+| A chave da conta muda: `accountNumber` em uns eventos, `accountId` em outros | Lemos os dois (`payload.ts`), com teste |
+| Cobranca avulsa **nunca** traz `subscriptionId` | Vai para `applyChargeOnlyEvent` e fica como `ignored` -- nao entra na fila de reprocesso, porque reprocessar nunca resolveria |
+| Em `charge.created` e `charge.expired`, o `status` da raiz e o da **COBRANCA** | Esses dois eventos nao passam por `applySubscriptionEvent`. Sem isso, uma cobranca expirando marcaria a assinatura de um cliente pagante como expirada -- o teste foi conferido reintroduzindo o defeito, e ele falha |
+| Em `payment.retry`, `retry.status` e o desfecho da tentativa | O estado comercial vem do `status` da raiz; `retry.failureReason` so alimenta a mensagem de erro |
+| `payment.failed` na criacao tem schema proprio, sem a base da assinatura | Aceito e gravado sem quebrar a rota |
+| Deduplicacao obrigatoria pelo `X-Webhook-Id` | Indice unico; a 4a tentativa, com assinatura nova e mesmo id, responde `duplicate: true` e nao credita periodo de novo. Sem o cabecalho, a chave cai no hash do corpo |
+| Qualquer `2xx` conta como sucesso | Respondemos `200` mesmo quando o processamento falha: o evento ja esta gravado e ha reprocesso |
+
+### O orcamento de 5 segundos
+
+A ValidaPay aborta a entrega em **5 s** e a conta como falha; cinco falhas
+seguidas **pausam** o endpoint por alguns minutos. O nosso processamento
+acontece **dentro da requisicao**, e nao numa fila.
+
+Medido no teste (Postgres em processo): menos de 200 ms por evento. Em
+producao somam-se a partida a frio da funcao e a latencia do Neon, que **nao
+foram medidas**. A correcao nao esta em risco se o prazo estourar -- a
+retentativa cai na deduplicacao --, mas o endpoint pode ser pausado. Se isso
+aparecer nos logs, a saida e responder `2xx` logo apos gravar o evento e
+processar depois da resposta.
+
 ## 9. Checklist de sandbox
+
+### Antes: validar a credencial fora da aplicacao
+
+```bash
+VALIDAPAY_CLIENT_ID=... VALIDAPAY_CLIENT_SECRET=... \
+VALIDAPAY_BASE_URL=https://sandbox.validapay.com.br \
+  pnpm run validate:validapay
+```
+
+Troca a credencial por token em cada escopo que a plataforma usa e diz qual
+falta. Com `--webhook <id do painel> --evento subscription.created` dispara uma
+entrega de teste **assinada**, que e a unica forma de validar a verificacao de
+assinatura de ponta a ponta antes do primeiro pagamento real. Nem o segredo nem
+o token sao impressos.
 
 Cada item e verificavel no painel e no banco.
 

@@ -209,7 +209,7 @@ substituem as que descreviam o modelo antigo.
 | Alvos de DNS | `DOMAIN_A_RECORD_IP`, `DOMAIN_CNAME_TARGET` | instrucoes mostram os valores padrao da Vercel, que podem estar desatualizados |
 | E-mail transacional | `RESEND_API_KEY`, `MAIL_FROM` | a confirmacao do cadastro e os convites vao para o log do servidor; **recuperacao de senha, reenvio da confirmacao e entrada por codigo recusam com `501`** em vez de fingir que enviaram. Confira com `pnpm run validate:email` ou pelo cartao "Envio de e-mail" no painel mestre |
 | Pagamentos ValidaPay | `VALIDAPAY_CLIENT_ID`, `VALIDAPAY_CLIENT_SECRET`, `VALIDAPAY_BASE_URL` | a contratacao de planos e recusada com mensagem explicita |
-| Webhooks de pagamento | `VALIDAPAY_WEBHOOK_SECRET` | os eventos sao **recusados** (401) e a ativacao dependeria so da reconciliacao |
+| Webhooks de pagamento | `VALIDAPAY_WEBHOOK_SECRET` | os eventos sao **recusados** (401) e a ativacao dependeria so da reconciliacao. Valide a credencial e dispare uma entrega assinada com `pnpm run validate:validapay` |
 | Reconciliacao automatica | `BILLING_RECONCILIATION_SECRET` (+ `CRON_SECRET` na Vercel) | o job responde 501 e nada roda periodicamente |
 
 `GET /api/health` responde com `features.blobStorage`, `features.vercelDomains`,

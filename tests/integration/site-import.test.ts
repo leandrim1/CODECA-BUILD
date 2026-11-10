@@ -16,10 +16,15 @@ import {
  *
  * A API inteira sobre um Postgres real: rastreamento, extracao, mapeamento,
  * conflito, revisao, gravacao pelos schemas do painel e reversao. O unico
- * substituto e a **busca das paginas**, e por um motivo concreto: a
- * implementacao real recusa `localhost` e IP privado de proposito -- e a
- * barreira contra SSRF --, entao um teste com servidor local seria barrado pela
- * propria protecao que se quer ter. As barreiras de rede tem testes proprios em
+ * substituto e a **busca das paginas**, trocada por um dublê em memoria para
+ * estes testes nao dependerem de soquete.
+ *
+ * O caminho de rede de verdade tem arquivos proprios, e eles usam o
+ * `createSiteFetcher` de producao contra servidores HTTP reais:
+ * `tests/integration/import-http-real.test.ts` (soquete, redirecionamento
+ * revalidado, prazo, limite de bytes, 304) e
+ * `tests/integration/import-tecnologias-real.test.ts` (o fluxo inteiro, cinco
+ * tecnologias e a sincronizacao). As barreiras tambem tem testes proprios em
  * `tests/unit/import-extract.test.ts` e `tests/unit/import-fetcher.test.ts`.
  *
  * ## O que os testes conferem

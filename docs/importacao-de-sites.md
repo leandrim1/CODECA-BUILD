@@ -321,6 +321,18 @@ página dentro do HTML para o buscador indexar, e ler esse bloco é análise de
 JSON como texto — nunca avaliação. Medido numa casca Next típica: 4 frases e 2
 imagens onde antes vinha zero, com `buildId` e `chunkHash` descartados.
 
+Confirmado contra servidores HTTP reais em
+`tests/integration/import-tecnologias-real.test.ts`: Next.js, Vite+React e
+Nuxt+Vue chegam ao conteúdo pela estratégia 2 (`fromEmbeddedState`), WordPress e
+Angular pela 1, e **nenhuma das cinco precisou de navegador**.
+
+> **Corrigido aqui:** uma página lida pelo estado serializado reportava
+> `textLength: 0`, porque o número contava só o texto do DOM. Isso não era
+> cosmético: o rastreador usa `textLength` para decidir se vale abrir o
+> navegador, e zero numa página que rendeu conteúdo mandava executar o
+> JavaScript de terceiro sem necessidade — justamente o que a estratégia 2
+> existe para evitar.
+
 ### O navegador, e por que ele é opcional
 
 A seção 2 do pedido quer Playwright; a seção 9 proíbe executar scripts do site
@@ -416,12 +428,42 @@ infraestrutura e custo, fora do escopo desta entrega.
 | `tests/unit/import-fetcher.test.ts` | Um servidor real em `127.0.0.1` é recusado; metadados de nuvem, IP privado, protocolo, porta e credenciais recusados; redirecionamento revalidado; tipo de imagem pelos bytes; dimensão real |
 | `tests/unit/import-extract.test.ts` | Tokenizador (script não vira estrutura, HTML quebrado, entidades); telefone/e-mail/CEP/cidade/endereço/horário, com os falsos positivos recusados (CNPJ, CEP e valor não viram telefone); classificação de página; sitemap; mapeamento por segmento (clínica, loja, prestador, imobiliária, construtora, uma página, SPA, formatos de imagem) |
 | `tests/integration/site-import.test.ts` | Fluxo completo sobre PostgreSQL real: análise em fatias, resumo com números reais, gravação campo a campo no módulo certo, rascunho, conflito preservado e substituído sob autorização, reversão, limite do plano, módulo não habilitado, imagem indisponível, arquivo que não é imagem, SPA sinalizado, isolamento entre empresas, auditoria |
+| `tests/integration/import-http-real.test.ts` | **Conexão de verdade**: soquete, corpo em pedaços sem `content-length`, latin-1, 404, requisição condicional e 304, redirecionamento seguido e revalidado a cada salto, prazo, `content-length` acima do limite, corte no limite, tipo recusado, imagem como bytes |
+| `tests/integration/import-tecnologias-real.test.ts` | O fluxo inteiro sobre HTTP real, cinco tecnologias (WordPress, Next.js, Vite+React, Nuxt+Vue, Angular), site que não responde, e a sincronização detectando uma mudança feita no servidor |
 
-A busca de páginas é substituída nos testes de integração
-(`createMemorySiteFetcher`) por um motivo concreto: a implementação real recusa
-`localhost` de propósito, então um teste de ponta a ponta contra um servidor
-local seria barrado pela própria proteção que se quer ter. O resto — API,
-banco, schemas, gravação — é real.
+### Por que existem testes sobre HTTP real
+
+Até aqui, **toda** a suíte de importação falava com `createMemorySiteFetcher`,
+que substitui a rede. Isso cobre rastreamento, extração e gravação — e deixa
+sem cobertura exatamente a camada que abre conexão. Foi ali que morou o defeito
+que manteve a importação inoperante em produção: `addressLookup` respondia ao
+`options.lookup` do Node na forma errada, nenhum teste chegava a abrir um
+soquete, e 1.400 testes passavam com o recurso principal do produto quebrado.
+
+`createSiteFetcher({ testOrigins })` recebe um **mapa fechado** `host da URL →
+ip:porta`, como um arquivo de hosts, e só para teste:
+
+- quem não está no mapa — inclusive o destino de um redirecionamento vindo de
+  quem está — continua passando pelas duas barreiras. É por isso que existe um
+  teste provando, **sobre HTTP real**, que um site que responde `302` para
+  `169.254.169.254` é recusado;
+- `NODE_ENV=production` descarta o mapa, mesmo se alguém o preencher;
+- um teste percorre `apps/` e falha se qualquer arquivo da aplicação passar a
+  opção.
+
+Mapear o **nome** (e não apenas dispensar o endereço) é o que permite exercitar
+o caminho completo: `http://clinicasorriso.test/` passa pela validação da rota
+como um endereço público qualquer, e só no fetcher vira `127.0.0.1:41234`. O
+cabeçalho `Host` continua levando o nome original.
+
+### Custo conhecido: a barra no fim do endereço
+
+`canonicalPageUrl` remove a barra final para deduplicar — `/sobre` e `/sobre/`
+são a mesma página —, e é o endereço já normalizado que vai para a rede. Contra
+um WordPress, cujo endereço canônico **tem** barra, cada página interna custa
+então um salto de `301` a mais. Funciona (o teste prova que funciona), e o
+custo é um round-trip por página. Um site que não redirecione a forma sem barra
+responderia 404 nessas páginas.
 
 ### Conferência em navegador
 

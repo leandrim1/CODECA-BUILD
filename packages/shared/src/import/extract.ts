@@ -1072,6 +1072,17 @@ export function extractPage(input: { html: string; url: string; homeUrl: string 
    * configuracao -- o remedio seria pior que a doenca. Ver `embedded.ts`.
    */
   let fromEmbeddedState = false;
+  /**
+   * Caracteres que vieram do estado serializado.
+   *
+   * Entram em `textLength` porque esse numero nao e enfeite: o rastreador o usa
+   * para decidir se vale abrir o navegador na pagina (`crawler.ts`). Contar
+   * zero numa pagina que rendeu conteudo mandava executar o JavaScript de
+   * terceiro sem necessidade -- justamente o que a leitura do estado embutido
+   * existe para evitar -- e ainda mostrava "0 caracteres" ao lado de uma pagina
+   * que deu campos.
+   */
+  let colhidoChars = 0;
   if (renderedByScript) {
     const colhido = harvestEmbedded(extractEmbeddedState(input.html));
     if (colhido.texts.length > 0 || colhido.images.length > 0) {
@@ -1080,6 +1091,7 @@ export function extractPage(input: { html: string; url: string; homeUrl: string 
       for (const texto of colhido.texts) {
         if (paragraphs.length >= MAX_PARAGRAPHS) break;
         paragraphs.push(texto);
+        colhidoChars += texto.length;
       }
 
       const jaTem = new Set(images.map((imagem) => imagem.url));
@@ -1124,7 +1136,7 @@ export function extractPage(input: { html: string; url: string; homeUrl: string 
     quotes: extractQuotes(body, jsonLd),
     people: extractPeople(body, pageUrl, jsonLd),
     role,
-    textLength: visibleText.length,
+    textLength: visibleText.length + colhidoChars,
     renderedByScript,
     ...(fromEmbeddedState ? { fromEmbeddedState: true } : {}),
     foundedYear: extractFoundedYear(visibleText),

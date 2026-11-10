@@ -68,9 +68,15 @@ export { SESSION_COOKIE, CSRF_COOKIE, CSRF_HEADER } from './lib/cookies.js';
 /**
  * Importacao de sites externos.
  *
- * `createMemorySiteFetcher` e exportado para os testes: a busca de verdade
- * recusa `localhost` e IP privado (protecao contra SSRF), entao um teste de
- * ponta a ponta contra servidor local seria barrado pela propria protecao.
+ * Duas formas de testar, com propositos diferentes:
+ *
+ * - `createMemorySiteFetcher` substitui a rede inteira. Serve aos testes de
+ *   fluxo, que querem exercitar rastreamento, extracao e gravacao sem depender
+ *   de soquete.
+ * - `createSiteFetcher({ testOrigins })` usa a implementacao de producao contra
+ *   um servidor HTTP de verdade em `127.0.0.1`. Serve ao que o dublê nao
+ *   alcanca: soquete, redirecionamento revalidado, prazo, limite de bytes e
+ *   304. Ver `SiteFetcherOptions` para por que isso nao afrouxa a protecao.
  */
 export {
   createSiteFetcher,
@@ -78,6 +84,7 @@ export {
   addressLookup,
   SiteFetchError,
   type SiteFetcher,
+  type SiteFetcherOptions,
   type FetchedResource,
   type FetchOptions,
   type ResolvedAddress,

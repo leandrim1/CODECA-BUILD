@@ -24,6 +24,7 @@
     "db:deploy": "pnpm --filter @codeca/database run prepare-db",
     "sdk:check": "pnpm --filter @codeca/sdk build && node packages/sdk/scripts/prepublish.mjs --require-build",
     "validate:email": "node scripts/validate/email.mjs",
+    "validate:validapay": "node scripts/validate/validapay.mjs",
     "sdk:pack": "pnpm --filter @codeca/sdk build && cd packages/sdk && pnpm publish --dry-run --no-git-checks"
   },
   "dependencies": {

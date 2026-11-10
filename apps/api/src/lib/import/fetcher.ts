@@ -278,6 +278,8 @@ function requestOnce(input: {
   timeoutMs: number;
   ifNoneMatch?: string;
   ifModifiedSince?: string;
+  /** Porta real do destino, so no mapa de teste. O `Host` nao muda. */
+  portOverride?: string;
 }): Promise<{ response: IncomingMessage }> {
   const isHttps = input.url.protocol === 'https:';
   const send = isHttps ? httpsRequest : httpRequest;
@@ -287,7 +289,7 @@ function requestOnce(input: {
       {
         protocol: input.url.protocol,
         hostname: input.url.hostname,
-        port: input.url.port !== '' ? input.url.port : isHttps ? 443 : 80,
+        port: input.portOverride ?? (input.url.port !== '' ? input.url.port : isHttps ? 443 : 80),
         path: `${input.url.pathname}${input.url.search}`,
         method: 'GET',
         headers: {
@@ -363,6 +365,37 @@ function mensagemDeRede(error: NodeJS.ErrnoException): string {
   }
 }
 
+export interface SiteFetcherOptions {
+  /**
+   * Um arquivo de hosts so para teste: `host da URL` -> `ip:porta` real.
+   *
+   * **Existe para teste, e nada mais.** Um servidor HTTP de verdade em
+   * `127.0.0.1` e a unica forma de exercitar o transporte -- soquete,
+   * redirecionamento, prazo, limite de bytes, 304 -- contra a implementacao que
+   * roda em producao. Sem isto, todo teste de importacao fala com um dublê em
+   * memoria e o codigo que de fato abre conexao fica sem cobertura. Foi
+   * exatamente ali que morou o defeito que deixou a importacao sem funcionar em
+   * producao (ver `addressLookup`).
+   *
+   * Mapear o NOME, e nao so dispensar o endereco, e o que permite exercitar o
+   * caminho inteiro: `http://clinicasorriso.test/` passa pela validacao da rota
+   * como um endereco publico qualquer, e so aqui vira `127.0.0.1:41234`. O
+   * cabecalho `Host` e o SNI continuam levando o nome original.
+   *
+   * Tres coisas tornam isto seguro:
+   *
+   * 1. **E um mapa fechado, nao um interruptor.** Quem nao esta nele -- inclusive
+   *    o destino de um redirecionamento vindo de quem esta -- continua passando
+   *    pelas duas barreiras. Por isso um teste consegue provar, sobre HTTP real,
+   *    que um redirecionamento para `169.254.169.254` e recusado.
+   * 2. **E ignorado em producao.** `NODE_ENV === 'production'` descarta o mapa,
+   *    mesmo que alguem o preencha por engano.
+   * 3. **Nao ha caminho ate ele a partir da aplicacao.** `createContext` nunca
+   *    passa esta opcao, e ha teste que percorre `apps/` para provar isso.
+   */
+  testOrigins?: Readonly<Record<string, string>>;
+}
+
 /**
  * Busca de verdade, com as duas barreiras e os limites.
  *
@@ -372,7 +405,16 @@ function mensagemDeRede(error: NodeJS.ErrnoException): string {
  * seguir redirecionamento sem revalidar seria ter as duas barreiras e deixar a
  * porta dos fundos aberta.
  */
-export function createSiteFetcher(): SiteFetcher {
+export function createSiteFetcher(config: SiteFetcherOptions = {}): SiteFetcher {
+  // Em producao o mapa nao existe, qualquer que seja o valor recebido.
+  const origens = new Map<string, { address: string; port: string }>();
+  if (process.env.NODE_ENV !== 'production') {
+    for (const [nome, destino] of Object.entries(config.testOrigins ?? {})) {
+      const [address = '', port = ''] = destino.split(':');
+      origens.set(nome.trim().toLowerCase(), { address, port });
+    }
+  }
+
   return {
     async fetch(rawUrl, options = {}) {
       const accept = options.accept ?? 'html';
@@ -399,15 +441,29 @@ export function createSiteFetcher(): SiteFetcher {
         if (url.protocol !== 'http:' && url.protocol !== 'https:') {
           throw new SiteFetchError('endereco_recusado', 'Aceitamos apenas endereços http e https.');
         }
-        if (url.port !== '' && url.port !== '80' && url.port !== '443') {
-          throw new SiteFetchError('endereco_recusado', 'Porta não permitida.');
+
+        /*
+         * A dispensa vale por SALTO, nao pela requisicao.
+         *
+         * Quem entra pela lista de teste nao leva consigo um salvo-conduto: o
+         * destino de um redirecionamento e avaliado de novo, e so passa se ele
+         * proprio estiver na lista. E o que mantem o teste de SSRF honesto.
+         */
+        const destinoDeTeste = origens.get(url.host.toLowerCase());
+
+        if (!destinoDeTeste) {
+          if (url.port !== '' && url.port !== '80' && url.port !== '443') {
+            throw new SiteFetchError('endereco_recusado', 'Porta não permitida.');
+          }
+          // Primeira barreira, aplicada tambem em cada salto.
+          const forma = checkImportHostname(url.hostname);
+          if (!forma.ok) throw new SiteFetchError('endereco_recusado', forma.message);
         }
-        // Primeira barreira, aplicada tambem em cada salto.
-        const forma = checkImportHostname(url.hostname);
-        if (!forma.ok) throw new SiteFetchError('endereco_recusado', forma.message);
 
         // Segunda barreira: resolve e valida o IP deste salto.
-        const addresses = await resolvePublicAddresses(url.hostname);
+        const addresses = destinoDeTeste
+          ? [{ address: destinoDeTeste.address, family: 4 }]
+          : await resolvePublicAddresses(url.hostname);
         if (addresses.length === 0) {
           throw new SiteFetchError('dns', 'Não foi possível encontrar esse endereço.');
         }
@@ -417,6 +473,7 @@ export function createSiteFetcher(): SiteFetcher {
           addresses,
           accept,
           timeoutMs,
+          ...(destinoDeTeste?.port ? { portOverride: destinoDeTeste.port } : {}),
           ...(options.ifNoneMatch ? { ifNoneMatch: options.ifNoneMatch } : {}),
           ...(options.ifModifiedSince ? { ifModifiedSince: options.ifModifiedSince } : {}),
         });
