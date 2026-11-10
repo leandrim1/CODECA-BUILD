@@ -71,6 +71,13 @@ export async function seedDatabase(db: Database, options: SeedOptions = {}): Pro
         priceCents: plan.priceCents,
         limits: plan.limits,
         billing: plan.billing,
+        /*
+         * So na insercao. A politica de suspensao e ajustavel no painel
+         * mestre, e reescreve-la a cada seed desfaria a escolha de quem opera.
+         * Em producao, a mudanca de uma politica ja existente e feita por
+         * migracao (ver `0028`), com guarda para nao sobrescrever ajuste.
+         */
+        ...(plan.suspension ? { suspension: plan.suspension } : {}),
         isPublic: true,
         isActive: true,
       })

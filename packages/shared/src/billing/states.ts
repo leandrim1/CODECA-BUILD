@@ -405,7 +405,23 @@ export interface PublicationDecision {
  */
 export function decidePublication(input: PublicationDecisionInput): PublicationDecision {
   const { state, accessUntil, now } = input;
-  const graceMs = Math.max(0, input.gracePeriodDays) * 24 * 3600 * 1000;
+
+  /*
+   * A tolerancia e de quem PAGA e atrasou -- nunca de quem nunca pagou.
+   *
+   * Ela existe para nao derrubar o site de um cliente adimplente por causa de
+   * um cartao recusado enquanto a cobranca se resolve. Aplicada a uma
+   * avaliacao, virava simplesmente mais cinco dias de graça: os 14 dias
+   * anunciados duravam 19.
+   *
+   * A regra mora aqui, e nao na linha da assinatura, por dois motivos. O
+   * primeiro e que a MESMA linha que nasce em avaliacao vira a do cliente
+   * pagante: zerar a coluna no cadastro tirava a tolerancia de quem depois
+   * passava a pagar. O segundo e que assim vale tambem para as assinaturas
+   * que ja existem, sem tocar em nenhuma delas.
+   */
+  const graceDays = state === 'trialing' ? 0 : input.gracePeriodDays;
+  const graceMs = Math.max(0, graceDays) * 24 * 3600 * 1000;
   const graceEndsAt = accessUntil ? new Date(accessUntil.getTime() + graceMs) : null;
   const withinAccess = accessUntil !== null && accessUntil.getTime() > now.getTime();
   const withinGrace = graceEndsAt !== null && graceEndsAt.getTime() > now.getTime();

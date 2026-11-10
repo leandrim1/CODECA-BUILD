@@ -84,8 +84,16 @@ export async function createCompanyForUser(
   // ao concluir a integracao do site desenvolvido para o cliente.
   const site = await createPrimarySite(tx, { tenantId: tenant.id, name: input.companyName });
 
-  // A avaliacao ja libera o acesso: `accessUntil` e o campo que a API
-  // publica consulta, e vence sozinho quando o trial acaba.
+  /*
+   * A avaliacao ja libera o acesso: `accessUntil` e o campo que a API publica
+   * consulta, e vence sozinho quando o trial acaba.
+   *
+   * A coluna de tolerancia nasce com o padrao e **nao e usada enquanto a
+   * assinatura esta em avaliacao**: quem decide isso e `decidePublication`,
+   * que ignora a tolerancia no estado `trialing`. A coluna fica preenchida
+   * porque esta mesma linha vira a do cliente pagante quando ele contrata --
+   * e ai a tolerancia passa a valer.
+   */
   const trialEndsAt = new Date(input.now.getTime() + TRIAL_PERIOD_DAYS * 24 * 3600 * 1000);
   await tx.insert(schema.subscriptions).values({
     tenantId: tenant.id,

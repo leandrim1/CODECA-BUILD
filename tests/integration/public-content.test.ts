@@ -48,6 +48,21 @@ beforeEach(async () => {
     companyName: 'Construtora Horizonte',
   });
 
+  /*
+   * Acesso garantido durante todo o arquivo.
+   *
+   * Estes testes avancam o relogio em semanas para conferir janelas de
+   * exibicao, e a empresa nasce em avaliacao de 14 dias. Vencida a avaliacao, a
+   * API publica para de responder -- comportamento correto e testado em
+   * `acesso-por-pagamento.test.ts`. Aqui o assunto e a ENTREGA do conteudo, nao
+   * a cobranca, entao a assinatura recebe um periodo longo para o salto no
+   * tempo nao esbarrar nela.
+   */
+  await api.db
+    .update(schema.subscriptions)
+    .set({ accessUntil: new Date('2030-01-01T00:00:00Z') })
+    .where(eq(schema.subscriptions.tenantId, empresa.tenantId));
+
   await admin.client.put(`/api/platform/sites/${empresa.siteId}/origins`, {
     origins: [{ origin: ORIGEM, note: '' }],
   });

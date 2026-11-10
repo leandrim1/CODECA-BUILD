@@ -42,6 +42,8 @@ export async function ensureBaselinePlans(db: Database): Promise<BaselineResult>
         priceCents: plan.priceCents,
         limits: plan.limits,
         billing: plan.billing,
+        // Omitido, vale o padrao da coluna.
+        ...(plan.suspension ? { suspension: plan.suspension } : {}),
         isPublic: true,
         isActive: true,
       })),

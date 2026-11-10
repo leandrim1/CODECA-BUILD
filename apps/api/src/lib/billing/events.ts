@@ -18,6 +18,7 @@ import {
   readString,
   readSubscriptionBase,
   type RawPayload,
+  type SubscriptionEventBase,
 } from './payload.js';
 import {
   applySubscriptionPatch,
@@ -136,6 +137,87 @@ async function resolveSubscription(
       ? `Assinatura ${externalSubscriptionId} não está vinculada a nenhuma empresa.`
       : 'O evento não traz identificadores que permitam localizar a empresa.',
   };
+}
+
+// ------------------------------------------- conferencia do que foi pago
+
+/**
+ * Tolerancia, em centavos, entre o valor pago e o preco do plano.
+ *
+ * Um real. Nao e folga para desconto -- e para arredondamento: a ValidaPay
+ * trabalha em reais com duas casas e nos em centavos, e a conversao de ida e
+ * volta pode deslocar a ultima unidade.
+ */
+const TOLERANCIA_DE_VALOR_CENTS = 100;
+
+/**
+ * O pagamento confirmado bate com o que a empresa contratou?
+ *
+ * Duas perguntas, e nenhuma delas bloqueia nada:
+ *
+ * 1. **O valor** do ciclo pago corresponde ao preco do plano?
+ * 2. **O preco** que veio no evento e o mesmo que sincronizamos para este
+ *    plano? Se a assinatura trocou de plano direto no provedor, o nosso
+ *    `planId` fica para tras -- e com ele os limites e recursos errados.
+ *
+ * ## Por que registrar em vez de bloquear
+ *
+ * Pro-rata, desconto, cupom e troca de plano divergem por desenho. Bloquear o
+ * acesso de quem pagou por causa de uma diferenca legitima e pior do que a
+ * fraude que o bloqueio evitaria -- ainda mais com a assinatura ja protegida
+ * por HMAC, janela de tempo e deduplicacao. Entao aqui se mede, se registra na
+ * auditoria de cobranca e se deixa visivel no painel mestre; a decisao de
+ * recusar algum caso especifico e comercial, nao automatica.
+ */
+async function conferirPagamento(
+  ctx: BillingContext,
+  subscription: SubscriptionRow,
+  base: SubscriptionEventBase,
+): Promise<string[]> {
+  /*
+   * O plano a comparar e o que esta sendo PAGO, e nem sempre e `planId`.
+   *
+   * A contratacao guarda a escolha em `pendingPlanId` e so promove a `planId`
+   * quando o pagamento e confirmado -- os limites novos nao valem antes de
+   * pagar. No instante desta conferencia, portanto, `planId` ainda e o plano
+   * anterior (na primeira contratacao, a avaliacao, de preco zero). Comparar
+   * com ele era comparar com nada, e a conferencia passava calada.
+   */
+  const planoCobrado = subscription.pendingPlanId ?? subscription.planId;
+  const [plano] = await ctx.db
+    .select({ priceCents: schema.plans.priceCents, externalPriceId: schema.plans.externalPriceId, name: schema.plans.name })
+    .from(schema.plans)
+    .where(eq(schema.plans.id, planoCobrado));
+  if (!plano) return [];
+
+  const divergencias: string[] = [];
+
+  const pago = base.cycle?.amount;
+  if (typeof pago === 'number' && plano.priceCents > 0) {
+    const pagoCents = Math.round(pago * 100);
+    const diferenca = Math.abs(pagoCents - plano.priceCents);
+    if (diferenca > TOLERANCIA_DE_VALOR_CENTS) {
+      divergencias.push(
+        `valor pago ${formatarCentavos(pagoCents)} difere do plano ${plano.name}`
+          + ` (${formatarCentavos(plano.priceCents)})`,
+      );
+    }
+  }
+
+  const precoDoEvento = base.item?.priceId;
+  if (precoDoEvento && plano.externalPriceId && precoDoEvento !== plano.externalPriceId) {
+    divergencias.push(
+      `o evento traz o preço ${precoDoEvento}, e o plano ${plano.name} está sincronizado`
+        + ` com ${plano.externalPriceId}: a assinatura pode ter trocado de plano no provedor`,
+    );
+  }
+
+  return divergencias;
+}
+
+/** Centavos em reais, so para a mensagem da auditoria. */
+function formatarCentavos(cents: number): string {
+  return `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
 }
 
 // ------------------------------------------- eventos de assinatura
@@ -349,6 +431,24 @@ async function applySubscriptionEvent(
         .update(schema.tenants)
         .set({ planId: plan.id, updatedAt: ctx.now() })
         .where(eq(schema.tenants.id, subscription.tenantId));
+    }
+  }
+
+  /*
+   * Conferencia do que foi pago. So quando o pagamento foi de fato confirmado:
+   * em evento de falha ou de ciclo nao pago nao ha valor a comparar.
+   */
+  if (action === BILLING_ACTIONS.paymentConfirmed) {
+    const divergencias = await conferirPagamento(ctx, subscription, base);
+    if (divergencias.length > 0) {
+      await recordBillingAudit(ctx.db, {
+        tenantId: subscription.tenantId,
+        subscriptionId: subscription.id,
+        action: BILLING_ACTIONS.paymentDivergence,
+        source: ctx.source,
+        reason: divergencias.join('; '),
+        metadata: { event, divergencias },
+      });
     }
   }
 

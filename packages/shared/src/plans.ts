@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { TRIAL_PERIOD_DAYS } from './billing/states.js';
+import type { SuspensionPolicy } from './billing/suspension.js';
 import type { PlanBillingInput } from './validators/billing.js';
 
 /** Limites e recursos controlados por plano. Verificados sempre no backend. */
@@ -85,6 +86,11 @@ export interface PlanSeed {
   limits: PlanLimits;
   /** Periodicidade e formas de pagamento usadas ao sincronizar com a ValidaPay. */
   billing: PlanBillingInput;
+  /**
+   * O que a suspensao faz neste plano. Omitido, vale o padrao da coluna
+   * (`serve` + `read_only`), que e o certo para quem PAGA e atrasou.
+   */
+  suspension?: SuspensionPolicy;
 }
 
 /**
@@ -117,6 +123,19 @@ export const DEFAULT_PLANS: readonly PlanSeed[] = [
       trialDays: TRIAL_PERIOD_DAYS,
       paymentMethods: ['creditcard'],
     },
+    /*
+     * Vencida a avaliacao, o conteudo para de ser servido.
+     *
+     * O padrao (`serve`) existe para o cliente pagante em atraso: o site dele
+     * continua no ar enquanto a cobranca se resolve. Para quem nunca pagou,
+     * esse mesmo padrao entregava o produto de graca por tempo ilimitado --
+     * o painel ficava em leitura, mas a API publica seguia alimentando o site
+     * para sempre.
+     *
+     * `read_only` no painel, e nao `blocked`: a pessoa precisa continuar vendo
+     * o que cadastrou para decidir se contrata. Nada e apagado.
+     */
+    suspension: { publicSite: 'stop', panel: 'read_only' },
   },
   {
     code: 'essencial',

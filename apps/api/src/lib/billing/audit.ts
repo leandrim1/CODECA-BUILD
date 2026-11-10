@@ -35,6 +35,11 @@ export const BILLING_ACTIONS = {
   downgradeScheduled: 'billing.downgrade_scheduled',
   reconciled: 'billing.reconciled',
   reconciliationDivergence: 'billing.reconciliation_divergence',
+  /**
+   * O pagamento confirmado nao bate com o que a empresa contratou -- valor,
+   * preco ou plano. Registra e segue: o acesso NAO e bloqueado por isto.
+   */
+  paymentDivergence: 'billing.payment_divergence',
   adminHoldApplied: 'billing.admin_hold_applied',
   adminHoldReleased: 'billing.admin_hold_released',
   gracePeriodChanged: 'billing.grace_period_changed',

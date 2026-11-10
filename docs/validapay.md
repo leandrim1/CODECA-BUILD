@@ -328,6 +328,75 @@ VALIDAPAY_BASE_URL=https://api.validapay.com.br
 Rotacao de credencial: crie a nova, troque a variavel, implante, e so depois
 remova a antiga — a remocao e imediata e derruba quem ainda a usa.
 
+## 7b. Acesso vinculado ao pagamento
+
+A regra comercial em uma frase: **a avaliacao de 14 dias e a unica forma de usar
+a plataforma sem pagar.**
+
+### Como o acesso e decidido
+
+Nao depende de job nenhum: e calculado **a cada requisicao** a partir de
+`accessUntil` e do relogio.
+
+```
+requisicao -> enforceSuspension -> resolveSiteBilling(site, agora)
+                                     |- assinatura -> decidePublication()
+                                     `- plano      -> politica de suspensao
+```
+
+`decidePublication` e uma funcao pura, com precedencia fixa: suspensao manual
+vence tudo, depois disputa/estorno, depois `pending` (que nunca publica), e por
+fim `accessUntil` contra a tolerancia.
+
+### A avaliacao
+
+| | Valor | Por que |
+|---|---|---|
+| Duracao | 14 dias (`TRIAL_PERIOD_DAYS`) | registrada em `trial_ends_at` e em `access_until` |
+| Tolerancia | **nao se aplica** | a tolerancia e para quem PAGA e atrasou. Aplicada a quem nunca pagou, a avaliacao durava 19 dias. A regra mora em `decidePublication` (estado `trialing`), e nao na coluna: a MESMA linha que nasce em avaliacao vira a do cliente pagante, e zerar a coluna tirava a tolerancia de quem depois passava a pagar |
+| Vencida: painel | `read_only` | a pessoa precisa seguir vendo o que cadastrou para decidir se contrata. Nada e apagado |
+| Vencida: API publica | **`stop`** (402) | antes herdava o padrao `serve`, e o site do visitante seguia alimentado para sempre |
+| Tela de cobranca | nunca bloqueada | e por onde se regulariza |
+
+A politica da avaliacao e campo do plano, editavel no painel mestre. A migracao
+`0028` a ajusta em instalacoes existentes **sem** sobrescrever quem ja tiver
+mexido nela.
+
+### Os planos pagos
+
+Nada libera acesso antes da confirmacao: criar conta, abrir checkout e receber
+`charge.created` deixam a assinatura em `pending`, e `pending` nao publica. So
+`payment.success` com o ciclo efetivamente `PAID` estende `access_until`.
+
+O cliente **nao** consegue alterar o proprio estado: nenhuma rota escreve status
+a partir de entrada dele, e `POST /billing/refresh` reconcilia contra o
+provedor, nao contra o navegador.
+
+### Divergencia de valor
+
+`payment.success` passa por uma conferencia: o valor do ciclo pago e comparado
+com o preco do plano **que esta sendo contratado** (`pending_plan_id`, e nao
+`plan_id` -- este ultimo so e promovido depois do pagamento), e o `priceId` do
+evento com o que sincronizamos.
+
+Divergindo, grava-se `billing.payment_divergence` na auditoria de cobranca, que
+aparece no painel mestre. **Nao bloqueia.** Pro-rata, desconto, cupom e troca de
+plano divergem por desenho, e recusar o acesso de quem pagou por uma diferenca
+legitima e pior do que a fraude que o bloqueio evitaria -- ainda mais com o
+evento ja protegido por HMAC, janela de tempo e deduplicacao. Transformar
+alguma divergencia em bloqueio e decisao comercial, nao automatica.
+
+Tolerancia: 1 real, para arredondamento entre reais (provedor) e centavos
+(banco).
+
+### Testes
+
+`tests/integration/acesso-por-pagamento.test.ts`: libera no cadastro e bloqueia
+no 15o dia; tolerancia zero na avaliacao; API publica em 402 depois do
+vencimento; painel em leitura com a cobranca aberta; checkout nao libera;
+cobranca criada nao libera; reativacao depois de expirar; divergencia de valor
+registrada sem bloquear; valor correto sem divergencia.
+
 ## 8b. Conformidade com o contrato publicado
 
 `tests/integration/billing-webhooks-contrato.test.ts` usa os corpos **copiados
