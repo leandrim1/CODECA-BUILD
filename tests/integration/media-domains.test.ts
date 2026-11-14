@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq, schema } from '@codeca/database';
 import type { DomainProvider, DomainProviderStatus } from '@codeca/api';
 import { createTestApi, registerAccount, verifyEmail, type RegisteredAccount, type TestApi } from '../helpers/api.js';
+import { jpegBytes } from '../helpers/media.js';
 
 /** Biblioteca de midia sobre o Blob e gestao de dominios proprios. */
 
@@ -108,7 +109,7 @@ async function useHostedSite(projectId: string = PROJETO_DO_SITE): Promise<void>
 
 function imageUpload(name: string, bytes = 2048, type = 'image/jpeg'): FormData {
   const form = new FormData();
-  form.set('file', new File([new Uint8Array(bytes)], name, { type }));
+  form.set('file', new File([jpegBytes(bytes)], name, { type }));
   form.set('alt', 'Fachada do empreendimento');
   form.set('tag', 'fachadas');
   form.set('width', '1200');

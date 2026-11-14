@@ -8,6 +8,7 @@ import {
   type RegisteredAccount,
   type TestApi,
 } from '../helpers/api.js';
+import { jpegBytes } from '../helpers/media.js';
 
 /**
  * A entidade `site` e o isolamento em dois niveis.
@@ -189,7 +190,7 @@ describe('o painel grava no site da propria empresa', () => {
 
   it('a midia enviada fica no site da empresa que enviou', async () => {
     const form = new FormData();
-    form.set('file', new File([new Uint8Array(2048)], 'fachada.jpg', { type: 'image/jpeg' }));
+    form.set('file', new File([jpegBytes(2048)], 'fachada.jpg', { type: 'image/jpeg' }));
     const upload = await alpha.client.request('POST', `/api/tenants/${alpha.tenantId}/media`, {
       formData: form,
     });

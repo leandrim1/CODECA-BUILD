@@ -7,6 +7,7 @@ import {
   type RegisteredAccount,
   type TestApi,
 } from '../helpers/api.js';
+import { jpegBytes } from '../helpers/media.js';
 
 /**
  * Produtos, categorias e galerias.
@@ -108,7 +109,7 @@ async function criarProduto(extra: Record<string, unknown> = {}) {
 
 async function enviarImagem(nome: string) {
   const form = new FormData();
-  form.set('file', new File([new Uint8Array(2048)], nome, { type: 'image/jpeg' }));
+  form.set('file', new File([jpegBytes(2048)], nome, { type: 'image/jpeg' }));
   form.set('alt', 'Ambiente da cantina');
   form.set('width', '1200');
   form.set('height', '800');

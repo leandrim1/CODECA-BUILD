@@ -8,6 +8,7 @@ import {
   type RegisteredAccount,
   type TestApi,
 } from '../helpers/api.js';
+import { jpegBytes } from '../helpers/media.js';
 
 /**
  * Fluxo completo do painel, do cadastro da construtora ao conteudo pronto.
@@ -99,7 +100,7 @@ describe('da criacao da empresa ao conteudo pronto', () => {
 
     // ------------------------------------------------ 2. biblioteca de midia
     const form = new FormData();
-    form.set('file', new File([new Uint8Array(4096)], 'fachada-aurora.jpg', { type: 'image/jpeg' }));
+    form.set('file', new File([jpegBytes(4096)], 'fachada-aurora.jpg', { type: 'image/jpeg' }));
     form.set('alt', 'Fachada do Residencial Aurora');
     const upload = await client.request('POST', `/api/tenants/${tenantId}/media`, { formData: form });
     expect(upload.status, upload.errorMessage ?? '').toBe(201);

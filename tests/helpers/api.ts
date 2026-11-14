@@ -107,6 +107,8 @@ export interface TestApi {
   app: ReturnType<typeof createApp>;
   outbox: MailMessage[];
   blobFiles: ReturnType<typeof createMemoryBlobStorage>['files'];
+  /** Conteudo de cada arquivo gravado, por URL. */
+  blobBodies: ReturnType<typeof createMemoryBlobStorage>['bodies'];
   /** Provedor de cobranca controlado pelo teste. Nenhuma cobranca real. */
   billing: MemoryBillingProvider;
   client: () => TestClient;
@@ -165,6 +167,7 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     app,
     outbox: 'outbox' in mailer ? (mailer as { outbox: MailMessage[] }).outbox : [],
     blobFiles: blob.files,
+    blobBodies: blob.bodies,
     billing,
     client: () => new TestClient(app),
     reset: async () => {
@@ -172,6 +175,7 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
       webhooks.reset();
       if ('outbox' in mailer) (mailer as { outbox: MailMessage[] }).outbox.length = 0;
       blob.files.clear();
+      blob.bodies.clear();
       billing.sessions.clear();
       billing.subscriptions.clear();
       billing.charges.clear();

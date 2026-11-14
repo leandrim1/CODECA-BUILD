@@ -128,12 +128,18 @@ export function createBlobStorage(env: Env): BlobStorage {
 }
 
 /** Armazenamento em memoria para os testes. */
-export function createMemoryBlobStorage(): BlobStorage & { files: Map<string, StoredBlob> } {
+export function createMemoryBlobStorage(): BlobStorage & {
+  files: Map<string, StoredBlob>;
+  /** Conteudo gravado, por URL: os testes conferem O QUE foi salvo, nao so que foi. */
+  bodies: Map<string, Uint8Array>;
+} {
   const files = new Map<string, StoredBlob>();
+  const bodies = new Map<string, Uint8Array>();
   let counter = 0;
   return {
     configured: true,
     files,
+    bodies,
     async put({ pathname, body, contentType }) {
       counter += 1;
       const finalPath = `${pathname}-${counter}`;
@@ -145,10 +151,12 @@ export function createMemoryBlobStorage(): BlobStorage & { files: Map<string, St
         contentType,
       };
       files.set(stored.url, stored);
+      bodies.set(stored.url, new Uint8Array(body));
       return stored;
     },
     async remove(url) {
       files.delete(url);
+      bodies.delete(url);
     },
   };
 }

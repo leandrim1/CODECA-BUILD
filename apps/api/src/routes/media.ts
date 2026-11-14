@@ -8,6 +8,7 @@ import {
   mediaQuerySchema,
   paginate,
   safeFileName,
+  sanitizeSvg,
   updateMediaSchema,
   uuidSchema,
 } from '@codeca/shared';
@@ -17,6 +18,7 @@ import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
 import { buildBlobPathname, blobPathBelongsToTenant } from '../lib/blob.js';
 import { clientIp, created, noContent, ok, parseJsonBody, parseParams, parseQuery } from '../lib/http.js';
+import { sniffImageType } from '../lib/import/images.js';
 import { countMediaReferences, describeUsage, findReferencedMediaIds } from '../lib/media-usage.js';
 import { assertStorageAvailable, loadEffectivePlan, loadUsage } from '../lib/plan-limits.js';
 import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ratelimit.js';
@@ -128,12 +130,13 @@ export function mediaRoutes() {
       throw AppError.badRequest('Nenhum arquivo recebido no campo "file".');
     }
 
-    const mimeType = file.type;
-    if (!isAllowedMimeType(mimeType)) {
+    // Primeiro filtro, barato: o tipo que o navegador declarou. Nao decide
+    // nada sozinho -- quem decide sao os bytes, logo abaixo.
+    if (!isAllowedMimeType(file.type)) {
       throw new AppError(
         'unsupported_media_type',
         'Tipo de arquivo não permitido. Aceitamos JPG, PNG, WEBP, AVIF, SVG, GIF e PDF.',
-        { received: mimeType },
+        { received: file.type },
       );
     }
     if (file.size <= 0) throw AppError.badRequest('O arquivo está vazio.');
@@ -153,8 +156,48 @@ export function mediaRoutes() {
     const width = toPositiveInt(form.get('width'));
     const height = toPositiveInt(form.get('height'));
 
+    let buffer = new Uint8Array(await file.arrayBuffer());
+
+    /*
+     * O conteudo precisa ser o que o rotulo diz.
+     *
+     * `file.type` e o que o navegador (ou quem monta a requisicao) resolveu
+     * declarar: um executavel rotulado `image/png` passava, e era gravado e
+     * servido como imagem. Os primeiros bytes nao mentem -- e a mesma
+     * conferencia que a importacao de sites ja fazia, agora no upload do
+     * painel tambem. Divergencia e recusa, inclusive entre dois tipos aceitos:
+     * um arquivo que se apresenta como uma coisa e e outra nao e gravado.
+     */
+    const mimeType = file.type;
+    const conteudo = sniffUploadType(buffer);
+    if (conteudo !== mimeType) {
+      throw new AppError(
+        'unsupported_media_type',
+        conteudo && isAllowedMimeType(conteudo)
+          ? 'O conteúdo do arquivo não corresponde ao tipo informado. Confira a extensão do '
+            + 'arquivo ou salve-o de novo no formato correto.'
+          : 'O conteúdo do arquivo não corresponde a um tipo aceito. Aceitamos JPG, PNG, WEBP, '
+            + 'AVIF, SVG, GIF e PDF.',
+        { declared: mimeType, detected: conteudo },
+      );
+    }
+
+    /*
+     * SVG e documento que o navegador executa (`<script>`, `onload`,
+     * `<foreignObject>`, referencia externa). O da importacao ja era
+     * reconstruido por lista de permissao; o do painel era gravado como veio.
+     * Passa a valer a mesma regra: grava-se o arquivo limpo, nunca o original.
+     */
+    if (mimeType === 'image/svg+xml') {
+      const limpeza = sanitizeSvg(Buffer.from(buffer).toString('utf-8'));
+      if (!limpeza.ok) {
+        throw new AppError('unsupported_media_type', limpeza.message);
+      }
+      buffer = new Uint8Array(Buffer.from(limpeza.svg, 'utf-8'));
+    }
+
+    const sizeBytes = buffer.byteLength;
     const fileName = safeFileName(file.name || 'arquivo', mimeType);
-    const buffer = new Uint8Array(await file.arrayBuffer());
 
     const stored = await ctx.blob.put({
       pathname: buildBlobPathname(tenant.tenantId, fileName),
@@ -173,7 +216,8 @@ export function mediaRoutes() {
         fileName,
         mimeType,
         kind: mediaKindFor(mimeType),
-        sizeBytes: file.size,
+        // O tamanho do que foi de fato gravado (um SVG limpo pode ser menor).
+        sizeBytes,
         width,
         height,
         alt,
@@ -193,7 +237,7 @@ export function mediaRoutes() {
       action: AUDIT_ACTIONS.mediaUploaded,
       entityType: 'media_asset',
       entityId: row.id,
-      metadata: { fileName, mimeType, sizeBytes: file.size },
+      metadata: { fileName, mimeType, sizeBytes },
     });
 
     return created(c, { asset: row });
@@ -298,4 +342,20 @@ function toPositiveInt(value: FormDataEntryValue | null): number | null {
   if (typeof value !== 'string' || value === '') return null;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 && parsed < 100_000 ? parsed : null;
+}
+
+/**
+ * Tipo real do arquivo enviado, pelos primeiros bytes.
+ *
+ * As imagens usam a mesma deteccao da importacao de sites; o PDF, que so
+ * existe no upload do painel, e reconhecido pela assinatura `%PDF-`.
+ */
+function sniffUploadType(bytes: Uint8Array): string | null {
+  if (
+    bytes.length >= 5 &&
+    bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d
+  ) {
+    return 'application/pdf';
+  }
+  return sniffImageType(bytes);
 }
