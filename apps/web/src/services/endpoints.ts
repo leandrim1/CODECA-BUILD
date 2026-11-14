@@ -172,9 +172,12 @@ export const tenantApi = {
    */
   exportData: (tenantId: string) => api.get<Record<string, unknown>>(`${tenantBase(tenantId)}/dados`),
   deletionPreview: (tenantId: string) =>
-    api.get<{ displayName: string; removidos: Record<string, number> }>(
-      `${tenantBase(tenantId)}/exclusao/resumo`,
-    ),
+    api.get<{
+      displayName: string;
+      removidos: Record<string, number>;
+      /** Assinatura que sera cancelada na ValidaPay antes da exclusao. */
+      cobranca: { assinaturaAtiva: boolean; acessoPagoAte: string | null };
+    }>(`${tenantBase(tenantId)}/exclusao/resumo`),
   remove: (tenantId: string, body: { confirmacao: string; password?: string }) =>
     api.delete<{
       removidos: Record<string, number>;

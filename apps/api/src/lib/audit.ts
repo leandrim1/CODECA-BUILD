@@ -35,6 +35,8 @@ export const AUDIT_ACTIONS = {
   tenantExported: 'tenant.exported',
   /** Exclusao da empresa a pedido do titular (LGPD, art. 18, VI). */
   tenantDeleted: 'tenant.deleted',
+  /** Exclusao pedida e interrompida: a cobranca nao pode ser encerrada no provedor. */
+  tenantDeletionBlocked: 'tenant.deletion_blocked',
   tenantStatusChanged: 'tenant.status_changed',
   tenantPlanChanged: 'tenant.plan_changed',
   memberInvited: 'member.invited',

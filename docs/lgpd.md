@@ -106,6 +106,43 @@ Três coisas sobrevivem, de propósito:
 
 Base: art. 16 da LGPD, e é o que a política de privacidade já afirmava.
 
+### A cobrança é encerrada antes — e só então a empresa é apagada
+
+Excluir a empresa cancela, **primeiro**, a assinatura na ValidaPay
+(`lib/billing/encerramento.ts`). A primeira versão desta exclusão apagava tudo
+do nosso lado e não avisava o provedor: o cartão seguia sendo cobrado e o
+cliente não tinha mais painel por onde cancelar.
+
+A regra: **nada é apagado enquanto houver cobrança que não conseguimos
+encerrar.** Se a ValidaPay estiver fora do ar, se a assinatura não responder ou
+se houver um pagamento feito que não foi localizado, a exclusão para com tudo no
+lugar, a pessoa lê que a empresa não foi excluída e pode tentar de novo. A
+tentativa fica na auditoria da empresa (`tenant.deletion_blocked`).
+
+| Situação | O que acontece |
+| --- | --- |
+| Assinatura ativa, com período já pago | cancelamento **agendado** para o fim do período; a ValidaPay não gera novas cobranças |
+| Assinatura ativa, sem período pago | cancelada na hora; cobranças em aberto são canceladas pelo provedor |
+| Cancelamento já agendado, ou já cancelada | conferido no provedor; nenhum pedido repetido |
+| Contratação paga cujo evento ainda não chegou | assinatura localizada pela **nossa** sessão de checkout (o documento sozinho não prova de quem é) e cancelada |
+| Contratação aberta e não paga | nada a cancelar; a sessão expira no provedor |
+| Sem assinatura (avaliação) | exclusão direta, sem consultar o provedor |
+
+O que foi encerrado — identificador da assinatura no provedor e o resultado —
+vai no registro de auditoria que sobrevive à exclusão. É a única prova que
+sobra, porque o espelho local da assinatura some junto com a empresa.
+
+**O que este fluxo não faz:** não estorna nem devolve valor. Quem exclui a
+empresa com período pago pela frente perde o acesso na hora; reembolso do
+período restante é decisão comercial e, hoje, é tratado fora da plataforma.
+
+**Risco residual conhecido:** a ValidaPay não tem rota para invalidar um link
+de pagamento já emitido. Se alguém pagar um link antigo depois de excluir a
+empresa, o evento chega sem empresa e fica como `unresolved` no painel de
+cobrança da plataforma, para tratamento manual.
+
+Testes: `tests/integration/exclusao-com-assinatura.test.ts`.
+
 ## 5. Avaliação do DPA (contrato de tratamento)
 
 Um acordo de tratamento entre a CODECA IA e a empresa cliente precisa cobrir os

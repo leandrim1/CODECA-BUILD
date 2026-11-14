@@ -757,6 +757,20 @@ function DadosEPrivacidade({ nomeDaEmpresa }: { nomeDaEmpresa: string }) {
               guardá-los.
             </Alert>
 
+            {resumo.data?.cobranca.assinaturaAtiva ? (
+              <Alert tone="info" title="Sua assinatura será cancelada">
+                Antes de excluir, cancelamos a assinatura na ValidaPay, e não haverá novas
+                cobranças. Se o cancelamento não puder ser confirmado, a empresa não é excluída e
+                nada é apagado.
+                {resumo.data.cobranca.acessoPagoAte &&
+                new Date(resumo.data.cobranca.acessoPagoAte).getTime() > Date.now()
+                  ? ` Há período pago até ${new Date(
+                      resumo.data.cobranca.acessoPagoAte,
+                    ).toLocaleDateString('pt-BR')}; ao excluir, o acesso termina agora.`
+                  : null}
+              </Alert>
+            ) : null}
+
             {resumo.data ? (
               <ul className="grid gap-1 text-sm text-slate-700">
                 {Object.entries(resumo.data.removidos).map(([chave, valor]) => (

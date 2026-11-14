@@ -13,6 +13,7 @@ import { verifyPassword } from '@codeca/shared/server';
 import { Hono } from 'hono';
 import { AUDIT_ACTIONS, recordAudit } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
+import { billingClosurePreview, closeBillingBeforeDeletion } from '../lib/billing/encerramento.js';
 import { clearSessionCookies } from '../lib/cookies.js';
 import { clientIp, ok, parseJsonBody, userAgent } from '../lib/http.js';
 import {
@@ -300,6 +301,8 @@ export function tenantRoutes() {
     return ok(c, {
       displayName: row?.displayName ?? '',
       removidos: await deletionPreview(ctx.db, tenant.tenantId),
+      // A tela avisa, antes de perguntar, que a assinatura sera cancelada.
+      cobranca: await billingClosurePreview(ctx.db, tenant.tenantId),
     });
   });
 
@@ -341,6 +344,31 @@ export function tenantRoutes() {
       if (!senhaConfere) throw AppError.unauthenticated('Senha incorreta.');
     }
 
+    /*
+     * A cobranca e encerrada ANTES de qualquer coisa ser apagada, e se nao der
+     * para encerrar a exclusao para aqui, com tudo no lugar. Excluir e seguir
+     * cobrando era o defeito: depois da exclusao nao sobra painel para o
+     * cliente cancelar nem registro nosso de que assinatura era de quem.
+     */
+    let cobranca: Awaited<ReturnType<typeof closeBillingBeforeDeletion>>;
+    try {
+      cobranca = await closeBillingBeforeDeletion(
+        { db: ctx.db, provider: ctx.billing, now: ctx.now, actorUserId: session.user.id },
+        tenant.tenantId,
+      );
+    } catch (error) {
+      // A tentativa fica rastreavel: quem pediu, quando, e que parou na
+      // cobranca. Nada foi apagado, entao o registro mora na propria empresa
+      // -- e o pedido pode ser repetido quando o provedor responder.
+      await auditFromContext(c, {
+        action: AUDIT_ACTIONS.tenantDeletionBlocked,
+        entityType: 'tenant',
+        entityId: tenant.tenantId,
+        metadata: { motivo: 'cobranca_nao_encerrada' },
+      });
+      throw error;
+    }
+
     const resumo = await deletionPreview(ctx.db, tenant.tenantId);
     await recordAudit(ctx.db, ctx.env, {
       // Sem `tenantId`: este registro precisa sobreviver a exclusao.
@@ -350,7 +378,9 @@ export function tenantRoutes() {
       action: AUDIT_ACTIONS.tenantDeleted,
       entityType: 'tenant',
       entityId: tenant.tenantId,
-      metadata: { slug: empresa.slug, displayName: empresa.displayName, removidos: resumo },
+      // `cobranca` e a unica prova que sobra de que a assinatura foi encerrada
+      // (e de qual era): o espelho local some junto com a empresa.
+      metadata: { slug: empresa.slug, displayName: empresa.displayName, removidos: resumo, cobranca },
       ip: clientIp(c),
       userAgent: userAgent(c),
     });
@@ -363,7 +393,7 @@ export function tenantRoutes() {
     ctx.caches.invalidateAll();
     if (resultado.contaRemovida) clearSessionCookies(c, ctx.env);
 
-    return ok(c, resultado);
+    return ok(c, { ...resultado, cobranca });
   });
 
   app.patch('/:tenantId', requireCapability('tenant:update'), async (c) => {
