@@ -16,6 +16,7 @@ import {
   formatCents,
   paymentMethodFromType,
   reaisToCents,
+  settleBillingState,
   startSubscriptionSchema,
   type BillingState,
   type ChargeState,
@@ -373,5 +374,56 @@ describe('contrato de entrada da contratacao', () => {
       paymentMethod: 'dinheiro',
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('pedido de `pending` e o acesso vigente', () => {
+  const now = new Date('2026-03-04T12:00:00Z');
+  const future = new Date('2026-03-15T12:00:00Z');
+  const past = new Date('2026-03-01T12:00:00Z');
+  const settle = (current: BillingState, requested: BillingState, accessUntil: Date | null) =>
+    settleBillingState({ current, requested, accessUntil, now });
+
+  it('nao tira a avaliacao de quem ainda esta nela', () => {
+    expect(settle('trialing', 'pending', future)).toBe('trialing');
+  });
+
+  it('nao tira o periodo ja pago de quem recontrata', () => {
+    expect(settle('canceled', 'pending', future)).toBe('canceled');
+    expect(settle('active', 'pending', future)).toBe('active');
+    expect(settle('past_due', 'pending', future)).toBe('past_due');
+  });
+
+  it('vale normalmente quando nao ha acesso vigente', () => {
+    expect(settle('trialing', 'pending', past)).toBe('pending');
+    expect(settle('trialing', 'pending', null)).toBe('pending');
+    expect(settle('expired', 'pending', past)).toBe('pending');
+    // O instante exato do vencimento ja nao e acesso vigente.
+    expect(settle('trialing', 'pending', now)).toBe('pending');
+  });
+
+  it('nao interfere em nenhuma outra mudanca de estado', () => {
+    const outros: BillingState[] = [
+      'trialing', 'active', 'past_due', 'cancel_at_period_end', 'suspended', 'canceled', 'expired', 'completed',
+    ];
+    for (const requested of outros) {
+      expect(settle('trialing', requested, future)).toBe(requested);
+      expect(settle('pending', requested, future)).toBe(requested);
+    }
+    expect(settle('pending', 'pending', future)).toBe('pending');
+  });
+
+  it('nao muda a decisao de publicacao: `pending` continua sem publicar', () => {
+    // A regra age na transicao, nao na decisao. Uma linha que ja esteja em
+    // `pending` segue bloqueada mesmo com data futura -- como sempre foi.
+    const decisao = decidePublication({
+      state: 'pending',
+      accessUntil: future,
+      gracePeriodDays: DEFAULT_GRACE_PERIOD_DAYS,
+      adminHold: false,
+      disputeHold: false,
+      now,
+    });
+    expect(decisao.publication).toBe('blocked_pending');
   });
 });

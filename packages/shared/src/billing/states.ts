@@ -241,6 +241,39 @@ export function billingStateFromProvider(
   }
 }
 
+/**
+ * Estado que uma mudanca de assinatura realmente produz.
+ *
+ * `pending` quer dizer uma coisa so: **nao ha acesso, e ele espera o primeiro
+ * pagamento**. Tres caminhos pedem esse estado -- abrir a contratacao, o evento
+ * `subscription.created` (que chega com `PENDING`) e a reconciliacao lendo o
+ * mesmo `PENDING` no provedor -- e os tres pediam tambem para quem estava no
+ * meio da avaliacao. O efeito era punir a tentativa de pagar: a pessoa abria o
+ * pagamento no dia 3 e perdia os 11 dias que ainda tinha. Com cartao aprovado
+ * na hora, durava segundos; com Pix, boleto, cartao recusado ou desistencia,
+ * durava ate alguem intervir.
+ *
+ * A regra: um pedido de `pending` nao substitui um estado que ainda tem acesso
+ * vigente. A intencao de contratar ja fica registrada em `pendingPlanId`; o
+ * estado nao precisa mudar para guarda-la.
+ *
+ * **Isto nao libera nada.** O acesso continua limitado por `accessUntil`, que
+ * so e escrito pelo cadastro (avaliacao) e por pagamento confirmado. Quando ele
+ * vence, o estado mantido segue as proprias regras (avaliacao vencida bloqueia
+ * no mesmo dia), e o proximo pedido de `pending` passa normalmente.
+ */
+export function settleBillingState(input: {
+  current: BillingState;
+  requested: BillingState;
+  accessUntil: Date | null;
+  now: Date;
+}): BillingState {
+  const { current, requested, accessUntil, now } = input;
+  if (requested !== 'pending' || current === 'pending') return requested;
+  const withinAccess = accessUntil !== null && accessUntil.getTime() > now.getTime();
+  return withinAccess ? current : requested;
+}
+
 // -------------------------------------------------- estado das cobrancas
 
 /** Estado local de uma cobranca: espelha o provedor, em minusculas. */

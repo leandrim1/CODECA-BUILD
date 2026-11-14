@@ -145,8 +145,17 @@ export function billingRoutes() {
             // Mensagem de falha do ultimo pagamento, sem dado de cartao.
             lastErrorMessage: subscription.lastErrorMessage,
             lastSyncedAt: subscription.lastSyncedAt,
+            /*
+             * Link para retomar uma contratacao aberta e ainda nao paga. Alem de
+             * `pending`, vale para a avaliacao em curso: quem abre o pagamento
+             * no meio dela continua `trialing`, e sem isto perderia o caminho
+             * de volta ao pagamento que comecou.
+             */
             checkoutUrl:
-              subscription.status === 'pending' ? subscription.checkoutUrl : null,
+              subscription.status === 'pending' ||
+              (subscription.status === 'trialing' && subscription.pendingPlanId !== null)
+                ? subscription.checkoutUrl
+                : null,
             pendingPlanId: subscription.pendingPlanId,
             externalSubscriptionId: subscription.externalSubscriptionId,
           }

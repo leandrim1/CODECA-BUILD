@@ -33,7 +33,8 @@ import {
  *      `payment.success` trazem a assinatura, que e vinculada a empresa.
  *
  * Enquanto o pagamento nao e confirmado a assinatura fica `pending` e o site
- * nao e publicado.
+ * nao e publicado -- salvo quando ainda ha acesso vigente (avaliacao em curso
+ * ou periodo ja pago), caso em que o estado atual e mantido ate o pagamento.
  */
 
 export type PlanRow = typeof schema.plans.$inferSelect;
@@ -151,6 +152,9 @@ export async function startCheckout(
       lastErrorMessage: '',
       // Assinatura que nunca foi paga volta para `pending`; uma assinatura em
       // vigor continua no estado atual ate o novo pagamento ser confirmado.
+      // O pedido so vale para quem nao tem acesso vigente: no meio da
+      // avaliacao, `applySubscriptionPatch` mantem `trialing` -- abrir o
+      // pagamento nao pode custar os dias que a pessoa ainda tem.
       ...(subscription.externalSubscriptionId ? {} : { status: 'pending' as const }),
     },
     {

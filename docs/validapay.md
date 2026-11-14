@@ -368,6 +368,20 @@ Nada libera acesso antes da confirmacao: criar conta, abrir checkout e receber
 `charge.created` deixam a assinatura em `pending`, e `pending` nao publica. So
 `payment.success` com o ciclo efetivamente `PAID` estende `access_until`.
 
+**`pending` nao tira o acesso de quem ainda o tem.** Tres caminhos pedem esse
+estado -- abrir a contratacao, o evento `subscription.created` (que chega com
+`PENDING`) e a reconciliacao lendo o mesmo `PENDING` no provedor -- e os tres
+o pediam tambem para quem estava no meio da avaliacao: abrir o pagamento no dia
+3 custava os 11 dias restantes, ate pagar. A regra mora em um lugar so,
+`settleBillingState` (`packages/shared/src/billing/states.ts`), aplicada em
+`applySubscriptionPatch`: um pedido de `pending` nao substitui um estado com
+`access_until` no futuro. A intencao de contratar fica em `pending_plan_id`.
+
+Isso nao libera nada: o acesso continua limitado por `access_until`, que so e
+escrito pelo cadastro (avaliacao) e por pagamento confirmado. A avaliacao acaba
+no dia 14 com ou sem pagamento aberto, e quem ja esta sem acesso vai para
+`pending` como antes. Testes: `tests/integration/avaliacao-com-pagamento-aberto.test.ts`.
+
 O cliente **nao** consegue alterar o proprio estado: nenhuma rota escreve status
 a partir de entrada dele, e `POST /billing/refresh` reconcilia contra o
 provedor, nao contra o navegador.

@@ -8,6 +8,7 @@ import {
   decidePublication,
   paymentMethodFromType,
   reaisToCents,
+  settleBillingState,
   type BillingState,
   type ChargeState,
   type PaymentMethodCode,
@@ -223,8 +224,23 @@ export async function applySubscriptionPatch(
       : current.accessUntil;
   }
 
+  /*
+   * Unico ponto por onde o estado comercial e gravado -- e por isso e aqui que
+   * mora a regra de que `pending` nao tira o acesso de quem ainda o tem (ver
+   * `settleBillingState`). Contratacao, webhook e reconciliacao pedem `pending`
+   * cada um por um caminho; resolver em cada um deles deixaria o quarto, que
+   * ainda nao existe, com o mesmo defeito.
+   */
+  const status = settleBillingState({
+    current: current.status,
+    requested: patch.status ?? current.status,
+    accessUntil,
+    now,
+  });
+  const pendingWithheld = patch.status === 'pending' && status !== 'pending';
+
   const next = {
-    status: patch.status ?? current.status,
+    status,
     accessUntil,
     gracePeriodDays: patch.gracePeriodDays ?? current.gracePeriodDays,
     adminHold: patch.adminHold ?? current.adminHold,
@@ -246,6 +262,7 @@ export async function applySubscriptionPatch(
     .update(schema.subscriptions)
     .set({
       ...patch,
+      ...(patch.status !== undefined ? { status } : {}),
       accessUntil,
       publicationState: publication,
       updatedAt: now,
@@ -274,6 +291,8 @@ export async function applySubscriptionPatch(
       metadata: {
         ...(options.metadata ?? {}),
         ...(patch.providerStatus !== undefined ? { providerStatus: patch.providerStatus } : {}),
+        // Fica no historico que `pending` foi pedido e o acesso vigente o segurou.
+        ...(pendingWithheld ? { pendingWithheld: true, accessUntil: accessUntil?.toISOString() ?? null } : {}),
       },
     });
   }

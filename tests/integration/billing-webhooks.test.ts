@@ -98,10 +98,17 @@ describe('verificacao da assinatura', () => {
 
     const subscription = await loadSubscriptionRow(api, account.tenantId);
     expect(subscription.externalSubscriptionId).toBe(SUB_ID);
-    // Assinatura criada nao e assinatura paga: o estado comercial fica
-    // pendente e nenhum periodo novo e concedido.
-    expect(subscription.status).toBe('pending');
-    expect(subscription.publicationState).toBe('blocked_pending');
+    // Assinatura criada nao e assinatura paga: nada e concedido. A empresa
+    // deste cenario esta no meio da avaliacao, e continua nela -- esta
+    // expectativa era `pending`/`blocked_pending`, que e exatamente o defeito
+    // corrigido em `avaliacao-com-pagamento-aberto.test.ts` (abrir o pagamento
+    // tirava os dias de avaliacao que a pessoa ainda tinha). O que este teste
+    // sempre quis garantir segue garantido logo abaixo: nao virou `active`,
+    // e o acesso e o da avaliacao, nao o do ciclo nao pago.
+    expect(subscription.status).toBe('trialing');
+    expect(subscription.status).not.toBe('active');
+    expect(subscription.publicationState).toBe('allowed');
+    expect(subscription.planId).not.toBe(planId);
     expect(subscription.currentPeriodStart).not.toBeNull();
     // O acesso continua sendo o da avaliacao, e nao o do ciclo nao pago.
     expect(subscription.accessUntil?.toISOString()).toBe(
@@ -680,7 +687,11 @@ describe('eventos sem empresa e reprocessamento', () => {
     // Nenhuma empresa recebeu o pagamento de outro cliente.
     const subscription = await loadSubscriptionRow(api, account.tenantId);
     expect(subscription.externalSubscriptionId).toBeNull();
-    expect(subscription.status).toBe('pending');
+    // Segue como estava antes do evento alheio: na avaliacao, com a
+    // contratacao aberta. (Era `pending` enquanto abrir o pagamento rebaixava
+    // a avaliacao; ver `avaliacao-com-pagamento-aberto.test.ts`.)
+    expect(subscription.status).toBe('trialing');
+    expect(subscription.planId).not.toBe(planId);
     expect(await loadChargeRows(api, account.tenantId)).toHaveLength(0);
   });
 
@@ -819,9 +830,12 @@ describe('eventos sem empresa e reprocessamento', () => {
     expect(failed?.status).toBe('failed');
     expect(failed?.errorMessage).toMatch(/outra empresa/i);
 
-    // A transacao foi desfeita: nada aplicado pela metade.
+    // A transacao foi desfeita: nada aplicado pela metade. O estado e o de
+    // antes do evento que falhou -- a avaliacao em curso (era `pending`
+    // enquanto abrir o pagamento rebaixava a avaliacao).
     const subscription = await loadSubscriptionRow(api, account.tenantId);
-    expect(subscription.status).toBe('pending');
+    expect(subscription.status).toBe('trialing');
+    expect(subscription.planId).not.toBe(planId);
     // O acesso continua sendo o da avaliacao: o pagamento nao foi creditado.
     expect(subscription.accessUntil?.toISOString()).toBe(
       subscription.trialEndsAt?.toISOString(),

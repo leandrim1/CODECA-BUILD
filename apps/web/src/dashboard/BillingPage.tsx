@@ -369,9 +369,12 @@ export function BillingPage() {
                   </Alert>
                 ) : null}
 
-                {view.subscription.state === 'pending' && view.subscription.checkoutUrl ? (
+                {view.subscription.checkoutUrl ? (
                   <Alert tone="info" title="Pagamento pendente">
                     A contratação foi iniciada e aguarda o pagamento.{' '}
+                    {view.subscription.state === 'trialing'
+                      ? 'Sua avaliação continua valendo até o fim do prazo. '
+                      : null}
                     <a
                       className="font-medium text-brand-700 underline"
                       href={view.subscription.checkoutUrl}
