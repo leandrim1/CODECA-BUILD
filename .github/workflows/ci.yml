@@ -1,0 +1,75 @@
+name: CI
+
+# Roda em todo envio e em todo pull request, em qualquer ramo.
+#
+# Existe porque nada conferia o codigo antes de ele chegar aos clientes: o
+# build da Vercel compila e aplica migracoes, mas nao roda teste nenhum. Este
+# fluxo NAO publica nada -- so diz se o commit esta em condicoes. Para ele
+# barrar de fato um envio ruim, o ramo de producao precisa exigir este check
+# (ver docs/vercel.md, "Desenvolvimento, previa e producao").
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Um envio novo no mesmo ramo cancela a conferencia do anterior.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    name: Tipos, testes, build e dependencias
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # De proposito, nenhum segredo e nenhuma variavel de producao: os testes
+    # usam um Postgres em processo (PGlite) e provedores simulados de
+    # pagamento, e-mail e armazenamento. Sem `VERCEL_ENV`, o passo de banco do
+    # build se recusa a migrar ("fora da Vercel") -- a CI nunca toca no Neon.
+    env:
+      CI: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Sem `version`: a versao do pnpm vem do campo `packageManager`.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      # Compila os pacotes e confere os tipos de tudo, inclusive o contrato
+      # publico do SDK (tsconfig.contracts.json).
+      - name: Verificacao de tipos
+        run: pnpm run typecheck
+
+      - name: Testes automatizados
+        run: pnpm run test
+
+      # Unica verificacao de qualidade a mais que o projeto tem hoje: o pacote
+      # do SDK esta em condicoes de ser publicado (nao publica).
+      - name: Verificacao do SDK
+        run: pnpm run sdk:check
+
+      - name: Build de producao
+        run: pnpm run build
+
+      # Barra o envio quando ha falha alta ou critica no que vai para producao.
+      - name: Auditoria de dependencias (producao)
+        run: pnpm audit --prod --audit-level high
+
+      # Ferramentas de desenvolvimento: informa, nao barra. Os avisos abertos
+      # aqui estao descritos em docs/seguranca.md -- ficam visiveis no log em
+      # vez de escondidos.
+      - name: Auditoria de dependencias (desenvolvimento, informativa)
+        run: pnpm audit --dev
+        continue-on-error: true

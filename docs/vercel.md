@@ -490,3 +490,44 @@ houver precos ajustados no painel mestre que voce queira preservar.
 | `ERR_PNPM_OUTDATED_LOCKFILE` | `pnpm-lock.yaml` nao versionado junto com a mudanca de dependencia |
 | Cron responde 401 | `CRON_SECRET` ausente ou diferente de `BILLING_RECONCILIATION_SECRET` |
 | Webhook da ValidaPay responde 401 | Segredo diferente do cadastrado no painel do provedor |
+
+## 11. Desenvolvimento, previa e producao
+
+### O que existe hoje
+
+Um unico ramo e, ao mesmo tempo, ramo de trabalho, ramo padrao do repositorio e
+ramo de producao na Vercel: **todo envio vira producao**. O build da Vercel
+compila e aplica migracoes, e nao roda teste.
+
+A CI (`.github/workflows/ci.yml`) confere tipos, testes, build e dependencias
+em todo envio. Ela **nao publica nada** e, sozinha, **nao impede** um envio
+ruim de ir ao ar: a Vercel publica em paralelo, sem esperar por ela.
+
+### O que recomendamos (mudanca de configuracao -- nao foi feita)
+
+Nada abaixo e alterado pelo codigo. Sao ajustes no GitHub e na Vercel, a fazer
+por quem administra as contas.
+
+1. **Ramo de producao proprio.** Criar `main` a partir do commit que esta no ar
+   e apontar a Vercel para ele (Settings > Git > Production Branch). Os ramos
+   de trabalho passam a gerar **previa**, nao producao.
+2. **Proteger `main` no GitHub** (Settings > Branches): exigir pull request,
+   exigir o check "Tipos, testes, build e dependencias" verde, proibir envio
+   direto e reescrita de historico. E isto que faz a CI barrar de verdade.
+3. **Variaveis de ambiente separadas por ambiente** na Vercel. A previa nao
+   pode usar o `DATABASE_URL` de producao: use um ramo do Neon (o Neon cria um
+   banco por ramo) ou um banco de homologacao. O mesmo para a ValidaPay
+   (credenciais de **sandbox** na previa), o Resend e o `AUTH_SECRET`.
+4. **Proteger as previas** (Settings > Deployment Protection), para que uma
+   URL de previa nao fique aberta na internet.
+5. **Migracoes.** Hoje so rodam quando `VERCEL_ENV=production`
+   (`packages/database/src/cli/deploy.ts`), entao uma previa nao migra banco
+   nenhum. Com um banco proprio de previa, aplique as migracoes nele com
+   `pnpm db:migrate` antes de testar.
+
+Fluxo resultante: ramo de trabalho -> pull request -> CI verde + previa
+conferida -> merge em `main` -> producao.
+
+**Antes de trocar o ramo de producao**, confirme no painel da Vercel que as
+variaveis de producao estao marcadas para "Production" (e nao "All
+Environments"); caso contrario as previas herdam o banco real.
