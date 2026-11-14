@@ -153,6 +153,18 @@ envio passa por sessao, vinculo com a empresa, permissao, mime permitido,
 tamanho (4 MB) e limite de armazenamento do plano. O caminho gravado e sempre
 `tenants/<tenantId>/...`. Detalhes em [blob.md](blob.md).
 
+**O tipo e decidido pelo conteudo.** O tipo declarado pelo navegador e so o
+primeiro filtro; o arquivo so e gravado quando os primeiros bytes correspondem
+a ele (JPG, PNG, GIF, WEBP, AVIF, SVG, PDF). Um executavel rotulado
+`image/png` e recusado, e tambem a divergencia entre dois tipos aceitos.
+
+**SVG e gravado limpo.** SVG e documento que o navegador executa; o enviado
+pelo painel passa pela mesma `sanitizeSvg` da importacao de sites (lista de
+permissao: sai `<script>`, atributo de evento, `<foreignObject>`, URL
+`javascript:` e referencia externa). O que e gravado e o arquivo limpo, nunca o
+original, e SVG acima de 512 KB e recusado. Testes:
+`tests/integration/upload-conteudo.test.ts`.
+
 ## 10. Pagamentos
 
 `apps/api/src/lib/validapay/`, `apps/api/src/lib/billing/`
@@ -264,4 +276,24 @@ Nem toda defesa cabe no codigo:
   aplicacao protege os endpoints, nao a banda.
 - **Retencao de dados de interessados**: defina um prazo e aplique. A plataforma
   nao exclui nada por conta propria.
-- **Varredura de dependencias** (`pnpm audit`) no seu ciclo de manutencao.
+- **Varredura de dependencias**: a CI roda `pnpm audit --prod --audit-level high`
+  em todo envio e barra falha alta ou critica no que vai para producao.
+
+### Avisos abertos em ferramentas de desenvolvimento
+
+`pnpm audit --prod` esta limpo. `pnpm audit` completo ainda lista avisos em
+pacotes que **nao vao para producao** (rodam so na maquina de quem desenvolve e
+na CI):
+
+| Pacote | Gravidade | Por que continua | Saida |
+| --- | --- | --- | --- |
+| `tinypool` (via `vitest` 3) | critica | a correcao so existe no `tinypool` 2, que o `vitest` 3 nao aceita | migrar para `vitest` >= 4.1.12 |
+| `vitest`, `@vitest/mocker` | moderada | corrigido apenas no `vitest` 4 | a mesma migracao |
+| `esbuild` (via `drizzle-kit`) | moderada | dependencia interna do `drizzle-kit` | atualizar o `drizzle-kit` quando ele trocar a dependencia |
+| `@hono/node-server` (servidor local do painel) | moderada | corrigido apenas na versao 2 | migrar o servidor de desenvolvimento |
+
+Forcar essas versoes por `overrides` trocaria a versao principal de uma
+ferramenta por baixo dela. A migracao do `vitest` e uma etapa propria: sao mais
+de 1.500 testes, e o executor de testes nao se troca junto com correcao de
+cobranca. Enquanto isso, o risco e limitado a quem roda o servidor de testes
+com a interface de rede exposta -- nao o exponha em rede publica.

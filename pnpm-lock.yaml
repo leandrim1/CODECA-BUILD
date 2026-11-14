@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@vercel/cli-config>zod': ^4.6.7
+
 importers:
 
   .:
@@ -12,8 +15,8 @@ importers:
         specifier: workspace:*
         version: link:apps/api
       hono:
-        specifier: ^4.13.14
-        version: 4.13.14
+        specifier: ^4.13.18
+        version: 4.13.18
     devDependencies:
       '@codeca/sdk':
         specifier: workspace:*
@@ -70,8 +73,8 @@ importers:
         specifier: ^0.45.4
         version: 0.45.4(@electric-sql/pglite@0.5.13)(@neondatabase/serverless@1.2.0)
       hono:
-        specifier: ^4.13.14
-        version: 4.13.14
+        specifier: ^4.13.18
+        version: 4.13.18
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -139,7 +142,7 @@ importers:
         version: link:../api
       '@hono/node-server':
         specifier: ^1.13.7
-        version: 1.19.17(hono@4.13.14)
+        version: 1.19.17(hono@4.13.18)
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@7.3.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15))
@@ -174,8 +177,8 @@ importers:
         specifier: ^0.45.4
         version: 0.45.4(@electric-sql/pglite@0.5.13)(@neondatabase/serverless@1.2.0)
       ws:
-        specifier: 8.18.3
-        version: 8.18.3
+        specifier: 8.23.0
+        version: 8.23.0
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -1451,8 +1454,8 @@ packages:
     resolution: {integrity: sha512-tFm+GaLBgo6o0awHnvHaNoraVo27qJ+2tZEtZ+cIa08hXbeitrxAJajLI05hsUy/2/YTKcUjQYzHe5mCcraLBw==}
     engines: {node: '>=20.0.0'}
 
-  hono@4.13.14:
-    resolution: {integrity: sha512-yhRLQ21U6qa9Hsu2N7Qcbh8tE+WKEcoErjIo56LeSGiGXGp9sA7UpE86Ui9uexb61KakiGwuHMn2QdV7w6i6kQ==}
+  hono@4.13.18:
+    resolution: {integrity: sha512-H9q/E1XizaWstJxUW881dmLxEj+t/TrGGnyxINkm4+sK0qUwsMtFdo2BWI9Vs3cIS19MU6b6iCijoUoEf4f3DA==}
     engines: {node: '>=16.9.0'}
 
   human-signals@2.1.0:
@@ -1880,20 +1883,8 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
-  ws@8.18.3:
-    resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: '>=5.0.2'
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
-
-  ws@8.22.0:
-    resolution: {integrity: sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==}
+  ws@8.23.0:
+    resolution: {integrity: sha512-wCkmX8QMOrKjgO8HW2WyDbTSGeqkocxgDzS9iR79rEAexty6/2qzilx3Ag8Tqf9ykop3irLKle0MtVn5qjVnoQ==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -1914,9 +1905,6 @@ packages:
 
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
-
-  zod@4.1.11:
-    resolution: {integrity: sha512-WPsqwxITS2tzx1bzhIKsEs19ABD5vmCVa4xBo2tq/SrV4RNZtfws1EnCWQXM6yh8bD08a1idvkB5MZSBiZsjwg==}
 
   zod@4.6.7:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
@@ -2307,9 +2295,9 @@ snapshots:
 
   '@fontsource-variable/inter@5.3.0': {}
 
-  '@hono/node-server@1.19.17(hono@4.13.14)':
+  '@hono/node-server@1.19.17(hono@4.13.18)':
     dependencies:
-      hono: 4.13.14
+      hono: 4.13.18
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -2573,7 +2561,7 @@ snapshots:
   '@vercel/cli-config@0.3.1':
     dependencies:
       xdg-app-paths: 5.5.1
-      zod: 4.1.11
+      zod: 4.6.7
 
   '@vercel/cli-exec@1.0.1':
     dependencies:
@@ -2860,12 +2848,12 @@ snapshots:
       buffer-image-size: 0.6.4
       entities: 7.0.1
       whatwg-mimetype: 3.0.0
-      ws: 8.22.0
+      ws: 8.23.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  hono@4.13.14: {}
+  hono@4.13.18: {}
 
   human-signals@2.1.0: {}
 
@@ -3222,9 +3210,7 @@ snapshots:
       siginfo: 2.0.0
       stackback: 0.0.2
 
-  ws@8.18.3: {}
-
-  ws@8.22.0: {}
+  ws@8.23.0: {}
 
   xdg-app-paths@5.5.1:
     dependencies:
@@ -3236,7 +3222,5 @@ snapshots:
       os-paths: 4.4.0
 
   yallist@3.1.1: {}
-
-  zod@4.1.11: {}
 
   zod@4.6.7: {}

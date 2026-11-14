@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@codeca/api": "workspace:*",
-    "hono": "^4.13.14"
+    "hono": "^4.13.18"
   },
   "devDependencies": {
     "@codeca/sdk": "workspace:*",
@@ -47,6 +47,9 @@
     "zod": "^4.6.7"
   },
   "pnpm": {
+    "overrides": {
+      "@vercel/cli-config>zod": "^4.6.7"
+    },
     "onlyBuiltDependencies": [
       "esbuild",
       "@tailwindcss/oxide",
