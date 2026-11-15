@@ -1,4 +1,5 @@
 import { CircuitBreaker, CircuitOpenError } from '@codeca/database';
+import { randomUUID } from 'node:crypto';
 import type { Env } from '../env.js';
 
 /**
@@ -14,12 +15,39 @@ export interface MailMessage {
   subject: string;
   text: string;
   /** Rotulo usado nos logs; nunca inclui o token em claro. */
-  kind: 'verify_email' | 'reset_password' | 'invitation' | 'lead_notification' | 'login_code';
+  kind:
+    | 'verify_email'
+    | 'reset_password'
+    | 'invitation'
+    | 'lead_notification'
+    | 'login_code'
+    /** Aviso operacional para quem opera a plataforma; nunca para cliente. */
+    | 'ops_alert';
+}
+
+/**
+ * Resultado de um envio.
+ *
+ * **`delivered` quer dizer "o provedor aceitou a mensagem", e nada alem
+ * disso.** Nao e prova de que ela chegou a caixa de entrada: entrega,
+ * devolucao e reclamacao de spam acontecem depois, e so o provedor sabe (ele
+ * avisa por webhook, que esta plataforma ainda nao recebe -- ver
+ * `docs/email.md`). O nome ficou por compatibilidade com quem ja o le.
+ */
+export interface MailResult {
+  delivered: boolean;
+  reason?: string;
+  /** Quem aceitou a mensagem. */
+  provider?: string;
+  /** Identificador da mensagem no provedor, para procura-la no painel dele. */
+  providerMessageId?: string;
+  /** Quantas tentativas foram feitas. */
+  attempts?: number;
 }
 
 export interface Mailer {
   readonly configured: boolean;
-  send: (message: MailMessage) => Promise<{ delivered: boolean; reason?: string }>;
+  send: (message: MailMessage) => Promise<MailResult>;
 }
 
 export function createConsoleMailer(): Mailer {
@@ -47,6 +75,21 @@ export function createConsoleMailer(): Mailer {
  */
 const MAIL_TIMEOUT_MS = 8_000;
 
+/**
+ * Nova tentativa em falha passageira.
+ *
+ * Uma unica repeticao, e so quando a falha voltou rapido (rede que caiu, 5xx,
+ * 429). Depois de um estouro de prazo nao ha repeticao: a requisicao de quem
+ * esta esperando o codigo de acesso ja consumiu o tempo que tinha.
+ *
+ * As duas tentativas levam a MESMA chave de idempotencia. Se a primeira chegou
+ * ao provedor e so a resposta se perdeu, a segunda nao gera outro e-mail --
+ * que e a diferenca entre repetir com seguranca e mandar o codigo duas vezes.
+ */
+const MAX_SEND_ATTEMPTS = 2;
+const RETRY_WINDOW_MS = 3_000;
+const RETRY_DELAY_MS = 400;
+
 export function createResendMailer(apiKey: string, from: string): Mailer {
   /**
    * Disjuntor: depois de 5 falhas seguidas (rede ou 5xx) o provedor e dado como
@@ -62,25 +105,72 @@ export function createResendMailer(apiKey: string, from: string): Mailer {
   return {
     configured: true,
     async send(message) {
-      try {
-        return await breaker.run(() => sendOnce(message));
-      } catch (error) {
-        if (error instanceof CircuitOpenError) {
-          return { delivered: false, reason: 'Provedor de e-mail indisponível no momento; tente reenviar em instantes.' };
+      // Uma chave por mensagem, igual em todas as tentativas dela.
+      const idempotencyKey = randomUUID();
+      const startedAt = Date.now();
+
+      for (let attempt = 1; ; attempt += 1) {
+        try {
+          const aceito = await breaker.run(() => sendOnce(message, idempotencyKey));
+          // Registro do envio: o tipo e o identificador no provedor. Nunca o
+          // destinatario nem o conteudo.
+          console.info(
+            JSON.stringify({
+              level: 'info',
+              event: 'email_accepted',
+              provider: 'resend',
+              mailKind: message.kind,
+              providerMessageId: aceito.providerMessageId ?? null,
+              attempt,
+            }),
+          );
+          return { ...aceito, attempts: attempt };
+        } catch (error) {
+          if (error instanceof CircuitOpenError) {
+            return {
+              delivered: false,
+              reason: 'Provedor de e-mail indisponível no momento; tente reenviar em instantes.',
+              provider: 'resend',
+              attempts: attempt,
+            };
+          }
+          if (error instanceof ProviderRejected) {
+            // Recusa desta mensagem (chave, remetente, destinatario): repetir
+            // daria a mesma resposta.
+            return { delivered: false, reason: error.message, provider: 'resend', attempts: attempt };
+          }
+
+          const rapido = Date.now() - startedAt < RETRY_WINDOW_MS;
+          if (attempt < MAX_SEND_ATTEMPTS && rapido) {
+            await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+            continue;
+          }
+
+          console.error('[mailer:resend] erro de rede', error instanceof Error ? error.message : error);
+          return {
+            delivered: false,
+            reason:
+              error instanceof TransientProviderError
+                ? error.message
+                : 'Falha de rede ao contatar o provedor de e-mail.',
+            provider: 'resend',
+            attempts: attempt,
+          };
         }
-        if (error instanceof ProviderRejected) return { delivered: false, reason: error.message };
-        console.error('[mailer:resend] erro de rede', error instanceof Error ? error.message : error);
-        return { delivered: false, reason: 'Falha de rede ao contatar o provedor de e-mail.' };
       }
     },
   };
 
-  async function sendOnce(message: MailMessage): Promise<{ delivered: true }> {
+  async function sendOnce(
+    message: MailMessage,
+    idempotencyKey: string,
+  ): Promise<{ delivered: true; provider: string; providerMessageId?: string }> {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         authorization: `Bearer ${apiKey}`,
         'content-type': 'application/json',
+        'idempotency-key': idempotencyKey,
       },
       body: JSON.stringify({ from, to: [message.to], subject: message.subject, text: message.text }),
       signal: AbortSignal.timeout(MAIL_TIMEOUT_MS),
@@ -90,14 +180,22 @@ export function createResendMailer(apiKey: string, from: string): Mailer {
       // O corpo da resposta nao contem segredos nossos, mas limitamos o log.
       console.error(`[mailer:resend] falha ${response.status}: ${detail.slice(0, 300)}`);
       const reason = `Provedor de e-mail respondeu ${response.status}.`;
-      // 5xx e 429 indicam provedor com problema (conta para o disjuntor); os
-      // demais 4xx sao recusa desta mensagem.
-      if (response.status >= 500 || response.status === 429) throw new Error(reason);
+      // 5xx e 429 indicam provedor com problema (conta para o disjuntor e
+      // admite nova tentativa); os demais 4xx sao recusa desta mensagem.
+      if (response.status >= 500 || response.status === 429) throw new TransientProviderError(reason);
       throw new ProviderRejected(reason);
     }
-    return { delivered: true };
+    const corpo = (await response.json().catch(() => null)) as { id?: unknown } | null;
+    return {
+      delivered: true,
+      provider: 'resend',
+      ...(typeof corpo?.id === 'string' ? { providerMessageId: corpo.id } : {}),
+    };
   }
 }
+
+/** Falha passageira do provedor (5xx, 429): admite nova tentativa. */
+class TransientProviderError extends Error {}
 
 /** Recusa do provedor a esta mensagem; nao indica que ele esteja fora do ar. */
 class ProviderRejected extends Error {}

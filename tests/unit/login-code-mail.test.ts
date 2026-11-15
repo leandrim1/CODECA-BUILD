@@ -76,7 +76,9 @@ describe('envio pelo Resend (o que sai pela rede)', () => {
 
     const result = await mailer.send({ to: 'cliente@empresa.com.br', kind: 'login_code', ...loginCodeMessage('482913') });
 
-    expect(result).toEqual({ delivered: true });
+    // Aceito pelo provedor, na primeira tentativa, com o identificador que ele
+    // devolveu -- e o que permite achar a mensagem no painel dele depois.
+    expect(result).toEqual({ delivered: true, provider: 'resend', providerMessageId: 'msg_1', attempts: 1 });
     expect(calls).toHaveLength(1);
     expect(calls[0]!.url).toBe('https://api.resend.com/emails');
     expect(calls[0]!.init.method).toBe('POST');
