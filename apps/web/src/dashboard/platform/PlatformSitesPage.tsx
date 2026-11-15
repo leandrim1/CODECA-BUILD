@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { DemoTransition } from '../DemoPanels.js';
 import { Copy, KeyRound, Plus, RotateCw, Save, Trash2 } from 'lucide-react';
 import {
   CUSTOM_FIELD_TYPES,
@@ -153,6 +154,9 @@ function ConfiguracaoDoSite({ siteId, onClose }: { siteId: string; onClose: () =
         }
       />
       <CardBody className="space-y-5">
+        {/* So aparece em site que ainda e demonstracao da avaliacao. */}
+        <DemoTransition siteId={siteId} onDone={() => void detalhe.reload()} />
+
         <Tabs items={ABAS} active={aba} onChange={setAba} />
 
         <ResourcePanel resource={detalhe}>

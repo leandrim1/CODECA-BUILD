@@ -671,6 +671,15 @@ export function BillingPage() {
               {recurrenceLabel(checkoutPlan)}.
             </p>
 
+            {!checkoutPlan.limits.features.includes('cms_panel') ? (
+              <Alert tone="warning" title="Este plano não inclui o painel de conteúdo">
+                No plano {checkoutPlan.name}, quem mantém o conteúdo do site é a equipe da CODECA IA.
+                Você continua entrando para ver a cobrança e trocar de plano, mas deixa de editar
+                textos e imagens por conta própria — inclusive o que experimentou na avaliação. Para
+                continuar editando você mesmo, escolha o plano Profissional ou o Empresas.
+              </Alert>
+            ) : null}
+
             <Select
               label="Forma de pagamento"
               value={method}

@@ -38,6 +38,7 @@ import { OverviewPage } from './dashboard/OverviewPage.js';
  * painel nao precisa de nada disso: carrega sob demanda como as demais.
  */
 const LandingPage = lazyRoute(['/'], () => import('./pages/LandingPage.js').then((m) => ({ default: m.LandingPage })));
+const DemoSitePage = lazyRoute(['/demonstracao'], () => import('./pages/DemoSitePage.js').then((m) => ({ default: m.DemoSitePage })));
 const LegalPage = lazyRoute(['/termos', '/privacidade'], () => import('./pages/LegalPage.js').then((m) => ({ default: m.LegalPage })));
 const DocumentModulePage = lazyRoute(['/painel/institucional', '/painel/contato'], () => import('./dashboard/DocumentModulePage.js').then((m) => ({ default: m.DocumentModulePage })));
 const CustomModulePage = lazyRoute(['/painel/p'], () => import('./dashboard/CustomModulePage.js').then((m) => ({ default: m.CustomModulePage })));
@@ -82,6 +83,8 @@ export function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/termos" element={<LegalPage tipo="termos" />} />
           <Route path="/privacidade" element={<LegalPage tipo="privacidade" />} />
+          {/* Site de demonstracao da avaliacao: publico, sem sessao. */}
+          <Route path="/demonstracao/:siteId" element={<DemoSitePage />} />
 
           {/* Acesso */}
           <Route element={<AuthLayout />}>

@@ -874,6 +874,44 @@ export interface PublicPlan {
   };
 }
 
+/**
+ * Site de demonstracao da avaliacao.
+ *
+ * `read` e o que a pagina publica usa: o servidor encaminha para a API publica
+ * com a chave do proprio site, que nunca chega ao navegador.
+ */
+export interface DemoInfo {
+  active: boolean;
+  trialEndsAt: string | null;
+  path: string | null;
+  examples: number;
+  ended: boolean;
+}
+
+export interface DemoTransition {
+  isDemo: boolean;
+  realKeyIssued: boolean;
+  untouchedExamples: { banners: number; services: number };
+  editedExamples: { banners: number; services: number };
+  exampleDescriptionInPlace: boolean;
+}
+
+export const demoApi = {
+  info: (tenantId: string) => api.get<{ demo: DemoInfo }>(`${tenantBase(tenantId)}/demo`),
+  read: <T>(siteId: string, resource: string) =>
+    api.get<T>(`/api/demo/${encodeURIComponent(siteId)}/${resource}`),
+  transition: (siteId: string) =>
+    api.get<{ transition: DemoTransition }>(`/api/platform/sites/${siteId}/demo`),
+  end: (siteId: string, removeUntouchedExamples: boolean) =>
+    api.post<{
+      result: {
+        removed: { banners: number; services: number };
+        kept: { banners: number; services: number };
+        descriptionCleared: boolean;
+      };
+    }>(`/api/platform/sites/${siteId}/demo/end`, { confirm: true, removeUntouchedExamples }),
+};
+
 export const publicApi = {
   plans: () => api.get<{ currency: 'BRL'; plans: PublicPlan[] }>('/api/public/plans'),
 };

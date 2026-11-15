@@ -29,8 +29,9 @@ import { Alert, Badge, Button, Card, CardBody, CardHeader, EmptyState, Meter, Pa
 import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useResource } from '../hooks/useResource.js';
 import { useSiteModules } from '../hooks/useSiteModules.js';
-import { tenantApi } from '../services/endpoints.js';
+import { demoApi, tenantApi } from '../services/endpoints.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
+import { DemoWelcome } from './DemoPanels.js';
 import type { OverviewResponse } from '../types/index.js';
 import { labels, domainTone, leadTone, siteTone } from '../utils/labels.js';
 
@@ -147,6 +148,11 @@ export function OverviewPage() {
     staleTime: 0,
   });
 
+  // Mesma consulta do cartao de boas-vindas (o cache a compartilha): aqui ela
+  // so decide o texto de "Situacao do site".
+  const demo = useResource('demoApi.info', () => demoApi.info(tenantId), [tenantId], { enabled: panelIncluded });
+  const emDemonstracao = Boolean(demo.data?.demo.active);
+
   const saudacao = `Olá, ${user?.name.split(' ')[0] ?? 'tudo bem'}`;
 
   if (!panelIncluded) {
@@ -205,6 +211,9 @@ export function OverviewPage() {
           continuam liberados.
         </Alert>
       ) : null}
+
+      {/* Primeiro acesso: o que e a demonstracao, onde editar e onde ver. */}
+      <DemoWelcome tenantId={tenantId} canBilling={can('billing:read')} />
 
       {/*
         Aviso da sincronizacao.
@@ -315,9 +324,13 @@ export function OverviewPage() {
                     <CardHeader title="Situação do site" description={data.site.name} />
                     <CardBody className="grid gap-4">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge tone={siteTone(data.site.status)}>
-                          {labels.siteStatus[data.site.status]}
-                        </Badge>
+                        {emDemonstracao ? (
+                          <Badge tone="brand">Site de demonstração</Badge>
+                        ) : (
+                          <Badge tone={siteTone(data.site.status)}>
+                            {labels.siteStatus[data.site.status]}
+                          </Badge>
+                        )}
                         {primaryDomain?.status === 'active' ? (
                           <Badge tone="success">Domínio respondendo</Badge>
                         ) : null}
@@ -331,7 +344,18 @@ export function OverviewPage() {
                       <div className="flex items-start gap-2.5 rounded-lg border border-slate-200 p-3">
                         <Plug aria-hidden="true" className="mt-0.5 size-4 flex-none text-slate-400" />
                         <div className="min-w-0 text-sm">
-                          {data.site.lastApiAccessAt ? (
+                          {emDemonstracao ? (
+                            <>
+                              <p className="font-medium text-slate-800">
+                                Site de demonstração conectado
+                              </p>
+                              <p className="mt-0.5 text-slate-500">
+                                O que você salva aqui já aparece no site de demonstração. O site
+                                da sua empresa é desenvolvido e conectado pela CODECA IA quando
+                                você contrata um plano.
+                              </p>
+                            </>
+                          ) : data.site.lastApiAccessAt ? (
                             <>
                               <p className="font-medium text-slate-800">Integração funcionando</p>
                               <p className="mt-0.5 text-slate-500">

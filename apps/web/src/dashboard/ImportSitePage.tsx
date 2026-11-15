@@ -314,7 +314,24 @@ export function ImportSitePage() {
       {run === null || (!run.working && run.state !== 'analisada') ? (
         <Card>
           <CardHeader title="Endereço do site" description="Aceitamos endereços públicos que começam com http:// ou https://." />
-          <CardBody>
+          <CardBody className="grid gap-4">
+            <Alert tone="info" title="Antes de começar: o que a importação consegue trazer">
+              <ul className="grid gap-1">
+                <li>
+                  Trazemos o conteúdo <strong>público</strong> do site. Páginas que pedem login ou senha
+                  não são lidas.
+                </li>
+                <li>Sites que bloqueiam leitura automática podem vir incompletos, ou não vir.</li>
+                <li>
+                  Conteúdo que só aparece depois de o site carregar programas no navegador, ou que vem
+                  de serviços externos (mapas, vídeos, redes sociais, agendas), pode ficar de fora.
+                </li>
+                <li>
+                  Nada é gravado sem você aprovar, e nenhum conteúdo seu é substituído sem
+                  confirmação.
+                </li>
+              </ul>
+            </Alert>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
               <TextInput
                 label="Endereço do site"
