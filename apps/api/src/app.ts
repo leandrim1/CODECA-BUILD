@@ -2,7 +2,9 @@ import { queryTotals } from '@codeca/database';
 import { timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
 import { createContext, type AppContext, type CreateContextOptions } from './context.js';
+import { exhaustedWebhookEvents, pendingWebhookEvents } from './lib/billing/webhook-store.js';
 import { probeDatabase } from './lib/db-probe.js';
+import { lastReconcileHeartbeat } from './lib/ops/heartbeat.js';
 import { deploymentInfo } from './lib/deployment.js';
 import { ok } from './lib/http.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
@@ -89,7 +91,13 @@ export function createApp(options: CreateAppOptions = {}) {
   app.get('/health', async (c) => {
     const probeRequested = c.req.query('db') === '1';
     const database = probeRequested ? await probeDatabase(ctx.db) : null;
-    const healthy = !database || (database.query === 'ok' && database.transaction === 'ok');
+    // `?ops=1`: a operacao esta em dia? Feito para um monitor externo de
+    // disponibilidade vigiar o que nenhuma tarefa interna consegue -- as
+    // proprias tarefas agendadas pararem. So contagens e instantes.
+    const ops = c.req.query('ops') === '1' ? await operationalStatus(ctx).catch(() => null) : null;
+    const healthy =
+      (!database || (database.query === 'ok' && database.transaction === 'ok')) &&
+      (!ops || !ops.reconcileOverdue);
     return ok(
       c,
       {
@@ -103,6 +111,8 @@ export function createApp(options: CreateAppOptions = {}) {
         // `null` quando nao foi pedida: ausencia de sondagem nao e sinal de
         // saude. Use `?db=1` para sondar.
         database,
+        // `null` quando nao foi pedido (ou quando a propria leitura falhou).
+        ops,
         time: ctx.now().toISOString(),
       },
       healthy ? 200 : 503,
@@ -205,3 +215,27 @@ export function createApp(options: CreateAppOptions = {}) {
 }
 
 export type App = ReturnType<typeof createApp>;
+
+/**
+ * Situacao operacional, para `/api/health?ops=1`.
+ *
+ * `reconcileOverdue` e o que derruba o status para 503: a conciliacao diaria e
+ * a rede de seguranca dos pagamentos, e mais de 26 h sem ela e o que um
+ * monitor externo precisa enxergar.
+ */
+async function operationalStatus(ctx: AppContext) {
+  const [ultimo, pendentes, esgotados] = await Promise.all([
+    lastReconcileHeartbeat(ctx.db),
+    pendingWebhookEvents(ctx.db, 100),
+    exhaustedWebhookEvents(ctx.db),
+  ]);
+  const concluida = ultimo?.kind === 'completed' ? ultimo.at : null;
+  const referencia = ultimo?.at ?? null;
+  return {
+    lastReconcileAt: concluida ? concluida.toISOString() : null,
+    reconcileOverdue: referencia !== null && ctx.now().getTime() - referencia.getTime() > 26 * 3600 * 1000,
+    pendingWebhookEvents: pendentes.length,
+    exhaustedWebhookEvents: esgotados,
+  };
+}
+

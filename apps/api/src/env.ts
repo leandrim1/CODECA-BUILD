@@ -19,6 +19,27 @@ const commaList = z
       .filter((item) => item.length > 0),
   );
 
+/**
+ * Variavel opcional que nunca derruba a aplicacao.
+ *
+ * Para configuracao de apoio (alertas, prazos de ajuste fino): um valor vazio
+ * ou invalido vale como ausente, com aviso no log. A alternativa -- falhar na
+ * inicializacao, como as variaveis essenciais fazem -- deixaria um erro de
+ * digitacao no endereco de ALERTAS tirar a plataforma inteira do ar.
+ */
+function tolerant<T extends z.ZodTypeAny>(name: string, schema: T) {
+  return z.preprocess((value) => {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value === 'string' && value.trim() === '') return undefined;
+    if (!schema.safeParse(value).success) {
+      // So o nome: o valor pode conter um segredo (o endereco de um webhook e um).
+      console.warn(`[env] ${name} com valor inválido: ignorada. O recurso segue desligado ou no padrão.`);
+      return undefined;
+    }
+    return value;
+  }, schema);
+}
+
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
@@ -76,6 +97,34 @@ export const envSchema = z.object({
   VALIDAPAY_AUTH_URL: z.string().optional(),
   /** Tolerancia do timestamp do webhook, em segundos. */
   VALIDAPAY_WEBHOOK_TOLERANCE_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
+  /**
+   * Quanto o webhook espera o processamento antes de responder, em ms.
+   *
+   * O evento e sempre gravado antes; isto so limita a espera pelo
+   * processamento. A ValidaPay corta a entrega em 5 s: o padrao deixa folga
+   * para a gravacao e para a rede. Passado o prazo, a resposta sai (o evento
+   * esta salvo) e o processamento continua em segundo plano.
+   */
+  VALIDAPAY_WEBHOOK_RESPONSE_BUDGET_MS: tolerant(
+    'VALIDAPAY_WEBHOOK_RESPONSE_BUDGET_MS',
+    z.coerce.number().int().min(0).max(4000).default(2500),
+  ),
+
+  /**
+   * Alertas operacionais (ver `docs/monitoramento.md`).
+   *
+   * `OPS_ALERT_WEBHOOK_URL` recebe um POST a cada falha critica: serve um
+   * webhook de entrada do Slack, do Discord, do Teams ou de qualquer receptor.
+   * `OPS_ALERT_EMAIL` recebe o mesmo aviso por e-mail. Sem nenhum dos dois, as
+   * falhas vao so para o log.
+   */
+  OPS_ALERT_WEBHOOK_URL: tolerant('OPS_ALERT_WEBHOOK_URL', z.string().url().optional()),
+  OPS_ALERT_EMAIL: tolerant('OPS_ALERT_EMAIL', z.string().email().optional()),
+  /** Janela em que o mesmo alerta nao se repete, em minutos. */
+  OPS_ALERT_WINDOW_MINUTES: tolerant(
+    'OPS_ALERT_WINDOW_MINUTES',
+    z.coerce.number().int().min(1).max(1440).default(30),
+  ),
 
   /**
    * Login com Google (OAuth 2.0, fluxo de codigo com PKCE).

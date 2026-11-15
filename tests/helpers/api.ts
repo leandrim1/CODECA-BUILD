@@ -4,6 +4,7 @@ import {
   createMemoryBillingProvider,
   createMemoryBlobStorage,
   createMemoryMailer,
+  createMonitor,
   createUnconfiguredDomainProvider,
   parseEnv,
   type DomainProvider,
@@ -11,6 +12,7 @@ import {
   type Mailer,
   type MailMessage,
   type MemoryBillingProvider,
+  type SanitizedOpsEvent,
   type SiteFetcher,
 } from '@codeca/api';
 import { and, eq, provisionSiteModules, schema, seedDatabase, type Database } from '@codeca/database';
@@ -111,6 +113,21 @@ export interface TestApi {
   blobBodies: ReturnType<typeof createMemoryBlobStorage>['bodies'];
   /** Provedor de cobranca controlado pelo teste. Nenhuma cobranca real. */
   billing: MemoryBillingProvider;
+  /** Tudo o que passou pelo monitor operacional, ja sem dado sensivel. */
+  opsEvents: SanitizedOpsEvent[];
+  /**
+   * Alertas que sairiam por HTTP (so quando o cenario define
+   * `OPS_ALERT_WEBHOOK_URL`). Nada vai para a rede.
+   */
+  alerts: Array<{ url: string; body: { text: string; content: string; event: SanitizedOpsEvent } }>;
+  /** Faz o receptor de alertas responder este status (padrao 200). */
+  alertReceiver: { status: number };
+  /**
+   * Espera o trabalho agendado para depois da resposta (o que em producao
+   * roda sob `waitUntil`). Sem isto, um teste leria o banco antes de o
+   * processamento em segundo plano terminar.
+   */
+  settle: () => Promise<void>;
   client: () => TestClient;
   reset: () => Promise<void>;
   close: () => Promise<void>;
@@ -143,9 +160,43 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     ...(options.env ?? {}),
   });
 
+  const opsEvents: SanitizedOpsEvent[] = [];
+  const alerts: TestApi['alerts'] = [];
+  const alertReceiver = { status: 200 };
+  const alertEmail = env.OPS_ALERT_EMAIL;
+  const monitor = createMonitor({
+    alertWebhookUrl: env.OPS_ALERT_WEBHOOK_URL,
+    sendAlertEmail: alertEmail
+      ? async (alert) => {
+          await mailer.send({ to: alertEmail, kind: 'ops_alert', ...alert });
+        }
+      : undefined,
+    alertWindowSeconds: env.OPS_ALERT_WINDOW_MINUTES * 60,
+    environment: 'test',
+    // Receptor de alertas em memoria: o que sairia para o Slack fica aqui.
+    fetch: (async (url: unknown, init?: RequestInit) => {
+      alerts.push({ url: String(url), body: JSON.parse(String(init?.body ?? '{}')) });
+      return new Response('{}', { status: alertReceiver.status });
+    }) as typeof globalThis.fetch,
+    now: options.now ?? (() => new Date()),
+    db: database.db,
+    sinks: [(event) => void opsEvents.push(event)],
+    // Os testes provocam falhas de proposito; o log delas e so ruido.
+    log: () => undefined,
+  });
+
+  const backgroundTasks: Array<Promise<unknown>> = [];
+  const settle = async () => {
+    while (backgroundTasks.length > 0) {
+      await backgroundTasks.shift()!.catch(() => undefined);
+    }
+  };
+
   const context = createContext({
     env,
     db: database.db,
+    monitor,
+    background: (task) => void backgroundTasks.push(task),
     mailer,
     blob,
     domains: options.domains ?? createUnconfiguredDomainProvider(),
@@ -169,8 +220,17 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     blobFiles: blob.files,
     blobBodies: blob.bodies,
     billing,
+    opsEvents,
+    alerts,
+    alertReceiver,
+    settle,
     client: () => new TestClient(app),
     reset: async () => {
+      // Nada em segundo plano pode atravessar para o proximo teste.
+      await settle();
+      opsEvents.length = 0;
+      alerts.length = 0;
+      alertReceiver.status = 200;
       await database.reset();
       webhooks.reset();
       if ('outbox' in mailer) (mailer as { outbox: MailMessage[] }).outbox.length = 0;
@@ -182,7 +242,10 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
       billing.calls.length = 0;
       await seedDatabase(database.db);
     },
-    close: () => database.close(),
+    close: async () => {
+      await settle();
+      await database.close();
+    },
   };
 }
 

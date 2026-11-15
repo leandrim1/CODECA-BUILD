@@ -62,6 +62,26 @@ export type {
 } from './lib/validapay/types.js';
 export { AUDIT_ACTIONS } from './lib/audit.js';
 export {
+  createMonitor,
+  createSilentMonitor,
+  redact,
+  redactText,
+  type Monitor,
+  type OpsEvent,
+  type SanitizedOpsEvent,
+} from './lib/ops/monitor.js';
+export {
+  checkReconcileHeartbeat,
+  lastReconcileHeartbeat,
+  recordReconcileHeartbeat,
+} from './lib/ops/heartbeat.js';
+export {
+  MAX_AUTOMATIC_ATTEMPTS,
+  drainStaleWebhookEvents,
+  pendingWebhookEvents,
+  processWebhookEvent,
+} from './lib/billing/webhook-store.js';
+export {
   billingClosurePreview,
   closeBillingBeforeDeletion,
   type BillingClosure,

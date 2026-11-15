@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions';
 import { handle } from 'hono/vercel';
 import { createApp, createConfigErrorApp, createContext } from '@codeca/api';
 
@@ -14,7 +15,26 @@ import { createApp, createConfigErrorApp, createContext } from '@codeca/api';
  */
 const handler = (() => {
   try {
-    return handle(createApp({ context: createContext() }));
+    /*
+     * `waitUntil` mantem a funcao viva ate a promessa terminar, depois de a
+     * resposta sair. E o que permite ao webhook responder dentro do prazo da
+     * ValidaPay e ainda concluir o processamento: sem isto, o trabalho em
+     * segundo plano seria congelado junto com a funcao.
+     */
+    const context = createContext({ background: (task) => waitUntil(task) });
+
+    // Promessa rejeitada que ninguem tratou: nao tem requisicao para onde
+    // voltar, entao so aparece se for reportada aqui.
+    process.on('unhandledRejection', (reason) => {
+      void context.monitor.report({
+        kind: 'unhandled_error',
+        severity: 'critical',
+        message: 'Promessa rejeitada sem tratamento na função da API.',
+        error: reason,
+      });
+    });
+
+    return handle(createApp({ context }));
   } catch (error) {
     return handle(createConfigErrorApp(error));
   }

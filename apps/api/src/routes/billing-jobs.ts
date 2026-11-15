@@ -2,7 +2,12 @@ import { pruneExpiredRecords } from '../lib/housekeeping.js';
 import { AppError, type SyncRunOrigin } from '@codeca/shared';
 import { timingSafeEqual } from 'node:crypto';
 import { Hono, type Context } from 'hono';
-import { pendingWebhookEvents, processWebhookEvent } from '../lib/billing/webhook-store.js';
+import {
+  exhaustedWebhookEvents,
+  pendingWebhookEvents,
+  processWebhookEvent,
+} from '../lib/billing/webhook-store.js';
+import { checkReconcileHeartbeat, recordReconcileHeartbeat } from '../lib/ops/heartbeat.js';
 import { reconcileBilling } from '../lib/billing/reconcile.js';
 import { recheckDomains } from '../lib/domain-recheck.js';
 import { runSchedulerPass } from '../lib/sync/scheduler.js';
@@ -91,6 +96,12 @@ export function syncJobRoutes() {
     const ctx = c.get('ctx');
     assertJobSecret(c.req.header('authorization'), ctx.env.BILLING_RECONCILIATION_SECRET);
 
+    // Esta tarefa vigia a outra: confere que a conciliacao de cobranca rodou.
+    // Nunca impede a propria execucao.
+    await checkReconcileHeartbeat({ db: ctx.db, env: ctx.env, now: ctx.now, monitor: ctx.monitor }).catch(
+      () => undefined,
+    );
+
     const url = new URL(c.req.url);
     const limitParam = Number(url.searchParams.get('limit') ?? '');
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : undefined;
@@ -170,17 +181,30 @@ async function executarJob(c: Context<AppBindings>) {
     provider: ctx.billing,
   };
 
-  // 1. Eventos que ficaram pendentes ou falharam: reprocessa antes de
-  //    consultar a API, porque muitos deles ja trazem o estado correto.
-  const pending = await pendingWebhookEvents(ctx.db, Math.min(limit, 20));
   let replayed = 0;
-  for (const event of pending) {
-    const result = await processWebhookEvent(billingCtx, event);
-    if (result.status === 'processed') replayed += 1;
-  }
+  let report: Awaited<ReturnType<typeof reconcileBilling>>;
+  try {
+    // 1. Eventos que ficaram pendentes ou falharam: reprocessa antes de
+    //    consultar a API, porque muitos deles ja trazem o estado correto.
+    const pending = await pendingWebhookEvents(ctx.db, Math.min(limit, 20));
+    for (const event of pending) {
+      const result = await processWebhookEvent(billingCtx, event);
+      if (result.status === 'processed') replayed += 1;
+    }
 
-  // 2. Reconciliacao propriamente dita.
-  const report = await reconcileBilling(billingCtx, { limit });
+    // 2. Reconciliacao propriamente dita.
+    report = await reconcileBilling(billingCtx, { limit });
+  } catch (error) {
+    // A conciliacao e a rede de seguranca dos pagamentos: se ela cai inteira,
+    // alguem precisa saber hoje, e nao quando um cliente reclamar.
+    await ctx.monitor.report({
+      kind: 'reconcile_failed',
+      severity: 'critical',
+      message: 'A conciliação diária de cobrança falhou e não terminou.',
+      error,
+    });
+    throw error;
+  }
   report.pendingEventsReplayed = replayed;
   // Assinaturas e suspensoes podem ter mudado em varias empresas.
   ctx.caches.invalidateAll();
@@ -197,8 +221,15 @@ async function executarJob(c: Context<AppBindings>) {
   const domains = await recheckDomains(
     { db: ctx.db, env: ctx.env, domains: ctx.domains, now: ctx.now },
     { limit },
-  ).catch((error: unknown) => {
+  ).catch(async (error: unknown) => {
     console.error('[domains] falha na reverificação:', error instanceof Error ? error.message : error);
+    await ctx.monitor.report({
+      kind: 'job_failed',
+      severity: 'critical',
+      message: 'A reverificação diária de domínios falhou.',
+      error,
+      alertKey: 'job_failed:domains',
+    });
     return null;
   });
   if (domains && domains.lostActive.length > 0) {
@@ -210,8 +241,15 @@ async function executarJob(c: Context<AppBindings>) {
 
   // 5. Limpeza de sessoes, codigos e contadores vencidos. Falha aqui nao pode
   //    impedir a resposta do resto do job.
-  const housekeeping = await pruneExpiredRecords(ctx.db, ctx.now()).catch((error: unknown) => {
+  const housekeeping = await pruneExpiredRecords(ctx.db, ctx.now()).catch(async (error: unknown) => {
     console.error('[housekeeping] falha:', error instanceof Error ? error.message : error);
+    await ctx.monitor.report({
+      kind: 'job_failed',
+      severity: 'critical',
+      message: 'A limpeza diária de registros vencidos falhou.',
+      error,
+      alertKey: 'job_failed:housekeeping',
+    });
     return null;
   });
 
@@ -221,6 +259,26 @@ async function executarJob(c: Context<AppBindings>) {
       `[billing] reconciliação com ${report.divergences.length} divergência(s) e `
         + `${report.failures.length} falha(s).`,
     );
+  }
+  if (report.failures.length > 0) {
+    // Falha aqui e, quase sempre, a ValidaPay nao respondendo a uma consulta.
+    await ctx.monitor.report({
+      kind: 'billing_provider_error',
+      severity: 'critical',
+      message: 'A conciliação não conseguiu consultar a ValidaPay para parte das assinaturas.',
+      context: { falhas: report.failures.length, divergencias: report.divergences.length },
+    });
+  }
+
+  // Eventos que esgotaram as tentativas automaticas: so uma pessoa resolve.
+  const esgotados = await exhaustedWebhookEvents(ctx.db).catch(() => 0);
+  if (esgotados > 0) {
+    await ctx.monitor.report({
+      kind: 'webhook_stuck',
+      severity: 'critical',
+      message: 'Há eventos de cobrança que falharam repetidamente e aguardam reprocesso manual.',
+      context: { eventos: esgotados },
+    });
   }
 
   if (deliveries.exhausted > 0) {
@@ -239,8 +297,15 @@ async function executarJob(c: Context<AppBindings>) {
   const syncPass = await runSchedulerPass(
     { db: ctx.db, fetcher: ctx.siteFetcher, renderer: ctx.renderer, now: ctx.now },
     { origin: 'vercel' },
-  ).catch((error: unknown) => {
+  ).catch(async (error: unknown) => {
     console.error('[sync] falha na passagem agendada:', error instanceof Error ? error.message : error);
+    await ctx.monitor.report({
+      kind: 'job_failed',
+      severity: 'critical',
+      message: 'A verificação agendada de sincronização de sites falhou.',
+      error,
+      alertKey: 'job_failed:sync',
+    });
     return null;
   });
 
@@ -253,6 +318,13 @@ async function executarJob(c: Context<AppBindings>) {
       `[sync] orçamento de tempo esgotado: ${sync.checked} de ${sync.claimed} fonte(s) verificadas nesta passagem.`,
     );
   }
+
+  // Batimento: a outra tarefa agendada confere que esta terminou (ver
+  // `lib/ops/heartbeat.ts`).
+  await recordReconcileHeartbeat(
+    { db: ctx.db, env: ctx.env, now: ctx.now },
+    { falhas: report.failures.length, eventosRetomados: replayed },
+  );
 
   return ok(c, { ...report, deliveries, domains, housekeeping, sync });
 }

@@ -37,6 +37,13 @@ export const errorHandler: ErrorHandler<AppBindings> = (error, c) => {
         message: error instanceof Error ? error.message : String(error),
       }),
     );
+    void c.get('ctx')?.monitor.report({
+      kind: 'db_unavailable',
+      severity: 'critical',
+      message: 'O banco de dados não respondeu a uma requisição.',
+      context: { requestId, route: c.req.routePath, method: c.req.method },
+      error,
+    });
     const retryAfter = 1 + Math.floor(Math.random() * 3);
     const unavailable = AppError.unavailable(
       'O serviço está momentaneamente indisponível. Tente novamente em instantes.',
@@ -49,6 +56,17 @@ export const errorHandler: ErrorHandler<AppBindings> = (error, c) => {
     `[api:error] requestId=${requestId} ${c.req.method} ${new URL(c.req.url).pathname}`,
     error instanceof Error ? `${error.name}: ${error.message}\n${error.stack ?? ''}` : error,
   );
+
+  // Erro que ninguem previu: e o que mais interessa a quem opera. Agrupado por
+  // rota, para um defeito numa tela nao esconder o de outra.
+  void c.get('ctx')?.monitor.report({
+    kind: 'api_error',
+    severity: 'critical',
+    message: 'Erro inesperado na API.',
+    context: { requestId, route: c.req.routePath, method: c.req.method },
+    error,
+    alertKey: `api_error:${c.req.method}:${c.req.routePath}`,
+  });
 
   const generic = AppError.internal(
     'Ocorreu um erro inesperado. Tente novamente; se persistir, informe o código da requisição.',
