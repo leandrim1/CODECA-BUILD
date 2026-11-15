@@ -26,7 +26,8 @@
     "migrate": "node --env-file-if-exists=../../.env ./dist/cli/migrate.js",
     "seed": "node --env-file-if-exists=../../.env ./dist/cli/seed.js",
     "studio": "drizzle-kit studio",
-    "prepare-db": "node --env-file-if-exists=../../.env ./dist/cli/deploy.js"
+    "prepare-db": "node --env-file-if-exists=../../.env ./dist/cli/deploy.js",
+    "verify-restore": "node --env-file-if-exists=../../.env ./dist/cli/verify-restore.js"
   },
   "dependencies": {
     "@codeca/shared": "workspace:*",

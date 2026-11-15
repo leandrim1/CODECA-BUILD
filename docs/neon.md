@@ -127,12 +127,20 @@ HTTP, que nao suporta transacoes.
 
 ## 6. Backup e restauracao
 
-O Neon mantem historico continuo. O plano gratuito retem 24 horas; planos pagos,
-7 dias ou mais. Confira em **Settings > History retention**.
+O Neon mantem historico continuo, e a janela para voltar no tempo depende do
+plano. **Os numeros mudam e nao foram conferidos no painel deste projeto**:
+confira em *Settings* (retencao de historico / "instant restore") qual e a
+janela que voce tem de fato. Um problema percebido depois dela nao tem volta.
 
-- **Restaurar no tempo**: *Branches > main > Restore*, escolha o instante. O
-  Neon cria um branch de backup antes de substituir, entao a operacao e
-  reversivel.
+**Nao ha, ate hoje, evidencia de backup conferido nem ensaio de restauracao
+executado.** O roteiro do ensaio, a conferencia do banco restaurado
+(`pnpm run ops:verificar-restauracao`) e as regras de autorizacao estao em
+[continuidade-operacional.md](continuidade-operacional.md), secao 8.
+
+- **Restaurar no tempo**: crie um **ramo novo** a partir do instante desejado
+  (*Branches > Create branch*) e valide nele. **Nao use o "Restore" que
+  substitui o ramo principal** sem antes validar num ramo separado e sem a
+  autorizacao descrita no documento de continuidade.
 - **Testar uma migracao com dados reais**: crie um branch (copia instantanea,
   sem copiar os bytes), aponte um `DATABASE_URL` para ele, rode `pnpm db:migrate`
   e descarte.

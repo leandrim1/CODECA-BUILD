@@ -531,3 +531,56 @@ conferida -> merge em `main` -> producao.
 **Antes de trocar o ramo de producao**, confirme no painel da Vercel que as
 variaveis de producao estao marcadas para "Production" (e nao "All
 Environments"); caso contrario as previas herdam o banco real.
+
+## 12. Conferencia do plano e das configuracoes (pendente)
+
+Nada abaixo e visivel pelo codigo. Sao itens para conferir no painel da Vercel;
+ao lado, a evidencia que resolve cada um.
+
+| Item | Onde ver | Evidencia a trazer | Por que importa |
+| --- | --- | --- | --- |
+| Plano atual | Settings > Billing | Nome do plano | O plano gratuito (Hobby) e destinado a uso pessoal e nao comercial, segundo os termos da Vercel — **confirme a redacao atual**. Vender a partir dele arrisca suspensao |
+| Duracao maxima das funcoes | Settings > Functions | Valor configurado e o teto do plano | `vercel.json` pede 60 s; a conciliacao diaria e a importacao de sites dependem disso |
+| Tarefas agendadas | Settings > Cron Jobs | Os dois agendamentos, ativos, com o ultimo disparo | No plano gratuito o limite documentado e uma execucao por dia por tarefa; e o que esta configurado |
+| Protecao das previas | Settings > Deployment Protection | Ligada ou desligada | Previa aberta + banco de producao = dados de clientes acessiveis por um endereco publico |
+| Variaveis por ambiente | Settings > Environment Variables | Para `DATABASE_URL`, `VALIDAPAY_*`, `RESEND_API_KEY`, `AUTH_SECRET`: em quais ambientes cada uma vale | Se valem em "All Environments", toda previa usa o banco e as credenciais reais |
+| Variaveis que nao deviam estar em producao | idem | Existencia de `SEED_DEMO*` e `PLATFORM_ADMIN_PASSWORD` | Servem so para semear dados; em producao, remova e troque a senha |
+| Regiao das funcoes | Settings > Functions > Region | Regiao | Hoje e `iad1` (EUA), observado no cabecalho de resposta |
+| Uso do periodo | Usage | Invocacoes, tempo de funcao, trafego | Para saber quando o plano aperta |
+
+### Regiao e latencia no Brasil
+
+As funcoes rodam em `iad1` (Washington). Cada chamada da API, feita do Brasil,
+atravessa o continente duas vezes. A Vercel tem regiao em Sao Paulo (`gru1`).
+
+**Mudar so a regiao da funcao pode piorar.** O que mais pesa numa requisicao e
+a conversa entre a funcao e o banco, que sao varias idas e voltas. Funcao em
+Sao Paulo com banco nos EUA troca uma travessia (usuario-funcao) por varias
+(funcao-banco). A regra e: **funcao e banco na mesma regiao**.
+
+Para decidir:
+
+1. Confira a regiao do projeto no Neon (Settings > General).
+2. Se o banco esta nos EUA: mover os dois para Sao Paulo e o ganho real, e
+   mover o banco e uma migracao de dados — planejada, com janela e ensaio.
+3. Antes de qualquer mudanca, meca: tempo de `/api/health?db=1` a partir do
+   Brasil, hoje. Sem a medida de antes, nao da para saber se melhorou.
+4. Verifique se a regiao desejada esta disponivel no seu plano da Vercel.
+
+Ha tambem a implicacao de LGPD: dados em servidores nos EUA sao transferencia
+internacional e precisam constar na Politica de Privacidade
+([lgpd.md](lgpd.md)).
+
+**Nada foi alterado:** regiao, plano e variaveis estao como estavam.
+
+### Variaveis novas desta fase
+
+Todas opcionais; sem elas o comportamento e o de antes.
+
+| Variavel | Padrao | Para que |
+| --- | --- | --- |
+| `VALIDAPAY_WEBHOOK_RESPONSE_BUDGET_MS` | 2500 | Prazo da resposta do webhook ([validapay.md](validapay.md)) |
+| `OPS_ALERT_WEBHOOK_URL` | — | Canal de alertas ([monitoramento.md](monitoramento.md)) |
+| `OPS_ALERT_EMAIL` | — | Alertas por e-mail |
+| `OPS_ALERT_WINDOW_MINUTES` | 30 | Janela sem repetir o mesmo alerta |
+
