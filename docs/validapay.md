@@ -149,16 +149,57 @@ opcional, barreira adicional que nunca substitui a assinatura).
 ### Ordem das operacoes
 
 ```
-corpo bruto -> assinatura valida? -> grava o evento -> responde 2xx -> processa
+corpo bruto -> assinatura valida? -> grava o evento -> processa (com prazo) -> responde 2xx
 ```
 
-Responder 2xx **somente depois da gravacao** garante que nenhum evento aceito
-se perde. Se o processamento falhar, o evento fica `failed` com a mensagem
-sanitizada e a resposta continua 2xx — devolver 5xx faria a ValidaPay reenviar
-por 72 horas sem necessidade. A retomada e feita pelo job de reconciliacao ou
-pelo botao de reprocessar no painel mestre.
+**Nunca se responde 2xx por um evento que nao foi gravado.** Se a gravacao
+falhar, a resposta e erro e a ValidaPay reenvia. Depois de gravado, a resposta
+e sempre 2xx: se o processamento falhar, o evento fica `failed` com a mensagem
+sanitizada — devolver 5xx faria a ValidaPay reenviar por 72 horas um evento que
+ja temos.
 
-Assinatura invalida responde **401 e nada e gravado**.
+Assinatura invalida responde **401 e nada e gravado** (e gera o alerta
+`webhook_rejected`).
+
+### Prazo de resposta
+
+A ValidaPay corta a entrega em 5 s e recomenda responder antes de processar. O
+que a rota faz:
+
+1. grava o evento;
+2. comeca a processar **imediatamente**;
+3. espera o processamento por, no maximo, `VALIDAPAY_WEBHOOK_RESPONSE_BUDGET_MS`
+   (padrao 2500 ms);
+4. se terminou, responde com o resultado; se nao, responde `200` com
+   `status: "pending"` e o processamento segue em segundo plano.
+
+Em segundo plano quer dizer `waitUntil`, da Vercel, que mantem a funcao viva
+ate a promessa terminar. Fora da Vercel a promessa simplesmente continua.
+
+Responder **sempre** antes de processar foi descartado de proposito: sem fila,
+isso trocaria um processamento que quase sempre cabe na requisicao por um que
+depende de a funcao continuar viva depois da resposta. O prazo da os dois: a
+resposta nunca passa de ~3 s, e o caminho normal continua terminando dentro da
+requisicao.
+
+### Um evento, uma aplicacao
+
+O mesmo evento pode ser alcancado por varios caminhos: a entrega original, o
+trabalho em segundo plano, a retomada de pendentes, a reconciliacao diaria, o
+reprocesso manual. Dentro da transacao que aplica o evento, a linha dele e
+travada (`SELECT ... FOR UPDATE`) e o estado e relido: quem chega em segundo
+lugar espera, le `processed` e sai sem aplicar nada.
+
+### Recuperacao
+
+| Situacao | O que acontece |
+| --- | --- |
+| Evento gravado e nunca processado (a funcao morreu depois da resposta) | Retomado depois da **proxima entrega** de qualquer evento, se estiver parado ha mais de 1 minuto; e na reconciliacao diaria |
+| Evento que falhou | Retentado na reconciliacao diaria, ate **10 tentativas** |
+| Evento que esgotou as tentativas | Sai da fila automatica, **continua guardado**, gera o alerta `webhook_stuck` e espera reprocesso manual no painel mestre |
+| Ordem da fila | Quem tentou menos vem primeiro: um evento novo nunca fica atras de um que ja falhou varias vezes |
+
+Testes: `tests/integration/webhook-confiabilidade.test.ts`.
 
 ### Idempotencia
 
@@ -442,6 +483,85 @@ foram medidas**. A correcao nao esta em risco se o prazo estourar -- a
 retentativa cai na deduplicacao --, mas o endpoint pode ser pausado. Se isso
 aparecer nos logs, a saida e responder `2xx` logo apos gravar o evento e
 processar depois da resposta.
+
+## 8c. Validacao no sandbox: os 14 cenarios (pendente)
+
+**Nenhum cenario foi executado contra a ValidaPay.** Os testes automatizados
+usam um provedor simulado, fiel ao contrato publicado — e simulado. O que
+segue e o que falta para a validacao real, e o roteiro dela.
+
+### Por que ainda nao foi possivel
+
+1. Nao ha credencial de **sandbox** disponivel.
+2. A ValidaPay entrega os webhooks em um endereco publico. Validar o caminho
+   inteiro exige a aplicacao **publicada** com as credenciais de sandbox.
+3. Essa publicacao nao pode ser a de producao, nem usar o banco de producao.
+
+### O ambiente de homologacao necessario
+
+| Peca | O que e | Quem faz |
+| --- | --- | --- |
+| Banco separado | Um ramo do Neon so para homologacao, com as migracoes aplicadas (`pnpm db:migrate`) | Proprietario |
+| Publicacao de previa | Um ramo do repositorio publicado como previa na Vercel | Proprietario |
+| Variaveis da previa | `DATABASE_URL` do ramo de homologacao; `VALIDAPAY_BASE_URL=https://sandbox.validapay.com.br`; `VALIDAPAY_CLIENT_ID`/`SECRET` **de sandbox**; `VALIDAPAY_WEBHOOK_SECRET` do webhook de sandbox; `AUTH_SECRET` proprio | Proprietario |
+| Webhook no sandbox | Cadastrado no painel de sandbox da ValidaPay, apontando para `https://<previa>/api/webhooks/validapay` | Proprietario |
+
+**Trava contra engano:** confira em `/api/health` da previa que `billing` e
+`billingWebhooks` estao `true`, e no painel mestre (Cobranca) que o ambiente
+exibido e **sandbox**. Nunca rode os cenarios com `VALIDAPAY_BASE_URL` apontando
+para `api.validapay.com.br`.
+
+### Antes dos cenarios
+
+```bash
+VALIDAPAY_CLIENT_ID=... VALIDAPAY_CLIENT_SECRET=... \
+VALIDAPAY_BASE_URL=https://sandbox.validapay.com.br \
+  pnpm run validate:validapay -- --webhook <id do webhook> --evento subscription.created
+```
+
+Confirma a credencial, os escopos e que uma entrega assinada alcanca a rota e
+passa pela verificacao. O script nao imprime o segredo nem o token.
+
+### Os cenarios
+
+Para cada um, registre: situacao antes, evento recebido (painel mestre >
+Cobranca), situacao depois (estado, plano, `access_until`), e o que o cliente
+ve no painel. O pagamento no sandbox e simulado pela propria ValidaPay
+(`POST /v1/wallet/pay/{chargeId}`), sem dinheiro real.
+
+| N | Cenario | Como provocar | O que conferir |
+| --- | --- | --- | --- |
+| 1 | Cartao aprovado | Contratar pelo painel, cartao de teste aprovado | `active`, plano promovido, acesso ate a proxima cobranca |
+| 2 | Pix pago | Contratar com Pix; simular o pagamento | Ativa so depois do pagamento |
+| 3 | Boleto pago depois | Contratar o plano Empresas com boleto (unico que aceita); simular o pagamento dias depois | Avaliacao preservada ate pagar; `active` depois |
+| 4 | Checkout abandonado | Abrir a contratacao e nao pagar | Conta segue `trialing`, com acesso |
+| 5 | Cartao recusado | Cartao de teste recusado | Sem acesso pago; mensagem do motivo no painel |
+| 6 | Renovacao paga | Simular o pagamento do segundo ciclo | `access_until` estendido |
+| 7 | Renovacao recusada e nova tentativa | Recusar o ciclo; depois pagar | `past_due` com tolerancia; volta a `active` |
+| 8 | Encerramento por falta de pagamento | Deixar vencer ate a ValidaPay encerrar | `expired`; acesso conforme a politica do plano |
+| 9 | Cancelamento agendado | Cancelar pelo painel com periodo pago | `cancel_at_period_end`; acesso ate o fim |
+| 10 | Cancelamento desfeito | Desfazer pelo painel | Volta a `active` |
+| 11 | Upgrade com pro-rata | Trocar para plano maior | Plano novo apos o pagamento parcial |
+| 12 | Downgrade agendado | Trocar para plano menor | Vale no proximo ciclo |
+| 13 | Duplicado, fora de ordem, invalido | Reenviar uma entrega pelo painel da ValidaPay; alterar o segredo e reenviar | Duplicado ignorado; estado nao regride; invalido recusado com 401 |
+| 14 | Estorno e contestacao | Estornar um pagamento no sandbox | Acesso retido conforme `disputeHold` |
+
+O cenario 14 e o que tem **menos cobertura hoje**. Conferido no catalogo de
+eventos da ValidaPay:
+
+- **Estorno/devolucao:** existem `refund.requested`, `refund.confirmed` e
+  `refund.failed`, e os tres sao tratados (`applyRefundEvent`), com testes
+  automatizados.
+- **Contestacao de cartao (chargeback):** o catalogo **nao lista evento de
+  webhook** para isso. As contestacoes sao consultadas por `GET /v1/disputes`,
+  que esta integracao nao chama. Hoje, uma contestacao so chega ao nosso lado
+  se virar uma devolucao.
+- **MED (devolucao especial do Pix):** existem `med.*` (infracao, bloqueio de
+  saldo, devolucao aberta/encerrada), e **nenhum e tratado** — sao gravados
+  como "ignorado".
+
+Trate o resultado deste cenario como descoberta, nao como confirmacao: e
+provavel que ele revele o que falta implementar.
 
 ## 9. Checklist de sandbox
 

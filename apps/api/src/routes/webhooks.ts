@@ -2,6 +2,7 @@ import { AppError } from '@codeca/shared';
 import { Hono } from 'hono';
 import {
   asRecord,
+  drainStaleWebhookEvents,
   processWebhookEvent,
   readString,
   storeWebhookEvent,
@@ -30,9 +31,15 @@ import type { AppBindings } from '../types.js';
  *   4. so entao responder 2xx;
  *   5. processar.
  *
- * Assinatura invalida responde 401 e nada e gravado. Um evento valido cuja
- * aplicacao falhe responde 2xx de todo modo: ele ja esta salvo, e a
- * reconciliacao ou o reprocesso manual o retomam. Reenviar nao duplica nada.
+ * Assinatura invalida responde 401 e nada e gravado. Se a gravacao falhar, a
+ * resposta e erro (5xx) e a ValidaPay reenvia: nunca se confirma um evento
+ * que nao foi guardado. Um evento valido cuja aplicacao falhe responde 2xx de
+ * todo modo: ele ja esta salvo, e a retomada, a reconciliacao ou o reprocesso
+ * manual o concluem. Reenviar nao duplica nada.
+ *
+ * A resposta tem prazo (`VALIDAPAY_WEBHOOK_RESPONSE_BUDGET_MS`): se o
+ * processamento nao terminar dentro dele, a resposta sai e o trabalho segue em
+ * segundo plano. Ver o passo 5, abaixo.
  */
 
 export function webhookRoutes() {
@@ -70,8 +77,17 @@ export function webhookRoutes() {
 
     if (!verification.valid) {
       const failure = verification.failure ?? 'invalid_signature';
-      // Log sem o corpo e sem a assinatura recebida.
-      console.warn(`[webhook] recusado: ${failure}`);
+      // Sem o corpo e sem a assinatura recebida. Uma recusa isolada e ruido
+      // da internet; recusas em serie de eventos legitimos sao um segredo
+      // trocado no painel da ValidaPay -- e cada uma e um pagamento que nao
+      // entrou. Por isso e alerta, agrupado por motivo.
+      await ctx.monitor.report({
+        kind: 'webhook_rejected',
+        severity: 'critical',
+        message: 'Webhook da ValidaPay recusado na verificação de origem.',
+        context: { failure },
+        alertKey: `webhook_rejected:${failure}`,
+      });
       return c.json(
         { error: { code: 'unauthorized', message: WEBHOOK_FAILURE_MESSAGES[failure] } },
         401,
@@ -111,6 +127,12 @@ export function webhookRoutes() {
 
     // 4. Evento repetido: nada a fazer, e a resposta confirma o recebimento.
     if (stored.duplicate) {
+      await ctx.monitor.report({
+        kind: 'webhook_duplicate',
+        severity: 'info',
+        message: 'Entrega repetida de um evento já gravado.',
+        context: { event, eventId: stored.row.id, status: stored.row.status, attempt },
+      });
       return c.json(
         {
           data: {
@@ -124,16 +146,86 @@ export function webhookRoutes() {
       );
     }
 
-    // 5. Processamento. Falha aqui nao devolve erro: o evento esta salvo e
-    //    sera retomado, e devolver 5xx faria a ValidaPay reenviar por 72h sem
-    //    necessidade.
-    const result = await processWebhookEvent(
-      { db: ctx.db, now: ctx.now, source: 'webhook' },
-      stored.row,
-    );
-    // O evento pode ter alterado assinatura/suspensao de qualquer empresa.
-    ctx.caches.invalidateAll();
+    /*
+     * 5. Processamento, com prazo para a resposta.
+     *
+     * A partir daqui o evento esta salvo, e a resposta e sempre 2xx: devolver
+     * 5xx faria a ValidaPay reenviar por 72 h um evento que ja temos.
+     *
+     * O processamento comeca imediatamente. Se terminar dentro do prazo, a
+     * resposta leva o resultado -- o caso normal, de dezenas de milissegundos.
+     * Se nao terminar (banco acordando, concorrencia), a resposta sai sem
+     * esperar, porque a ValidaPay corta a entrega em 5 s, e o processamento
+     * segue em segundo plano. A alternativa de responder SEMPRE antes de
+     * processar foi descartada: sem fila, trocaria um processamento que
+     * quase sempre cabe na requisicao por um que depende de a funcao
+     * continuar viva depois da resposta.
+     */
+    const billingCtx = { db: ctx.db, now: ctx.now, source: 'webhook' as const };
+    const processing = processWebhookEvent(billingCtx, stored.row).then(async (result) => {
+      // O evento pode ter alterado assinatura/suspensao de qualquer empresa.
+      ctx.caches.invalidateAll();
+      if (result.status === 'failed') {
+        await ctx.monitor.report({
+          kind: 'webhook_failed',
+          severity: 'critical',
+          message: 'Um evento de cobrança foi recebido e não pôde ser aplicado.',
+          context: {
+            event,
+            eventId: stored.row.id,
+            attempts: result.attempts ?? null,
+            detail: result.detail,
+          },
+          // Um alerta por tipo de evento: a causa costuma ser a mesma.
+          alertKey: `webhook_failed:${event}`,
+        });
+      }
+      return result;
+    });
 
+    // Retomada de eventos que ficaram parados, sempre depois da resposta.
+    ctx.background(
+      processing
+        .catch(() => undefined)
+        .then(() => drainStaleWebhookEvents(billingCtx, { exceptId: stored.row.id }))
+        .then((retomada) => {
+          if (retomada.processados > 0) ctx.caches.invalidateAll();
+        })
+        .catch((error: unknown) =>
+          ctx.monitor.report({
+            kind: 'webhook_stuck',
+            severity: 'warning',
+            message: 'A retomada de eventos pendentes falhou.',
+            error,
+          }),
+        ),
+    );
+
+    const finished = await withinBudget(processing, ctx.env.VALIDAPAY_WEBHOOK_RESPONSE_BUDGET_MS);
+
+    if (!finished.done) {
+      await ctx.monitor.report({
+        kind: 'webhook_deferred',
+        severity: 'warning',
+        message: 'O processamento de um evento passou do prazo e continua em segundo plano.',
+        context: { event, eventId: stored.row.id, budgetMs: ctx.env.VALIDAPAY_WEBHOOK_RESPONSE_BUDGET_MS },
+      });
+      return c.json(
+        {
+          data: {
+            received: true,
+            duplicate: false,
+            // Gravado e ainda em processamento: a retomada o conclui.
+            status: 'pending',
+            eventId: stored.row.id,
+            detail: 'Evento gravado; o processamento continua em segundo plano.',
+          },
+        },
+        200,
+      );
+    }
+
+    const result = finished.value;
     return c.json(
       {
         data: {
@@ -149,4 +241,26 @@ export function webhookRoutes() {
   });
 
   return app;
+}
+
+/**
+ * Espera uma promessa por, no maximo, `budgetMs`.
+ *
+ * Nao cancela nada: passado o prazo, a promessa continua, e quem chamou decide
+ * o que fazer com ela. Com prazo zero, nunca espera.
+ */
+async function withinBudget<T>(
+  task: Promise<T>,
+  budgetMs: number,
+): Promise<{ done: true; value: T } | { done: false }> {
+  if (budgetMs <= 0) return { done: false };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<{ done: false }>((resolve) => {
+    timer = setTimeout(() => resolve({ done: false }), budgetMs);
+  });
+  try {
+    return await Promise.race([task.then((value) => ({ done: true as const, value })), timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }

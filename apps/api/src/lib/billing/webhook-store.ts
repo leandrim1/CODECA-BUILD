@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, schema, type Database } from '@codeca/database';
+import { and, asc, desc, eq, gte, inArray, lt, schema, sql, type Database } from '@codeca/database';
 import { AppError, isHandledEvent } from '@codeca/shared';
 import { createHash } from 'node:crypto';
 import { BILLING_ACTIONS, recordBillingAudit } from './audit.js';
@@ -80,7 +80,22 @@ export async function storeWebhookEvent(
 
 export interface ProcessEventResult extends ApplyEventResult {
   status: WebhookEventRow['status'];
+  /** Tentativas de processamento ja feitas, quando esta falhou. */
+  attempts?: number;
 }
+
+/**
+ * Teto de tentativas automaticas de um evento.
+ *
+ * Um evento que falha dez vezes nao vai passar na decima primeira sozinho: o
+ * motivo e do evento ou do nosso codigo, nao do momento. Sem teto, ele era
+ * retentado todo dia para sempre e, por ser o mais antigo, ocupava a frente da
+ * fila -- vinte eventos assim travariam a retomada de todos os outros.
+ *
+ * Passado o teto, o evento continua guardado, aparece no painel de cobranca e
+ * so volta por reprocesso manual. Nada e descartado.
+ */
+export const MAX_AUTOMATIC_ATTEMPTS = 10;
 
 /**
  * Processa um evento ja gravado.
@@ -121,9 +136,42 @@ export async function processWebhookEvent(
 
   const payload = asRecord(row.payload) ?? {};
   const occurredAt = row.occurredAt ?? row.receivedAt;
+  // Tentativas ja feitas, como estao no banco (a linha em memoria pode ser antiga).
+  let attempts = row.processingAttempts;
 
   try {
     const result = await ctx.db.transaction(async (tx) => {
+      /*
+       * Trava da linha do evento, e releitura do estado DENTRO da transacao.
+       *
+       * O mesmo evento pode ser alcancado por mais de um caminho ao mesmo
+       * tempo: o processamento que continuou em segundo plano depois da
+       * resposta, a retomada de pendentes disparada por outra entrega, a
+       * reconciliacao diaria, o reprocesso manual. Sem a trava, dois deles
+       * leriam `pending` e aplicariam o evento duas vezes. Com ela, o segundo
+       * espera o primeiro terminar, le `processed` e sai sem aplicar nada.
+       */
+      const [locked] = await tx
+        .select({
+          status: schema.webhookEvents.status,
+          processingAttempts: schema.webhookEvents.processingAttempts,
+        })
+        .from(schema.webhookEvents)
+        .where(eq(schema.webhookEvents.id, row.id))
+        .for('update');
+
+      if (!locked || locked.status === 'processed' || locked.status === 'ignored') {
+        return {
+          status: locked?.status ?? row.status,
+          outcome: 'ignored' as const,
+          tenantId: row.tenantId,
+          subscriptionId: row.externalSubscriptionId,
+          chargeId: row.externalChargeId,
+          detail: 'Evento já processado por outra execução.',
+        };
+      }
+      attempts = locked.processingAttempts;
+
       const scoped: BillingContext = {
         db: tx as unknown as Database,
         now: ctx.now,
@@ -151,7 +199,7 @@ export async function processWebhookEvent(
         .set({
           status,
           tenantId: applied.tenantId,
-          processingAttempts: row.processingAttempts + 1,
+          processingAttempts: attempts + 1,
           processedAt: status === 'processed' || status === 'ignored' ? ctx.now() : null,
           errorMessage: applied.outcome === 'unresolved' ? applied.detail.slice(0, 500) : '',
           updatedAt: ctx.now(),
@@ -183,7 +231,9 @@ export async function processWebhookEvent(
       .update(schema.webhookEvents)
       .set({
         status: 'failed',
-        processingAttempts: row.processingAttempts + 1,
+        // Incremento feito no banco: vale mesmo que outra execucao tenha
+        // contado uma tentativa enquanto esta rodava.
+        processingAttempts: sql`${schema.webhookEvents.processingAttempts} + 1`,
         errorMessage: message,
         updatedAt: ctx.now(),
       })
@@ -198,11 +248,17 @@ export async function processWebhookEvent(
       subscriptionId: row.externalSubscriptionId,
       chargeId: row.externalChargeId,
       detail: message,
+      attempts: attempts + 1,
     };
   }
 }
 
-/** Eventos aguardando processamento ou com falha, mais antigos primeiro. */
+/**
+ * Eventos aguardando processamento ou com falha, abaixo do teto de tentativas.
+ *
+ * Quem tentou menos vem primeiro, e so depois os mais antigos: um evento novo
+ * nunca fica atras de um que ja falhou varias vezes.
+ */
 export async function pendingWebhookEvents(
   db: Database,
   limit = 20,
@@ -210,9 +266,68 @@ export async function pendingWebhookEvents(
   return db
     .select()
     .from(schema.webhookEvents)
-    .where(inArray(schema.webhookEvents.status, ['pending', 'failed', 'unresolved']))
-    .orderBy(asc(schema.webhookEvents.receivedAt))
+    .where(
+      and(
+        inArray(schema.webhookEvents.status, ['pending', 'failed', 'unresolved']),
+        lt(schema.webhookEvents.processingAttempts, MAX_AUTOMATIC_ATTEMPTS),
+      ),
+    )
+    .orderBy(asc(schema.webhookEvents.processingAttempts), asc(schema.webhookEvents.receivedAt))
     .limit(limit);
+}
+
+/** Eventos que esgotaram as tentativas automaticas e esperam uma pessoa. */
+export async function exhaustedWebhookEvents(db: Database): Promise<number> {
+  const [linha] = await db
+    .select({ total: sql<number>`cast(count(*) as int)` })
+    .from(schema.webhookEvents)
+    .where(
+      and(
+        inArray(schema.webhookEvents.status, ['pending', 'failed']),
+        gte(schema.webhookEvents.processingAttempts, MAX_AUTOMATIC_ATTEMPTS),
+      ),
+    );
+  return linha?.total ?? 0;
+}
+
+/**
+ * Retoma eventos que ficaram gravados e nunca foram processados.
+ *
+ * Acontece quando a resposta saiu antes de o processamento terminar e a
+ * funcao foi encerrada no meio. Sem isto, o evento esperaria a reconciliacao
+ * diaria -- ate 24 horas com um pagamento ja feito. E chamada depois de cada
+ * entrega nova, entao a espera passa a ser "ate o proximo evento".
+ *
+ * So pega `pending` (nunca `failed`: quem falhou tem o ritmo da reconciliacao)
+ * e so o que ja esta parado ha algum tempo, para nao disputar com o
+ * processamento que ainda esta em curso. A trava em `processWebhookEvent`
+ * garante que, mesmo disputando, o evento e aplicado uma vez.
+ */
+export async function drainStaleWebhookEvents(
+  ctx: Omit<BillingContext, 'webhookEventId'>,
+  options: { olderThanMs?: number; limit?: number; exceptId?: string } = {},
+): Promise<{ retomados: number; processados: number }> {
+  const limite = new Date(ctx.now().getTime() - (options.olderThanMs ?? 60_000));
+  const parados = await ctx.db
+    .select()
+    .from(schema.webhookEvents)
+    .where(
+      and(
+        eq(schema.webhookEvents.status, 'pending'),
+        lt(schema.webhookEvents.receivedAt, limite),
+        lt(schema.webhookEvents.processingAttempts, MAX_AUTOMATIC_ATTEMPTS),
+      ),
+    )
+    .orderBy(asc(schema.webhookEvents.receivedAt))
+    .limit(options.limit ?? 5);
+
+  let processados = 0;
+  for (const evento of parados) {
+    if (evento.id === options.exceptId) continue;
+    const resultado = await processWebhookEvent(ctx, evento);
+    if (resultado.status === 'processed') processados += 1;
+  }
+  return { retomados: parados.length, processados };
 }
 
 export async function loadWebhookEvent(
