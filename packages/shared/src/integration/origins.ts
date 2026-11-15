@@ -35,7 +35,15 @@ function isDefaultPort(protocol: string, port: string): boolean {
 }
 
 function isLocalHost(hostname: string): boolean {
-  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  // `.localhost` e dominio reservado (RFC 6761): resolve sempre para a propria
+  // maquina e nunca e um site publico. E o que o ambiente de desenvolvimento
+  // usa (`app.localhost`), e por isso o site de demonstracao precisa dele.
+  return (
+    hostname === 'localhost' ||
+    hostname.endsWith('.localhost') ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]'
+  );
 }
 
 /**

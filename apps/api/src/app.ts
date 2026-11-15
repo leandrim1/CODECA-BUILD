@@ -32,6 +32,7 @@ import { platformBillingRoutes } from './routes/platform-billing.js';
 import { platformSegmentRoutes } from './routes/platform-segments.js';
 import { platformSiteRoutes } from './routes/platform-sites.js';
 import { projectRoutes } from './routes/projects.js';
+import { demoPlatformRoutes, demoPublicRoutes, demoTenantRoutes } from './routes/demo.js';
 import { publicApiRoutes } from './routes/public-api.js';
 import { propertyRoutes } from './routes/properties.js';
 import { publicPlanRoutes } from './routes/public-plans.js';
@@ -145,6 +146,10 @@ export function createApp(options: CreateAppOptions = {}) {
   // nunca por sessao. Versionada desde a primeira rota.
   app.route('/v1', publicApiRoutes());
 
+  // Site de demonstracao da avaliacao: so encaminha para a API publica acima,
+  // com a chave do proprio site. Ver `routes/demo.ts`.
+  app.route('/demo', demoPublicRoutes((request) => app.fetch(request)));
+
   // Vitrine de planos: publica, somente leitura, sem sessao.
   app.route('/public', publicPlanRoutes());
 
@@ -199,6 +204,7 @@ export function createApp(options: CreateAppOptions = {}) {
   tenantScoped.route('/', analyticsRoutes());
   tenantScoped.route('/', siteImportRoutes());
   tenantScoped.route('/', siteSyncRoutes());
+  tenantScoped.route('/', demoTenantRoutes());
   app.route('/tenants', tenantScoped);
 
   // Painel mestre da plataforma.
@@ -209,6 +215,7 @@ export function createApp(options: CreateAppOptions = {}) {
   platformScoped.route('/', platformSiteRoutes());
   platformScoped.route('/', platformSegmentRoutes());
   platformScoped.route('/', platformBillingRoutes());
+  platformScoped.route('/', demoPlatformRoutes());
   app.route('/platform', platformScoped);
 
   return app;

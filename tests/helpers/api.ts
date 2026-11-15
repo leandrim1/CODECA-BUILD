@@ -157,6 +157,16 @@ export async function createTestApi(options: TestApiOptions = {}): Promise<TestA
     VALIDAPAY_WEBHOOK_SECRET: TEST_WEBHOOK_SECRET,
     VALIDAPAY_BASE_URL: 'https://sandbox.validapay.com.br',
     BILLING_RECONCILIATION_SECRET: TEST_JOB_SECRET,
+    /*
+     * Conta de teste nasce SEM os exemplos da demonstracao.
+     *
+     * Centenas de testes partem de "empresa nova, nenhum conteudo" para medir
+     * limites, contagens e listas. Os exemplos mudariam esse ponto de partida
+     * em todos eles sem que nenhum esteja testando a demonstracao. Quem testa a
+     * demonstracao liga a variavel (`tests/integration/site-de-demonstracao`).
+     * Em producao o padrao e ligado.
+     */
+    DEMO_SITE_ON_SIGNUP: 'false',
     ...(options.env ?? {}),
   });
 

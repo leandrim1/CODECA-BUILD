@@ -269,6 +269,19 @@ export const segments = pgTable(
  * Sem ele, bastaria um `site_id` de outra empresa passar numa escrita para o
  * isolamento cair.
  */
+/** Registro do que a demonstracao criou. Ver `sites.demoSeed`. */
+export interface DemoSeed {
+  seededAt: string;
+  /** Identificadores dos registros de exemplo, por tabela. */
+  records: { banners: string[]; services: string[] };
+  /** Texto de apresentacao posto no documento institucional. */
+  shortDescription: string;
+  /** Chave publicavel emitida para a demonstracao. */
+  apiKeyId: string;
+  /** Preenchido quando a demonstracao foi encerrada. */
+  endedAt?: string;
+}
+
 export const sites = pgTable(
   'sites',
   {
@@ -292,6 +305,20 @@ export const sites = pgTable(
      * So e usado quando o plano inclui hospedagem; nulo e o caso comum.
      */
     hostingProjectId: text('hosting_project_id'),
+    /**
+     * Site de demonstracao da avaliacao.
+     *
+     * Nasce `true` no cadastro feito pelo proprio cliente: o site recebe
+     * conteudo de exemplo e um endereco dentro da plataforma onde ve-lo. Deixa
+     * de ser quando a CODECA IA liga o site real (ver `lib/demo.ts`). Nunca e
+     * decidido por valor vindo do navegador.
+     */
+    isDemo: boolean('is_demo').notNull().default(false),
+    /**
+     * O que foi criado como exemplo, para separar ficticio de real depois.
+     * Nulo em site que nunca foi demonstracao.
+     */
+    demoSeed: jsonb('demo_seed').$type<DemoSeed>(),
     createdAt,
     updatedAt,
   },

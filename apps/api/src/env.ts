@@ -111,6 +111,21 @@ export const envSchema = z.object({
   ),
 
   /**
+   * Site de demonstracao no cadastro (ver `docs/demonstracao.md`).
+   *
+   * Ligado por padrao. `false` faz o cadastro voltar a criar so o painel, sem
+   * exemplos nem endereco de demonstracao -- um interruptor para desligar o
+   * recurso sem publicar codigo. Nao afeta demonstracoes ja criadas.
+   */
+  DEMO_SITE_ON_SIGNUP: tolerant(
+    'DEMO_SITE_ON_SIGNUP',
+    z
+      .string()
+      .default('true')
+      .transform((value) => value.trim().toLowerCase() !== 'false'),
+  ),
+
+  /**
    * Alertas operacionais (ver `docs/monitoramento.md`).
    *
    * `OPS_ALERT_WEBHOOK_URL` recebe um POST a cada falha critica: serve um

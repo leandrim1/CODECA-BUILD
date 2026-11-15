@@ -1,5 +1,6 @@
 import { and, createPrimarySite, eq, like, or, schema, type Database } from '@codeca/database';
 import { AppError, DEFAULT_GRACE_PERIOD_DAYS, TRIAL_PERIOD_DAYS, slugify, uniqueSlug } from '@codeca/shared';
+import { provisionDemoSite } from './demo.js';
 
 /**
  * Cadastro de uma empresa nova para um usuario que ja existe.
@@ -10,15 +11,18 @@ import { AppError, DEFAULT_GRACE_PERIOD_DAYS, TRIAL_PERIOD_DAYS, slugify, unique
  * a empresa nunca e criada automaticamente a partir de dados do Google.
  */
 
-export async function loadTrialPlan(db: Database): Promise<{ id: string }> {
-  const [trialPlan] = await db
-    .select({ id: schema.plans.id })
+export async function loadTrialPlan(
+  db: Database,
+): Promise<{ id: string; contentLimit: number | null }> {
+  const [linha] = await db
+    .select({ id: schema.plans.id, limits: schema.plans.limits })
     .from(schema.plans)
     .where(and(eq(schema.plans.code, 'trial'), eq(schema.plans.isActive, true)));
-  if (!trialPlan) {
+  if (!linha) {
     throw AppError.internal('Nenhum plano inicial configurado. Rode o seed de planos.');
   }
-  return trialPlan;
+  const limite = (linha.limits as { maxContentRecords?: number | null } | null)?.maxContentRecords;
+  return { id: linha.id, contentLimit: typeof limite === 'number' ? limite : null };
 }
 
 export async function nextTenantSlug(db: Database, desired: string): Promise<string> {
@@ -45,6 +49,14 @@ export async function createCompanyForUser(
     slug: string;
     trialPlanId: string;
     now: Date;
+    /**
+     * Quando informado, o site nasce como demonstracao (ver `lib/demo.ts`).
+     *
+     * So o cadastro feito pelo proprio cliente passa isto. A empresa criada
+     * pela CODECA IA no painel mestre e de um projeto real, e nao recebe
+     * conteudo de exemplo.
+     */
+    demo?: { appUrl: string; contentLimit: number | null };
   },
 ): Promise<{ tenantId: string; siteId: string }> {
   const [tenant] = await tx
@@ -107,6 +119,18 @@ export async function createCompanyForUser(
     currentPeriodEnd: trialEndsAt,
     gracePeriodDays: DEFAULT_GRACE_PERIOD_DAYS,
   });
+
+  // A demonstracao usa ESTA assinatura de avaliacao: nao cria prazo novo nem
+  // acesso a parte. Vence junto com ela.
+  if (input.demo) {
+    await provisionDemoSite(tx, {
+      tenantId: tenant.id,
+      siteId: site.id,
+      appUrl: input.demo.appUrl,
+      contentLimit: input.demo.contentLimit,
+      now: input.now,
+    });
+  }
 
   return { tenantId: tenant.id, siteId: site.id };
 }

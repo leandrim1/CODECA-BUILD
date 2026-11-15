@@ -459,6 +459,9 @@ export async function createCompanyHandler(c: Context<AppBindings>): Promise<Res
       phone: input.phone,
       slug,
       trialPlanId: trialPlan.id,
+      ...(ctx.env.DEMO_SITE_ON_SIGNUP
+        ? { demo: { appUrl: ctx.env.APP_URL, contentLimit: trialPlan.contentLimit } }
+        : {}),
       now,
     }),
   );

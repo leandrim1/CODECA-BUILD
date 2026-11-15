@@ -85,4 +85,11 @@ describe('variáveis de apoio', () => {
   it('as essenciais continuam falhando alto quando faltam', () => {
     expect(() => parseEnv({ NODE_ENV: 'test' })).toThrow();
   });
+
+  it('a demonstração vem ligada, e só "false" a desliga', () => {
+    expect(parseEnv(essenciais).DEMO_SITE_ON_SIGNUP).toBe(true);
+    expect(parseEnv({ ...essenciais, DEMO_SITE_ON_SIGNUP: '' }).DEMO_SITE_ON_SIGNUP).toBe(true);
+    expect(parseEnv({ ...essenciais, DEMO_SITE_ON_SIGNUP: 'true' }).DEMO_SITE_ON_SIGNUP).toBe(true);
+    expect(parseEnv({ ...essenciais, DEMO_SITE_ON_SIGNUP: 'FALSE' }).DEMO_SITE_ON_SIGNUP).toBe(false);
+  });
 });
