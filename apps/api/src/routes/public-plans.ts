@@ -52,7 +52,10 @@ export function publicPlanRoutes() {
 
     c.header(
       'cache-control',
-      `public, max-age=${CACHE_SECONDS}, stale-while-revalidate=${CACHE_SECONDS * 2}`,
+      // `s-maxage` deixa a borda da Vercel guardar a resposta: e a mesma para
+      // todo visitante (so planos publicos, sem sessao, sem cookie), entao nao
+      // ha por que cada visita a pagina inicial acordar a funcao e o banco.
+      `public, max-age=${CACHE_SECONDS}, s-maxage=${CACHE_SECONDS}, stale-while-revalidate=${CACHE_SECONDS * 2}`,
     );
 
     return ok(c, {

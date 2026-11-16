@@ -118,6 +118,22 @@ describe('GET /api/public/plans', () => {
     expect(privada.headers.get('cache-control')).toBe('no-store');
   });
 
+  /**
+   * `s-maxage` autoriza a BORDA (a rede da Vercel) a guardar a resposta.
+   *
+   * Sem ele, cada visitante novo da pagina inicial acorda a funcao e o banco
+   * para receber exatamente a mesma lista. A resposta nao depende de sessao
+   * nem de cookie: so planos publicos e ativos.
+   */
+  it('autoriza a borda a guardar: a mesma lista para todo visitante', async () => {
+    const publica = await lista();
+    const cache = publica.headers.get('cache-control') ?? '';
+    expect(cache).toMatch(/s-maxage=\d+/);
+    // A borda nunca pode guardar o que depende de quem esta pedindo.
+    const privada = await api.client().get('/api/auth/session');
+    expect(privada.headers.get('cache-control')).not.toContain('s-maxage');
+  });
+
   it('somente leitura: escrever nesta rota nao existe', async () => {
     const resposta = await api.client().post('/api/public/plans', {});
     expect([404, 405]).toContain(resposta.status);

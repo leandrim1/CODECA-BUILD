@@ -137,11 +137,23 @@ export default defineConfig(({ mode }) => {
       sourcemap: true,
       rollupOptions: {
         output: {
-          manualChunks: {
-            // O renderizador e o motor de arrastar ficam fora do carregamento
-            // inicial do painel: so o editor depende deles.
-            editor: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/modifiers'],
-            vendor: ['react', 'react-dom', 'react-router-dom'],
+          /*
+           * React, React DOM e o roteador em um arquivo proprio (`vendor`).
+           *
+           * Eles mudam so quando a versao muda; o codigo do painel muda a cada
+           * publicacao. Separados, quem volta depois de uma publicacao baixa de
+           * novo apenas o codigo do painel.
+           *
+           * E uma funcao, e nao a lista por nome que havia aqui: a lista casava
+           * `react-dom`, mas o painel importa `react-dom/client`, e o React DOM
+           * inteiro acabava dentro do pacote principal.
+           */
+          manualChunks(id) {
+            if (!id.includes('/node_modules/')) return undefined;
+            if (/\/node_modules\/(react|react-dom|scheduler|react-router|react-router-dom)\//.test(id)) return 'vendor';
+            // O motor de arrastar fica fora do carregamento inicial.
+            if (id.includes('/node_modules/@dnd-kit/')) return 'editor';
+            return undefined;
           },
         },
       },

@@ -377,3 +377,314 @@ Todas opcionais (ver `.env.example`).
 4. `pg_trgm` + índice GIN se a busca por texto nas listas crescer (exige extensão
    no Neon; os testes em PGlite precisariam de alternativa).
 5. Reavaliar Redis se a janela de 10 s/5 s dos caches deixar de ser aceitável.
+
+---
+
+# Fase 5 — Medição em produção, região, carga e custos (16/11/2026)
+
+Tudo abaixo foi medido no commit `0707bce`. As seções 1 a 8 acima continuam
+valendo: são de uma fase anterior, com banco local.
+
+## 9. O achado principal: a função e o banco estão em continentes diferentes
+
+A função da Vercel roda em **`iad1` (Virgínia, EUA)**; o projeto Neon está em
+**São Paulo** (confirmado pelo proprietário). Cada consulta atravessa o
+Atlântico duas vezes.
+
+**Medido em produção, 40 amostras a cada 20 s, de um cliente nos EUA:**
+
+| O que | Mediana | p95 | Mín–Máx |
+| --- | --- | --- | --- |
+| `select 1` com a conexão **já aberta** | **117 ms** | 120 ms | 114–122 |
+| `select 1` abrindo conexão nova (3 idas e voltas) | 348 ms | 371 ms | 339–378 |
+| `/api/health` sem tocar o banco | 126 ms | 224 ms | 100–375 |
+| `/api/health?db=1` (função quente, conexão nova) | 1.479 ms | 1.576 ms | 1.148–1.696 |
+
+`select 1` não faz trabalho nenhum: **117 ms é puro tempo de viagem.** É o piso
+de *cada* consulta que a API faz hoje.
+
+Isso multiplica por tudo. Consultas por operação, medidas no teste de carga
+local (os tempos de lá não valem para produção; as **quantidades**, sim):
+
+| Operação | Consultas | Só em viagem, a 117 ms |
+| --- | --- | --- |
+| Lista de conteúdo | 4 | ~0,5 s |
+| Visão geral do painel | 9 a 11 | ~1,2 s |
+| Salvar um conteúdo | 8 | ~0,9 s |
+| Criar um conteúdo | 16 a 17 | ~1,9 s |
+| **Webhook de pagamento** | **13 a 18** | **1,5 a 2,1 s** |
+| Média por requisição, sessão em cache | 5 | ~0,6 s |
+| Média por requisição, primeiro acesso | 13 | ~1,5 s |
+
+O webhook da ValidaPay tem **5 s** de limite. Hoje gasta de 1,5 a 2,1 s só em
+viagem, antes de qualquer processamento, e mais ainda se a função ou o banco
+estiverem frios. O mecanismo de prazo de resposta da Fase 2 protege contra o
+estouro (responde e continua em segundo plano), mas a margem é pequena.
+
+## 10. Partida a frio: separada em função e banco
+
+Duas sondas, ambas em produção.
+
+**Sonda A** — 50 amostras: 40 a cada 20 s e 10 após 6 min de ociosidade.
+**Sonda B** — 5 amostras, cada uma após 6 min parada, chamando primeiro
+`/api/health` (só a função) e depois `?db=1`.
+
+| Situação | Medido |
+| --- | --- |
+| Função fria, sem tocar o banco (sonda B) | **2.058 a 2.486 ms** (5 de 5) |
+| Banco frio: `select 1` logo após (sonda B) | **928 a 1.438 ms** (uma amostra: 3.199 ms) |
+| Função já quente, conexão nova | 586 a 624 ms, `select 1` em 122 ms |
+| Tudo frio, de ponta a ponta (sonda A, 9 amostras) | mediana **4.561 ms**, faixa 3.897–5.051 |
+
+Distribuição das 50 primeiras chamadas da sonda A: mediana 1.490 ms, média
+2.006 ms, p95 4.623 ms, p99 5.017 ms, máx 5.051 ms. A média é maior que a
+mediana porque as caudas frias a puxam.
+
+**Conclusão: a amostra de 952 ms da auditoria não era "o Neon adormecido".** São
+três causas somáveis, e a maior é a função:
+
+1. **função fria: ~2,0 a 2,5 s** — o maior componente, e **não** é do Neon;
+2. **banco adormecido: +0,8 a 1,1 s** na primeira consulta;
+3. **distância, sempre: 117 ms por consulta**, frio ou quente.
+
+## 11. Web Vitals
+
+### 11.1 Páginas públicas em produção
+
+Lighthouse 12, celular simulado (Moto G Power), rede 4G lenta, CPU 4× mais
+lenta, cache frio, mediana de 3 execuções. **Cliente nos EUA** — um visitante no
+Brasil tem latência maior (ver 11.4).
+
+| Página | LCP | FCP | CLS | TBT | TTFB | Peso | Requisições | Nota |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Inicial | 3,6 s | 1,2 s | 0 | 103 ms | 153 ms | 442 KB | 16 | 89 |
+| Cadastro | 2,2 s | 1,1 s | 0 | 93 ms | 178 ms | 263 KB | 7 | 98 |
+| Login | 3,0 s | 1,1 s | 0,084 | 94 ms | 146 ms | 263 KB | 7 | 92 |
+
+- Único recurso que bloqueia a renderização: o CSS (15 KB). Aceitável.
+- O LCP é sempre **texto**, que só aparece depois de baixar o pacote principal
+  e o da tela. Não é imagem lenta: é JavaScript em fila.
+- O CLS de 0,084 no login vem do campo de e-mail; está abaixo do limite de
+  0,1, mas é o pior da plataforma.
+
+### 11.2 Painel autenticado, ambiente local
+
+Playwright, celular simulado (412×823), 4G lenta, CPU 4×, mediana de 3
+execuções. **O TTFB local (3–4 ms) não representa produção**; o resto, sim.
+
+| Tela | LCP | FCP | CLS | Peso | Requisições | Chamadas de API |
+| --- | --- | --- | --- | --- | --- | --- |
+| Visão geral | 1,85 s | 0,58 s | 0 | 332 KB | 43 | 4 |
+| Serviços | 2,62 s | 0,58 s | 0 | 332 KB | 43 | 4 |
+| Imóveis | 2,60 s | 0,58 s | 0 | 332 KB | 44 | 5 |
+| Mídia | 2,13 s | 0,58 s | 0,001 | 331 KB | 43 | 4 |
+| Plano | 2,10 s | 0,57 s | 0 | 332 KB | 42 | 3 |
+
+As 43 requisições não são peso: a maioria é o pré-carregamento ocioso das telas
+do menu (`routePreload.ts`), que acontece **depois** da tela aparecer.
+
+### 11.3 INP do painel (laboratório)
+
+12 interações roteirizadas, celular simulado, CPU 4×:
+
+| Interação | INP (3 execuções) |
+| --- | --- |
+| Abrir o menu | 56, 64, 112 ms |
+| Navegar pelo menu | 72, 96, 64 ms |
+| Abrir um item para editar | 104, 144, **240 ms** |
+| Digitar no título | 56, 64, 64 ms |
+
+Tudo abaixo de 200 ms (limite do "bom"), exceto uma abertura de item que chegou
+a 240 ms. Com CPU 4× mais lenta, em celular real é comparável a um aparelho
+modesto.
+
+### 11.4 O que NÃO foi medido
+
+- **Nenhuma medição a partir do Brasil.** Este ambiente fica nos EUA. Um
+  visitante brasileiro soma a latência Brasil–Virgínia a todos os números da
+  11.1. Há um roteiro pronto para o proprietário rodar no navegador dele.
+- **Nenhum dado real de usuário (campo).** A plataforma não coleta Web Vitals,
+  então não existe INP de gente de verdade — só laboratório.
+- **Site de cliente conectado:** não há site real em produção para medir.
+
+## 12. API e banco
+
+Rotas do painel, medidas localmente com `Server-Timing` (11 chamadas por rota;
+a 1ª separada das seguintes, para ver o efeito do cache de sessão):
+
+Nenhuma rota do painel fez mais que uma consulta por entidade listada; **não foi
+encontrado N+1**. A visão geral já paraleliza suas consultas (`Promise.all`).
+As consultas por requisição caem de 12,8 para 5,0 quando os caches de sessão
+(10 s) e de resposta pública (5 s) estão ligados, como em produção.
+
+**Webhooks e tarefas, medidos localmente:**
+
+| Evento | Consultas | Tempo de app (local) |
+| --- | --- | --- |
+| `payment.success`, 1º pagamento | 18 | 47 ms |
+| Mesmo evento repetido (deduplicado) | 2 | 5 ms |
+| `payment.success`, renovação | 15 | 15 ms |
+| `payment.failed` | 13 | 17 ms |
+| Assinatura inválida (recusado) | 0 | 2 ms |
+| Conciliação diária | 20 + ~1 por assinatura | 33 ms |
+| Tarefa de sincronização | 6 | 9 ms |
+
+A deduplicação funciona: o evento repetido custa 2 consultas e não reprocessa.
+Assinatura inválida é recusada sem tocar o banco.
+
+**Índices:** nenhum índice ausente foi identificado. As consultas das listas
+usam os índices por `(tenant_id, …)` já existentes, e nenhuma varredura
+sequencial apareceu nos tempos. **Nenhuma migração é proposta nesta fase.**
+
+## 13. Carga (10, 25, 50, 100 usuários simultâneos)
+
+Ambiente **local**: Postgres 16 local, uma instância, `DB_POOL_MAX=5`, 30 s por
+nível, mix de 70% painel e 30% visitantes do site. Com os caches na
+configuração de produção:
+
+| Usuários | Vazão | p50 | p95 | p99 | Erros | Consultas/req | Pico de pool |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 10 | 24 req/s | 4 ms | 11 ms | 29 ms | 0 | 4,9 | 5/5 |
+| 25 | 58 req/s | 4 ms | 12 ms | 41 ms | 0 | 5,1 | 5/5 |
+| 50 | 114 req/s | 3 ms | 10 ms | 25 ms | 0 | 5,0 | 5/5 |
+| 100 | 224 req/s | 3 ms | 11 ms | 36 ms | 0 | 5,1 | 5/5 |
+
+Sem os caches (primeiro acesso de cada pessoa): 12,8 consultas por requisição e
+p95 de 64 ms com 100 usuários — ainda 0 erro.
+
+Integridade conferida ao final de **todos** os níveis: nenhum acesso entre
+empresas, nenhuma perda, nenhuma duplicação, limites de plano respeitados,
+edições preservadas.
+
+**O que isto NÃO prova:** capacidade em produção. Não há Neon, Vercel, Blob nem
+provedores reais aqui, e o ambiente de prévia não existe (o ramo de trabalho é o
+de produção). Some ~117 ms por consulta a cada número acima para ter uma ideia
+do que muda com o banco em São Paulo e a função nos EUA — e **isso é
+extrapolação, não medição**.
+
+## 14. Região: três cenários
+
+| | A — manter | B — função no Brasil (`gru1`) | C — banco nos EUA |
+| --- | --- | --- | --- |
+| Consulta | 117 ms | **~2 a 10 ms** (estimado) | ~2 a 10 ms |
+| Painel (5 consultas) | ~0,6 s só de viagem | ~0,05 s | ~0,05 s |
+| Webhook (18 consultas) | 1,5 a 2,1 s | ~0,2 s | ~0,2 s |
+| Visitante brasileiro | função longe | função perto | função longe |
+| Dados pessoais | saem do Brasil a cada consulta | **ficam no Brasil** | banco vai para fora |
+| Custo | — | mesma função, só muda a região | migração de banco |
+| Risco | — | **baixo**: uma linha em `vercel.json`, reversível | **alto**: migrar banco com dados reais |
+| Trabalho | nenhum | um envio, janela curta | migração completa |
+
+**Recomendação: cenário B.** É o único que melhora os dois lados (velocidade e
+permanência dos dados no Brasil) com risco baixo. O cenário C resolveria a
+latência, mas tira os dados do país e exige migrar o banco — desproporcional.
+
+Ressalvas do cenário B, honestamente:
+- Os "2 a 10 ms" são **estimativa**, não medição: não posso medir daqui. A
+  prova vem depois de aplicar.
+- `gru1` precisa estar disponível no plano contratado da Vercel. **Confirme
+  antes.**
+- Chamadas para ValidaPay e Resend passam a sair do Brasil: diferença
+  desprezível, e provavelmente melhor para a ValidaPay.
+- A primeira execução depois da mudança recria a função (uma partida a frio).
+
+**Nada foi alterado.** A mudança está preparada em um commit separado, não
+enviado.
+
+## 15. Otimizações aplicadas nesta fase
+
+Todas localizadas, reversíveis e com medição antes/depois.
+
+### 15.1 Logotipo: 70 KB → 23 KB
+
+Era 960×235 px para ser exibido com 44 px de altura. Reduzido para 560 px de
+largura, que ainda cobre telas de alta densidade.
+
+| | Antes | Depois |
+| --- | --- | --- |
+| `logo.webp` | 69.838 B | 23.066 B |
+| `logo-branca.webp` | 71.410 B | 23.792 B |
+| Peso do login/cadastro | 240 KB | **194 KB** |
+| Peso do painel | 332 KB | **285 KB** |
+| Peso da página inicial | 413 KB | **367 KB** |
+
+Conferido visualmente, lado a lado, em densidade 3×: sem diferença perceptível.
+
+### 15.2 Lista pública de planos guardada pela borda
+
+`/api/public/plans` já mandava o navegador guardar por 5 min, mas **não a
+borda da Vercel** (faltava `s-maxage`): cada visitante novo da página inicial
+acordava a função e o banco. Medido em produção antes da mudança: 230 a 815 ms,
+`X-Vercel-Cache: BYPASS`, 1 consulta ao banco por visita.
+
+Depois: a borda responde às visitas seguintes sem tocar função nem banco.
+Efeito em custo: uma chamada de função a menos por visita. Risco: uma mudança de
+preço leva até 5 min para aparecer (para o navegador já era assim).
+
+### 15.3 Separação do `vendor` corrigida
+
+A configuração pedia React, React DOM e o roteador em um arquivo próprio, mas a
+regra casava `react-dom` e o painel importa `react-dom/client`: **o React DOM
+inteiro (41% do pacote principal) ficava no arquivo que muda a cada
+publicação.** Trocado por uma função que casa o diretório do pacote.
+
+| | Antes | Depois |
+| --- | --- | --- |
+| `index` | 483 KB (146 KB gzip) | 277 KB (82 KB gzip) |
+| `vendor` | 50 KB (18 KB gzip) | 255 KB (81 KB gzip) |
+| **Total na primeira visita** | **164 KB gzip** | **163 KB gzip** |
+
+**A primeira visita não melhora** — é a mesma quantidade de código, redistribuída.
+O ganho é para **quem volta depois de uma publicação**: antes baixava 146 KB de
+novo; agora baixa 82 KB, e os 81 KB do `vendor` vêm do cache. Registrado aqui
+porque "reduzimos o bundle principal de 483 para 277 KB" seria enganoso.
+
+### 15.4 Pré-carregamento da tela: testado e DESCARTADO
+
+Hipótese: o LCP espera dois downloads em fila (pacote principal, depois o da
+tela). Implementei um script no `index.html` que pede o arquivo da tela já no
+início, e medi 9 execuções de cada lado:
+
+| | LCP mediana | FCP |
+| --- | --- | --- |
+| Sem o pré-carregamento | 2.044 ms | 580 ms |
+| Com o pré-carregamento | 1.960 ms (−4%) | 668 ms (**+15%**) |
+
+4% de ganho no LCP ao custo de 15% de piora no FCP, dentro da variação natural
+entre execuções. **Não compensa a complexidade: removido.** Fica registrado para
+não ser tentado de novo sem evidência.
+
+## 16. Metas, agora que há linha de base
+
+Nenhuma meta foi inventada antes de medir. "Atual" é o medido nesta fase.
+
+| O que | Atual | Meta | Por quê | Prioridade | Custo | Risco |
+| --- | --- | --- | --- | --- | --- | --- |
+| Consulta ao banco | 117 ms | < 15 ms | É o piso de toda operação | **Crítica** | uma linha; janela | Baixo |
+| Webhook de cobrança | 1,5–2,1 s só de viagem | < 0,5 s | Limite de 5 s da ValidaPay | **Crítica** | o mesmo acima | Baixo |
+| Partida a frio completa | 4,6 s (mediana) | < 2,5 s | Primeiro acesso do dia | **Alta** | região + decisão sobre suspensão do Neon | Médio (custo Neon) |
+| LCP da página inicial, celular | 3,6 s (dos EUA) | < 2,5 s | Primeira impressão | **Alta** | medir do Brasil primeiro | Baixo |
+| LCP do painel | 1,9–2,6 s (local) | < 2,5 s em produção | Tela de trabalho diária | Média | depende da região | Baixo |
+| INP do painel | até 240 ms | < 200 ms sempre | Uma interação passou do limite | Média | investigar a abertura do item | Baixo |
+| CLS do login | 0,084 | < 0,05 | Pior da plataforma, mas aprovado | **Baixa** | ajuste de layout | Baixo |
+| Peso da primeira visita | 163 KB gzip | manter | Já está bom | Baixa | — | — |
+| Consultas por requisição | 5 (cache) / 13 (1º acesso) | manter | Reduzir mexe no isolamento entre empresas | **Baixa** | alto | **Alto** |
+
+**O que separa usuário de vaidade técnica:** as duas primeiras linhas afetam
+toda pessoa em toda ação. As duas últimas não teriam efeito perceptível —
+depois da mudança de região, 5 consultas custarão ~50 ms, e otimizá-las
+economizaria milissegundos ao preço de mexer no código que separa uma empresa da
+outra. **Não vale.**
+
+## 17. Limitações desta fase
+
+1. **Nenhuma medição a partir do Brasil**, que é onde estão os clientes.
+2. **Nenhum dado real de usuário**: a plataforma não coleta Web Vitals.
+3. **Carga só em ambiente local.** Não existe prévia: o ramo de trabalho é o de
+   produção. Os números de carga não se extrapolam.
+4. **Custos não calculados:** faltam os painéis e contratos. Ver
+   [`custos-operacionais.md`](custos-operacionais.md).
+5. **Os "2 a 10 ms" do cenário B são estimativa**, não medição.
+6. **Uma amostra da sonda B (3.199 ms no `select 1`)** destoa das outras quatro;
+   pode ter sido uma suspensão mais profunda do Neon ou rede. Fica registrada,
+   não descartada.
