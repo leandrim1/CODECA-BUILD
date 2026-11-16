@@ -27,6 +27,8 @@ import { buildActionUrl, consumeUserToken, issueUserToken } from '../lib/tokens.
 import { requireAuth, sessionMiddleware, sessionOf } from '../middleware/auth.js';
 import { codeAuthRoutes } from './auth-code.js';
 import { createCompanyHandler, googleAuthRoutes } from './auth-google.js';
+import { enqueueWelcome } from '../lib/mail/notices.js';
+import { processOutbox } from '../lib/mail/outbox.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -384,6 +386,17 @@ export function authRoutes() {
       entityId: user?.id ?? '',
       ip: clientIp(c),
     });
+
+    // Boas-vindas: so agora, com o e-mail confirmado. Nunca impede a resposta.
+    if (user) {
+      ctx.background(
+        enqueueWelcome(ctx, user.id)
+          .then((criados) => (criados > 0 ? processOutbox(ctx) : null))
+          .catch((error: unknown) =>
+            console.error('[avisos] boas-vindas:', error instanceof Error ? error.message : error),
+          ),
+      );
+    }
 
     return ok(c, { verified: true });
   });

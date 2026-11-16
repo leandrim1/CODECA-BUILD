@@ -22,7 +22,16 @@ export interface MailMessage {
     | 'lead_notification'
     | 'login_code'
     /** Aviso operacional para quem opera a plataforma; nunca para cliente. */
-    | 'ops_alert';
+    | 'ops_alert'
+    /** Aviso sobre a conta, vindo da fila (`lib/mail/outbox.ts`). */
+    | 'account_notice';
+  /** Versao HTML. O texto simples vai sempre junto. */
+  html?: string;
+  /**
+   * Chave de idempotencia no provedor. Quem envia da fila passa o id do
+   * registro: uma nova tentativa do mesmo registro nao vira outro e-mail.
+   */
+  idempotencyKey?: string;
 }
 
 /**
@@ -43,6 +52,12 @@ export interface MailResult {
   providerMessageId?: string;
   /** Quantas tentativas foram feitas. */
   attempts?: number;
+  /**
+   * `true` quando o provedor recusou ESTA mensagem (destinatario ou conteudo
+   * invalido): repetir daria a mesma resposta. `false` na recusa por chave ou
+   * dominio, que se resolve na configuracao. Ausente em falha passageira.
+   */
+  permanent?: boolean;
 }
 
 export interface Mailer {
@@ -106,7 +121,7 @@ export function createResendMailer(apiKey: string, from: string): Mailer {
     configured: true,
     async send(message) {
       // Uma chave por mensagem, igual em todas as tentativas dela.
-      const idempotencyKey = randomUUID();
+      const idempotencyKey = message.idempotencyKey ?? randomUUID();
       const startedAt = Date.now();
 
       for (let attempt = 1; ; attempt += 1) {
@@ -137,7 +152,15 @@ export function createResendMailer(apiKey: string, from: string): Mailer {
           if (error instanceof ProviderRejected) {
             // Recusa desta mensagem (chave, remetente, destinatario): repetir
             // daria a mesma resposta.
-            return { delivered: false, reason: error.message, provider: 'resend', attempts: attempt };
+            return {
+              delivered: false,
+              reason: error.message,
+              provider: 'resend',
+              attempts: attempt,
+              // 401/403 sao da NOSSA configuracao (chave, dominio nao verificado):
+              // corrigida, a mesma mensagem passa. So o resto condena a mensagem.
+              permanent: error.status !== 401 && error.status !== 403,
+            };
           }
 
           const rapido = Date.now() - startedAt < RETRY_WINDOW_MS;
@@ -172,7 +195,13 @@ export function createResendMailer(apiKey: string, from: string): Mailer {
         'content-type': 'application/json',
         'idempotency-key': idempotencyKey,
       },
-      body: JSON.stringify({ from, to: [message.to], subject: message.subject, text: message.text }),
+      body: JSON.stringify({
+        from,
+        to: [message.to],
+        subject: message.subject,
+        text: message.text,
+        ...(message.html ? { html: message.html } : {}),
+      }),
       signal: AbortSignal.timeout(MAIL_TIMEOUT_MS),
     });
     if (!response.ok) {
@@ -183,7 +212,7 @@ export function createResendMailer(apiKey: string, from: string): Mailer {
       // 5xx e 429 indicam provedor com problema (conta para o disjuntor e
       // admite nova tentativa); os demais 4xx sao recusa desta mensagem.
       if (response.status >= 500 || response.status === 429) throw new TransientProviderError(reason);
-      throw new ProviderRejected(reason);
+      throw new ProviderRejected(reason, response.status);
     }
     const corpo = (await response.json().catch(() => null)) as { id?: unknown } | null;
     return {
@@ -198,7 +227,14 @@ export function createResendMailer(apiKey: string, from: string): Mailer {
 class TransientProviderError extends Error {}
 
 /** Recusa do provedor a esta mensagem; nao indica que ele esteja fora do ar. */
-class ProviderRejected extends Error {}
+class ProviderRejected extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
 
 export function createMailer(env: Env): Mailer {
   if (env.RESEND_API_KEY) return createResendMailer(env.RESEND_API_KEY, env.MAIL_FROM);

@@ -13,6 +13,7 @@ import { recheckDomains } from '../lib/domain-recheck.js';
 import { runSchedulerPass } from '../lib/sync/scheduler.js';
 import { flushPendingDeliveries } from '../lib/integration/outbound.js';
 import { ok } from '../lib/http.js';
+import { runAccountNotices } from '../lib/mail/notices.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -101,6 +102,10 @@ export function syncJobRoutes() {
     await checkReconcileHeartbeat({ db: ctx.db, env: ctx.env, now: ctx.now, monitor: ctx.monitor }).catch(
       () => undefined,
     );
+
+    // Avisos por e-mail sobre a conta. E esta passagem, a da tarde, que cai
+    // na janela dos avisos de avaliacao. Nunca lanca.
+    await runAccountNotices(ctx);
 
     const url = new URL(c.req.url);
     const limitParam = Number(url.searchParams.get('limit') ?? '');
@@ -319,6 +324,10 @@ async function executarJob(c: Context<AppBindings>) {
     );
   }
 
+  // 7. Avisos por e-mail sobre a conta, a partir do estado que a conciliacao
+  //    acabou de confirmar. Nunca lanca (ver `runAccountNotices`).
+  const notices = await runAccountNotices(ctx, { housekeeping: true });
+
   // Batimento: a outra tarefa agendada confere que esta terminou (ver
   // `lib/ops/heartbeat.ts`).
   await recordReconcileHeartbeat(
@@ -326,7 +335,7 @@ async function executarJob(c: Context<AppBindings>) {
     { falhas: report.failures.length, eventosRetomados: replayed },
   );
 
-  return ok(c, { ...report, deliveries, domains, housekeeping, sync });
+  return ok(c, { ...report, deliveries, domains, housekeeping, sync, notices });
 }
 
 /**

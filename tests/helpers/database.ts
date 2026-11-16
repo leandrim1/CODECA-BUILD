@@ -17,6 +17,8 @@ const MIGRATIONS_DIR = fileURLToPath(new URL('../../packages/database/migrations
 
 /** Todas as tabelas de dados, exceto o controle de migracoes. */
 const DATA_TABLES = [
+  'email_outbox',
+  'email_suppressions',
   'billing_audit_logs',
   'webhook_events',
   'charges',

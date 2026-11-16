@@ -126,6 +126,29 @@ export const envSchema = z.object({
   ),
 
   /**
+   * Avisos por e-mail sobre a conta e a cobranca (ver `docs/email.md`).
+   *
+   * **Desligado por padrao.** Enquanto a entrega de e-mail nao estiver
+   * comprovada em producao, ligar isto e prometer avisos que podem nao chegar.
+   * Desligado, nada e posto na fila nem enviado -- e ao ligar nao ha rajada de
+   * avisos atrasados.
+   */
+  BILLING_EMAILS_ENABLED: tolerant(
+    'BILLING_EMAILS_ENABLED',
+    z
+      .string()
+      .default('false')
+      .transform((value) => value.trim().toLowerCase() === 'true'),
+  ),
+  /** Contato de suporte mostrado nos avisos. Sem ele, a linha e omitida. */
+  SUPPORT_EMAIL: tolerant('SUPPORT_EMAIL', z.string().email().optional()),
+  /**
+   * Segredo do webhook do Resend (eventos de entrega, devolucao e spam).
+   * Sem ele, a rota recusa tudo: nao ha como provar a origem.
+   */
+  RESEND_WEBHOOK_SECRET: tolerant('RESEND_WEBHOOK_SECRET', z.string().min(8).optional()),
+
+  /**
    * Alertas operacionais (ver `docs/monitoramento.md`).
    *
    * `OPS_ALERT_WEBHOOK_URL` recebe um POST a cada falha critica: serve um

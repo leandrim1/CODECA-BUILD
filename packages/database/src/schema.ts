@@ -2621,3 +2621,57 @@ export const syncRuns = pgTable(
     index('sync_runs_origin_started_idx').on(table.origin, table.startedAt),
   ],
 );
+
+// ------------------------------------------------------------ fila de e-mails
+
+/** Situacao de um e-mail na fila. Ver `apps/api/src/lib/mail/outbox.ts`. */
+export type EmailOutboxStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'suppressed';
+
+/**
+ * Um registro por e-mail a enviar.
+ *
+ * `dedupeKey` e unica: o mesmo evento so consegue gerar um registro, venha de
+ * onde vier. `tenantId` vira nulo quando a empresa e excluida, para o aviso de
+ * exclusao concluida sobreviver a ela. `recipient` e apagado depois do prazo
+ * de guarda; `recipientHash` fica.
+ */
+export const emailOutbox = pgTable(
+  'email_outbox',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'set null' }),
+    kind: text('kind').notNull(),
+    dedupeKey: text('dedupe_key').notNull(),
+    recipient: text('recipient'),
+    recipientHash: text('recipient_hash').notNull(),
+    subject: text('subject').notNull().default(''),
+    /** Dados do modelo. Nunca segredo, codigo de acesso ou dado de cartao. */
+    payload: jsonb('payload').$type<Record<string, unknown>>().notNull().default({}),
+    status: text('status').$type<EmailOutboxStatus>().notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+    lockedAt: timestamp('locked_at', { withTimezone: true }),
+    provider: text('provider').notNull().default(''),
+    providerMessageId: text('provider_message_id'),
+    lastError: text('last_error').notNull().default(''),
+    /** O que o provedor informou DEPOIS de aceitar: entregue, devolvido, spam. */
+    deliveryStatus: text('delivery_status').notNull().default(''),
+    deliveryUpdatedAt: timestamp('delivery_updated_at', { withTimezone: true }),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('email_outbox_dedupe_key').on(table.dedupeKey),
+    index('email_outbox_queue_idx').on(table.status, table.nextAttemptAt),
+    index('email_outbox_provider_message_idx').on(table.providerMessageId),
+    index('email_outbox_tenant_idx').on(table.tenantId),
+  ],
+);
+
+/** Enderecos que nao recebem mais avisos. So o resumo do endereco. */
+export const emailSuppressions = pgTable('email_suppressions', {
+  emailHash: text('email_hash').primaryKey(),
+  reason: text('reason').notNull(),
+  createdAt,
+});

@@ -13,6 +13,8 @@ import { verifyPassword } from '@codeca/shared/server';
 import { Hono } from 'hono';
 import { AUDIT_ACTIONS, recordAudit } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
+import { enqueueAccountDeleted } from '../lib/mail/notices.js';
+import { processOutbox } from '../lib/mail/outbox.js';
 import { billingClosurePreview, closeBillingBeforeDeletion } from '../lib/billing/encerramento.js';
 import { clearSessionCookies } from '../lib/cookies.js';
 import { clientIp, ok, parseJsonBody, userAgent } from '../lib/http.js';
@@ -392,6 +394,22 @@ export function tenantRoutes() {
 
     ctx.caches.invalidateAll();
     if (resultado.contaRemovida) clearSessionCookies(c, ctx.env);
+
+    // Aviso de exclusao concluida, para quem pediu. Gravado sem empresa, para
+    // sobreviver a ela. Nunca impede a resposta: a exclusao ja aconteceu.
+    ctx.background(
+      enqueueAccountDeleted(ctx, {
+        tenantId: tenant.tenantId,
+        companyName: empresa.displayName,
+        to: session.user.email,
+        name: session.user.name,
+        hadSubscription: cobranca.length > 0,
+      })
+        .then((criado) => (criado ? processOutbox(ctx) : null))
+        .catch((error: unknown) =>
+          console.error('[avisos] exclusão:', error instanceof Error ? error.message : error),
+        ),
+    );
 
     return ok(c, { ...resultado, cobranca });
   });

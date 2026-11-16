@@ -46,18 +46,20 @@ falta para afirmar que os e-mails chegam.
 **"Aceita" não é "entregue".** Uma resposta de sucesso da API quer dizer que o
 Resend recebeu o pedido. A entrega acontece depois, e pode falhar.
 
-### Devolução e reclamação de spam: não implementado
+### Devolução e reclamação de spam
 
-O Resend envia esses eventos por webhook assinado. Recebê-los exige:
+Implementado **para os avisos da conta** (boas-vindas, avaliação, cobrança),
+que passam pela fila: a rota `/api/webhooks/resend` valida a assinatura do
+Resend, registra o que aconteceu com cada mensagem e tira dos avisos o endereço
+que devolve em definitivo ou marca como spam. Ver
+[`avisos-por-email.md`](./avisos-por-email.md).
 
-1. uma rota pública que valide a assinatura deles;
-2. um lugar para guardar a situação de cada mensagem — hoje não existe tabela
-   para isso, e criar uma é uma migração de banco;
-3. uma regra para endereços que devolvem repetidamente (parar de enviar).
-
-Ficou fora desta fase por depender de migração e de cadastro no painel do
-Resend. Até lá, a situação de cada mensagem é consultada no painel do Resend,
-pelo identificador que aparece no log (`providerMessageId`).
+Os e-mails pedidos pela própria pessoa (código de acesso, recuperação de senha,
+confirmação de e-mail, convite) **não** passam pela fila e não têm esse
+registro: a situação deles continua sendo consultada no painel do Resend, pelo
+identificador que aparece no log (`providerMessageId`). Eles continuam sendo
+tentados mesmo para um endereço fora dos avisos — bloqueá-los trancaria a
+pessoa fora da conta.
 
 ## 3. Dois provedores: o que é possível
 

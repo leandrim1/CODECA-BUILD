@@ -18,6 +18,7 @@ export {
   type MailProviderProbe,
   type Mailer,
   type MailMessage,
+  type MailResult,
 } from './lib/mailer.js';
 export {
   createMemoryBlobStorage,
@@ -114,3 +115,15 @@ export {
   type FetchOptions,
   type ResolvedAddress,
 } from './lib/import/fetcher.js';
+export { renderEmail, EMAIL_KINDS, type EmailKind, type EmailVars } from './lib/mail/templates.js';
+export {
+  emailHash,
+  enqueueEmail,
+  processOutbox,
+  anonymizeOldOutbox,
+  recordDeliveryEvent,
+  OUTBOX_BACKOFF_MINUTES,
+  OUTBOX_MAX_ATTEMPTS,
+} from './lib/mail/outbox.js';
+export { runAccountNotices, enqueueTrialNotices, enqueueBillingNotices } from './lib/mail/notices.js';
+export { signSvix, verifySvixSignature } from './lib/mail/svix.js';

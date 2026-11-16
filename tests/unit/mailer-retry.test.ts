@@ -95,6 +95,38 @@ describe('nova tentativa', () => {
     }
   });
 
+  it('diz à fila o que é definitivo: mensagem inválida sim; chave ou domínio recusado, não', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const enviar = async (status: number) => {
+      provedor([status]);
+      const resultado = await createResendMailer('re_teste', 'CODECA <a@exemplo.com>').send(mensagem);
+      vi.unstubAllGlobals();
+      return resultado.permanent;
+    };
+    expect(await enviar(422)).toBe(true);
+    expect(await enviar(400)).toBe(true);
+    // Corrigida a configuração, a mesma mensagem passa: a fila tenta de novo.
+    expect(await enviar(401)).toBe(false);
+    expect(await enviar(403)).toBe(false);
+    // Falha passageira não é definitiva.
+    expect(await enviar(503)).toBeUndefined();
+  });
+
+  it('a fila escolhe a chave de idempotência e manda a versão HTML junto do texto', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    const chamadas = provedor([200]);
+    await createResendMailer('re_teste', 'CODECA <a@exemplo.com>').send({
+      to: 'a@exemplo.com',
+      kind: 'account_notice',
+      subject: 'Aviso',
+      text: 'texto',
+      html: '<p>texto</p>',
+      idempotencyKey: 'registro-123',
+    });
+    expect(chamadas[0]?.chave).toBe('registro-123');
+    expect(JSON.parse(chamadas[0]!.corpo)).toMatchObject({ text: 'texto', html: '<p>texto</p>' });
+  });
+
   it('mensagens diferentes têm chaves diferentes', async () => {
     vi.spyOn(console, 'info').mockImplementation(() => {});
     const chamadas = provedor([200]);

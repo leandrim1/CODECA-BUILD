@@ -16,6 +16,9 @@ import {
   WEBHOOK_SIGNATURE_HEADER,
   verifyWebhookSignature,
 } from '../lib/validapay/webhook.js';
+import { runAccountNotices } from '../lib/mail/notices.js';
+import { recordDeliveryEvent, type DeliveryEvent } from '../lib/mail/outbox.js';
+import { verifySvixSignature } from '../lib/mail/svix.js';
 import type { AppBindings } from '../types.js';
 
 /**
@@ -187,6 +190,8 @@ export function webhookRoutes() {
     ctx.background(
       processing
         .catch(() => undefined)
+        // Avisos por e-mail nascem do estado que o evento acabou de gravar.
+        .then(() => runAccountNotices(ctx, { trial: false }))
         .then(() => drainStaleWebhookEvents(billingCtx, { exceptId: stored.row.id }))
         .then((retomada) => {
           if (retomada.processados > 0) ctx.caches.invalidateAll();
@@ -238,6 +243,89 @@ export function webhookRoutes() {
       },
       200,
     );
+  });
+
+  /**
+   * Webhook do Resend: o que aconteceu com um e-mail DEPOIS de aceito.
+   *
+   * Publico, entao a origem vem da assinatura (padrao Svix, que o Resend usa),
+   * conferida sobre o corpo bruto antes de qualquer leitura. Sem segredo
+   * configurado, recusa tudo.
+   *
+   * So atualiza registros da nossa fila, localizados pelo id que o provedor
+   * devolveu no envio. Evento de e-mail que nao e da fila (codigo de acesso,
+   * convite) e confirmado e ignorado. Repetir ou chegar fora de ordem nao
+   * muda o resultado: ver `recordDeliveryEvent`.
+   */
+  app.post('/resend', async (c) => {
+    const ctx = c.get('ctx');
+    const rawBody = await c.req.text();
+
+    if (!ctx.env.RESEND_WEBHOOK_SECRET) {
+      throw AppError.notConfigured(
+        'O recebimento de eventos de e-mail não está configurado. Defina RESEND_WEBHOOK_SECRET.',
+      );
+    }
+
+    const verificacao = verifySvixSignature({
+      rawBody,
+      id: c.req.header('svix-id'),
+      timestamp: c.req.header('svix-timestamp'),
+      signature: c.req.header('svix-signature'),
+      secret: ctx.env.RESEND_WEBHOOK_SECRET,
+      now: ctx.now(),
+    });
+    if (!verificacao.valid) {
+      await ctx.monitor.report({
+        kind: 'webhook_rejected',
+        severity: 'warning',
+        message: 'Webhook do Resend recusado na verificação de origem.',
+        context: { failure: verificacao.failure },
+        alertKey: `resend_webhook_rejected:${verificacao.failure}`,
+      });
+      return c.json({ error: { code: 'unauthorized', message: 'Assinatura inválida.' } }, 401);
+    }
+
+    let payload: Record<string, unknown>;
+    try {
+      payload = asRecord(JSON.parse(rawBody)) ?? {};
+    } catch {
+      return c.json({ error: { code: 'bad_request', message: 'Corpo não é um JSON válido.' } }, 400);
+    }
+
+    const EVENTOS: Record<string, DeliveryEvent> = {
+      'email.delivered': 'delivered',
+      'email.delivery_delayed': 'delayed',
+      'email.bounced': 'bounced',
+      'email.complained': 'complained',
+    };
+    const event = EVENTOS[readString(payload, 'type') ?? ''];
+    const data = asRecord(payload.data) ?? {};
+    const messageId = readString(data, 'email_id');
+    if (!event || !messageId) {
+      return c.json({ data: { received: true, handled: false } }, 200);
+    }
+
+    // So tira o endereco dos avisos quando o provedor diz que a devolucao e
+    // definitiva. Caixa cheia ou servidor fora do ar nao condena o endereco.
+    const bounce = asRecord(data.bounce) ?? {};
+    const tipo = `${readString(bounce, 'type') ?? ''} ${readString(bounce, 'subType') ?? ''}`.toLowerCase();
+    const permanent = event === 'bounced' && /permanent|hard/.test(tipo);
+
+    const resultado = await recordDeliveryEvent(ctx, { providerMessageId: messageId, event, permanent });
+    if (resultado.matched && (event === 'bounced' || event === 'complained')) {
+      await ctx.monitor.report({
+        kind: 'email_failed',
+        severity: 'warning',
+        message:
+          event === 'complained'
+            ? 'Um aviso por e-mail foi marcado como spam pelo destinatário.'
+            : 'Um aviso por e-mail foi devolvido pelo servidor do destinatário.',
+        context: { event, permanent, suppressed: resultado.suppressed },
+        alertKey: `email_delivery:${event}`,
+      });
+    }
+    return c.json({ data: { received: true, handled: resultado.matched, suppressed: resultado.suppressed } }, 200);
   });
 
   return app;

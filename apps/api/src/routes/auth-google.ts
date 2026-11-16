@@ -14,6 +14,8 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { cookieSecure, googleRedirectUri } from '../env.js';
 import { AUDIT_ACTIONS, recordAudit } from '../lib/audit.js';
 import { createCompanyForUser, loadTrialPlan, nextTenantSlug } from '../lib/company.js';
+import { enqueueWelcome } from '../lib/mail/notices.js';
+import { processOutbox } from '../lib/mail/outbox.js';
 import { startLoginChallenge } from '../lib/login-challenge.js';
 import { readSessionToken, setSessionCookies } from '../lib/cookies.js';
 import { assertSameOrigin } from '../lib/csrf.js';
@@ -487,6 +489,15 @@ export async function createCompanyHandler(c: Context<AppBindings>): Promise<Res
     ip: clientIp(c),
     userAgent: userAgent(c),
   });
+
+  // Boas-vindas: quem entra com Google ja tem o e-mail confirmado.
+  ctx.background(
+    enqueueWelcome(ctx, session.user.id)
+      .then((criados) => (criados > 0 ? processOutbox(ctx) : null))
+      .catch((error: unknown) =>
+        console.error('[avisos] boas-vindas:', error instanceof Error ? error.message : error),
+      ),
+  );
 
   const token = readSessionToken(c);
   const refreshed = token ? await resolveSession(ctx.db, ctx.env, token, now) : null;
