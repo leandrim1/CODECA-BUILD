@@ -4,6 +4,7 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "outputDirectory": "apps/web/dist",
   "framework": null,
+  "regions": ["gru1"],
   "functions": {
     "api/*.ts": {
       "runtime": "@vercel/node@5.1.11",

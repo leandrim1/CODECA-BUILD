@@ -688,3 +688,55 @@ outra. **Não vale.**
 6. **Uma amostra da sonda B (3.199 ms no `select 1`)** destoa das outras quatro;
    pode ter sido uma suspensão mais profunda do Neon ou rede. Fica registrada,
    não descartada.
+
+## 18. A mudanca de regiao, passo a passo (preparada, nao aplicada)
+
+Esta secao acompanha o commit que acrescenta `"regions": ["gru1"]` ao
+`vercel.json`. **Ele nao foi enviado**: aplicar e decisao do proprietario, com
+janela combinada.
+
+### Antes de enviar
+
+1. **Confirme que `gru1` esta no plano contratado.** No painel da Vercel:
+   Settings -> Functions -> Function Region. Se a regiao nao aparecer na lista,
+   o plano nao a inclui e o envio falha no build.
+2. Escolha um horario de pouco movimento. A primeira chamada depois da
+   publicacao recria a funcao (uma partida a frio de ~2 s).
+3. Avise quem estiver usando o painel: havera alguns segundos de instabilidade
+   durante a troca, como em qualquer publicacao.
+
+### Depois de enviar, confira nesta ordem
+
+```bash
+# 1. A funcao mudou de regiao? Deve responder "gru1".
+curl -s https://codecabuild.vercel.app/api/health | grep -o '"region":"[a-z0-9]*"'
+
+# 2. A consulta ficou mais rapida? Rode tres vezes; a 1a abre conexao.
+for i in 1 2 3; do
+  curl -s "https://codecabuild.vercel.app/api/health?db=1" | grep -o '"latencyMs":[0-9]*'
+done
+```
+
+| Medida | Antes (medido, 40 amostras) | Depois (esperado) |
+| --- | --- | --- |
+| `latencyMs` com conexao aberta | 114 a 122 ms | **menos de 15 ms** |
+| `latencyMs` com conexao nova | 339 a 378 ms | menos de 50 ms |
+
+3. Entre no painel e abra duas telas. Deve ficar visivelmente mais rapido.
+4. Faca um pagamento de teste no sandbox, se houver, e confira a duracao do
+   webhook no log.
+
+### Se algo der errado
+
+Reverter e desfazer o commit e publicar de novo: a funcao volta para `iad1`.
+Nao ha migracao, nao ha dado alterado, nao ha estado a recuperar.
+
+```bash
+git revert <commit da regiao> && git push
+```
+
+### O que NAO muda
+
+Nenhuma regra comercial, nenhum preco, nenhum limite, nenhum dado de cliente,
+nenhuma configuracao do Neon, do Resend ou da ValidaPay. Apenas o lugar de onde
+a funcao da API roda.
