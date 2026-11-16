@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Settings,
   ShoppingBag,
+  KeyRound,
   ShieldCheck,
   Sparkles,
   TriangleAlert,
@@ -222,7 +223,11 @@ const NAV_GROUPS: NavGroup[] = [
       // exibida no site e o modulo `equipe`, em Conteudo do site.
       { to: '/painel/usuarios', label: 'Usuários e permissões', icon: ShieldCheck, capability: 'members:read' },
       { to: '/painel/plano', label: 'Plano e assinatura', icon: CreditCard, capability: 'billing:read', semPainel: true },
+      { to: '/painel/integracao', label: 'Integração', icon: KeyRound, capability: 'integration:read', semPainel: true },
       { to: '/painel/empresa', label: 'Configurações da empresa', icon: Settings, capability: 'tenant:read', semPainel: true },
+      // Seguranca e da PESSOA, nao da empresa: aparece para todo mundo que
+      // entra, em qualquer plano, sem depender de capacidade da empresa.
+      { to: '/painel/seguranca', label: 'Segurança da conta', icon: ShieldCheck, semPainel: true },
     ],
   },
 ];

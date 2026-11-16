@@ -426,7 +426,12 @@ async function applySubscriptionEvent(
     const plan = await findPlanByPriceId(ctx.db, priceId);
     if (plan && plan.id !== subscription.planId) {
       patch.planId = plan.id;
+      // A troca saiu do "agendado" e virou o plano em vigor: o que a tela
+      // mostrava como pendente deixa de existir.
       patch.pendingPlanId = null;
+      patch.pendingPlanRequestedAt = null;
+      patch.pendingPlanEffectiveAt = null;
+      patch.pendingPlanMode = '';
       await ctx.db
         .update(schema.tenants)
         .set({ planId: plan.id, updatedAt: ctx.now() })

@@ -210,6 +210,15 @@ export interface PendingLogin {
   rememberMe: boolean;
   /** Destino depois de entrar (ja validado como caminho interno). */
   next: string;
+  /**
+   * Qual segundo fator fecha este login.
+   *
+   * `email` e o codigo enviado por mensagem, que ja existia. `totp` e o
+   * aplicativo autenticador, e tem rota propria de validacao. Ausente conta
+   * como `email`, para um comprovante emitido antes desta versao continuar
+   * valendo.
+   */
+  factor?: 'email' | 'totp';
 }
 
 const sign = (env: Env, payload: string) =>
@@ -240,7 +249,14 @@ export function readPendingLogin(env: Env, value: string | null | undefined, now
     ) {
       return null;
     }
-    return { email: p.email, userId: p.userId, method: p.method, rememberMe: p.rememberMe, next: p.next };
+    return {
+      email: p.email,
+      userId: p.userId,
+      method: p.method,
+      rememberMe: p.rememberMe,
+      next: p.next,
+      factor: p.factor === 'totp' ? 'totp' : 'email',
+    };
   } catch {
     return null;
   }

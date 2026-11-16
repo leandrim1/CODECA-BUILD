@@ -166,6 +166,46 @@ export const verifyLoginCodeSchema = z.object({
 });
 export type VerifyLoginCodeInput = z.infer<typeof verifyLoginCodeSchema>;
 
+/**
+ * Codigo do segundo fator no login: seis digitos do aplicativo **ou** um codigo
+ * de recuperacao (duas partes de cinco caracteres).
+ *
+ * Um campo so, de proposito: a pessoa que perdeu o aparelho digita o codigo de
+ * recuperacao no mesmo lugar, sem ter de achar outra tela. O servidor tenta o
+ * aplicativo primeiro e, se nao bater, procura entre os de recuperacao.
+ */
+export const verifySecondFactorSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(6, 'Informe o código do aplicativo ou um código de recuperação.')
+    .max(20, 'Código inválido.'),
+});
+export type VerifySecondFactorInput = z.infer<typeof verifySecondFactorSchema>;
+
+/** Confirmacao da configuracao do segundo fator: so o codigo do aplicativo. */
+export const confirmTotpSchema = z.object({
+  code: z.string().trim().regex(/^\d{6}$/, 'Informe os 6 dígitos mostrados no aplicativo.'),
+});
+export type ConfirmTotpInput = z.infer<typeof confirmTotpSchema>;
+
+/**
+ * Desligar o segundo fator, ou gerar codigos de recuperacao novos.
+ *
+ * Exige a SENHA, e nao apenas a sessao: quem senta num computador
+ * desbloqueado nao pode remover a protecao da conta. Quem entrou pelo Google
+ * (sem senha) confirma com um codigo do proprio aplicativo.
+ */
+export const disableTotpSchema = z
+  .object({
+    password: z.string().min(1).optional(),
+    code: z.string().trim().min(6).max(20).optional(),
+  })
+  .refine((v) => Boolean(v.password) || Boolean(v.code), {
+    message: 'Confirme com a sua senha ou com um código do aplicativo.',
+  });
+export type DisableTotpInput = z.infer<typeof disableTotpSchema>;
+
 /** Mensagem unica para qualquer falha de validacao: nao diz se o e-mail existe. */
 export const LOGIN_CODE_INVALID_MESSAGE = 'Código incorreto ou expirado. Confira os números ou peça um novo código.';
 

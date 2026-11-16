@@ -191,7 +191,19 @@ export interface ChangeItemResponse {
   itemId?: string;
   status?: string;
   chargeId?: string | null;
+  /**
+   * Como a diferenca foi tratada, cru: `PRORATA_NOW`, `SCHEDULED_DOWNGRADE`,
+   * `PRORATA_NEXT_CYCLE`, `AFTER_INSTRUCTED_CYCLE`, ... Guardado como veio.
+   */
   mode?: string;
+  /**
+   * Quando o valor novo passa a valer nas cobrancas.
+   *
+   * E este campo que permite mostrar ao cliente "sua reducao vale a partir de
+   * tal dia" sem a plataforma calcular nada: quem sabe o calendario da
+   * assinatura e o provedor.
+   */
+  effectiveAt?: string | null;
 }
 
 /** `PUT /v1/subscriptions/:id/payment-method` -- so os campos que usamos. */

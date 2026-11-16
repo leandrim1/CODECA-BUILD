@@ -282,6 +282,40 @@ export interface DemoSeed {
   endedAt?: string;
 }
 
+/**
+ * Clientes de uma empresa que usa a plataforma para projetos de terceiros.
+ *
+ * E a base do modelo de agencia: a empresa (a agencia) organiza seus sites por
+ * cliente final. **Nao e uma conta**: o cliente aqui e um cadastro da agencia,
+ * sem login, sem assinatura e sem acesso proprio. Quem paga e a empresa.
+ *
+ * Nulo em `sites.clientId` continua sendo o caso normal -- a empresa que usa a
+ * plataforma para o proprio site nunca vê isto.
+ */
+export const tenantClients = pgTable(
+  'tenant_clients',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    contactName: text('contact_name').notNull().default(''),
+    contactEmail: text('contact_email').notNull().default(''),
+    contactPhone: text('contact_phone').notNull().default(''),
+    notes: text('notes').notNull().default(''),
+    /** Arquivado some das listas e nao recebe projeto novo; nada e apagado. */
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index('tenant_clients_tenant_idx').on(table.tenantId),
+    /** Par conferido pelo banco em `sites.clientId`: ver `sites`. */
+    uniqueIndex('tenant_clients_id_tenant_key').on(table.id, table.tenantId),
+  ],
+);
+
 export const sites = pgTable(
   'sites',
   {
@@ -319,6 +353,13 @@ export const sites = pgTable(
      * Nulo em site que nunca foi demonstracao.
      */
     demoSeed: jsonb('demo_seed').$type<DemoSeed>(),
+    /**
+     * Cliente da agencia a quem este projeto pertence (ver `tenantClients`).
+     *
+     * Nulo e o caso normal: a empresa que usa a plataforma para o proprio site.
+     * Preenchido quando a empresa organiza seus projetos por cliente.
+     */
+    clientId: uuid('client_id'),
     createdAt,
     updatedAt,
   },
@@ -334,6 +375,17 @@ export const sites = pgTable(
       .where(sql`${table.isPrimary}`),
     index('sites_tenant_idx').on(table.tenantId),
     index('sites_status_idx').on(table.status),
+    index('sites_client_idx').on(table.clientId),
+    /**
+     * O cliente apontado tem de ser da MESMA empresa. Quem garante e o banco,
+     * pelo par (id, empresa) -- nao a rota. Um identificador de cliente de
+     * outra agencia e recusado aqui, mesmo que passe por todas as validacoes.
+     */
+    foreignKey({
+      columns: [table.clientId, table.tenantId],
+      foreignColumns: [tenantClients.id, tenantClients.tenantId],
+      name: 'sites_client_tenant_fk',
+    }).onDelete('set null'),
   ],
 );
 
@@ -781,6 +833,12 @@ export const subscriptions = pgTable(
 
     /** Plano agendado para o proximo ciclo (downgrade). */
     pendingPlanId: uuid('pending_plan_id').references(() => plans.id, { onDelete: 'set null' }),
+    /** Quando a troca foi pedida. So para mostrar ao cliente o que esta em curso. */
+    pendingPlanRequestedAt: timestamp('pending_plan_requested_at', { withTimezone: true }),
+    /** Quando o plano novo passa a valer, como o provedor informou (`effectiveAt`). */
+    pendingPlanEffectiveAt: timestamp('pending_plan_effective_at', { withTimezone: true }),
+    /** `mode` devolvido pelo provedor (SCHEDULED_DOWNGRADE, PRORATA_NOW, ...). Cru. */
+    pendingPlanMode: text('pending_plan_mode').notNull().default(''),
 
     externalCustomerId: text('external_customer_id'),
     externalSubscriptionId: text('external_subscription_id'),
@@ -2675,3 +2733,48 @@ export const emailSuppressions = pgTable('email_suppressions', {
   reason: text('reason').notNull(),
   createdAt,
 });
+
+// ------------------------------------------------- segundo fator (TOTP)
+
+/**
+ * Segredo TOTP de uma pessoa. Um por conta, opcional.
+ *
+ * `secret` e guardado **cifrado** (AES-GCM, chave derivada de `AUTH_SECRET`):
+ * quem lesse o banco nao consegue gerar codigos. `confirmedAt` nulo quer dizer
+ * "em configuracao": so vale no login depois de a pessoa provar que o
+ * aplicativo dela funciona.
+ *
+ * `lastStep` guarda o ultimo passo de 30 s aceito, e impede que o MESMO codigo
+ * seja usado duas vezes -- quem espiar o codigo por cima do ombro nao entra com
+ * ele dentro da mesma janela.
+ */
+export const userTotp = pgTable('user_totp', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  secret: text('secret').notNull(),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  lastStep: bigint('last_step', { mode: 'number' }),
+  createdAt,
+  updatedAt,
+});
+
+/**
+ * Codigos de recuperacao de uso unico, para quem perdeu o aparelho.
+ *
+ * Guardados como hash: a lista em texto existe uma unica vez, na tela em que
+ * foi gerada. `usedAt` marca o consumo -- um codigo nunca serve duas vezes.
+ */
+export const userRecoveryCodes = pgTable(
+  'user_recovery_codes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    codeHash: text('code_hash').notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt,
+  },
+  (table) => [index('user_recovery_codes_user_idx').on(table.userId)],
+);

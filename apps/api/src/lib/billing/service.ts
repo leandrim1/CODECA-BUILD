@@ -168,6 +168,9 @@ export interface SubscriptionPatch {
   canceledAt?: Date | null;
   planId?: string;
   pendingPlanId?: string | null;
+  pendingPlanRequestedAt?: Date | null;
+  pendingPlanEffectiveAt?: Date | null;
+  pendingPlanMode?: string;
   disputeHold?: boolean;
   disputeReason?: string;
   adminHold?: boolean;

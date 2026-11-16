@@ -4,6 +4,8 @@ import {
   LEGAL_VERSION,
   acceptInviteSchema,
   changePasswordSchema,
+  confirmTotpSchema,
+  disableTotpSchema,
   loginSchema,
   registerSchema,
   requestPasswordResetSchema,
@@ -12,8 +14,8 @@ import {
   updateProfileSchema,
   verifyEmailSchema,
 } from '@codeca/shared';
-import { hashPassword, verifyPassword } from '@codeca/shared/server';
-import { Hono } from 'hono';
+import { hashPassword, hashToken, verifyPassword } from '@codeca/shared/server';
+import { Hono, type Context } from 'hono';
 import { AUDIT_ACTIONS, recordAudit } from '../lib/audit.js';
 import { claimFirstPlatformAdmin } from '../lib/bootstrap.js';
 import { createCompanyForUser, loadTrialPlan, nextTenantSlug } from '../lib/company.js';
@@ -27,6 +29,16 @@ import { buildActionUrl, consumeUserToken, issueUserToken } from '../lib/tokens.
 import { requireAuth, sessionMiddleware, sessionOf } from '../middleware/auth.js';
 import { codeAuthRoutes } from './auth-code.js';
 import { createCompanyHandler, googleAuthRoutes } from './auth-google.js';
+import {
+  confirmTotpEnrollment,
+  disableTotp,
+  regenerateRecoveryCodes,
+  startTotpEnrollment,
+  totpState,
+  verifySecondFactor,
+} from '../lib/security/totp-store.js';
+import { startTotpChallenge } from '../lib/login-challenge.js';
+import { totpEnabled } from '../lib/security/totp-store.js';
 import { enqueueWelcome } from '../lib/mail/notices.js';
 import { processOutbox } from '../lib/mail/outbox.js';
 import type { AppBindings } from '../types.js';
@@ -284,8 +296,27 @@ export function authRoutes() {
       .set({ failedLoginCount: 0, lockedUntil: null, updatedAt: now })
       .where(eq(schema.users.id, user.id));
 
-    // Segunda etapa: com e-mail configurado, a senha SOZINHA nao abre a conta. A
-    // sessao so nasce quando o codigo enviado ao e-mail for digitado.
+    /*
+     * Segunda etapa.
+     *
+     * O aplicativo autenticador tem prioridade sobre o codigo por e-mail: quem
+     * o ativou escolheu um fator que nao depende de a mensagem chegar. Ligar um
+     * nao desliga o outro para quem nao ativou -- so troca o caminho de quem
+     * ativou.
+     */
+    if (await totpEnabled(ctx.db, user.id)) {
+      startTotpChallenge(c, {
+        email: user.email,
+        userId: user.id,
+        method: 'password',
+        rememberMe: input.rememberMe,
+        next: '',
+      });
+      return ok(c, { status: 'totp_required' as const, email: user.email });
+    }
+
+    // Com e-mail configurado, a senha SOZINHA nao abre a conta. A sessao so
+    // nasce quando o codigo enviado ao e-mail for digitado.
     if (ctx.features.emailCodeAuth) {
       const challenge = await startLoginChallenge(
         c,
@@ -593,6 +624,120 @@ export function authRoutes() {
   });
 
   // ------------------------------------------------------------- perfil
+  // ------------------------------------------- verificacao em duas etapas
+  /*
+   * Segundo fator por aplicativo autenticador. Sempre opcional.
+   *
+   * Tres garantias, todas no servidor:
+   * - o segredo so aparece em texto UMA vez, na resposta de `/totp/setup`;
+   * - so vale no login depois de a pessoa confirmar um codigo (`/totp/confirm`);
+   * - desligar exige provar a identidade de novo -- sessao aberta nao basta.
+   */
+
+  app.get('/totp', requireAuth(), async (c) => {
+    const ctx = c.get('ctx');
+    const estado = await totpState(ctx.db, sessionOf(c).user.id);
+    c.header('cache-control', 'no-store');
+    return ok(c, estado);
+  });
+
+  app.post('/totp/setup', requireAuth(), async (c) => {
+    const ctx = c.get('ctx');
+    const session = sessionOf(c);
+    assertSameOrigin(c, ctx.env);
+    await enforceRateLimit(
+      ctx.db,
+      RATE_LIMITS.totpSetup,
+      hashToken(session.user.id, ctx.env.AUTH_SECRET),
+      ctx.now(),
+    );
+
+    const enrollment = await startTotpEnrollment(
+      { db: ctx.db, env: ctx.env, now: ctx.now },
+      { userId: session.user.id, email: session.user.email },
+    );
+    // Unica resposta da API que carrega o segredo. Nunca vai para log.
+    c.header('cache-control', 'no-store');
+    return ok(c, enrollment);
+  });
+
+  app.post('/totp/confirm', requireAuth(), async (c) => {
+    const ctx = c.get('ctx');
+    const session = sessionOf(c);
+    assertSameOrigin(c, ctx.env);
+    await enforceRateLimit(
+      ctx.db,
+      RATE_LIMITS.totpSetup,
+      hashToken(session.user.id, ctx.env.AUTH_SECRET),
+      ctx.now(),
+    );
+    const input = await parseJsonBody(c, confirmTotpSchema);
+
+    const { recoveryCodes } = await confirmTotpEnrollment(
+      { db: ctx.db, env: ctx.env, now: ctx.now },
+      { userId: session.user.id, code: input.code },
+    );
+
+    await recordAudit(ctx.db, ctx.env, {
+      actorUserId: session.user.id,
+      actorEmail: session.user.email,
+      action: AUDIT_ACTIONS.userTotpEnabled,
+      entityType: 'user',
+      entityId: session.user.id,
+      ip: clientIp(c),
+      userAgent: userAgent(c),
+    });
+
+    // Os codigos existem em texto so aqui. Quem fechar a tela sem copiar gera
+    // outros com a senha.
+    c.header('cache-control', 'no-store');
+    return ok(c, { recoveryCodes });
+  });
+
+  app.post('/totp/disable', requireAuth(), async (c) => {
+    const ctx = c.get('ctx');
+    const session = sessionOf(c);
+    assertSameOrigin(c, ctx.env);
+    const input = await parseJsonBody(c, disableTotpSchema);
+    await assertIdentity(c, input);
+
+    await disableTotp(ctx.db, session.user.id);
+    await recordAudit(ctx.db, ctx.env, {
+      actorUserId: session.user.id,
+      actorEmail: session.user.email,
+      action: AUDIT_ACTIONS.userTotpDisabled,
+      entityType: 'user',
+      entityId: session.user.id,
+      ip: clientIp(c),
+      userAgent: userAgent(c),
+    });
+    return ok(c, { enabled: false });
+  });
+
+  app.post('/totp/recovery-codes', requireAuth(), async (c) => {
+    const ctx = c.get('ctx');
+    const session = sessionOf(c);
+    assertSameOrigin(c, ctx.env);
+    const input = await parseJsonBody(c, disableTotpSchema);
+    await assertIdentity(c, input);
+
+    const recoveryCodes = await regenerateRecoveryCodes(
+      { db: ctx.db, env: ctx.env, now: ctx.now },
+      session.user.id,
+    );
+    await recordAudit(ctx.db, ctx.env, {
+      actorUserId: session.user.id,
+      actorEmail: session.user.email,
+      action: AUDIT_ACTIONS.userRecoveryCodesRegenerated,
+      entityType: 'user',
+      entityId: session.user.id,
+      ip: clientIp(c),
+      userAgent: userAgent(c),
+    });
+    c.header('cache-control', 'no-store');
+    return ok(c, { recoveryCodes });
+  });
+
   app.patch('/profile', requireAuth(), async (c) => {
     const ctx = c.get('ctx');
     const session = sessionOf(c);
@@ -684,3 +829,47 @@ export function authRoutes() {
   return app;
 }
 
+/**
+ * Prova de identidade para mexer na protecao da conta.
+ *
+ * Desligar o segundo fator ou trocar os codigos de recuperacao sao justamente
+ * as acoes que quem roubou uma sessao faria primeiro. Por isso **a sessao nao
+ * basta**: ou a senha, ou um codigo do proprio aplicativo.
+ *
+ * Quem entrou pelo Google nao tem senha; para essas contas o codigo do
+ * aplicativo e o unico caminho -- e e um caminho forte, porque exige o
+ * aparelho.
+ */
+async function assertIdentity(
+  c: Context<AppBindings>,
+  input: { password?: string | undefined; code?: string | undefined },
+): Promise<void> {
+  const ctx = c.get('ctx');
+  const session = sessionOf(c);
+  const agora = ctx.now();
+
+  await enforceRateLimit(
+    ctx.db,
+    RATE_LIMITS.totpVerifyUser,
+    hashToken(`identity:${session.user.id}`, ctx.env.AUTH_SECRET),
+    agora,
+  );
+
+  if (input.code) {
+    const resultado = await verifySecondFactor(
+      { db: ctx.db, env: ctx.env, now: ctx.now },
+      { userId: session.user.id, code: input.code },
+    );
+    if (resultado.ok) return;
+  }
+
+  if (input.password) {
+    const [user] = await ctx.db
+      .select({ passwordHash: schema.users.passwordHash })
+      .from(schema.users)
+      .where(eq(schema.users.id, session.user.id));
+    if (user?.passwordHash && (await verifyPassword(input.password, user.passwordHash))) return;
+  }
+
+  throw AppError.unauthenticated('Não foi possível confirmar sua identidade. Confira a senha ou o código.');
+}

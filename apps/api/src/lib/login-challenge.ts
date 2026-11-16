@@ -116,3 +116,26 @@ export async function startLoginChallenge(
 
   return { resendAfterSeconds, expiresInSeconds: LOGIN_CODE_TTL_MINUTES * 60 };
 }
+
+/**
+ * Abre a segunda etapa pelo APLICATIVO autenticador.
+ *
+ * Nada e enviado e nada e emitido: o codigo ja existe no aparelho da pessoa.
+ * Aqui so se grava o comprovante da primeira etapa, com o mesmo cookie
+ * assinado do codigo por e-mail -- a diferenca e `factor: 'totp'`, que manda a
+ * validacao para a rota do aplicativo.
+ *
+ * Por isso nao ha cota aqui: nenhuma mensagem sai, nenhum recurso e consumido.
+ * Quem limita as tentativas e a rota que confere o codigo.
+ */
+export function startTotpChallenge(c: Context<AppBindings>, pending: PendingLogin): void {
+  const ctx = c.get('ctx');
+  setCookie(c, LOGIN_PENDING_COOKIE, createPendingLogin(ctx.env, { ...pending, factor: 'totp' }, ctx.now()), {
+    httpOnly: true,
+    secure: cookieSecure(ctx.env),
+    sameSite: 'Lax',
+    path: LOGIN_PENDING_COOKIE_PATH,
+    maxAge: LOGIN_PENDING_TTL_MINUTES * 60,
+  });
+  c.header('cache-control', 'no-store');
+}

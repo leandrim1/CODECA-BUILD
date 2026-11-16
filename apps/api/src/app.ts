@@ -26,6 +26,7 @@ import { leadRoutes } from './routes/leads.js';
 import { mediaRoutes } from './routes/media.js';
 import { moduleRoutes } from './routes/modules.js';
 import { customModuleRoutes } from './routes/custom-modules.js';
+import { selfServiceRoutes } from './routes/autoatendimento.js';
 import { memberRoutes } from './routes/members.js';
 import { platformRoutes } from './routes/platform.js';
 import { platformBillingRoutes } from './routes/platform-billing.js';
@@ -185,7 +186,11 @@ export function createApp(options: CreateAppOptions = {}) {
    */
   tenantScoped.use(
     '/:tenantId/*',
-    requirePanelPlan({ exempt: ['', '/contact', '/plan', '/billing', '/modules'] }),
+    // `/integration` entra na lista porque revogar uma chave vazada e uma acao
+    // de SEGURANCA: nao pode depender de o plano incluir o painel de conteudo.
+    // Ligar/desligar modulo, que e configuracao, a propria rota recusa sem o
+    // recurso `cms_panel`, com a razao escrita.
+    requirePanelPlan({ exempt: ['', '/contact', '/plan', '/billing', '/modules', '/integration'] }),
   );
   tenantScoped.use('/:tenantId/*', enforceSuspension({ exempt: ['/billing'] }));
   tenantScoped.route('/', tenantRoutes());
@@ -205,6 +210,7 @@ export function createApp(options: CreateAppOptions = {}) {
   tenantScoped.route('/', siteImportRoutes());
   tenantScoped.route('/', siteSyncRoutes());
   tenantScoped.route('/', demoTenantRoutes());
+  tenantScoped.route('/', selfServiceRoutes());
   app.route('/tenants', tenantScoped);
 
   // Painel mestre da plataforma.

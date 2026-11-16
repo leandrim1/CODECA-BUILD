@@ -54,6 +54,22 @@ export const TENANT_CAPABILITIES = [
   'analytics:manage',
   'billing:read',
   'billing:manage',
+  /**
+   * Ver as chaves de integracao do site (nunca o segredo: so a situacao).
+   * Fica com quem ja le a configuracao do site.
+   */
+  'integration:read',
+  /**
+   * Revogar e rotacionar chaves, e ligar/desligar modulos do plano.
+   *
+   * Separado de `site:edit` de proposito: revogar uma chave DERRUBA o site do
+   * cliente ate o valor novo ser publicado. Quem edita conteudo nao precisa
+   * disso, e nao deve poder faze-lo sem querer.
+   */
+  'integration:manage',
+  /** Cadastro de clientes da agencia e a quem cada projeto pertence. */
+  'clients:read',
+  'clients:manage',
   'audit:read',
 ] as const;
 export type TenantCapability = (typeof TENANT_CAPABILITIES)[number];
@@ -90,6 +106,8 @@ const EDITOR: TenantCapability[] = [
 const ADMIN: TenantCapability[] = [
   ...EDITOR,
   'site:restore',
+  'integration:manage',
+  'clients:manage',
   'tenant:update',
   'members:invite',
   'members:update',

@@ -29,6 +29,7 @@ import { BILLING_ACTIONS, recordBillingAudit } from '../lib/billing/audit.js';
 import { assertPlanContractable, loadPlan, startCheckout } from '../lib/billing/checkout.js';
 import { reconcileCharge, reconcileSubscription } from '../lib/billing/reconcile.js';
 import { resolveSiteBilling } from '../lib/billing/suspension.js';
+import { planChangeImpact } from '../lib/billing/mudanca-de-plano.js';
 import {
   applySubscriptionPatch,
   loadSubscription,
@@ -157,6 +158,22 @@ export function billingRoutes() {
                 ? subscription.checkoutUrl
                 : null,
             pendingPlanId: subscription.pendingPlanId,
+            /**
+             * Troca de plano ja pedida ao provedor e ainda nao em vigor.
+             *
+             * Numa reducao, o provedor agenda para o proximo ciclo
+             * (`SCHEDULED_DOWNGRADE`) e informa a data. E isto que a tela
+             * mostra como "plano atual / plano de destino / a partir de".
+             */
+            pendingPlanChange: subscription.pendingPlanId
+              ? {
+                  planId: subscription.pendingPlanId,
+                  requestedAt: subscription.pendingPlanRequestedAt,
+                  effectiveAt: subscription.pendingPlanEffectiveAt,
+                  mode: subscription.pendingPlanMode || null,
+                  scheduled: subscription.pendingPlanMode === 'SCHEDULED_DOWNGRADE',
+                }
+              : null,
             externalSubscriptionId: subscription.externalSubscriptionId,
           }
         : null,
@@ -445,6 +462,26 @@ export function billingRoutes() {
         provider: ctx.billing,
       };
 
+      /*
+       * O que a conta perde com este plano -- conferido ANTES de falar com o
+       * provedor.
+       *
+       * Sem isto, uma empresa com 40 conteudos pedia um plano de 5 e a troca
+       * seguia: o provedor nao sabe quantos conteudos existem, e o sistema
+       * so descobria na proxima tentativa de cadastrar algo. Agora a reducao
+       * que nao cabe e **recusada**, com o que fazer para caber.
+       *
+       * Nada e apagado em nenhum caso: ver `lib/billing/mudanca-de-plano.ts`.
+       */
+      const impacto = await planChangeImpact(ctx.db, { tenantId: tenant.tenantId, toPlanId: plan.id });
+
+      if (impacto.blocked && !input.preview) {
+        throw AppError.conflict(
+          `A conta não cabe no plano ${plan.name} hoje. ${impacto.instructions.join(' ')}`,
+          { impacto },
+        );
+      }
+
       // Simulacao: nao altera nada no provedor.
       if (input.preview) {
         const preview = await ctx.billing.previewPlanChange({
@@ -461,6 +498,8 @@ export function billingRoutes() {
           creditCents: preview.credit != null ? Math.round(preview.credit * 100) : null,
           effectiveCycleNumber: preview.effectiveCycleNumber ?? null,
           warnings: preview.warnings ?? [],
+          /** O que muda na conta: limites estourados e recursos perdidos. */
+          impacto,
         });
       }
 
@@ -475,6 +514,10 @@ export function billingRoutes() {
       const upgrade = plan.priceCents > (subscription.currentCycleAmountCents ?? 0);
       await applySubscriptionPatch(billingCtx, subscription, {
         pendingPlanId: plan.id,
+        pendingPlanRequestedAt: ctx.now(),
+        // Quando o plano novo passa a valer: quem diz e o provedor.
+        pendingPlanEffectiveAt: result.effectiveAt ? new Date(result.effectiveAt) : null,
+        pendingPlanMode: result.mode ?? '',
         ...(result.itemId ? { externalItemId: result.itemId } : {}),
       }, {
         action: BILLING_ACTIONS.planChangeRequested,

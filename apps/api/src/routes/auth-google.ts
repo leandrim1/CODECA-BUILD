@@ -16,7 +16,8 @@ import { AUDIT_ACTIONS, recordAudit } from '../lib/audit.js';
 import { createCompanyForUser, loadTrialPlan, nextTenantSlug } from '../lib/company.js';
 import { enqueueWelcome } from '../lib/mail/notices.js';
 import { processOutbox } from '../lib/mail/outbox.js';
-import { startLoginChallenge } from '../lib/login-challenge.js';
+import { startLoginChallenge, startTotpChallenge } from '../lib/login-challenge.js';
+import { totpEnabled } from '../lib/security/totp-store.js';
 import { readSessionToken, setSessionCookies } from '../lib/cookies.js';
 import { assertSameOrigin } from '../lib/csrf.js';
 import {
@@ -365,12 +366,23 @@ async function challengeAfterGoogle(
   user: { id: string; email: string },
   row: OAuthStateRow,
 ): Promise<Response> {
+  const pendente = {
+    email: user.email,
+    userId: user.id,
+    method: 'google' as const,
+    rememberMe: false,
+    next: safeNextPath(row.nextPath),
+  };
+
+  // Quem ativou o aplicativo autenticador o usa tambem aqui: autorizar no
+  // Google e a primeira etapa, nao a conta inteira.
+  if (await totpEnabled(c.get('ctx').db, user.id)) {
+    startTotpChallenge(c, pendente);
+    return c.redirect('/entrar?etapa=aplicativo', 302);
+  }
+
   try {
-    await startLoginChallenge(
-      c,
-      { email: user.email, userId: user.id, method: 'google', rememberMe: false, next: safeNextPath(row.nextPath) },
-      { reuseRecentCode: true },
-    );
+    await startLoginChallenge(c, pendente, { reuseRecentCode: true });
   } catch (error) {
     console.warn(`[auth:google] não foi possível enviar o código: ${error instanceof Error ? error.message : error}`);
     return c.redirect(failureUrl('continue', 'code_send_failed'), 302);

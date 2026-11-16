@@ -100,8 +100,34 @@ export const authApi = {
     api.post<
       | { status: 'authenticated'; session: SessionPayload | null; csrfToken: string }
       | { status: 'code_required'; email: string; resendAfterSeconds: number; expiresInSeconds: number }
+      /** A conta usa aplicativo autenticador: a 2a etapa e o codigo dele. */
+      | { status: 'totp_required'; email: string }
     >('/api/auth/login', body),
   logout: () => api.post<void>('/api/auth/logout'),
+
+  // ------------------------------------ verificacao em duas etapas (TOTP)
+  totpState: () =>
+    api.get<{ enabled: boolean; pending: boolean; confirmedAt: string | null; recoveryCodesLeft: number }>(
+      '/api/auth/totp',
+    ),
+  /** Gera o segredo. E a UNICA resposta que o traz; nunca volta depois. */
+  totpSetup: () => api.post<{ secret: string; otpauthUri: string }>('/api/auth/totp/setup'),
+  /** Confirma com um codigo e devolve os codigos de recuperacao, uma vez so. */
+  totpConfirm: (code: string) => api.post<{ recoveryCodes: string[] }>('/api/auth/totp/confirm', { code }),
+  totpDisable: (body: { password?: string; code?: string }) =>
+    api.post<{ enabled: false }>('/api/auth/totp/disable', body),
+  totpRecoveryCodes: (body: { password?: string; code?: string }) =>
+    api.post<{ recoveryCodes: string[] }>('/api/auth/totp/recovery-codes', body),
+  /** 2a etapa do login pelo aplicativo (ou por um codigo de recuperacao). */
+  verifyTotp: (code: string) =>
+    api.post<{
+      status: 'authenticated';
+      session: SessionPayload | null;
+      csrfToken: string;
+      next: string;
+      usedRecoveryCode: boolean;
+      recoveryCodesLeft: number;
+    }>('/api/auth/code/verify-totp', { code }),
   /**
    * Login com Google. O servidor monta a URL (state, PKCE, nonce); o navegador
    * so segue para ela. Nenhum token do Google passa por aqui.
@@ -154,6 +180,94 @@ export const authApi = {
       '/api/auth/sessions',
     ),
   revokeOtherSessions: () => api.post<{ revoked: boolean }>('/api/auth/sessions/revoke-others'),
+};
+
+/**
+ * Autoatendimento: chaves de integracao, modulos e clientes da agencia.
+ *
+ * Nenhuma resposta aqui traz segredo de chave -- so o resumo, a situacao e as
+ * datas. A unica excecao e a rotacao, que devolve o valor novo uma vez.
+ */
+export const selfServiceApi = {
+  keys: (tenantId: string) =>
+    api.get<{
+      siteId: string;
+      keys: Array<{
+        id: string;
+        kind: 'publishable' | 'secret';
+        name: string;
+        token: string | null;
+        hint: string;
+        scopes: string[];
+        status: 'ativa' | 'expirando' | 'revogada' | 'expirada';
+        createdAt: string;
+        lastUsedAt: string | null;
+        expiresAt: string | null;
+        revokedAt: string | null;
+      }>;
+      canIssue: boolean;
+      issueNotice: string;
+    }>(`/api/tenants/${tenantId}/integration/keys`),
+  revokeKey: (tenantId: string, keyId: string) =>
+    api.delete<{ revoked: true }>(`/api/tenants/${tenantId}/integration/keys/${keyId}`),
+  rotateKey: (tenantId: string, keyId: string, graceMinutes: number) =>
+    api.post<{ id: string; kind: string; token: string; graceMinutes: number; notice: string }>(
+      `/api/tenants/${tenantId}/integration/keys/${keyId}/rotate`,
+      { graceMinutes },
+    ),
+
+  modules: (tenantId: string) =>
+    api.get<{
+      siteId: string;
+      modules: Array<{
+        key: string;
+        name: string;
+        description: string;
+        enabled: boolean;
+        dependsOn: Array<{ key: string; name: string; enabled: boolean }>;
+        manageable: boolean;
+      }>;
+      plan: { code: string; name: string; panelIncluded: boolean };
+      notice: string | null;
+    }>(`/api/tenants/${tenantId}/integration/modules`),
+  toggleModule: (tenantId: string, moduleKey: string, enabled: boolean, preview = false) =>
+    api.patch<{
+      preview: boolean;
+      changed?: boolean;
+      enabled?: boolean;
+      current?: boolean;
+      impacto: {
+        moduleName: string;
+        records: number;
+        warnings: string[];
+        missingDependencies: Array<{ key: string; name: string }>;
+        dependents: Array<{ key: string; name: string }>;
+      };
+    }>(`/api/tenants/${tenantId}/integration/modules/${moduleKey}`, { enabled, preview }),
+
+  clients: (tenantId: string) =>
+    api.get<{
+      clients: Array<{
+        id: string;
+        name: string;
+        contactName: string;
+        contactEmail: string;
+        contactPhone: string;
+        notes: string;
+        archivedAt: string | null;
+        projects: Array<{ id: string; name: string }>;
+      }>;
+      unassigned: Array<{ id: string; name: string }>;
+    }>(`/api/tenants/${tenantId}/clients`),
+  createClient: (tenantId: string, body: unknown) =>
+    api.post<{ client: { id: string; name: string } }>(`/api/tenants/${tenantId}/clients`, body),
+  updateClient: (tenantId: string, clientId: string, body: unknown) =>
+    api.patch<{ client: { id: string; name: string } }>(`/api/tenants/${tenantId}/clients/${clientId}`, body),
+  assignClient: (tenantId: string, siteId: string, clientId: string | null) =>
+    api.patch<{ site: { id: string; clientId: string | null } }>(
+      `/api/tenants/${tenantId}/sites/${siteId}/client`,
+      { clientId },
+    ),
 };
 
 export const tenantApi = {

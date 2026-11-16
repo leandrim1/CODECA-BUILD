@@ -37,6 +37,16 @@ export const RATE_LIMITS = {
   analyticsCallback: { action: 'analytics_callback', limit: 30, windowSeconds: 300 },
   analyticsReport: { action: 'analytics_report', limit: 120, windowSeconds: 3600 },
   analyticsProperties: { action: 'analytics_properties', limit: 30, windowSeconds: 3600 },
+  /**
+   * Segundo fator por aplicativo. Duas cotas: por IP (varrer contas) e por
+   * conta (adivinhar o codigo de uma pessoa). Seis digitos sao 1 em 1 milhao
+   * por tentativa, e a janela de 90 s ja limita; estas cotas fecham a conta
+   * para quem tentar em volume.
+   */
+  totpVerifyIp: { action: 'totp_verify_ip', limit: 30, windowSeconds: 900 },
+  totpVerifyUser: { action: 'totp_verify_user', limit: 10, windowSeconds: 900 },
+  /** Comecar/confirmar a configuracao do segundo fator, por conta. */
+  totpSetup: { action: 'totp_setup', limit: 15, windowSeconds: 3600 },
   passwordReset: { action: 'password_reset', limit: 5, windowSeconds: 3600 },
   emailVerification: { action: 'email_verification', limit: 5, windowSeconds: 3600 },
   publicLead: { action: 'public_lead', limit: 5, windowSeconds: 600 },

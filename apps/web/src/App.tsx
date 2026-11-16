@@ -62,6 +62,8 @@ const DomainsPage = lazyRoute(['/painel/dominio'], () => import('./dashboard/Dom
 const UsersPage = lazyRoute(['/painel/usuarios'], () => import('./dashboard/UsersPage.js').then((m) => ({ default: m.UsersPage })));
 const BillingPage = lazyRoute(['/painel/plano'], () => import('./dashboard/BillingPage.js').then((m) => ({ default: m.BillingPage })));
 const CompanyPage = lazyRoute(['/painel/empresa'], () => import('./dashboard/CompanyPage.js').then((m) => ({ default: m.CompanyPage })));
+const SecurityPage = lazyRoute(['/painel/seguranca'], () => import('./dashboard/SecurityPage.js').then((m) => ({ default: m.SecurityPage })));
+const IntegrationPage = lazyRoute(['/painel/integracao'], () => import('./dashboard/IntegrationPage.js').then((m) => ({ default: m.IntegrationPage })));
 const PlatformOverviewPage = lazyRoute(['/plataforma'], () => import('./dashboard/platform/PlatformOverviewPage.js').then((m) => ({ default: m.PlatformOverviewPage })));
 const PlatformTenantsPage = lazyRoute(['/plataforma/empresas'], () => import('./dashboard/platform/PlatformTenantsPage.js').then((m) => ({ default: m.PlatformTenantsPage })));
 const PlatformSitesPage = lazyRoute(['/plataforma/sites'], () => import('./dashboard/platform/PlatformSitesPage.js').then((m) => ({ default: m.PlatformSitesPage })));
@@ -244,6 +246,8 @@ export function App() {
             <Route path="usuarios" element={<UsersPage />} />
             <Route path="plano" element={<BillingPage />} />
             <Route path="empresa" element={<CompanyPage />} />
+            <Route path="seguranca" element={<SecurityPage />} />
+            <Route path="integracao" element={<IntegrationPage />} />
           </Route>
 
           {/* Painel mestre da plataforma */}

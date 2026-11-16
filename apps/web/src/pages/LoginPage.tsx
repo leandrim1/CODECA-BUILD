@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { Alert, Button, Checkbox, Skeleton, TextInput, useToast } from '@codeca/ui';
 import { LOGIN_CODE_LENGTH } from '@codeca/shared';
 import { LoginCodeStep } from '../components/EmailCodeLogin.js';
+import { TotpLoginStep } from '../components/TotpLogin.js';
 import { GoogleResultAlert, GoogleSignIn, useGoogleResult } from '../components/GoogleAuth.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useMutation } from '../hooks/useResource.js';
@@ -37,6 +38,8 @@ export function LoginPage() {
   const { values, errors, setField, applyApiError } = useForm({ email: '', password: '', rememberMe: false });
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [step, setStep] = useState<CodeState | null>(null);
+  /** Conta com aplicativo autenticador: a 2a etapa e o codigo dele. */
+  const [totpEmail, setTotpEmail] = useState<string | null>(null);
   /**
    * `senha`: e-mail e senha. `email`: pedir o codigo so com o e-mail.
    *
@@ -71,6 +74,12 @@ export function LoginPage() {
 
   const login = useMutation(authApi.login, {
     onSuccess: async (result) => {
+      if (result.status === 'totp_required') {
+        // Senha certa; a conta usa aplicativo autenticador.
+        setTotpEmail(result.email);
+        setField('password', '');
+        return;
+      }
       if (result.status === 'code_required') {
         // Senha certa, sem sessao ainda: falta o codigo.
         setStep({ email: result.email, resendAfterSeconds: result.resendAfterSeconds });
@@ -101,6 +110,22 @@ export function LoginPage() {
       if (error.code === 'rate_limited') toast.error('Muitas tentativas', error.message);
     },
   });
+
+  if (totpEmail) {
+    return (
+      <div>
+        <TotpLoginStep
+          email={totpEmail}
+          from={from}
+          onBack={() => {
+            void authApi.codeCancel().catch(() => undefined);
+            setTotpEmail(null);
+            setGeneralError(null);
+          }}
+        />
+      </div>
+    );
+  }
 
   if (step) {
     return (

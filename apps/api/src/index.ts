@@ -127,3 +127,19 @@ export {
 } from './lib/mail/outbox.js';
 export { runAccountNotices, enqueueTrialNotices, enqueueBillingNotices } from './lib/mail/notices.js';
 export { signSvix, verifySvixSignature } from './lib/mail/svix.js';
+export {
+  base32Decode,
+  base32Encode,
+  generateRecoveryCode,
+  generateTotpSecret,
+  otpauthUri,
+  totpCode,
+  totpStep,
+  verifyTotp,
+  RECOVERY_CODE_COUNT,
+  TOTP_DIGITS,
+  TOTP_STEP_SECONDS,
+} from './lib/security/totp.js';
+export { totpState, totpEnabled, verifySecondFactor } from './lib/security/totp-store.js';
+export { describePlanChange, planChangeImpact, type PlanChangeImpact } from './lib/billing/mudanca-de-plano.js';
+export { MODULE_DEPENDENCIES, moduleToggleImpact, listApiKeys } from './lib/autoatendimento.js';

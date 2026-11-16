@@ -6,6 +6,7 @@ import {
   LOGIN_CODE_TTL_MINUTES,
   requestLoginCodeSchema,
   verifyLoginCodeSchema,
+  verifySecondFactorSchema,
 } from '@codeca/shared';
 import { hashToken } from '@codeca/shared/server';
 import { Hono, type Context } from 'hono';
@@ -16,6 +17,7 @@ import { setSessionCookies } from '../lib/cookies.js';
 import { assertSameOrigin } from '../lib/csrf.js';
 import { clientIp, noContent, ok, parseJsonBody, userAgent } from '../lib/http.js';
 import { startLoginChallenge } from '../lib/login-challenge.js';
+import { verifySecondFactor } from '../lib/security/totp-store.js';
 import {
   LOGIN_PENDING_COOKIE,
   LOGIN_PENDING_COOKIE_PATH,
@@ -26,6 +28,13 @@ import {
 import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ratelimit.js';
 import { createSession, resolveSession, serializeSession } from '../lib/session.js';
 import type { AppBindings } from '../types.js';
+
+/**
+ * Mensagem unica para codigo errado, codigo ja usado, codigo de recuperacao
+ * invalido e conta sem segundo fator. Distinguir os casos diria a quem tenta o
+ * que ele acertou.
+ */
+const SEGUNDO_FATOR_INVALIDO = 'Código inválido ou já utilizado. Gere um novo código no aplicativo e tente de novo.';
 
 /**
  * O codigo enviado por e-mail: como segunda etapa, e como forma de entrar.
@@ -249,6 +258,99 @@ export function codeAuthRoutes() {
       csrfToken: issued.csrfToken,
       /** Destino pedido antes do login (so caminho interno, ja validado). */
       next: pending.next,
+    });
+  });
+
+  /**
+   * Segunda etapa pelo APLICATIVO autenticador.
+   *
+   * Mesma estrutura da validacao por e-mail -- comprovante assinado, cotas,
+   * sessao so no fim -- com tres diferencas:
+   *
+   * 1. aceita tambem um codigo de RECUPERACAO, para quem perdeu o aparelho;
+   * 2. **nao** marca o e-mail como verificado: quem digitou um codigo do
+   *    aplicativo nao provou nada sobre a caixa de entrada;
+   * 3. o comprovante tem de ser `factor: 'totp'` -- trocar de caminho nao
+   *    contorna o fator que aquela conta exige.
+   */
+  app.post('/verify-totp', async (c) => {
+    const ctx = c.get('ctx');
+    assertSameOrigin(c, ctx.env);
+    const now = ctx.now();
+    const ip = clientIp(c);
+    const pending = requirePending(c);
+    const input = await parseJsonBody(c, verifySecondFactorSchema);
+
+    if (pending.factor !== 'totp') {
+      throw AppError.badRequest('Esta conta não usa aplicativo autenticador.');
+    }
+
+    await enforceRateLimit(ctx.db, RATE_LIMITS.totpVerifyIp, rateLimitSubjectFromIp(ip, ctx.env.AUTH_SECRET), now);
+    await enforceRateLimit(ctx.db, RATE_LIMITS.totpVerifyUser, hashToken(pending.userId, ctx.env.AUTH_SECRET), now);
+
+    const [user] = await ctx.db.select().from(schema.users).where(eq(schema.users.id, pending.userId));
+    if (!user || user.email !== pending.email) {
+      clearPending(c);
+      throw AppError.unauthenticated(SEGUNDO_FATOR_INVALIDO);
+    }
+
+    const resultado = await verifySecondFactor(
+      { db: ctx.db, env: ctx.env, now: ctx.now },
+      { userId: user.id, code: input.code },
+    );
+
+    if (!resultado.ok) {
+      await recordAudit(ctx.db, ctx.env, {
+        actorUserId: user.id,
+        actorEmail: user.email,
+        action: AUDIT_ACTIONS.userTotpFailed,
+        entityType: 'user',
+        entityId: user.id,
+        ip,
+        userAgent: userAgent(c),
+      });
+      // O comprovante CONTINUA valendo: errar o codigo nao pode mandar a pessoa
+      // digitar a senha de novo. Quem limita as tentativas sao as cotas acima.
+      throw AppError.unauthenticated(SEGUNDO_FATOR_INVALIDO);
+    }
+
+    await ctx.db
+      .update(schema.users)
+      .set({ lastLoginAt: now, updatedAt: now })
+      .where(eq(schema.users.id, user.id));
+    ctx.caches.invalidateUser(user.id);
+
+    const issued = await createSession(ctx.db, ctx.env, {
+      userId: user.id,
+      rememberMe: pending.rememberMe,
+      ip,
+      userAgent: userAgent(c),
+      now,
+    });
+    setSessionCookies(c, ctx.env, issued);
+    clearPending(c);
+
+    await recordAudit(ctx.db, ctx.env, {
+      actorUserId: user.id,
+      actorEmail: user.email,
+      action: resultado.usedRecoveryCode ? AUDIT_ACTIONS.userRecoveryCodeUsed : AUDIT_ACTIONS.userTotpLoggedIn,
+      entityType: 'user',
+      entityId: user.id,
+      metadata: { method: pending.method, recoveryCodesLeft: resultado.recoveryCodesLeft },
+      ip,
+      userAgent: userAgent(c),
+    });
+
+    const resolved = await resolveSession(ctx.db, ctx.env, issued.sessionToken, now);
+    c.header('cache-control', 'no-store');
+    return ok(c, {
+      status: 'authenticated' as const,
+      session: resolved ? serializeSession(resolved) : null,
+      csrfToken: issued.csrfToken,
+      next: pending.next,
+      /** Avisa quando restam poucos codigos de recuperacao. */
+      usedRecoveryCode: resultado.usedRecoveryCode,
+      recoveryCodesLeft: resultado.recoveryCodesLeft,
     });
   });
 
