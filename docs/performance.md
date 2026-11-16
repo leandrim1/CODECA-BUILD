@@ -617,9 +617,31 @@ borda da Vercel** (faltava `s-maxage`): cada visitante novo da página inicial
 acordava a função e o banco. Medido em produção antes da mudança: 230 a 815 ms,
 `X-Vercel-Cache: BYPASS`, 1 consulta ao banco por visita.
 
-Depois: a borda responde às visitas seguintes sem tocar função nem banco.
-Efeito em custo: uma chamada de função a menos por visita. Risco: uma mudança de
-preço leva até 5 min para aparecer (para o navegador já era assim).
+**Resultado em produção: não funcionou, e o motivo ainda não foi
+identificado.** Depois de publicado, o cabeçalho chega correto
+(`public, max-age=300, s-maxage=300, stale-while-revalidate=600`), mas a borda
+responde `X-Vercel-Cache: BYPASS` em todas as tentativas e a função continua
+sendo chamada (1 consulta ao banco por visita).
+
+O que foi descartado por medição:
+
+| Hipótese | Teste | Veredito |
+| --- | --- | --- |
+| A borda não guarda nada neste projeto | `/assets/vendor-*.js` responde `HIT`, idade 7.141 s | **descartada** |
+| A resposta tem `Set-Cookie` | Dump completo dos cabeçalhos: não tem | **descartada** |
+| A resposta tem `Vary` | Dump completo: não tem | **descartada** |
+| O cabeçalho não está sendo enviado | Chega exatamente como esperado | **descartada** |
+
+Resta investigar (não foi possível daqui): a resposta sai como
+`Transfer-Encoding: chunked`, sem `Content-Length`; e as configurações do
+projeto na Vercel (proteção de deployment, caching de funções) só o
+proprietário consegue ver.
+
+**O cabeçalho foi mantido** porque está correto pelo padrão HTTP e é
+inofensivo: qualquer intermediário que respeite `s-maxage` passa a aproveitá-lo,
+e o cache do navegador (`max-age`, que já existia antes) segue valendo. Mas
+**não há, por enquanto, economia de chamada de função comprovada** — e dizer que
+há seria afirmar um ganho que a medição não mostra.
 
 ### 15.3 Separação do `vendor` corrigida
 
@@ -660,8 +682,8 @@ Nenhuma meta foi inventada antes de medir. "Atual" é o medido nesta fase.
 
 | O que | Atual | Meta | Por quê | Prioridade | Custo | Risco |
 | --- | --- | --- | --- | --- | --- | --- |
-| Consulta ao banco | 117 ms | < 15 ms | É o piso de toda operação | **Crítica** | uma linha; janela | Baixo |
-| Webhook de cobrança | 1,5–2,1 s só de viagem | < 0,5 s | Limite de 5 s da ValidaPay | **Crítica** | o mesmo acima | Baixo |
+| ~~Consulta ao banco~~ | ~~117 ms~~ → **6–8 ms** | < 15 ms | **ATINGIDA** (seção 18) | — | — | — |
+| ~~Webhook de cobrança~~ | ~~1,5–2,1 s~~ → **~0,1 s** de viagem | < 0,5 s | **ATINGIDA** (seção 18) | — | — | — |
 | Partida a frio completa | 4,6 s (mediana) | < 2,5 s | Primeiro acesso do dia | **Alta** | região + decisão sobre suspensão do Neon | Médio (custo Neon) |
 | LCP da página inicial, celular | 3,6 s (dos EUA) | < 2,5 s | Primeira impressão | **Alta** | medir do Brasil primeiro | Baixo |
 | LCP do painel | 1,9–2,6 s (local) | < 2,5 s em produção | Tela de trabalho diária | Média | depende da região | Baixo |
@@ -740,3 +762,49 @@ git revert <commit da regiao> && git push
 Nenhuma regra comercial, nenhum preco, nenhum limite, nenhum dado de cliente,
 nenhuma configuracao do Neon, do Resend ou da ValidaPay. Apenas o lugar de onde
 a funcao da API roda.
+
+### Resultado: aplicado em 16/11/2026 e confirmado
+
+A mudança foi publicada e **medida em produção logo em seguida**.
+
+| Medida | Antes (`iad1`, 40 amostras) | Depois (`gru1`, 10 amostras) |
+| --- | --- | --- |
+| `select 1`, conexão já aberta | 114 a 122 ms | **6 a 8 ms** (uma de 35 ms) |
+| `/api/health?db=1`, total | 1.148 a 1.696 ms | **256 a 426 ms** |
+| Região reportada pela API | `iad1` | `gru1` |
+
+**Cerca de 17× mais rápido por consulta, confirmado por medição**, não por
+estimativa — a estimativa era "menos de 15 ms" e o medido ficou em 6 a 8 ms.
+
+O que isso significa nas operações, a 7 ms por consulta em vez de 117 ms:
+
+| Operação | Só em viagem, antes | Só em viagem, agora |
+| --- | --- | --- |
+| Lista de conteúdo (4 consultas) | ~0,5 s | ~0,03 s |
+| Visão geral (9 a 11) | ~1,2 s | ~0,07 s |
+| Criar um conteúdo (16 a 17) | ~1,9 s | ~0,12 s |
+| **Webhook de pagamento (13 a 18)** | **1,5 a 2,1 s** | **~0,1 s** |
+
+O webhook da ValidaPay sai de consumir até 40% do limite de 5 s para consumir
+cerca de 2%. Os dados pessoais também deixaram de atravessar o Atlântico a cada
+consulta: função e banco estão ambos no Brasil.
+
+## 19. Web Vitals depois das mudanças (produção)
+
+Mesma metodologia da seção 11.1 (Lighthouse 12, celular simulado, 4G lenta,
+mediana de 3 execuções, **cliente nos EUA**).
+
+| Página | LCP antes → depois | CLS | Peso antes → depois | Nota |
+| --- | --- | --- | --- | --- |
+| Inicial | 3,64 s → **3,49 s** | 0 → 0 | 442 → **395 KB** | 89 → 90 |
+| Cadastro | 2,24 s → 2,38 s | 0 → 0,024 | 263 → **217 KB** | 98 → 97 |
+| Login | 2,97 s → **2,87 s** | 0,084 → 0,084 | 263 → **217 KB** | 92 → 93 |
+
+**O peso caiu de 11% a 18%; o LCP não mudou** — as diferenças de ±0,15 s estão
+dentro da variação entre execuções, e foi exatamente o que a seção 15.3 previu:
+o que trava o LCP é JavaScript em fila, e nenhuma das mudanças ataca isso.
+
+Estas páginas quase não tocam a API, então **não mostram o ganho da região**.
+Quem sente esse ganho é o painel autenticado, que faz de 3 a 5 chamadas por
+tela — e isso ainda não foi medido em produção, porque exige entrar numa conta
+real.
