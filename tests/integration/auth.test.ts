@@ -278,7 +278,11 @@ describe('recuperacao de senha', () => {
   let comEmail: TestApi;
 
   beforeAll(async () => {
-    comEmail = await createTestApi({ env: { RESEND_API_KEY: 'chave-de-teste' } });
+    // `LOGIN_CODE_ENABLED` junto: desde a Fase 6 a chave do Resend sozinha nao
+    // liga a 2a etapa -- o dono precisa ligar, depois de comprovar a entrega.
+    comEmail = await createTestApi({
+      env: { RESEND_API_KEY: 'chave-de-teste', LOGIN_CODE_ENABLED: 'true' },
+    });
   });
 
   afterAll(async () => {

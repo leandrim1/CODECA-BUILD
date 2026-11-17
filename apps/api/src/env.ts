@@ -179,14 +179,42 @@ export const envSchema = z.object({
   GOOGLE_REDIRECT_URI: z.string().optional(),
 
   /**
+   * Liga a segunda etapa do login por codigo enviado por e-mail.
+   *
+   * **Desligado por padrao, e a razao e concreta:** exigir no login um canal
+   * cuja entrega nunca foi comprovada tranca todo mundo para fora. Foi o que
+   * aconteceu -- com a chave do Resend presente mas o dominio ainda nao
+   * verificado, a senha correta parava em "Nao foi possivel enviar o e-mail",
+   * e nao havia como entrar. O mesmo valeria numa queda do provedor.
+   *
+   * Ligue (`true`) **depois** de comprovar que o e-mail chega: dominio
+   * verificado, SPF/DKIM/DMARC conferidos e um teste de recebimento real.
+   * Ver `docs/email.md`, secoes 4 e 6.
+   *
+   * Quem quer segunda etapa agora, sem depender de e-mail, tem o aplicativo
+   * autenticador (`docs/seguranca-da-conta.md`) -- que nao depende de entrega
+   * e e mais forte.
+   *
+   * Sem `RESEND_API_KEY` isto nao tem efeito: nao ha como enviar o codigo.
+   */
+  LOGIN_CODE_ENABLED: z
+    .string()
+    .optional()
+    // Tolerante: variavel vazia ou com outro texto vale "desligado".
+    .transform((value) => value?.trim().toLowerCase() === 'true'),
+
+  /**
    * Exige a verificacao por e-mail em todo login.
    *
-   * Com `RESEND_API_KEY` a verificacao e sempre aplicada (senha, depois codigo).
-   * Sem ela nao ha como enviar o codigo; por padrao o login por senha segue
-   * funcionando sem a segunda etapa -- senao uma instalacao sem e-mail
-   * configurado ficaria trancada para fora. Com `LOGIN_CODE_REQUIRED=true` o
-   * comportamento e outro: sem provedor de e-mail, **ninguem** entra (o login
-   * responde 501), em vez de entrar sem a segunda etapa.
+   * Com a verificacao ligada (`LOGIN_CODE_ENABLED=true` e `RESEND_API_KEY`)
+   * ela e sempre aplicada: senha, depois codigo. Desligada, o login por senha
+   * segue funcionando sem a segunda etapa -- senao uma instalacao sem e-mail
+   * comprovado ficaria trancada para fora. Com `LOGIN_CODE_REQUIRED=true` o
+   * comportamento e outro: sem a verificacao disponivel, **ninguem** entra (o
+   * login responde 501), em vez de entrar sem a segunda etapa.
+   *
+   * Nao ligue isto antes de `LOGIN_CODE_ENABLED`: a combinacao tranca a
+   * plataforma inteira.
    */
   LOGIN_CODE_REQUIRED: z
     .string()
@@ -331,7 +359,8 @@ export function featureFlags(env: Env): FeatureFlags {
     billingWebhooks: Boolean(env.VALIDAPAY_WEBHOOK_SECRET),
     billingReconciliation: Boolean(env.BILLING_RECONCILIATION_SECRET),
     googleAuth: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
-    emailCodeAuth: Boolean(env.RESEND_API_KEY),
+    // Precisa das duas coisas: provedor configurado E o dono ter ligado.
+    emailCodeAuth: Boolean(env.RESEND_API_KEY) && env.LOGIN_CODE_ENABLED,
     googleAnalytics: Boolean(
       env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && parseEncryptionKey(env.INTEGRATIONS_ENCRYPTION_KEY),
     ),

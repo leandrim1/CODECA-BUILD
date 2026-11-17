@@ -744,7 +744,12 @@ describe('sessao, logout e coexistencia com a senha', () => {
     const comEmail = await createTestApi({
       now: () => clock,
       fetch: google.fetch,
-      env: { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, RESEND_API_KEY: 'chave-de-teste' },
+      env: {
+        GOOGLE_CLIENT_ID,
+        GOOGLE_CLIENT_SECRET,
+        RESEND_API_KEY: 'chave-de-teste',
+        LOGIN_CODE_ENABLED: 'true',
+      },
     });
     try {
       // Entra pelo Google: com e-mail configurado o retorno pede o codigo.

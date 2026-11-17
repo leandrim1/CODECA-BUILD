@@ -31,6 +31,27 @@ falta para afirmar que os e-mails chegam.
 | `MAIL_FROM` | Remetente. **Precisa ser de um domínio verificado no Resend.** O padrão (`nao-responda@localhost`) é recusado por qualquer provedor |
 | `LOGIN_CODE_REQUIRED` | `true`: sem provedor, ninguém entra. Vazio: sem provedor, entra só com senha |
 
+## 1.1 A segunda etapa do login está DESLIGADA por padrão
+
+`LOGIN_CODE_ENABLED` nasce `false`. A chave do Resend sozinha **não** liga mais
+o código de 6 dígitos no login.
+
+**Por quê:** exigir no login um canal cuja entrega nunca foi comprovada tranca
+todo mundo para fora. Foi o que aconteceu em 17/11/2026 — com a chave presente
+e o domínio ainda não verificado no Resend, a senha correta parava em "Não foi
+possível enviar o e-mail agora", e não havia como entrar. O mesmo valeria numa
+queda do provedor.
+
+**Para ligar**, depois de comprovar a entrega (seções 4 e 6):
+
+```
+LOGIN_CODE_ENABLED=true
+```
+
+**Quem quer uma segunda etapa agora**, sem depender de e-mail: o aplicativo
+autenticador já funciona, não depende de entrega e é mais forte. Ver
+[`seguranca-da-conta.md`](./seguranca-da-conta.md).
+
 ## 2. O que a plataforma sabe sobre uma mensagem — e o que não sabe
 
 | Estado | A plataforma sabe? | Como |

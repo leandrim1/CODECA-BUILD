@@ -236,7 +236,8 @@ export function authRoutes() {
     // melhor recusar do que entrar sem a segunda etapa.
     if (ctx.env.LOGIN_CODE_REQUIRED && !ctx.features.emailCodeAuth) {
       throw AppError.notConfigured(
-        'A verificação por e-mail é obrigatória, mas o envio não está configurado. Defina RESEND_API_KEY e MAIL_FROM.',
+        'A verificação por e-mail é obrigatória, mas não está disponível. '
+          + 'Defina RESEND_API_KEY, MAIL_FROM e LOGIN_CODE_ENABLED=true.',
       );
     }
 

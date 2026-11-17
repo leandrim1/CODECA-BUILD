@@ -29,7 +29,14 @@ beforeAll(async () => {
   api = await createTestApi({
     now: () => clock,
     fetch: google.fetch,
-    env: { RESEND_API_KEY: 'chave-de-teste', GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET },
+    // `LOGIN_CODE_ENABLED` e obrigatorio desde a Fase 6: a chave do Resend
+    // sozinha nao liga mais a 2a etapa por e-mail.
+    env: {
+      RESEND_API_KEY: 'chave-de-teste',
+      LOGIN_CODE_ENABLED: 'true',
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+    },
   });
 });
 
@@ -669,7 +676,7 @@ describe('Google tambem passa pelo codigo', () => {
       now: () => clock,
       fetch: google.fetch,
       mailer: quebrado,
-      env: { RESEND_API_KEY: 'chave', GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET },
+      env: { RESEND_API_KEY: 'chave', LOGIN_CODE_ENABLED: 'true', GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET },
     });
     try {
       const client = falho.client();
@@ -698,6 +705,55 @@ describe('sem provedor de e-mail e com e-mail que falha', () => {
     }
   });
 
+  /**
+   * O caso que trancou a plataforma de verdade.
+   *
+   * A chave do Resend estava configurada, mas o dominio ainda nao verificado:
+   * a senha correta parava em "Nao foi possivel enviar o e-mail" e NINGUEM
+   * entrava. A chave sozinha nao pode mais ligar a 2a etapa -- o dono liga,
+   * depois de comprovar que o e-mail chega.
+   */
+  it('com RESEND_API_KEY mas sem LOGIN_CODE_ENABLED, a senha entra direto', async () => {
+    const soAChave = await createTestApi({ now: () => clock, env: { RESEND_API_KEY: 'chave-de-teste' } });
+    try {
+      const conta = await registerAccount(soAChave, { email: 'cliente@empresa.com.br', companyName: 'Empresa' });
+      const client = soAChave.client();
+      const response = await client.post('/api/auth/login', { email: conta.email, password: conta.password });
+
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('authenticated');
+      // O provedor continua configurado para confirmacao e recuperacao...
+      expect((await soAChave.client().get('/api/auth/session')).body.features.transactionalEmail).toBe(true);
+      // ...mas a 2a etapa do login nao esta ligada.
+      expect((await soAChave.client().get('/api/auth/session')).body.features.emailCodeAuth).toBe(false);
+
+      // E a entrada por codigo tambem fica indisponivel, com a razao escrita.
+      const porCodigo = await soAChave.client().post('/api/auth/code/start', { email: conta.email });
+      expect(porCodigo.status).toBe(501);
+    } finally {
+      await soAChave.close();
+    }
+  });
+
+  it('com a chave E LOGIN_CODE_ENABLED, a 2a etapa volta a valer', async () => {
+    const ligado = await createTestApi({
+      now: () => clock,
+      env: { RESEND_API_KEY: 'chave-de-teste', LOGIN_CODE_ENABLED: 'true' },
+    });
+    try {
+      const conta = await registerAccount(ligado, { email: 'cliente@empresa.com.br', companyName: 'Empresa' });
+      const client = ligado.client();
+      const response = await client.post('/api/auth/login', { email: conta.email, password: conta.password });
+
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('code_required');
+      // A senha correta NAO abre sessao sozinha.
+      expect(client.sessionCookie).toBeNull();
+    } finally {
+      await ligado.close();
+    }
+  });
+
   it('com LOGIN_CODE_REQUIRED=true e sem provedor, NINGUEM entra (501), em vez de entrar sem a 2a etapa', async () => {
     const exigido = await createTestApi({ now: () => clock, env: { LOGIN_CODE_REQUIRED: 'true' } });
     try {
@@ -721,7 +777,11 @@ describe('sem provedor de e-mail e com e-mail que falha', () => {
         return { delivered: false, reason: 'Provedor de e-mail respondeu 500.' };
       },
     };
-    const falho = await createTestApi({ now: () => clock, mailer: quebrado, env: { RESEND_API_KEY: 'chave' } });
+    const falho = await createTestApi({
+      now: () => clock,
+      mailer: quebrado,
+      env: { RESEND_API_KEY: 'chave', LOGIN_CODE_ENABLED: 'true' },
+    });
     try {
       const conta = await registerAccount(falho, { email: 'cliente@empresa.com.br', companyName: 'Empresa' });
       const client = falho.client();
