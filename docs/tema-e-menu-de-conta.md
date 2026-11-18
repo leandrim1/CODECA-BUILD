@@ -131,6 +131,30 @@ chegando porque o React faz eventos de portal subirem pela árvore de
 não é ancestral do gatilho: com o foco ainda no gatilho recém-clicado, as setas
 não chegavam nele. Subiu para o contêiner.
 
+**O véu engolindo o próprio clique.** No celular o véu cobre a tela inteira,
+inclusive o gatilho do menu. Fechando no `pointerdown`, ele desmontava **antes**
+do `click` — e o clique caía no gatilho que estava embaixo, reabrindo o menu no
+mesmo toque. A pessoa tocava a seta e nada parecia acontecer. O véu fecha no
+`click` dele, e o manipulador de `pointerdown` o ignora: assim ele continua
+montado até o clique, que então é dele e de mais ninguém.
+
+A trilha de eventos que mostrou isso, com o defeito presente:
+
+```
+pointerdown -> Fechar menu da conta   (o véu)
+click       -> menu                   (o gatilho, por baixo)
+```
+
+Vale para qualquer sobreposição que cubra o controle que a abriu. Reproduzir
+exige contexto de **toque** (`hasTouch: true`): com ponteiro de mouse o
+Playwright não expõe a mesma sequência.
+
+**O véu branco.** Um véu não pertence à escala `slate`: ela se inverte no
+escuro, e `bg-slate-900/40` virava um véu claro lavando o que estava atrás.
+Existe `--color-scrim` para isso, escuro nos dois temas. A auditoria de
+contraste não pega esse tipo de defeito — ela mede texto, não camadas; quem
+pega é a varredura de superfícies claras e grandes num painel escuro.
+
 **Barra sobreposta no headless.** Para medir qualquer coisa de barra de
 rolagem é preciso navegador com janela (`xvfb-run` com `headless: false`): no
 Chromium headless a barra é sobreposta, ocupa 0px e não aparece na captura.

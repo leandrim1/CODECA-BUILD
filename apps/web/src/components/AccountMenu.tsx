@@ -103,6 +103,7 @@ export function AccountMenu({ planName }: { planName: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gatilhoRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const veuRef = useRef<HTMLButtonElement>(null);
   const idDoMenu = useId();
   const { pathname } = useLocation();
   const situacao = useSituacaoDaPlataforma(aberto);
@@ -130,6 +131,16 @@ export function AccountMenu({ planName }: { planName: string }) {
       // duas referencias, tocar na propria folha a fecharia.
       if (containerRef.current?.contains(alvo)) return;
       if (menuRef.current?.contains(alvo)) return;
+      /**
+       * O veu fecha no CLIQUE dele, nao aqui.
+       *
+       * No celular o veu cobre a tela inteira -- inclusive o gatilho. Fechando
+       * no `pointerdown`, o veu desmontava ANTES do `click`, e o clique caia no
+       * gatilho que estava embaixo, reabrindo o menu no mesmo toque: a pessoa
+       * tocava a seta e nada parecia acontecer. Ignorando o veu aqui, ele
+       * continua montado ate o `click`, que entao e dele e de mais ninguem.
+       */
+      if (veuRef.current?.contains(alvo)) return;
       fechar();
     };
     const aoTeclar = (evento: KeyboardEvent) => {
@@ -233,6 +244,7 @@ export function AccountMenu({ planName }: { planName: string }) {
           {/* No celular o menu sobe do rodape: um painel de 264px ancorado no
               alto da tela ficaria longe do polegar e cortado pela dobra. */}
           <button
+            ref={veuRef}
             type="button"
             aria-label="Fechar menu da conta"
             onClick={() => fechar()}
