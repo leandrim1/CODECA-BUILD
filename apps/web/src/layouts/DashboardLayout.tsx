@@ -303,12 +303,27 @@ export function DashboardLayout() {
   if (!tenant) return null;
 
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[17rem_1fr]">
-      {/* Barra lateral */}
+    <div className="min-h-dvh">
+      {/*
+       * Barra lateral presa a janela, em QUALQUER largura de tela.
+       *
+       * Antes ela era `lg:static` dentro de uma grade: no computador virava
+       * uma celula comum e, por ser a pagina quem rola, subia junto com o
+       * conteudo em telas longas, deixando um vazio no lugar dela. Agora
+       * `fixed` vale sempre, e quem compensa a largura e o padding da coluna
+       * de conteudo (`lg:pl-72`) -- a mesma medida do `w-72` daqui.
+       *
+       * `h-dvh` e a altura visivel de verdade no celular (acompanha a barra
+       * de endereco do navegador); `overflow-y-auto` da ao menu a propria
+       * rolagem quando as opcoes nao caberem. `inset-y-0` fica junto de
+       * proposito: em navegador sem `dvh`, `h-dvh` seria descartado e a altura
+       * viraria `auto` -- ai o `bottom: 0` segura a barra na janela.
+       */}
       <aside
         className={cx(
-          'fixed inset-y-0 left-0 z-40 w-72 overflow-y-auto border-r border-slate-200/70 bg-white',
-          'transition-transform lg:static lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-40 h-dvh w-72 overflow-y-auto overscroll-contain',
+          'border-r border-slate-200/70 bg-white',
+          'transition-transform lg:translate-x-0',
           menuOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full',
         )}
         aria-label="Menu do painel"
@@ -439,8 +454,8 @@ export function DashboardLayout() {
         />
       ) : null}
 
-      {/* Conteudo */}
-      <div className="flex min-w-0 flex-col">
+      {/* Conteudo: o padding reserva a faixa da barra fixa, que nao ocupa mais espaco no fluxo. */}
+      <div className="flex min-w-0 flex-col lg:pl-72">
         <NavigationProgress />
         <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200/70 bg-white/80 px-4 backdrop-blur-xl sm:px-6">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(true)} aria-label="Abrir menu">
