@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { ToastProvider } from '@codeca/ui';
 import { AuthProvider } from './hooks/useAuth.js';
+import { ThemeProvider } from './hooks/useTheme.js';
 import {
   LoadingScreen,
   RequireAuth,
@@ -77,6 +78,9 @@ const PlatformAuditPage = lazyRoute(['/plataforma/auditoria'], () => import('./d
 export function App() {
   return (
     <ToastProvider>
+      {/* Dentro do roteador de proposito: o tema escuro vale so em `/painel`,
+          entao o provedor precisa saber a rota atual. */}
+      <ThemeProvider>
       <AuthProvider>
         <RouteMeta />
         <Suspense fallback={<LoadingScreen label="Carregando" />}>
@@ -277,6 +281,7 @@ export function App() {
         </Routes>
         </Suspense>
       </AuthProvider>
+      </ThemeProvider>
     </ToastProvider>
   );
 }

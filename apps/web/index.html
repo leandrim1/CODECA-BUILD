@@ -36,10 +36,43 @@
       content="Sites empresariais sob medida, com uma plataforma profissional para gerenciar conteúdos, imagens, produtos, serviços e informações do seu negócio."
     />
     <!--codeca:seo-url-->
+    <script>
+      /*
+        Tema antes da primeira pintura.
+
+        Sem isto o navegador pinta o painel claro e so depois o React troca
+        para escuro -- o flash branco que o usuario leva na cara a cada
+        carregamento. Aqui nao ha React ainda: e um roteiro sincrono no <head>,
+        que roda antes de qualquer pixel.
+
+        So no painel: a pagina publica foi desenhada em claro e o painel mestre
+        ja e escuro. A chave e o prefixo repetem o que `useTheme.tsx` usa --
+        mudar em um exige mudar no outro.
+
+        Tudo dentro de try: em navegacao privada o localStorage pode lancar, e
+        uma excecao aqui deixaria a pagina sem nada renderizado.
+      */
+      (function () {
+        try {
+          if (location.pathname.indexOf('/painel') !== 0) return;
+          var pref = localStorage.getItem('codeca:tema') || 'sistema';
+          var escuro =
+            pref === 'escuro' ||
+            (pref === 'sistema' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (escuro) document.documentElement.classList.add('dark');
+        } catch (e) {
+          /* Sem preferencia legivel, fica o tema claro. */
+        }
+      })();
+    </script>
     <style>
       /* Mesmo fundo e mesmo espinner da tela de espera do React: a passagem do
          HTML inicial para o painel nao deve ser vista. */
       html, body { background: #f8fafc; }
+      /* O mesmo, no escuro: o fundo de partida tem de ser o fundo do painel,
+         senao a tela de espera pisca branca antes do painel escuro aparecer. */
+      html.dark, html.dark body { background: #0b1120; color-scheme: dark; }
+      html.dark .boot-giro { border-color: #334155; border-top-color: #60a5fa; }
       @keyframes boot-giro { to { transform: rotate(360deg); } }
       .boot-giro {
         width: 16px; height: 16px; border-radius: 9999px;

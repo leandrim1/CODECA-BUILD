@@ -223,3 +223,104 @@
 .nav-progress {
   animation: nav-progress 1.1s var(--ease-out-soft) infinite;
 }
+
+/**
+ * ---------------------------------------------------------------------------
+ * Tema escuro do painel
+ * ---------------------------------------------------------------------------
+ *
+ * Nao ha uma classe `dark:` sequer nas telas, e e de proposito.
+ *
+ * No Tailwind v4 toda utilidade de cor compila para `var(--color-*)` -- por
+ * exemplo `.bg-white{background-color:var(--color-white)}`. Redefinir as
+ * variaveis aqui vira as 1157 ocorrencias de cor dos 74 arquivos do painel de
+ * uma vez, sem editar componente nenhum. O caminho alternativo seria anotar
+ * `dark:` em cada uma delas: milhares de linhas, cada uma uma chance de erro,
+ * e nenhuma garantia de cobertura.
+ *
+ * Fica FORA de `@layer` por necessidade: o `@theme` do Tailwind emite as
+ * variaveis em `@layer theme`, e estilo sem camada vence estilo em camada,
+ * qualquer que seja a ordem no arquivo.
+ *
+ * O que foi invertido e o que NAO foi, e por que:
+ *
+ *   slate e white  invertidos. Sao a estrutura (fundo, superficie, borda,
+ *                  texto) e nao carregam significado -- 858 das 1157 usos.
+ *
+ *   as tintas -50  escurecidas. `bg-brand-50`, `bg-amber-50` e irmas so
+ *                  aparecem como FUNDO (conferido uma a uma); no escuro
+ *                  precisam ser um fundo escuro, ou viram blocos claros.
+ *
+ *   o resto de brand, rose, amber, emerald e sky  intocado. Esses niveis tem
+ *                  DUPLA FUNCAO: `text-brand-700` aparece 26 vezes como texto
+ *                  e 5 como fundo; `bg-rose-600` e o botao de excluir e
+ *                  `text-rose-600` e a mensagem de erro. Mexer na variavel
+ *                  consertaria um e quebraria o outro. Onde o contraste medido
+ *                  reprovou, a correcao foi pontual, no componente.
+ */
+.dark {
+  color-scheme: dark;
+
+  /* Neutros estruturais. */
+  --color-white: oklch(21% 0.035 260); /* superficie de cartao, acima do fundo */
+  --color-slate-50: oklch(14% 0.035 265); /* fundo da pagina */
+  --color-slate-100: oklch(26% 0.035 260); /* realce de item sob o ponteiro */
+  --color-slate-200: oklch(31% 0.035 260); /* bordas discretas */
+  --color-slate-300: oklch(41% 0.035 258); /* bordas fortes e trilhas */
+  --color-slate-400: oklch(62% 0.035 257); /* icones de apoio */
+  --color-slate-500: oklch(74% 0.03 257); /* texto secundario */
+  --color-slate-600: oklch(82% 0.025 257); /* texto de apoio */
+  --color-slate-700: oklch(89% 0.018 255); /* texto corrido */
+  --color-slate-800: oklch(94% 0.012 255); /* texto forte */
+  --color-slate-900: oklch(97% 0.007 248); /* titulos */
+  --color-slate-950: oklch(99% 0.003 248);
+
+  /* Tintas que so servem de fundo. */
+  --color-brand-50: oklch(27% 0.06 264);
+  --color-emerald-50: oklch(26% 0.05 160);
+  --color-rose-50: oklch(26% 0.05 15);
+  --color-amber-50: oklch(27% 0.05 80);
+  --color-amber-100: oklch(31% 0.06 80);
+  --color-sky-50: oklch(26% 0.05 230);
+
+  /**
+   * Sombra no escuro nao e cinza mais claro: e preto mais fundo. As sombras
+   * do tema claro usam azul a 3-6% de opacidade e somem por completo sobre
+   * fundo escuro, deixando os cartoes sem nenhuma separacao do fundo.
+   */
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 1px 3px 0 rgb(0 0 0 / 0.24);
+  --shadow-raised: 0 1px 2px 0 rgb(0 0 0 / 0.34), 0 4px 12px -2px rgb(0 0 0 / 0.40);
+  --shadow-overlay: 0 1px 3px 0 rgb(0 0 0 / 0.40), 0 16px 40px -8px rgb(0 0 0 / 0.62);
+  --shadow-brand: 0 1px 2px 0 rgb(2 6 23 / 0.46), 0 4px 10px -2px rgb(29 78 216 / 0.40);
+}
+
+/**
+ * O azul da marca quando e TEXTO.
+ *
+ * `--color-brand-600` e `--color-brand-700` servem a dois papeis opostos: sao o
+ * fundo do botao primario (com texto branco por cima) e sao a cor dos links.
+ * Clarear a variavel consertaria os links e arruinaria os botoes; deixa-la como
+ * esta mantem os botoes e deixa 43 textos ilegiveis -- medido, razao de 2,16:1
+ * contra o minimo de 4,5:1 da WCAG AA.
+ *
+ * A saida e separar pelo PAPEL, nao pela cor: aqui so as utilidades de texto
+ * mudam. Nenhum fundo e tocado, e nenhuma das 37 chamadas espalhadas pelas
+ * telas precisou de uma classe `dark:`.
+ *
+ * `brand-300` sobre o fundo do painel da 8,1:1 -- confortavel para texto
+ * pequeno, e ainda o azul da marca.
+ */
+.dark .text-brand-600,
+.dark .text-brand-700,
+.dark .text-brand-800,
+.dark .text-brand-900,
+/* `.link` traz a cor por `@apply`, entao a classe `text-brand-700` nao chega
+   ao elemento e o seletor por utilidade acima nao a alcanca. Sao os 13 links
+   "Gerenciar" e "Configurar dominio" que a medicao apontou. */
+.dark .link {
+  color: var(--color-brand-300);
+}
+
+.dark .decoration-brand-300 {
+  text-decoration-color: var(--color-brand-500);
+}

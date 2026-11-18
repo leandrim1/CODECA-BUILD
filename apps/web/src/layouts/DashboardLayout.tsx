@@ -4,7 +4,6 @@ import { Link, NavLink } from 'react-router-dom';
 import {
   BarChart3,
   Building2,
-  ChevronDown,
   CreditCard,
   DownloadCloud,
   Globe,
@@ -34,11 +33,12 @@ import {
 import type { ModuleKey } from '@codeca/shared';
 import { Badge, Button, Skeleton, cx } from '@codeca/ui';
 import { useAuth } from '../hooks/useAuth.js';
+import { AccountMenu } from '../components/AccountMenu.js';
+import { useTheme } from '../hooks/useTheme.js';
 import { useSiteModules } from '../hooks/useSiteModules.js';
 import { SafeIcon } from '../components/SafeIcon.js';
 import { NavigationProgress, PageArea } from '../components/PageFeedback.js';
 import { preloadRoute, preloadWhenIdle } from '../lib/routePreload.js';
-import { labels, tenantTone } from '../utils/labels.js';
 
 /**
  * Moldura do painel da empresa.
@@ -236,8 +236,8 @@ export function DashboardLayout() {
   const { tenant, memberships, user, selectTenant, logout, isPlatformAdmin, can } = useAuth();
   const { enabled, loading: modulesLoading, readOnly, blocked, panelIncluded, planName, customModules } =
     useSiteModules();
+  const { efetivo: tema } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [switcherOpen, setSwitcherOpen] = useState(false);
 
   /**
    * O menu so muda quando muda o que o decide: papel, modulos, plano.
@@ -330,53 +330,17 @@ export function DashboardLayout() {
       >
         <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4">
           <Link to="/painel" aria-label="CODECA Build, visão geral" className="flex items-center">
-            <Logo className="h-9" priority />
+            {/* A logo padrao tem o texto escuro: sobre o painel escuro ela some. */}
+            <Logo className="h-9" priority tone={tema === 'escuro' ? 'dark' : 'light'} />
           </Link>
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Fechar menu">
             <X aria-hidden="true" className="size-4" />
           </Button>
         </div>
 
-        {/* Seletor de empresa */}
+        {/* Seletor de empresa e menu de conta */}
         <div className="border-b border-slate-200 p-3">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setSwitcherOpen((open) => !open)}
-              aria-expanded={switcherOpen}
-              className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-200 p-2.5 text-left hover:bg-slate-50"
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-medium text-slate-900">{tenant.tenantName}</span>
-                <span className="block text-xs text-slate-500">{labels.tenantRole[tenant.role]}</span>
-              </span>
-              <ChevronDown aria-hidden="true" className="size-4 flex-none text-slate-400" />
-            </button>
-
-            {switcherOpen ? (
-              <div className="absolute inset-x-0 top-full z-10 mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
-                {memberships.map((membership) => (
-                  <button
-                    key={membership.tenantId}
-                    type="button"
-                    onClick={() => {
-                      selectTenant(membership.tenantId);
-                      setSwitcherOpen(false);
-                    }}
-                    className={cx(
-                      'flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm hover:bg-slate-50',
-                      membership.tenantId === tenant.tenantId && 'bg-brand-50/60 font-medium',
-                    )}
-                  >
-                    <span className="min-w-0 truncate">{membership.tenantName}</span>
-                    <Badge tone={tenantTone(membership.tenantStatus)}>
-                      {labels.tenantStatus[membership.tenantStatus]}
-                    </Badge>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          <AccountMenu planName={planName} />
         </div>
 
         <nav className="p-4">
