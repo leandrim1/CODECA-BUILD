@@ -64,7 +64,7 @@ export function billingRoutes() {
 
     const subscription = await loadSubscription(ctx.db, tenant.siteId);
     const { plan, usage } = await loadPlanStatus(ctx.db, tenant.tenantId);
-    const situacao = await resolveSiteBilling(ctx.db, tenant.siteId, now);
+    const situacao = await resolveSiteBilling(ctx.db, tenant.siteId, now, tenant.tenantId);
 
     const plans = await ctx.db
       .select({
@@ -183,6 +183,13 @@ export function billingRoutes() {
         name: plan.planName,
         limits: plan.limits,
         overridden: plan.overridden,
+        /**
+         * Empresa da propria CODECA IA: sem cobranca e sem teto comercial.
+         *
+         * A tela usa isto para nao oferecer contratacao nem mostrar aviso de
+         * pendencia a quem nao tem assinatura a regularizar.
+         */
+        exempt: plan.exempt,
       },
       usage,
       plans: plans.map((row) => {

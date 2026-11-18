@@ -561,7 +561,15 @@ export interface BillingPlanOption {
 
 export interface BillingOverview {
   subscription: BillingSubscriptionView | null;
-  plan: { id: string; code: string; name: string; limits: PlanLimits; overridden: boolean };
+  plan: {
+    id: string;
+    code: string;
+    name: string;
+    limits: PlanLimits;
+    overridden: boolean;
+    /** Empresa da propria CODECA IA: sem cobranca e sem teto comercial. */
+    exempt: boolean;
+  };
   usage: UsageSnapshot;
   plans: BillingPlanOption[];
   charges: ChargeView[];

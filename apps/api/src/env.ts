@@ -179,6 +179,33 @@ export const envSchema = z.object({
   GOOGLE_REDIRECT_URI: z.string().optional(),
 
   /**
+   * Empresas da propria CODECA IA, isentas de cobranca.
+   *
+   * Lista de identificadores de empresa separados por virgula. Uma empresa
+   * aqui tem acesso completo e nunca e barrada por assinatura: nao contrata
+   * plano, nao paga, nao depende da ValidaPay e nao entra em somente leitura.
+   *
+   * **E por EMPRESA, nao por pessoa**, e isso e deliberado: o papel de
+   * proprietario e concedivel por convite, entao uma isencao que seguisse a
+   * pessoa poderia ser arrastada para a empresa de um cliente por um convite
+   * aceito. Ver `lib/platform-owner.ts`.
+   *
+   * Vazia por padrao: sem ela, ninguem e isento e a cobranca vale para todos.
+   *
+   * Para descobrir o identificador: entre no painel e abra
+   * `<APP_URL>/api/auth/session` -- o valor esta em `memberships[].tenantId`.
+   */
+  PLATFORM_OWNER_TENANT_IDS: z
+    .string()
+    .optional()
+    .transform((value) =>
+      (value ?? '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter((id) => id !== ''),
+    ),
+
+  /**
    * Liga a segunda etapa do login por codigo enviado por e-mail.
    *
    * **Desligado por padrao, e a razao e concreta:** exigir no login um canal

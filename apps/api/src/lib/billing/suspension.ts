@@ -7,6 +7,7 @@ import {
   type SuspensionPolicy,
 } from '@codeca/shared';
 import { loadSubscription, publicationForRow } from './service.js';
+import { exemptBillingSituation, isExemptTenant } from '../platform-owner.js';
 
 /**
  * Situacao de cobranca de um site, do ponto de vista de quem restringe.
@@ -44,9 +45,21 @@ export async function resolveSiteBilling(
   db: Database,
   siteId: string,
   now: Date,
+  /**
+   * Empresa dona do site, quando ja conhecida.
+   *
+   * Informada, a isencao e decidida sem ir ao banco. Omitida, ainda funciona:
+   * a empresa vem da propria assinatura, logo abaixo.
+   */
+  tenantId?: string,
 ): Promise<SiteBillingSituation> {
+  if (isExemptTenant(tenantId)) return exemptBillingSituation();
+
   const subscription = await loadSubscription(db, siteId);
   if (!subscription) return SEM_ASSINATURA;
+  // A empresa da propria CODECA IA nunca e restringida, mesmo que haja uma
+  // assinatura vencida registrada no site dela.
+  if (isExemptTenant(subscription.tenantId)) return exemptBillingSituation();
 
   const publication = publicationForRow(subscription, now);
   const policy = await loadSuspensionPolicy(db, subscription.planId);
@@ -105,7 +118,7 @@ export async function resolveSiteBillingCached(
   tenantId: string,
 ): Promise<SiteBillingSituation> {
   return ctx.caches.billing.getOrLoad(siteId, async () => ({
-    ...(await resolveSiteBilling(ctx.db, siteId, ctx.now())),
+    ...(await resolveSiteBilling(ctx.db, siteId, ctx.now(), tenantId)),
     tenantId,
   }));
 }

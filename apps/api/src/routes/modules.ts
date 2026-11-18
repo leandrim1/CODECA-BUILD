@@ -78,7 +78,7 @@ export function moduleRoutes() {
     const tenant = c.get('tenant');
     const plano = await loadEffectivePlan(ctx.db, tenant.tenantId);
     const incluido = planHasFeature(plano.limits, 'cms_panel');
-    const situacao = await resolveSiteBilling(ctx.db, tenant.siteId, ctx.now());
+    const situacao = await resolveSiteBilling(ctx.db, tenant.siteId, ctx.now(), tenant.tenantId);
 
     // Sem painel no plano, nao se consulta modulo: a lista vazia e a resposta
     // certa, e evita consultas que nao vao para a tela.

@@ -143,3 +143,10 @@ export {
 export { totpState, totpEnabled, verifySecondFactor } from './lib/security/totp-store.js';
 export { describePlanChange, planChangeImpact, type PlanChangeImpact } from './lib/billing/mudanca-de-plano.js';
 export { MODULE_DEPENDENCIES, moduleToggleImpact, listApiKeys } from './lib/autoatendimento.js';
+export {
+  setExemptTenants,
+  isExemptTenant,
+  exemptTenantCount,
+  exemptPlanLimits,
+} from './lib/platform-owner.js';
+export { issueApiKey, rotateApiKey, revokeApiKeyById } from './lib/integration/keys.js';

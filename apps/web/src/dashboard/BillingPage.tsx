@@ -392,11 +392,19 @@ export function BillingPage() {
               <div className="grid gap-6">
                 <Card>
                   <CardHeader
-                    title={`Plano ${view.plan.name}`}
-                    description={describeSubscription(view.subscription)}
+                    title={view.plan.exempt ? 'Acesso liberado' : `Plano ${view.plan.name}`}
+                    description={
+                      view.plan.exempt
+                        ? 'Esta é a conta da CODECA IA: acesso completo, sem assinatura e sem limites de plano. Não há nada a contratar nem a regularizar.'
+                        : describeSubscription(view.subscription)
+                    }
                     actions={
                       <div className="flex items-center gap-2">
-                        {view.plan.overridden ? <Badge tone="info">Limites ajustados</Badge> : null}
+                        {view.plan.exempt ? (
+                          <Badge tone="success">Isenta de cobrança</Badge>
+                        ) : view.plan.overridden ? (
+                          <Badge tone="info">Limites ajustados</Badge>
+                        ) : null}
                         {view.subscription ? (
                           <Badge tone={stateTone(view.subscription.state)}>
                             {view.subscription.stateLabel}

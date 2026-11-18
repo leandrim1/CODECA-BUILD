@@ -5,6 +5,7 @@ import { createBlobStorage, type BlobStorage } from './lib/blob.js';
 import { createDomainProvider, type DomainProvider } from './lib/vercel-domains.js';
 import { createMailer, type Mailer } from './lib/mailer.js';
 import { createMonitor, type Monitor } from './lib/ops/monitor.js';
+import { setExemptTenants } from './lib/platform-owner.js';
 import { createBillingProvider, type BillingProvider } from './lib/validapay/provider.js';
 import { createSiteFetcher, type SiteFetcher } from './lib/import/fetcher.js';
 import { createRendererFromEnv, type PageRenderer } from './lib/import/renderer.js';
@@ -88,6 +89,9 @@ export interface CreateContextOptions {
 export function createContext(options: CreateContextOptions = {}): AppContext {
   const env = options.env ?? parseEnv();
   setSlowQueryThreshold(env.SLOW_QUERY_MS);
+  // Quais empresas sao da propria CODECA IA (isentas de cobranca). Mesmo
+  // padrao da linha acima: configuracao do processo, nao da requisicao.
+  setExemptTenants(env.PLATFORM_OWNER_TENANT_IDS);
   const now = options.now ?? (() => new Date());
   const db = options.db ?? getDatabase(env.DATABASE_URL, { poolMax: env.DB_POOL_MAX });
   const mailer = options.mailer ?? createMailer(env);

@@ -9,6 +9,7 @@ import {
   type UsageSnapshot,
 } from '@codeca/shared';
 import { assertContentCapacity, loadContentUsage } from './content-usage.js';
+import { exemptPlanLimits, isExemptTenant } from './platform-owner.js';
 
 /**
  * Limites de plano verificados no servidor.
@@ -26,6 +27,13 @@ export interface EffectivePlan {
   limits: PlanLimits;
   /** Limites sobrepostos individualmente para esta empresa. */
   overridden: boolean;
+  /**
+   * Empresa da propria CODECA IA: nao ha cobranca nem teto comercial.
+   *
+   * A tela usa isto para nao mostrar aviso de assinatura a quem nao tem
+   * assinatura a regularizar.
+   */
+  exempt: boolean;
 }
 
 export async function loadEffectivePlan(db: Database, tenantId: string): Promise<EffectivePlan> {
@@ -43,6 +51,25 @@ export async function loadEffectivePlan(db: Database, tenantId: string): Promise
 
   if (!row) throw AppError.notFound('Empresa não encontrada.');
 
+  /*
+   * Empresa da propria CODECA IA: todos os recursos, sem teto comercial.
+   *
+   * A troca acontece AQUI, e nao em cada verificacao, porque toda regra de
+   * limite -- usuarios, conteudos, dominios, armazenamento, recursos do plano
+   * -- le o plano efetivo por esta funcao. Um unico ponto garante que nenhuma
+   * delas fique de fora, hoje ou quando a proxima for escrita.
+   */
+  if (isExemptTenant(tenantId)) {
+    return {
+      planId: row.planId,
+      planCode: row.planCode,
+      planName: row.planName,
+      limits: exemptPlanLimits(),
+      overridden: true,
+      exempt: true,
+    };
+  }
+
   const base = planLimitsSchema.parse(row.limits);
   const overrides = row.overrides ?? null;
   const limits = overrides ? planLimitsSchema.parse({ ...base, ...overrides }) : base;
@@ -53,6 +80,7 @@ export async function loadEffectivePlan(db: Database, tenantId: string): Promise
     planName: row.planName,
     limits,
     overridden: overrides !== null,
+    exempt: false,
   };
 }
 
