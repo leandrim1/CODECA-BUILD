@@ -321,7 +321,7 @@ export function DashboardLayout() {
        */}
       <aside
         className={cx(
-          'fixed inset-y-0 left-0 z-40 h-dvh w-72 overflow-y-auto overscroll-contain',
+          'fixed inset-y-0 left-0 z-40 h-dvh w-72 overflow-y-auto overscroll-contain rolagem-fina',
           'border-r border-slate-200/70 bg-white',
           'transition-transform lg:translate-x-0',
           menuOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full',

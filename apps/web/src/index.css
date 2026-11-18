@@ -143,6 +143,57 @@
     @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8;
   }
 
+  /**
+   * Barra de rolagem fina e discreta no menu lateral.
+   *
+   * A barra padrao do navegador mede 16px (medido) e tem trilho cinza solido:
+   * larga e pesada ao lado de um menu de 288px, e a primeira coisa que o olho
+   * encontra. Aqui ela cai para 7px, com trilho transparente e polegar
+   * arredondado na propria paleta.
+   *
+   * Os dois caminhos sao EXCLUDENTES, nao redundantes. O Chrome ignora
+   * `::-webkit-scrollbar` se `scrollbar-width` OU `scrollbar-color` estiver
+   * definida -- entao nao da para somar as duas abordagens e esperar a mais
+   * fina: medido, `scrollbar-width: thin` entrega 11px e a via webkit entrega
+   * 7px. O `@supports` manda cada navegador por um caminho so:
+   *
+   *   Firefox        -> propriedades padrao (nao conhece `::-webkit-scrollbar`)
+   *   Chrome, Safari -> as padrao voltam a `auto` e valem as regras webkit
+   *
+   * Diferente do `[scrollbar-width:none]` usado nas abas, aqui a barra segue
+   * VISIVEL: escondendo-a, o menu perderia a pista de que ha mais opcoes
+   * abaixo da dobra.
+   */
+  .rolagem-fina {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-slate-300) transparent;
+  }
+
+  @supports selector(::-webkit-scrollbar) {
+    .rolagem-fina {
+      scrollbar-width: auto;
+      scrollbar-color: auto;
+    }
+
+    .rolagem-fina::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .rolagem-fina::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .rolagem-fina::-webkit-scrollbar-thumb {
+      background-color: var(--color-slate-300);
+      border-radius: 9999px;
+    }
+
+    .rolagem-fina:hover::-webkit-scrollbar-thumb {
+      background-color: var(--color-slate-400);
+    }
+  }
+
   .link {
     @apply font-medium text-brand-700 underline decoration-brand-300 underline-offset-2 hover:decoration-brand-600;
   }

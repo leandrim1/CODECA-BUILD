@@ -88,6 +88,36 @@ Resolvido com uma regra em `@layer base` no `index.css`, sem `!important`.
 
 Também corrigido: o × das notificações tinha alvo de 20×20, abaixo dos 24px.
 
+## 4.4 A barra de rolagem do menu lateral
+
+O menu tem mais opções do que cabe na tela. A barra padrão do navegador mede
+**16px** (medido) com trilho cinza sólido — larga ao lado de um menu de 288px.
+A classe `.rolagem-fina` a deixa em **6px**, trilho transparente e polegar
+arredondado em `slate-300` (`slate-400` no hover).
+
+A armadilha, que decidiu a implementação: **o Chrome ignora
+`::-webkit-scrollbar` se `scrollbar-width` OU `scrollbar-color` estiver
+definida.** Não adianta declarar as duas abordagens e esperar a mais fina.
+Medido no mesmo navegador:
+
+| Abordagem | Largura |
+| --- | --- |
+| Padrão do navegador | 16px |
+| `scrollbar-width: thin` | 11px |
+| `::-webkit-scrollbar { width: 6px }` | **6px** |
+
+Por isso um `@supports selector(::-webkit-scrollbar)` manda cada navegador por
+um caminho só: Firefox fica nas propriedades padrão, Chrome e Safari voltam
+`scrollbar-width`/`scrollbar-color` para `auto` e usam as regras webkit.
+
+A barra continua **visível**, ao contrário do `[scrollbar-width:none]` das
+abas: escondê-la num menu vertical tiraria a pista de que há mais opções
+abaixo da dobra.
+
+Para medir isto é preciso navegador com janela (`xvfb-run` com
+`headless: false`): no Chromium headless a barra é sobreposta, ocupa 0px de
+layout e não aparece na captura.
+
 ## 5. Ação duplicada
 
 `useMutation` (`apps/web/src/hooks/useResource.ts`) tem uma trava **síncrona**
