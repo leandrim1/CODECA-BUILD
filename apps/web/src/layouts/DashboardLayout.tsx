@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Logo } from '../components/Logo.js';
 import { Link, NavLink } from 'react-router-dom';
 import {
@@ -39,6 +40,9 @@ import { useSiteModules } from '../hooks/useSiteModules.js';
 import { SafeIcon } from '../components/SafeIcon.js';
 import { NavigationProgress, PageArea } from '../components/PageFeedback.js';
 import { preloadRoute, preloadWhenIdle } from '../lib/routePreload.js';
+import { NAV_GROUPS, type NavItem } from '../lib/menuDoPainel.js';
+import { SidebarGroup, SidebarSectionLabel, SidebarSubList } from '../components/SidebarGroup.js';
+import { useGruposAbertos } from '../hooks/useGruposAbertos.js';
 
 /**
  * Moldura do painel da empresa.
@@ -48,195 +52,13 @@ import { preloadRoute, preloadWhenIdle } from '../lib/routePreload.js';
  * servidor, que recusa a operacao de qualquer forma.
  */
 
-interface NavItem {
-  to: string;
-  label: string;
-  /** Ausente nos modulos criados para o site, que trazem `iconName`. */
-  icon?: LucideIcon;
-  capability?: Parameters<ReturnType<typeof useAuth>['can']>[0];
-  /**
-   * Modulo que precisa estar habilitado para este site.
-   *
-   * Sem modulo, o item vale para todo site: midia, interessados, dominio,
-   * equipe, plano e empresa nao dependem de como o projeto foi montado.
-   */
-  module?: ModuleKey;
-  /**
-   * Continua disponivel quando o plano nao inclui o painel de conteudo.
-   *
-   * Marcado so no que e **conta**, nao conteudo: plano e cadastro da empresa.
-   * O servidor recusa o resto de qualquer forma, e um menu que oferece telas
-   * que respondem 402 parece quebrado.
-   */
-  semPainel?: boolean;
-  end?: boolean;
-  /**
-   * Icone de um modulo criado para o site, pelo nome.
-   *
-   * Os itens fixos trazem o componente em `icon`; os deste site vem do banco,
-   * onde so cabe o nome. `SafeIcon` desenha, e nao desenha nada quando o nome
-   * nao e de um icone que o painel conhece.
-   */
-  iconName?: string;
-}
-
-interface NavGroup {
-  title: string;
-  items: NavItem[];
-}
-
-/**
- * Menu do painel.
- *
- * Dois filtros, e eles respondem a perguntas diferentes: `capability` e sobre
- * o **papel de quem entrou**, `module` e sobre o **site da empresa**. Um
- * editor nao ve a equipe; um site institucional sem carteira nao ve imoveis.
- * Nenhum dos dois protege nada por si -- o servidor recusa a operacao de
- * qualquer forma -- mas um menu que oferece o que nao existe e um painel que
- * parece quebrado.
- */
-const NAV_GROUPS: NavGroup[] = [
-  {
-    title: 'Visão geral',
-    items: [{ to: '/painel', label: 'Visão geral', icon: LayoutDashboard, end: true, semPainel: true }],
-  },
-  {
-    title: 'Conteúdo do site',
-    items: [
-      {
-        to: '/painel/institucional',
-        label: 'Institucional',
-        icon: Store,
-        capability: 'content:read',
-        module: 'institucional',
-      },
-      {
-        to: '/painel/contato',
-        label: 'Contato',
-        icon: Mail,
-        capability: 'content:read',
-        module: 'contato',
-      },
-      {
-        to: '/painel/banners',
-        label: 'Banners',
-        icon: GalleryHorizontalEnd,
-        capability: 'content:read',
-        module: 'banners',
-      },
-      {
-        to: '/painel/imoveis',
-        label: 'Imóveis',
-        icon: Building2,
-        capability: 'content:read',
-        module: 'imoveis',
-      },
-      {
-        to: '/painel/obras',
-        label: 'Obras e projetos',
-        icon: HardHat,
-        capability: 'content:read',
-        module: 'obras',
-      },
-      {
-        to: '/painel/servicos',
-        label: 'Serviços',
-        icon: Wrench,
-        capability: 'content:read',
-        module: 'servicos',
-      },
-      {
-        to: '/painel/produtos',
-        label: 'Produtos',
-        icon: ShoppingBag,
-        capability: 'content:read',
-        module: 'produtos',
-      },
-      {
-        to: '/painel/categorias',
-        label: 'Categorias',
-        icon: Tags,
-        capability: 'content:read',
-        module: 'categorias',
-      },
-      {
-        to: '/painel/galerias',
-        label: 'Galerias',
-        icon: Images,
-        capability: 'content:read',
-        module: 'galerias',
-      },
-      {
-        to: '/painel/depoimentos',
-        label: 'Depoimentos',
-        icon: Sparkles,
-        capability: 'content:read',
-        module: 'depoimentos',
-      },
-      {
-        to: '/painel/equipe',
-        label: 'Equipe do site',
-        icon: Users,
-        capability: 'content:read',
-        module: 'equipe',
-      },
-      {
-        to: '/painel/perguntas',
-        label: 'Perguntas frequentes',
-        icon: MessageCircleQuestion,
-        capability: 'content:read',
-        module: 'faq',
-      },
-      { to: '/painel/midia', label: 'Biblioteca de imagens', icon: Image, capability: 'media:read' },
-      /**
-       * Importar site fica em Conteudo, e nao em Configuracoes, porque e um
-       * atalho para **preencher conteudo** -- a alternativa a digitar tudo nas
-       * telas acima. Sem `module`: nao e um modulo do site, e vale para
-       * qualquer projeto que tenha painel.
-       */
-      {
-        to: '/painel/importar',
-        label: 'Importar site',
-        icon: DownloadCloud,
-        capability: 'content:write',
-      },
-      {
-        to: '/painel/sincronizacao',
-        label: 'Sincronização',
-        icon: RefreshCw,
-        capability: 'content:read',
-      },
-    ],
-  },
-  {
-    title: 'Relacionamento',
-    items: [
-      { to: '/painel/interessados', label: 'Interessados', icon: Users, capability: 'leads:read' },
-      { to: '/painel/estatisticas', label: 'Estatísticas do site', icon: BarChart3, capability: 'analytics:read' },
-    ],
-  },
-  {
-    title: 'Configurações',
-    items: [
-      { to: '/painel/dominio', label: 'Domínio próprio', icon: Globe, capability: 'domains:read' },
-      // "Usuarios", e nao "Equipe": isto e quem acessa o painel. A equipe
-      // exibida no site e o modulo `equipe`, em Conteudo do site.
-      { to: '/painel/usuarios', label: 'Usuários e permissões', icon: ShieldCheck, capability: 'members:read' },
-      { to: '/painel/plano', label: 'Plano e assinatura', icon: CreditCard, capability: 'billing:read', semPainel: true },
-      { to: '/painel/integracao', label: 'Integração', icon: KeyRound, capability: 'integration:read', semPainel: true },
-      { to: '/painel/empresa', label: 'Configurações da empresa', icon: Settings, capability: 'tenant:read', semPainel: true },
-      // Seguranca e da PESSOA, nao da empresa: aparece para todo mundo que
-      // entra, em qualquer plano, sem depender de capacidade da empresa.
-      { to: '/painel/seguranca', label: 'Segurança da conta', icon: ShieldCheck, semPainel: true },
-    ],
-  },
-];
-
 export function DashboardLayout() {
   const { tenant, memberships, user, selectTenant, logout, isPlatformAdmin, can } = useAuth();
   const { enabled, loading: modulesLoading, readOnly, blocked, panelIncluded, planName, customModules } =
     useSiteModules();
   const { efetivo: tema } = useTheme();
+  const { pathname } = useLocation();
+  const { estaAberto, alternar, abrir } = useGruposAbertos();
   const [menuOpen, setMenuOpen] = useState(false);
 
   /**
@@ -260,27 +82,66 @@ export function DashboardLayout() {
         }))
       : [];
 
+    const passa = (item: NavItem) => {
+      if (item.capability && !can(item.capability)) return false;
+      // O plano sem painel esconde conteudo inteiro; o que e conta permanece.
+      if (!panelIncluded) return item.semPainel === true;
+      if (!item.module) return true;
+      // Enquanto a configuracao nao chega, o item de modulo fica fora e o
+      // grupo mostra marcadores de espera no lugar: o menu nao cresce aos
+      // poucos nem oferece uma tela que nao existe.
+      return enabled(item.module);
+    };
+
     return NAV_GROUPS.map((group) => ({
       ...group,
-      items: [
-        ...group.items,
-        ...(group.title === 'Conteúdo do site' ? itensProprios : []),
-      ].filter((item) => {
-        if (item.capability && !can(item.capability)) return false;
-        // O plano sem painel esconde conteudo inteiro; o que e conta permanece.
-        if (!panelIncluded) return item.semPainel === true;
-        if (!item.module) return true;
-        // Enquanto a configuracao nao chega, o item de modulo fica fora e o
-        // grupo mostra marcadores de espera no lugar: o menu nao cresce
-        // aos poucos nem oferece uma tela que nao existe.
-        return enabled(item.module);
-      }),
-    })).filter((group) => group.items.length > 0);
+      sections: group.sections
+        .map((section) => ({
+          ...section,
+          items: [
+            ...section.items,
+            ...(section.recebeModulosProprios ? itensProprios : []),
+          ].filter(passa),
+        }))
+        .filter((section) => section.items.length > 0),
+    })).filter((group) => group.sections.length > 0);
   }, [can, enabled, panelIncluded, customModules]);
+
+  /**
+   * A rota atual pertence a este grupo?
+   *
+   * Compara com a barra depois do endereco (`/painel/contato/` e filho de
+   * `/painel/contato`, `/painel/contatos` nao e) para nao acender o grupo
+   * errado quando dois enderecos comecam igual.
+   */
+  const grupoTemRotaAtiva = useCallback(
+    (sections: ReadonlyArray<{ items: NavItem[] }>) =>
+      sections.some((section) =>
+        section.items.some(
+          (item) => pathname === item.to || pathname.startsWith(`${item.to}/`),
+        ),
+      ),
+    [pathname],
+  );
+
+  /**
+   * Navegar para dentro de um grupo fechado o abre.
+   *
+   * So na troca de rota, nao a cada desenho: forcar aberto sempre tiraria da
+   * pessoa o direito de fechar o grupo e continuar na tela em que esta -- caso
+   * em que o proprio cabecalho assume o destaque.
+   */
+  useEffect(() => {
+    for (const group of visibleGroups) {
+      if (group.colapsavel && grupoTemRotaAtiva(group.sections)) abrir(group.id);
+    }
+    // `visibleGroups` muda quando os modulos chegam, e o grupo certo precisa
+    // abrir tambem nesse momento.
+  }, [pathname, visibleGroups, grupoTemRotaAtiva, abrir]);
 
   // Baixa o codigo das telas do menu em horas vagas: o clique nao espera rede.
   const rotasDoMenu = useMemo(
-    () => visibleGroups.flatMap((group) => group.items.map((item) => item.to)),
+    () => visibleGroups.flatMap((group) => group.sections.flatMap((s) => s.items.map((i) => i.to))),
     [visibleGroups],
   );
   useEffect(() => preloadWhenIdle(rotasDoMenu), [rotasDoMenu]);
@@ -344,56 +205,78 @@ export function DashboardLayout() {
         </div>
 
         <nav className="p-4">
-          {visibleGroups.map((group) => (
-            <div key={group.title} className="mb-6 last:mb-0">
-              {/*
-                Rotulo de grupo em peso medio e cor fraca: ele organiza a lista
-                sem disputar atencao com os itens, que sao o que se clica.
-              */}
-              <p className="px-3 pb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
-                {group.title}
-              </p>
-              <ul className="grid gap-0.5">
-                {group.title === 'Conteúdo do site' && modulesLoading && panelIncluded ? (
-                  <MarcadoresDoMenu />
+          {visibleGroups.map((group) => {
+            const temRotaAtiva = grupoTemRotaAtiva(group.sections);
+            // Grupo fixo esta sempre "aberto": a propriedade so pesa no colapsavel.
+            const aberto = !group.colapsavel || estaAberto(group.id);
+            const esperandoModulos = Boolean(group.mostraEsperaDeModulos) && modulesLoading && panelIncluded;
+
+            return (
+              <SidebarGroup
+                key={group.id}
+                group={group}
+                aberto={aberto}
+                temRotaAtiva={temRotaAtiva}
+                onAlternar={() => alternar(group.id)}
+              >
+                {esperandoModulos ? (
+                  <SidebarSubList>
+                    <MarcadoresDoMenu />
+                  </SidebarSubList>
                 ) : null}
-                {group.items.map((item) => (
-                  <li key={item.to}>
-                    <NavLink
-                      to={item.to}
-                      end={item.end}
-                      onClick={() => setMenuOpen(false)}
-                      onPointerEnter={() => preloadRoute(item.to)}
-                      onFocus={() => preloadRoute(item.to)}
-                      className={({ isActive }) =>
-                        cx(
-                          // O item ativo mantem exatamente o azul de antes
-                          // (`brand-50` de fundo, `brand-700` de texto) e ganha
-                          // um marcador vertical: a cor sozinha exige comparar
-                          // dois itens para saber qual esta ativo; a barra
-                          // responde sem comparacao.
-                          'relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm',
-                          'transition-all duration-200 ease-[var(--ease-out-soft)]',
-                          'before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5',
-                          'before:-translate-y-1/2 before:rounded-full before:transition-colors',
-                          isActive
-                            ? 'bg-brand-50 font-medium text-brand-700 before:bg-brand-600'
-                            : 'text-slate-600 before:bg-transparent hover:bg-slate-100/80 hover:text-slate-900',
-                        )
-                      }
-                    >
-                      {item.icon ? (
-                        <item.icon aria-hidden="true" className="size-4 flex-none" />
+
+                {group.sections.map((section, indice) => {
+                  const itens = section.items.map((item) => (
+                    <li key={item.to}>
+                      <NavLink
+                        to={item.to}
+                        end={item.end}
+                        onClick={() => setMenuOpen(false)}
+                        onPointerEnter={() => preloadRoute(item.to)}
+                        onFocus={() => preloadRoute(item.to)}
+                        className={({ isActive }) =>
+                          cx(
+                            // O item ativo mantem exatamente o azul de antes
+                            // (`brand-50` de fundo, `brand-700` de texto) e ganha
+                            // um marcador vertical: a cor sozinha exige comparar
+                            // dois itens para saber qual esta ativo; a barra
+                            // responde sem comparacao.
+                            'relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm',
+                            'transition-all duration-200 ease-[var(--ease-out-soft)]',
+                            'before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5',
+                            'before:-translate-y-1/2 before:rounded-full before:transition-colors',
+                            isActive
+                              ? 'bg-brand-50 font-medium text-brand-700 before:bg-brand-600'
+                              : 'text-slate-600 before:bg-transparent hover:bg-slate-100/80 hover:text-slate-900',
+                          )
+                        }
+                      >
+                        {item.icon ? (
+                          <item.icon aria-hidden="true" className="size-4 flex-none" />
+                        ) : (
+                          <SafeIcon name={item.iconName ?? ''} size={16} className="flex-none" />
+                        )}
+                        {item.label}
+                      </NavLink>
+                    </li>
+                  ));
+
+                  return (
+                    <div key={section.title ?? `secao-${indice}`}>
+                      {section.title ? <SidebarSectionLabel>{section.title}</SidebarSectionLabel> : null}
+                      {/* Dentro de grupo colapsavel os itens ganham recuo e o
+                          fio vertical; fora dele, a lista segue como sempre foi. */}
+                      {group.colapsavel ? (
+                        <SidebarSubList>{itens}</SidebarSubList>
                       ) : (
-                        <SafeIcon name={item.iconName ?? ''} size={16} className="flex-none" />
+                        <ul className="grid gap-0.5">{itens}</ul>
                       )}
-                      {item.label}
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+                    </div>
+                  );
+                })}
+              </SidebarGroup>
+            );
+          })}
 
           {isPlatformAdmin ? (
             <div className="mb-4 border-t border-slate-200 pt-4">
