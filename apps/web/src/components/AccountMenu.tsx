@@ -236,7 +236,7 @@ export function AccountMenu({ planName }: { planName: string }) {
             type="button"
             aria-label="Fechar menu da conta"
             onClick={() => fechar()}
-            className="fixed inset-0 z-40 bg-slate-900/40 sm:hidden"
+            className="fixed inset-0 z-40 bg-scrim/40 sm:hidden"
           />
 
           <div

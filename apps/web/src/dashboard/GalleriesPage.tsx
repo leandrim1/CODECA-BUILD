@@ -127,7 +127,7 @@ export function GalleriesPage() {
                               className="h-16 w-16 rounded-lg object-cover"
                             />
                             {indice === 0 ? (
-                              <span className="absolute inset-x-0 bottom-0 rounded-b-lg bg-slate-900/70 text-center text-[10px] text-white">
+                              <span className="absolute inset-x-0 bottom-0 rounded-b-lg bg-scrim/70 text-center text-[10px] text-white">
                                 capa
                               </span>
                             ) : null}

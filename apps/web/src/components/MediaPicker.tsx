@@ -302,7 +302,7 @@ export function GalleryField({
                 <div className="aspect-square bg-slate-50">
                   {asset ? <MediaThumb asset={asset} /> : <div className="size-full bg-slate-100" />}
                 </div>
-                <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-slate-900/70 p-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-scrim/70 p-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                   <button
                     type="button"
                     aria-label="Mover para a esquerda"

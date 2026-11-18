@@ -49,6 +49,16 @@
   --shadow-overlay: 0 1px 3px 0 rgb(27 51 117 / 0.06), 0 16px 40px -8px rgb(27 51 117 / 0.14);
   --shadow-brand: 0 1px 2px 0 rgb(29 78 216 / 0.20), 0 4px 10px -2px rgb(29 78 216 / 0.22);
 
+  /**
+   * Veu: o escurecido atras de uma gaveta, de um modal ou sobre uma foto.
+   *
+   * Precisa ser um token PROPRIO, e nao `slate-900`. Um veu e sempre escuro,
+   * nos dois temas -- e a escala `slate` se inverte no escuro, de modo que
+   * `bg-slate-900/40` virava um veu BRANCO lavando a barra lateral. Visto no
+   * celular, em producao.
+   */
+  --color-scrim: oklch(20.8% 0.042 265.755);
+
   /** Curva unica para toda transicao: sai rapido, chega devagar. */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -274,6 +284,9 @@
   --color-slate-800: oklch(94% 0.012 255); /* texto forte */
   --color-slate-900: oklch(97% 0.007 248); /* titulos */
   --color-slate-950: oklch(99% 0.003 248);
+
+  /* O veu continua escuro -- mais fundo que o painel, para separar camadas. */
+  --color-scrim: oklch(7% 0.02 265);
 
   /* Tintas que so servem de fundo. */
   --color-brand-50: oklch(27% 0.06 264);

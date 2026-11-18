@@ -297,7 +297,7 @@ export function DashboardLayout() {
           type="button"
           aria-label="Fechar menu"
           onClick={() => setMenuOpen(false)}
-          className="fixed inset-0 z-30 bg-slate-900/30 lg:hidden"
+          className="fixed inset-0 z-30 bg-scrim/30 lg:hidden"
         />
       ) : null}
 

@@ -61,7 +61,7 @@ export function Modal({
         // O reset do Tailwind zera a margem, e o `<dialog>` perde o `margin: auto`
         // do navegador que o centraliza: ele ficava colado no canto superior esquerdo.
         'm-auto',
-        'backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm',
+        'backdrop:bg-scrim/40 backdrop:backdrop-blur-sm',
         widths[size],
       )}
       // Clicar fora fecha, sem fechar ao clicar dentro.
