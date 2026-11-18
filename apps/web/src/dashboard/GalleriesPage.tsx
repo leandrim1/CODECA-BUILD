@@ -232,7 +232,7 @@ function FormularioGaleria({
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={() => void salvar.run(undefined)} disabled={salvar.loading}>
+          <Button onClick={() => void salvar.run(undefined)} loading={salvar.loading}>
             Salvar
           </Button>
         </>

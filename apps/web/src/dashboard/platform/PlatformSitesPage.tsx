@@ -342,8 +342,11 @@ function AbaIdentidade({
         onChange={(e) => setInternalNotes(e.target.value)}
       />
       <div>
-        <Button onClick={() => void salvar.run(undefined)} disabled={salvar.loading}>
-          <Save aria-hidden="true" className="size-4" />
+        <Button
+          onClick={() => void salvar.run(undefined)}
+          loading={salvar.loading}
+          icon={<Save aria-hidden="true" className="size-4" />}
+        >
           Salvar
         </Button>
       </div>
@@ -374,7 +377,8 @@ function AbaIdentidade({
             <Button
               variant="outline"
               size="sm"
-              disabled={!salvo || aplicar.loading || atual.defaultModules.length === 0}
+              loading={aplicar.loading}
+              disabled={!salvo || atual.defaultModules.length === 0}
               onClick={() => void aplicar.run(undefined)}
             >
               Aplicar segmento
@@ -485,8 +489,11 @@ function AbaModulos({
         </Card>
       ))}
 
-      <Button onClick={() => void salvar.run(undefined)} disabled={salvar.loading}>
-        <Save aria-hidden="true" className="size-4" />
+      <Button
+        onClick={() => void salvar.run(undefined)}
+        loading={salvar.loading}
+        icon={<Save aria-hidden="true" className="size-4" />}
+      >
         Salvar configuração
       </Button>
     </div>
@@ -536,7 +543,8 @@ function AbaOrigens({ siteId }: { siteId: string }) {
         <div className="self-end">
           <Button
             variant="outline"
-            disabled={!nova.trim() || salvar.loading}
+            loading={salvar.loading}
+            disabled={!nova.trim()}
             onClick={() => {
               const proximas = [...origens, { origin: nova.trim(), note: '' }];
               setNova('');
@@ -852,7 +860,8 @@ function AbaAvisos({ siteId }: { siteId: string }) {
           <div className="flex justify-end">
             <Button
               onClick={() => void criar.run(undefined)}
-              disabled={criar.loading || url.trim() === ''}
+              loading={criar.loading}
+              disabled={url.trim() === ''}
               icon={<Plus aria-hidden="true" className="size-4" />}
             >
               Cadastrar
@@ -1280,8 +1289,11 @@ function AbaCampos({
               >
                 Acrescentar campo
               </Button>
-              <Button onClick={() => void salvar.run(undefined)} disabled={salvar.loading}>
-                <Save aria-hidden="true" className="size-4" />
+              <Button
+                onClick={() => void salvar.run(undefined)}
+                loading={salvar.loading}
+                icon={<Save aria-hidden="true" className="size-4" />}
+              >
                 Salvar campos
               </Button>
             </div>
@@ -1482,8 +1494,11 @@ function AbaModulosProprios({
                   }
                 />
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => void criar.run(undefined)} disabled={criar.loading}>
-                    <Save aria-hidden="true" className="size-4" />
+                  <Button
+                    onClick={() => void criar.run(undefined)}
+                    loading={criar.loading}
+                    icon={<Save aria-hidden="true" className="size-4" />}
+                  >
                     Criar módulo
                   </Button>
                   <Button variant="outline" onClick={() => setCriando(false)}>

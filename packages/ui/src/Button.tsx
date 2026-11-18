@@ -25,7 +25,11 @@ const SIZES: Record<ButtonSize, string> = {
   sm: 'h-8 gap-1.5 px-3.5 text-sm',
   md: 'h-10 gap-2 px-4.5 text-sm',
   lg: 'h-12 gap-2.5 px-6 text-base',
-  icon: 'h-9 w-9 justify-center',
+  // `shrink-0`: o botao de icone e um quadrado fixo. Sem isso ele e um item
+  // flexivel como outro qualquer e encolhe quando o vizinho aperta -- no
+  // cabecalho do modal, com titulo longo a 360px, o `h-9 w-9` virava 36x22.8
+  // e o circulo do X saia elipse, abaixo do alvo minimo de toque.
+  icon: 'h-9 w-9 shrink-0 justify-center',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

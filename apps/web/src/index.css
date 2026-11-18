@@ -64,6 +64,27 @@
   }
 
   /**
+   * Ponteiro de mao em tudo que e clicavel.
+   *
+   * O preflight do Tailwind v4 deixou de dar `cursor: pointer` ao <button>, que
+   * o v3 dava. O projeto foi escrito contra o v3: o `Button` traz
+   * `disabled:cursor-not-allowed` -- que so faz sentido contrastando com um
+   * ponteiro no estado normal -- e `Switch` e `DataTable` tiveram de pedir
+   * `cursor-pointer` a mao. Sem esta regra, todo botao da plataforma exibe a
+   * seta e parece inerte.
+   *
+   * Fica no `base` para valer em botao de componente compartilhado e em botao
+   * solto, sem `!important` e sem repetir a classe em cada arquivo.
+   */
+  button:not(:disabled):not([aria-disabled='true']),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab'],
+  [role='switch']:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
+  /**
    * Titulo com entreletra negativa.
    *
    * E a assinatura tipografica da referencia: quanto maior o texto, mais o

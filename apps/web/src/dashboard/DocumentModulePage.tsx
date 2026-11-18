@@ -139,7 +139,7 @@ function Formulario({
         actions={
           <Button
             onClick={() => void salvar.run(undefined)}
-            disabled={salvar.loading}
+            loading={salvar.loading}
             icon={<Save aria-hidden="true" className="size-4" />}
           >
             Salvar
@@ -175,7 +175,7 @@ function Formulario({
         <div className="flex justify-end">
           <Button
             onClick={() => void salvar.run(undefined)}
-            disabled={salvar.loading}
+            loading={salvar.loading}
             icon={<Save aria-hidden="true" className="size-4" />}
           >
             Salvar

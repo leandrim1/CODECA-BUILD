@@ -94,7 +94,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => dismiss(toast.id)}
                 aria-label="Fechar notificação"
-                className="flex-none rounded p-0.5 opacity-60 transition-opacity hover:opacity-100"
+                // `size-6` em vez de `p-0.5`: o alvo era 20x20 (icone 16 + 2 de folga),
+                // abaixo dos 24px minimos para toque. O icone segue com 16px, entao a
+                // aparencia nao muda -- so a area que responde ao dedo.
+                className="flex size-6 flex-none items-center justify-center rounded opacity-60 transition-opacity hover:opacity-100"
               >
                 <X aria-hidden="true" className="size-4" />
               </button>

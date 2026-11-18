@@ -223,10 +223,22 @@ export function Switch({
           disabled && 'cursor-not-allowed opacity-60',
         )}
       >
+        {/*
+         * `left-0.5` e obrigatorio, nao decorativo.
+         *
+         * Sem `left`, um elemento `absolute` cai na POSICAO ESTATICA -- e a
+         * trilha e um `<button>`, que o navegador alinha ao centro. A posicao
+         * estatica virava `left: 22px` (o meio dos 44px da trilha), de modo que
+         * o indicador desligado encostava na borda direita e o LIGADO saia
+         * inteiro da trilha, 20px a direita dela: o circulo branco solto.
+         *
+         * Com a origem presa em 2px, o deslocamento e so o percurso:
+         * 44 (trilha) - 20 (indicador) - 2 (folga de cada lado) = 20px.
+         */}
         <span
           className={cx(
-            'absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform',
-            checked ? 'translate-x-5.5' : 'translate-x-0.5',
+            'absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform',
+            checked ? 'translate-x-5' : 'translate-x-0',
           )}
         />
       </button>
