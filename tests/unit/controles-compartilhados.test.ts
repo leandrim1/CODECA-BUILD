@@ -143,9 +143,29 @@ describe('Button: tamanhos e estados', () => {
     expect(temClasse(c, 'focus-visible:outline-2')).toBe(true);
     expect(temClasse(c, 'active:scale-[0.99]')).toBe(true);
     expect(temClasse(c, 'disabled:cursor-not-allowed')).toBe(true);
-    expect(temClasse(c, 'disabled:opacity-55')).toBe(true);
     // Desabilitado nao reage ao clique.
     expect(temClasse(c, 'disabled:active:scale-100')).toBe(true);
+
+    /*
+      Desabilitado e cinza chapado, e nao opacidade.
+      Esta asserção já cobrou "desabilitado legivel" quando o botao usava
+      `disabled:opacity-55` -- que sobre o azul da marca deixava o rotulo em
+      1,76:1 no tema claro e 1,35:1 no escuro, medido em navegador. A regra
+      antiga nomeava a intencao e verificava o contrario dela; agora verifica
+      o par de cores que de fato se le (slate-600 sobre slate-100, 6,9:1).
+    */
+    expect(temClasse(c, 'disabled:opacity-55')).toBe(false);
+    expect(temClasse(c, 'disabled:bg-slate-100')).toBe(true);
+    expect(temClasse(c, 'disabled:text-slate-600')).toBe(true);
+    expect(temClasse(c, 'disabled:shadow-none')).toBe(true);
+  });
+
+  it('carregando, o botao mantem a cor da variante: ocupado nao e inativo', () => {
+    // O cinza do desabilitado diria "nao da para usar" a um "Salvar" que esta
+    // justamente salvando. Com o indicador girando, a cor permanece.
+    const carregando = classes({ loading: true });
+    expect(temClasse(carregando, 'disabled:bg-slate-100')).toBe(false);
+    expect(temClasse(carregando, 'bg-brand-600')).toBe(true);
   });
 
   it('carregando, o botao fica desabilitado: nao existe acao duplicada', () => {

@@ -342,7 +342,7 @@ export function OverviewPage() {
                         veio buscar conteudo, e e isso que aparece aqui.
                       */}
                       <div className="flex items-start gap-2.5 rounded-lg border border-slate-200 p-3">
-                        <Plug aria-hidden="true" className="mt-0.5 size-4 flex-none text-slate-400" />
+                        <Plug aria-hidden="true" className="mt-0.5 size-4 flex-none text-slate-500" />
                         <div className="min-w-0 text-sm">
                           {emDemonstracao ? (
                             <>
@@ -391,7 +391,7 @@ export function OverviewPage() {
                               encolhimento e `anywhere` da onde quebrar.
                             */}
                             <p className="flex items-center gap-2 font-medium text-slate-800">
-                              <Globe aria-hidden="true" className="size-4 shrink-0 text-slate-400" />
+                              <Globe aria-hidden="true" className="size-4 shrink-0 text-slate-500" />
                               <span className="min-w-0 [overflow-wrap:anywhere]">
                                 {primaryDomain.hostname}
                               </span>

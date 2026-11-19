@@ -164,7 +164,7 @@ export function LoginCodeStep({
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
         <button
           type="button"
-          className="link disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
+          className="link disabled:cursor-not-allowed disabled:text-slate-500 disabled:no-underline"
           disabled={seconds > 0 || sending}
           onClick={() => void resend()}
         >

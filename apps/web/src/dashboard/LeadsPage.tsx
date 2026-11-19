@@ -382,7 +382,7 @@ function LeadDetailModal({ lead, onClose }: { lead: LeadRecord; onClose: () => v
                   {data.notes.map((item) => (
                     <li key={item.id} className="rounded-lg border border-slate-200 p-3">
                       <p className="text-sm text-slate-700">{item.note}</p>
-                      <p className="mt-1 text-xs text-slate-400">
+                      <p className="mt-1 text-xs text-slate-500">
                         {item.authorName ?? 'Conta removida'} - {formatDateTime(item.createdAt)}
                       </p>
                     </li>

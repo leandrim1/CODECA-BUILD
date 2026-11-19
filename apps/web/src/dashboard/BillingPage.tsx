@@ -1,6 +1,6 @@
 import { ContentUsageBreakdown } from '../components/ContentUsage.js';
 import { useCallback, useMemo, useState } from 'react';
-import { AlertTriangle, Check, CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Check, CreditCard, ExternalLink, Minus, RefreshCw } from 'lucide-react';
 import {
   PANEL_ON_SUSPENSION_LABELS,
   PLAN_FEATURES,
@@ -511,22 +511,31 @@ export function BillingPage() {
                     <ul className="grid gap-2 sm:grid-cols-2">
                       {PLAN_FEATURES.map((feature) => {
                         const included = view.plan.limits.features.includes(feature);
+                        // O que NAO vem no plano muda de simbolo, e nao so de
+                        // cor: o mesmo "check" mais claro dizia "incluido" a
+                        // quem nao distingue os dois tons, e o cinza-claro
+                        // ainda media 2,63:1. Tracinho, cinza legivel, e o
+                        // estado dito tambem em palavras para o leitor de tela.
+                        const Simbolo = included ? Check : Minus;
                         return (
                           <li
                             key={feature}
                             className={cx(
                               'flex items-center gap-2 text-sm',
-                              included ? 'text-slate-800' : 'text-slate-400',
+                              included ? 'text-slate-800' : 'text-slate-500',
                             )}
                           >
-                            <Check
+                            <Simbolo
                               aria-hidden="true"
                               className={cx(
                                 'size-4 flex-none',
-                                included ? 'text-emerald-600' : 'text-slate-300',
+                                included ? 'text-emerald-600' : 'text-slate-500',
                               )}
                             />
                             {PLAN_FEATURE_LABELS[feature]}
+                            <span className="sr-only">
+                              {included ? ' - incluído no plano' : ' - não incluído no plano'}
+                            </span>
                           </li>
                         );
                       })}

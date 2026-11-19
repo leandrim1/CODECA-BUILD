@@ -84,7 +84,7 @@ export function SegmentedControl<T extends string>({
           title={option.label}
           className={cx(
             'inline-flex flex-none items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200',
-            option.value === value ? 'bg-white text-slate-900 shadow-card' : 'text-slate-500 hover:text-slate-800',
+            option.value === value ? 'bg-white text-slate-900 shadow-card' : 'text-slate-600 hover:text-slate-900',
           )}
         >
           {option.icon}

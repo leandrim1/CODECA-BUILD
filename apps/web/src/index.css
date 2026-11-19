@@ -59,6 +59,20 @@
    */
   --color-scrim: oklch(20.8% 0.042 265.755);
 
+  /**
+   * Contorno de campo de formulario.
+   *
+   * Precisa ser um token PROPRIO, e nao `slate-300`. A WCAG 2.2 (1.4.11) pede
+   * 3:1 para o que identifica um componente de interface, e a borda e o que
+   * diz "aqui se digita": `slate-300` sobre branco mede 1,49:1 -- o campo
+   * quase nao tem contorno. `slate-500` passaria com folga (4,76:1), mas
+   * deixaria todo formulario pesado.
+   *
+   * Este valor mede 3,27:1 sobre branco: passa com margem e continua discreto.
+   * No escuro ele clareia, porque ali o fundo do campo e que e escuro.
+   */
+  --color-contorno: #848fa1;
+
   /** Curva unica para toda transicao: sai rapido, chega devagar. */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -311,6 +325,14 @@
   /* O veu continua escuro -- mais fundo que o painel, para separar camadas. */
   --color-scrim: oklch(7% 0.02 265);
 
+  /*
+    Contorno de campo: aqui ele clareia, porque o fundo do campo e escuro.
+    52% media 2,99:1 quando o campo cai dentro de um bloco de tom ambar (um
+    aviso com formulario), que e mais claro que a superficie do cartao. 56%
+    cobre tambem esse caso.
+  */
+  --color-contorno: oklch(56% 0.03 258);
+
   /* Tintas que so servem de fundo. */
   --color-brand-50: oklch(27% 0.06 264);
   --color-emerald-50: oklch(26% 0.05 160);
@@ -359,4 +381,57 @@
 
 .dark .decoration-brand-300 {
   text-decoration-color: var(--color-brand-500);
+}
+
+/**
+ * As tintas de estado quando sao TEXTO.
+ *
+ * Mesma dupla funcao do azul da marca, e o mesmo remedio. `bg-emerald-50`
+ * escureceu para virar fundo no tema escuro, mas `text-emerald-700` ficou como
+ * estava -- verde-escuro sobre verde-escuro. Medido no selo "Ativo": 2,85:1.
+ * O amber-800 do aviso media 2,14:1 e o sky do bloco de dominio, 1,63:1.
+ *
+ * Nivel 300 em todas: e a mesma familia, so no ponto da escala que enxerga
+ * sobre fundo escuro. Nenhum FUNDO e tocado -- o botao de excluir continua
+ * `bg-rose-600` com texto branco.
+ */
+.dark :is(.text-emerald-600, .text-emerald-700, .text-emerald-800, .text-emerald-900) {
+  color: var(--color-emerald-300);
+}
+
+.dark :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900) {
+  color: var(--color-amber-300);
+}
+
+.dark :is(.text-rose-600, .text-rose-700, .text-rose-800, .text-rose-900) {
+  color: var(--color-rose-300);
+}
+
+.dark :is(.text-sky-600, .text-sky-700, .text-sky-800, .text-sky-900) {
+  color: var(--color-sky-300);
+}
+
+/**
+ * Branco sobre fundo colorido continua branco.
+ *
+ * `--color-white` e a superficie do cartao, e no escuro ela vira azul-marinho.
+ * Isso esta certo para `bg-white`, e errado para `text-white`: o "Salvar"
+ * ficava com texto azul-escuro sobre o azul da marca -- 2,65:1, medido em 50
+ * botoes do painel escuro. Era o defeito que mais aparecia.
+ *
+ * A regra NAO pode valer para todo `text-white`: o botao secundario e
+ * `bg-slate-900 text-white`, e essa dupla se inverte junto, de proposito --
+ * no escuro ele e claro com texto escuro, e esta certo assim. Por isso o
+ * seletor exige as DUAS classes no mesmo elemento: fundo colorido (que nao se
+ * inverte) e texto branco.
+ */
+.dark
+  :is(
+    .bg-brand-500, .bg-brand-600, .bg-brand-700, .bg-brand-800, .bg-brand-900,
+    .bg-rose-500, .bg-rose-600, .bg-rose-700,
+    .bg-amber-500, .bg-amber-600, .bg-amber-700,
+    .bg-emerald-500, .bg-emerald-600, .bg-emerald-700,
+    .bg-sky-500, .bg-sky-600, .bg-sky-700
+  ).text-white {
+  color: #fff;
 }

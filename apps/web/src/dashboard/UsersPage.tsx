@@ -104,7 +104,7 @@ export function UsersPage() {
         <div className="min-w-0">
           <p className="truncate font-medium text-slate-900">
             {member.name || member.email}
-            {member.userId === user?.id ? <span className="ml-1.5 text-xs text-slate-400">(você)</span> : null}
+            {member.userId === user?.id ? <span className="ml-1.5 text-xs text-slate-500">(você)</span> : null}
           </p>
           <p className="truncate text-xs text-slate-500">{member.email}</p>
         </div>
@@ -137,7 +137,7 @@ export function UsersPage() {
           <Badge tone={member.status === 'active' ? 'success' : member.status === 'invited' ? 'warning' : 'neutral'}>
             {member.status === 'active' ? 'Ativo' : member.status === 'invited' ? 'Convite pendente' : 'Desativado'}
           </Badge>
-          {member.emailVerifiedAt ? null : <span className="text-xs text-slate-400">E-mail não confirmado</span>}
+          {member.emailVerifiedAt ? null : <span className="text-xs text-slate-500">E-mail não confirmado</span>}
         </div>
       ),
     },
@@ -149,7 +149,7 @@ export function UsersPage() {
         member.lastLoginAt ? (
           <span className="text-xs text-slate-600">{formatDateTime(member.lastLoginAt)}</span>
         ) : (
-          <span className="text-xs text-slate-400">Nunca acessou</span>
+          <span className="text-xs text-slate-500">Nunca acessou</span>
         ),
     },
     {
@@ -212,7 +212,7 @@ export function UsersPage() {
                   {TENANT_ROLE_LABELS[role]}
                 </p>
                 <p className="mt-1 text-sm text-slate-600">{ROLE_DESCRIPTIONS[role]}</p>
-                <p className="mt-1.5 text-xs text-slate-400">
+                <p className="mt-1.5 text-xs text-slate-500">
                   {tenantCapabilities(role).length} permissões
                 </p>
               </li>

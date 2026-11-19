@@ -41,7 +41,7 @@ export function SidebarGroup({
           Rotulo de grupo em peso medio e cor fraca: ele organiza a lista sem
           disputar atencao com os itens, que sao o que se clica.
         */}
-        <p className="px-3 pb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
+        <p className="px-3 pb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">
           {group.title}
         </p>
         {children}
@@ -72,7 +72,7 @@ export function SidebarGroup({
         <ChevronRight
           aria-hidden="true"
           className={cx(
-            'size-4 flex-none text-slate-400 transition-transform duration-200 ease-[var(--ease-out-soft)]',
+            'size-4 flex-none text-slate-500 transition-transform duration-200 ease-[var(--ease-out-soft)]',
             aberto && 'rotate-90',
           )}
         />
@@ -106,7 +106,7 @@ export function SidebarGroup({
  */
 export function SidebarSectionLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.1em] text-slate-400">
+    <p className="px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.1em] text-slate-500">
       {children}
     </p>
   );

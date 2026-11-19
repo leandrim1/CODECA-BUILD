@@ -54,13 +54,21 @@ export function Field({ label, hint, error, required, children, className }: Fie
  * vez de 2, raio maior e a transicao que acompanha borda e sombra, para o
  * campo responder ao toque em vez de piscar.
  */
+/**
+ * `border-contorno` e nao `border-slate-300`: a borda e o que identifica o
+ * campo, e a WCAG 2.2 (1.4.11) pede 3:1 para isso. `slate-300` media 1,49:1.
+ *
+ * `placeholder:text-slate-500` e nao `-400`: o texto de exemplo e texto, e
+ * vale o minimo de 4,5:1. `slate-400` sobre branco media 2,63:1 -- era o
+ * "placeholder quase invisivel".
+ */
 const CONTROL =
-  'w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 '
+  'w-full rounded-xl border border-contorno bg-white px-3.5 py-2.5 text-sm text-slate-900 '
   + 'transition-[border-color,box-shadow,outline-color] duration-200 ease-[var(--ease-out-soft)] '
-  + 'placeholder:text-slate-400 hover:border-slate-400 '
+  + 'placeholder:text-slate-500 hover:border-slate-500 '
   + 'focus:border-brand-500 focus:outline-2 focus:outline-offset-0 '
-  + 'focus:outline-brand-500/40 disabled:bg-slate-50 disabled:text-slate-500 disabled:hover:border-slate-300 '
-  + 'aria-[invalid=true]:border-rose-400 aria-[invalid=true]:focus:outline-rose-400/40';
+  + 'focus:outline-brand-500/40 disabled:bg-slate-50 disabled:text-slate-600 disabled:hover:border-contorno '
+  + 'aria-[invalid=true]:border-rose-500 aria-[invalid=true]:focus:outline-rose-400/40';
 
 export interface TextInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
   label: ReactNode;
@@ -179,7 +187,7 @@ export function Checkbox({
         checked={checked}
         disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-0.5 size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+        className="mt-0.5 size-4 rounded border-contorno text-brand-600 focus:ring-brand-500"
       />
       <label htmlFor={id} className="text-sm text-slate-700">
         {label}
@@ -315,7 +323,7 @@ export function ColorInput({
           value={isHex ? value.slice(0, 7) : '#000000'}
           onChange={(event) => onChange(event.target.value.toUpperCase())}
           aria-label={`${label}: seletor visual`}
-          className="size-10 flex-none cursor-pointer rounded-xl border border-slate-300 bg-white p-0.5"
+          className="size-10 flex-none cursor-pointer rounded-xl border border-contorno bg-white p-0.5"
         />
         <input
           id={id}

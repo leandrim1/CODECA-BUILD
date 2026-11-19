@@ -218,7 +218,7 @@ export function AccountMenu({ planName }: { planName: string }) {
         </span>
         <ChevronDown
           aria-hidden="true"
-          className={cx('size-4 flex-none text-slate-400 transition-transform duration-200', aberto && 'rotate-180')}
+          className={cx('size-4 flex-none text-slate-500 transition-transform duration-200', aberto && 'rotate-180')}
         />
       </button>
 
@@ -317,10 +317,10 @@ export function AccountMenu({ planName }: { planName: string }) {
                 className={itemClasse}
               >
                 <span className="flex items-center gap-2.5">
-                  <Home aria-hidden="true" className="size-4 flex-none text-slate-400" />
+                  <Home aria-hidden="true" className="size-4 flex-none text-slate-500" />
                   Página inicial
                 </span>
-                <ExternalLink aria-hidden="true" className="size-3.5 flex-none text-slate-400" />
+                <ExternalLink aria-hidden="true" className="size-3.5 flex-none text-slate-500" />
               </a>
 
               <button
@@ -334,7 +334,7 @@ export function AccountMenu({ planName }: { planName: string }) {
                 className={itemClasse}
               >
                 <span className="flex items-center gap-2.5">
-                  <LogOut aria-hidden="true" className="size-4 flex-none text-slate-400" />
+                  <LogOut aria-hidden="true" className="size-4 flex-none text-slate-500" />
                   Sair
                 </span>
               </button>

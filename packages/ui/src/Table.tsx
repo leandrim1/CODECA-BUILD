@@ -60,7 +60,7 @@ export function DataTable<T>({
                 className={cx(
                   // Maiuscula com peso medio em vez de semibold: o cabecalho
                   // orienta sem competir com o conteudo da linha.
-                  'px-5 py-3 text-xs font-medium uppercase tracking-wider text-slate-400',
+                  'px-5 py-3 text-xs font-medium uppercase tracking-wider text-slate-500',
                   column.align === 'right' && 'text-right',
                   column.align === 'center' && 'text-center',
                   column.hideOnMobile && 'hidden sm:table-cell',
@@ -103,7 +103,7 @@ export function DataTable<T>({
                       'sm:table-cell sm:px-5 sm:py-3.5',
                       // Com rotulo: nome da coluna a esquerda, valor a direita.
                       label &&
-                        'justify-between before:text-xs before:font-medium before:uppercase before:tracking-wider before:text-slate-400 before:content-[attr(data-label)] sm:before:content-none',
+                        'justify-between before:text-xs before:font-medium before:uppercase before:tracking-wider before:text-slate-500 before:content-[attr(data-label)] sm:before:content-none',
                       column.align === 'right' && 'justify-end sm:text-right',
                       column.align === 'center' && 'justify-center sm:text-center',
                       column.hideOnMobile && 'hidden sm:table-cell',

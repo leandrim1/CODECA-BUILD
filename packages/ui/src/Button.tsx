@@ -70,9 +70,22 @@ export function Button({
         // imperceptivel de olhar e perceptivel de usar.
         'transition-all duration-200 ease-[var(--ease-out-soft)] active:scale-[0.99]',
         'focus-visible:outline-2 focus-visible:outline-offset-2',
-        'disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100',
+        'disabled:cursor-not-allowed disabled:active:scale-100',
         VARIANTS[variant],
         SIZES[size],
+        /*
+          Desabilitado e cinza chapado, e nao o botao com opacidade.
+          `opacity-55` sobre o azul da marca deixava o rotulo em 1,76:1 no
+          tema claro e 1,35:1 no escuro -- ilegivel. Cinza sobre cinza mede
+          6,9:1, diz "inativo" com a mesma clareza e nao depende de o olho
+          adivinhar um texto esmaecido.
+
+          So vale quando NAO esta carregando: um "Salvar" em andamento
+          continua azul, com o indicador girando, porque ali o botao nao esta
+          inativo -- esta ocupado.
+        */
+        !loading
+          && 'disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-600 disabled:shadow-none',
         className,
       )}
       {...rest}

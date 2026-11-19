@@ -955,7 +955,7 @@ function AbaAvisos({ siteId }: { siteId: string }) {
                           {DELIVERY_STATE_LABELS[entrega.status]}
                         </Badge>
                         <span className="text-slate-600">{entrega.event}</span>
-                        <span className="text-slate-400">
+                        <span className="text-slate-500">
                           {formatDateTime(entrega.createdAt)} - {entrega.attempts} tentativa(s)
                         </span>
                         {entrega.lastError ? (

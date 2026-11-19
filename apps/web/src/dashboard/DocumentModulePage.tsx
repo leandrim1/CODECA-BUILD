@@ -201,7 +201,7 @@ function Campo({
   const rotulo = (
     <span className="inline-flex items-center gap-1.5">
       {campo.label}
-      {travado ? <Lock aria-label="Campo travado" className="size-3.5 text-slate-400" /> : null}
+      {travado ? <Lock aria-label="Campo travado" className="size-3.5 text-slate-500" /> : null}
     </span>
   );
   const comum = {
@@ -336,7 +336,7 @@ function RedesSociais({
     <fieldset className="grid gap-3 rounded-lg border border-slate-200 p-4">
       <legend className="px-1 text-sm font-medium text-slate-700">
         {campo.label}
-        {travado ? <Lock aria-label="Campo travado" className="ml-1.5 inline size-3.5 text-slate-400" /> : null}
+        {travado ? <Lock aria-label="Campo travado" className="ml-1.5 inline size-3.5 text-slate-500" /> : null}
       </legend>
       <p className="text-xs text-slate-500">Endereço completo, começando com https://.</p>
       <div className="grid gap-3 sm:grid-cols-2">

@@ -41,7 +41,7 @@ export function GoogleIcon({ className = 'size-5' }: { className?: string }) {
 /** Separador "ou" entre o Google e o formulario. */
 export function OrDivider() {
   return (
-    <div role="separator" aria-orientation="horizontal" className="flex items-center gap-3 text-xs font-medium uppercase tracking-wider text-slate-400">
+    <div role="separator" aria-orientation="horizontal" className="flex items-center gap-3 text-xs font-medium uppercase tracking-wider text-slate-500">
       <span className="h-px flex-1 bg-slate-200" />
       ou
       <span className="h-px flex-1 bg-slate-200" />

@@ -56,7 +56,7 @@ export function PlatformAuditPage() {
       hideOnMobile: true,
       render: (row) =>
         Object.keys(row.metadata).length === 0 ? (
-          <span className="text-xs text-slate-400">-</span>
+          <span className="text-xs text-slate-500">-</span>
         ) : (
           <code className="block max-w-xs truncate text-xs text-slate-500">{JSON.stringify(row.metadata)}</code>
         ),

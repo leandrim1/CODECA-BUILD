@@ -80,7 +80,7 @@ export function CampoPersonalizado({
   const rotulo = (
     <span className="inline-flex items-center gap-1.5">
       {campo.label}
-      {travado ? <Lock aria-label="Campo travado" className="size-3.5 text-slate-400" /> : null}
+      {travado ? <Lock aria-label="Campo travado" className="size-3.5 text-slate-500" /> : null}
     </span>
   );
   const comum = {

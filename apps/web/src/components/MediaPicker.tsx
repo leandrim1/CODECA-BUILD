@@ -411,7 +411,7 @@ export function MediaLibraryModal({
                   </div>
                   <span className="truncate px-0.5 text-xs text-slate-600">{asset.fileName}</span>
                   <span className="flex items-center justify-between gap-1 px-0.5">
-                    <span className="text-[11px] text-slate-400">{formatBytes(asset.sizeBytes)}</span>
+                    <span className="text-[11px] text-slate-500">{formatBytes(asset.sizeBytes)}</span>
                     {asset.alt ? null : <Badge tone="warning">sem alt</Badge>}
                   </span>
                 </button>

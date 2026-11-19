@@ -106,7 +106,7 @@ export function ProjectsPage() {
       hideOnMobile: true,
       render: (project) =>
         project.progressPercent === null ? (
-          <span className="text-xs text-slate-400">Não informada</span>
+          <span className="text-xs text-slate-500">Não informada</span>
         ) : (
           <span className="tabular-nums text-sm">{project.progressPercent}%</span>
         ),
@@ -148,7 +148,7 @@ export function ProjectsPage() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`Abrir ${project.title} no site`}
-              className="inline-grid size-8 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              className="inline-grid size-8 place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             >
               <ExternalLink aria-hidden="true" className="size-3.5" />
             </a>

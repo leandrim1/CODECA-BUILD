@@ -123,7 +123,7 @@ function EnvioDeEmail() {
             return (
               <div className="grid gap-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Mail aria-hidden="true" className="size-4 shrink-0 text-slate-400" />
+                  <Mail aria-hidden="true" className="size-4 shrink-0 text-slate-500" />
                   {!data.configured ? (
                     <Badge tone="warning">Não configurado</Badge>
                   ) : recusado ? (
@@ -189,7 +189,7 @@ function Stat({
       <CardBody className="grid gap-1">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm text-slate-500">{label}</span>
-          <Icon aria-hidden="true" className="size-4 text-slate-400" />
+          <Icon aria-hidden="true" className="size-4 text-slate-500" />
         </div>
         {hideValue ? null : <p className="text-2xl font-semibold tabular-nums text-slate-900">{value}</p>}
         <p className={hideValue ? 'text-xl font-semibold text-slate-900' : 'text-xs text-slate-500'}>{detail}</p>

@@ -95,7 +95,7 @@ function BlocoView({ bloco }: { bloco: Bloco }) {
       return <h3 className="mt-3 font-semibold text-slate-900">{bloco.texto}</h3>;
     case 'lista':
       return (
-        <ul className="grid list-disc gap-2 pl-5 leading-relaxed text-slate-600 marker:text-slate-400">
+        <ul className="grid list-disc gap-2 pl-5 leading-relaxed text-slate-600 marker:text-slate-500">
           {bloco.itens.map((item) => (
             <li key={item}>{item}</li>
           ))}

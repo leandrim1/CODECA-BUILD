@@ -171,7 +171,7 @@ export function PropertiesPage() {
               href={`/imoveis/${property.slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-grid size-8 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              className="inline-grid size-8 place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700"
               aria-label={`Abrir ${property.title} no site`}
             >
               <ExternalLink aria-hidden="true" className="size-3.5" />

@@ -47,7 +47,7 @@ export function PlatformDomainsPage() {
         row.lastCheckedAt ? (
           <span className="text-xs text-slate-600">{formatDateTime(row.lastCheckedAt)}</span>
         ) : (
-          <span className="text-xs text-slate-400">Nunca</span>
+          <span className="text-xs text-slate-500">Nunca</span>
         ),
     },
     {
@@ -60,7 +60,7 @@ export function PlatformDomainsPage() {
             {row.lastError}
           </span>
         ) : (
-          <span className="text-xs text-slate-400">-</span>
+          <span className="text-xs text-slate-500">-</span>
         ),
     },
   ];
