@@ -44,6 +44,23 @@ export const updateProfileSchema = z.object({
   phone: phoneSchema.default(''),
 });
 
+/**
+ * Marcos do guia de primeiro acesso.
+ *
+ * Dois marcos, cada um com um unico sentido: `true` grava a data de agora,
+ * `false` limpa (e o "refazer tour" e o "ver primeiros passos" do menu de
+ * ajuda). Nao se envia data: quem decide o relogio e o servidor, senao o
+ * registro passa a depender da hora do aparelho de quem clicou.
+ */
+export const onboardingMarksSchema = z
+  .object({
+    tourDone: z.boolean().optional(),
+    checklistDismissed: z.boolean().optional(),
+  })
+  .refine((v) => v.tourDone !== undefined || v.checklistDismissed !== undefined, {
+    message: 'Informe ao menos um marco.',
+  });
+
 export const inviteMemberSchema = z.object({
   email: emailSchema,
   role: z.enum(TENANT_ROLES).refine((r) => r !== 'owner' || true),

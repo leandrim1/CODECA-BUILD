@@ -51,6 +51,14 @@ export interface SessionUser {
   hasPassword: boolean;
   /** Conta Google vinculada, quando houver. */
   google: { email: string } | null;
+  /**
+   * Guia de primeiro acesso: datas, nao booleanos.
+   *
+   * Nulo significa "ainda nao": o tour abre e o checklist aparece. Vem na
+   * sessao, e nao numa chamada propria, para o painel decidir antes da
+   * primeira pintura -- um tour que surge sobre a tela ja montada assusta.
+   */
+  onboarding: { tourDoneAt: string | null; checklistDismissedAt: string | null };
 }
 
 export interface SessionMembership {

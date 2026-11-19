@@ -3,6 +3,7 @@ import type { SiteStatus } from './constants.js';
 import type { EffectivePlan, UsageSnapshot } from './plans.js';
 import type { LeadInterestType, LeadStatus } from './constants.js';
 import type { SyncNotice } from './sync/types.js';
+import type { OnboardingSignals } from './onboarding.js';
 
 /**
  * Contrato da visao geral do painel do cliente.
@@ -97,4 +98,12 @@ export interface TenantOverview {
    * informacao, e ocuparia espaco todo dia.
    */
   syncNotice: SyncNotice | null;
+  /**
+   * Sinais do guia de primeiro acesso que a contagem nao da.
+   *
+   * Banner, servico e dominio ja se leem dos campos acima; "institucional
+   * preenchido" e "contato cadastrado" dependem de QUAIS campos tem conteudo,
+   * e essa decisao fica no servidor, perto do dado.
+   */
+  onboarding: OnboardingSignals;
 }

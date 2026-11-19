@@ -102,6 +102,11 @@ export async function resolveSession(
       // Conta Google vinculada, na MESMA consulta: era uma ida ao banco a mais em
       // toda requisicao autenticada.
       googleEmail: schema.userIdentities.email,
+      // Guia de primeiro acesso: na MESMA consulta. O painel precisa saber,
+      // antes da primeira pintura, se abre o tour -- uma chamada propria
+      // depois do carregamento faria o tour aparecer em cima da tela pronta.
+      onboardingTourDoneAt: schema.users.onboardingTourDoneAt,
+      onboardingChecklistDismissedAt: schema.users.onboardingChecklistDismissedAt,
     })
     .from(schema.sessions)
     .innerJoin(schema.users, eq(schema.users.id, schema.sessions.userId))
@@ -145,6 +150,10 @@ export async function resolveSession(
       emailVerified: row.emailVerifiedAt !== null,
       hasPassword: row.passwordHash !== null,
       google: row.googleEmail !== null ? { email: row.googleEmail } : null,
+      onboarding: {
+        tourDoneAt: row.onboardingTourDoneAt?.toISOString() ?? null,
+        checklistDismissedAt: row.onboardingChecklistDismissedAt?.toISOString() ?? null,
+      },
     },
     memberships: memberships.map((m) => ({
       tenantId: m.tenantId,
@@ -203,6 +212,7 @@ export function serializeSession(session: {
     emailVerified: boolean;
     hasPassword: boolean;
     google: { email: string } | null;
+    onboarding: { tourDoneAt: string | null; checklistDismissedAt: string | null };
   };
   memberships: Array<{ tenantId: string; tenantSlug: string; tenantName: string; tenantStatus: string; role: string }>;
   expiresAt: Date;

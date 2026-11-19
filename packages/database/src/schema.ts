@@ -593,6 +593,20 @@ export const users = pgTable(
      */
     termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }),
     termsVersion: text('terms_version'),
+    /**
+     * Guia de primeiro acesso: o que a pessoa ja dispensou.
+     *
+     * Duas datas, e nao dois booleanos: a data responde se aconteceu (nao e
+     * nulo) e quando, enquanto o par booleano+data pode divergir.
+     *
+     * Fica na PESSOA, nao na empresa: quem ja fez o tour nao o refaz ao entrar
+     * na segunda empresa. O progresso do checklist nao mora aqui -- ele e
+     * calculado dos dados reais do site a cada carregamento.
+     */
+    onboardingTourDoneAt: timestamp('onboarding_tour_done_at', { withTimezone: true }),
+    onboardingChecklistDismissedAt: timestamp('onboarding_checklist_dismissed_at', {
+      withTimezone: true,
+    }),
     createdAt,
     updatedAt,
   },

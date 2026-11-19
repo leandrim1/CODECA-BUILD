@@ -173,6 +173,17 @@ export const authApi = {
   acceptInvite: (body: unknown) =>
     api.post<{ session: SessionPayload | null; tenantId: string }>('/api/auth/accept-invite', body),
   updateProfile: (body: { name: string; phone: string }) => api.patch<unknown>('/api/auth/profile', body),
+  /**
+   * Marcos do guia de primeiro acesso.
+   *
+   * `false` desfaz: e assim que "Refazer tour" e "Ver primeiros passos", no
+   * menu de ajuda, trazem o guia de volta.
+   */
+  marcosDoGuia: (body: { tourDone?: boolean; checklistDismissed?: boolean }) =>
+    api.patch<{ onboarding: { tourDoneAt: string | null; checklistDismissedAt: string | null } }>(
+      '/api/auth/onboarding',
+      body,
+    ),
   changePassword: (body: { currentPassword: string; newPassword: string }) =>
     api.post<{ changed: boolean }>('/api/auth/change-password', body),
   sessions: () =>

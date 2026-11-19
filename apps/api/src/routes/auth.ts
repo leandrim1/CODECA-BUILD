@@ -11,6 +11,7 @@ import {
   requestPasswordResetSchema,
   resendVerificationSchema,
   resetPasswordSchema,
+  onboardingMarksSchema,
   updateProfileSchema,
   verifyEmailSchema,
 } from '@codeca/shared';
@@ -755,6 +756,47 @@ export function authRoutes() {
       .where(eq(schema.users.id, session.user.id));
 
     return ok(c, { user: refreshed[0] ?? null });
+  });
+
+  /**
+   * Marcos do guia de primeiro acesso.
+   *
+   * Fica em `users` e nao em `localStorage` porque a promessa e "nao aparece
+   * de novo" -- e o armazenamento do navegador quebra essa promessa a cada
+   * troca de aparelho, de navegador ou de janela anonima. O menu de ajuda
+   * desfaz os dois marcos pela mesma rota.
+   */
+  app.patch('/onboarding', requireAuth(), async (c) => {
+    const ctx = c.get('ctx');
+    const session = sessionOf(c);
+    const input = await parseJsonBody(c, onboardingMarksSchema);
+    const agora = ctx.now();
+
+    const campos: Record<string, Date | null> = {};
+    if (input.tourDone !== undefined) campos.onboardingTourDoneAt = input.tourDone ? agora : null;
+    if (input.checklistDismissed !== undefined) {
+      campos.onboardingChecklistDismissedAt = input.checklistDismissed ? agora : null;
+    }
+
+    await ctx.db
+      .update(schema.users)
+      .set({ ...campos, updatedAt: agora })
+      .where(eq(schema.users.id, session.user.id));
+
+    const [refreshed] = await ctx.db
+      .select({
+        tourDoneAt: schema.users.onboardingTourDoneAt,
+        checklistDismissedAt: schema.users.onboardingChecklistDismissedAt,
+      })
+      .from(schema.users)
+      .where(eq(schema.users.id, session.user.id));
+
+    return ok(c, {
+      onboarding: {
+        tourDoneAt: refreshed?.tourDoneAt?.toISOString() ?? null,
+        checklistDismissedAt: refreshed?.checklistDismissedAt?.toISOString() ?? null,
+      },
+    });
   });
 
   app.post('/change-password', requireAuth(), async (c) => {

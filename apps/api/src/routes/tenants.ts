@@ -1,7 +1,9 @@
-import { and, desc, eq, gte, isNull, schema, sql, type Database } from '@codeca/database';
+import { and, desc, eq, gte, inArray, isNull, schema, sql, type Database } from '@codeca/database';
 import {
   AppError,
+  contatoPreenchido,
   deleteTenantSchema,
+  institucionalPreenchido,
   updateTenantContactSchema,
   updateTenantSchema,
   type ContentUsageView,
@@ -121,6 +123,7 @@ export function tenantRoutes() {
       [site],
       [acesso],
       planStatus,
+      documentosDoGuia,
     ] = await Promise.all([
       ctx.db
         .select({
@@ -217,6 +220,23 @@ export function tenantRoutes() {
           and(eq(schema.siteApiKeys.siteId, tenant.siteId), isNull(schema.siteApiKeys.revokedAt)),
         ),
       loadPlanStatus(ctx.db, tenantId),
+      /**
+       * Os dois documentos do guia de primeiro acesso.
+       *
+       * Uma consulta a mais, contra o indice unico de `(site_id, module_key)`,
+       * e nela vem no maximo duas linhas. O preco e menor do que o painel
+       * fazer duas chamadas proprias so para saber se o checklist esta
+       * concluido -- e evita que a tela tenha de decidir o que e "preenchido".
+       */
+      ctx.db
+        .select({ moduleKey: schema.contentDocuments.moduleKey, data: schema.contentDocuments.data })
+        .from(schema.contentDocuments)
+        .where(
+          and(
+            eq(schema.contentDocuments.siteId, tenant.siteId),
+            inArray(schema.contentDocuments.moduleKey, ['institucional', 'contato']),
+          ),
+        ),
     ]);
 
     if (!site) throw AppError.notFound('Site não encontrado.');
@@ -258,6 +278,14 @@ export function tenantRoutes() {
         tenantId,
         siteId: tenant.siteId,
       }),
+      onboarding: {
+        institutionalFilled: institucionalPreenchido(
+          documentosDoGuia.find((d) => d.moduleKey === 'institucional')?.data,
+        ),
+        contactFilled: contatoPreenchido(
+          documentosDoGuia.find((d) => d.moduleKey === 'contato')?.data,
+        ),
+      },
     };
 
     return ok(c, resposta);

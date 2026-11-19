@@ -31,6 +31,8 @@ import { useResource } from '../hooks/useResource.js';
 import { useSiteModules } from '../hooks/useSiteModules.js';
 import { demoApi, tenantApi } from '../services/endpoints.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
+import { OnboardingChecklist } from '../components/OnboardingChecklist.js';
+import { useGuiaDePrimeiroAcesso } from '../hooks/useGuiaDePrimeiroAcesso.js';
 import { DemoWelcome } from './DemoPanels.js';
 import type { OverviewResponse } from '../types/index.js';
 import { labels, domainTone, leadTone, siteTone } from '../utils/labels.js';
@@ -139,6 +141,7 @@ const INDICADORES: Indicador[] = [
 export function OverviewPage() {
   const tenantId = useTenantId();
   const { user, tenant, can } = useAuth();
+  const { checklistVisivel, dispensarChecklist } = useGuiaDePrimeiroAcesso();
   const { enabled, panelIncluded, planName, loading: modulesLoading, customModules } = useSiteModules();
   const overview = useResource('tenantApi.overview', () => tenantApi.overview(tenantId), [tenantId], {
     // Sem painel no plano a rota responde 402: nem pede.
@@ -238,6 +241,21 @@ export function OverviewPage() {
         >
           {overview.data.syncNotice.message}
         </Alert>
+      ) : null}
+
+      {/*
+        Primeiros passos, acima dos indicadores.
+        
+        Acima porque e o que a pessoa precisa LER no primeiro dia: um numero
+        de imoveis publicados nao diz o que fazer a seguir, e a lista diz.
+        Some quando dispensada, e volta pelo menu de ajuda.
+      */}
+      {checklistVisivel && overview.data ? (
+        <OnboardingChecklist
+          visao={overview.data}
+          pode={can}
+          onDispensar={dispensarChecklist}
+        />
       ) : null}
 
       {/*
