@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import { CodecaError } from '@codeca/sdk/server';
-import { codeca, ETIQUETA_CONTEUDO } from '@/lib/codeca';
+import { codeca } from '@/lib/codeca';
 
 /**
  * Pagina inicial.
@@ -8,9 +8,9 @@ import { codeca, ETIQUETA_CONTEUDO } from '@/lib/codeca';
  * Busca em paralelo, e nao em serie: em serie a pagina espera a soma das
  * idas a plataforma; em paralelo espera so a mais lenta.
  *
- * `unstable_cache` nao aparece aqui porque o `fetch` do Next ja cacheia e o
- * SDK usa `fetch`. A etiqueta entra pelo `next.revalidate` da rota, e o aviso
- * de publicacao a invalida.
+ * A etiqueta de cache NAO entra aqui: ela ja vem no `fetch` que o cliente do
+ * SDK usa (ver `lib/codeca.ts`). O `revalidate` abaixo e so a rede de
+ * seguranca por tempo, para o caso de o aviso de publicacao nao chegar.
  */
 export const revalidate = 3600;
 

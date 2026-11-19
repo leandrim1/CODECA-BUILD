@@ -22,16 +22,34 @@ function exigir(nome: string): string {
   return valor;
 }
 
-export const codeca = createServerClient({
-  baseUrl: exigir('CODECA_BASE_URL'),
-  secretKey: exigir('CODECA_SECRET_KEY'),
-});
-
 /**
  * Etiqueta de cache do conteudo da plataforma.
  *
- * Toda busca entra nesta etiqueta, e o aviso de publicacao a invalida. Sem
- * isso o site so atualizaria no proximo build -- e o cliente editaria no
- * painel sem ver mudanca nenhuma, que e a reclamacao mais cara de atender.
+ * Declarada antes do cliente porque e ele quem a aplica: cada busca do SDK
+ * sai marcada com ela, e o aviso de publicacao a invalida.
  */
 export const ETIQUETA_CONTEUDO = 'codeca:conteudo';
+
+export const codeca = createServerClient({
+  baseUrl: exigir('CODECA_BASE_URL'),
+  secretKey: exigir('CODECA_SECRET_KEY'),
+  /*
+    O `fetch` do Next, com a etiqueta.
+
+    Sem isto o `revalidateTag` do webhook nao tem efeito nenhum: ele invalida
+    uma etiqueta que busca nenhuma carrega, e o cliente edita no painel sem
+    ver mudanca -- o defeito exato que o webhook existe para evitar.
+
+    `revalidate` de segmento NAO serve para isto: ele e tempo, nao etiqueta.
+    Quem anexa etiqueta e a opcao `next` de cada `fetch`, e por isso ela entra
+    aqui, uma vez, em vez de em cada chamada.
+
+    O `as RequestInit` e necessario porque `next` e extensao do Next sobre o
+    `RequestInit` padrao, e o tipo do `fetch` global nao a conhece.
+  */
+  fetch: (entrada, init) =>
+    globalThis.fetch(entrada, {
+      ...init,
+      next: { tags: [ETIQUETA_CONTEUDO] },
+    } as RequestInit),
+});

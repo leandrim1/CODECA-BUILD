@@ -97,6 +97,8 @@ await codeca.contact.get();
 await codeca.banners.list();
 await codeca.properties.list({ purpose: 'venda', city: 'Campinas' });
 await codeca.properties.get('residencial-aurora');
+await codeca.projects.list({ status: 'em_andamento' });   // "Obras e projetos"
+await codeca.projects.get('edificio-horizonte');
 await codeca.services.list();
 await codeca.products.list({ category: 'pratos', availableOnly: true });
 await codeca.galleries.get('nossa-estrutura');
@@ -106,13 +108,27 @@ await codeca.faqs.list();
 await codeca.custom('cardapio').list();   // módulos criados para o projeto
 ```
 
-**As listas não têm todas a mesma forma.** `banners.list()` devolve o array
-direto; `services.list()` devolve uma página com `items`. Banner não é paginado,
-serviço é. O compilador avisa se trocar — e avisa mesmo: este foi um dos
-enganos que a compilação pegou ao montar o template.
+**As listas não têm todas a mesma forma.** `banners.list()` e
+`categories.list()` devolvem o array direto; as demais devolvem uma página com
+`items`, `page`, `total` e `totalPages`. Banner e categoria não são paginados.
+O compilador avisa se trocar — e avisa mesmo: este foi um dos enganos que a
+compilação pegou ao montar o template.
 
 A listagem traz a **capa** de cada item; a galeria completa vem no detalhe, por
 `slug`.
+
+**`preview: true` exige a chave secreta.** Ele inclui rascunhos, e a API recusa
+o parâmetro vindo da publicável — serve a uma página de pré-visualização no
+servidor, não ao site do visitante.
+
+**Os nomes dos campos não se adivinham.** A capa é `cover` (não `image`), a
+galeria é `gallery` (não `images`), e cidade e bairro ficam em `address`, não
+no topo do objeto. `pageSize` vai até 50, não 100.
+
+Os filtros de cada recurso, o formato exato de cada resposta e os nomes de
+campo estão em `references/contrato.md`. **Leia esse arquivo antes de supor
+qualquer coisa** — num teste real, um desenvolvedor experiente errou os três
+nomes acima por analogia, e o código não compilaria.
 
 ### Criar um interessado
 
@@ -160,7 +176,22 @@ const evento = await verifyWebhook({
 revalidateTag(ETIQUETA, { expire: 0 });   // Next 16 exige o perfil de cache
 ```
 
-Duas armadilhas:
+Três armadilhas:
+
+**A etiqueta precisa estar nas buscas.** `revalidateTag` invalida uma
+etiqueta; se busca nenhuma a carrega, ele não faz nada — e o sintoma é
+exatamente o que o webhook existia para evitar. `revalidate` de segmento
+**não** serve: ele é tempo, não etiqueta. Quem anexa é a opção `next` de cada
+`fetch`, e o jeito limpo é passar um `fetch` próprio ao criar o cliente, uma
+vez só:
+
+```ts
+createServerClient({
+  baseUrl, secretKey,
+  fetch: (entrada, init) =>
+    globalThis.fetch(entrada, { ...init, next: { tags: [ETIQUETA] } } as RequestInit),
+});
+```
 
 **O corpo vai cru.** `await request.text()`, nunca um `request.json()`
 reserializado: mudar espaçamento ou ordem das chaves quebra a assinatura, com um
@@ -189,6 +220,20 @@ conta como quebra:
 
 Código que depende de `segment` ser um de três valores, ou de uma chave de
 `customFields` estar sempre presente, vai quebrar.
+
+## Dois limites da plataforma
+
+Verificados no código da API, e vale saber antes de desenhar a tela.
+
+**IDs de imagem do institucional não se resolvem.** `logoImageId`,
+`coverImageId` e `galleryImageIds` chegam como IDs, e a API pública **não tem
+endpoint de mídia**. Os módulos de coleção resolvem a imagem no servidor e
+devolvem URL; os documentos não. Para logotipo e capa, use um asset do próprio
+projeto ou um banner.
+
+**Campos personalizados de documento não chegam ao site.** O painel deixa
+defini-los no institucional e no contato, mas a rota pública devolve só `data`
+e `updatedAt`. Eles só são legíveis nos módulos de coleção.
 
 ## Falhar cedo é melhor que servir vazio
 

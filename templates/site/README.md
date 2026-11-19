@@ -11,6 +11,8 @@ cd ../site-do-cliente
 cp .env.example .env.local
 ```
 
+O `.env.example` é um **arquivo oculto**: um `ls` sem `-a` não o mostra.
+
 Preencha o `.env.local` com as credenciais que o painel mestre dá em
 `/plataforma/sites`, aba **Chaves**. Depois:
 
@@ -46,6 +48,11 @@ quebra a assinatura, com um erro que parece de credencial.
 **As listas não têm todas a mesma forma.** `banners.list()` devolve o array
 direto; `services.list()` devolve uma página com `items`. Banner não é
 paginado, serviço é. O compilador avisa se trocar.
+
+**A etiqueta de cache entra pelo `fetch` do cliente**, em `src/lib/codeca.ts`,
+e não pelo `revalidate` da página — `revalidate` é tempo, não etiqueta. Sem
+isso o `revalidateTag` do webhook invalidaria uma etiqueta que ninguém carrega,
+e o cliente editaria no painel sem ver mudança.
 
 **Sem credencial, o build falha de propósito.** `src/lib/codeca.ts` confere as
 variáveis na partida. Um site que sobe sem credencial deve quebrar no build, e
