@@ -1,99 +1,141 @@
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Menu } from 'lucide-react';
+import { Button, cx } from '@codeca/ui';
 import { Logo } from '../components/Logo.js';
-import { Link, NavLink, Outlet } from 'react-router-dom';
-import {
-  AppWindow,
-  ArrowLeft,
-  Building2,
-  CreditCard,
-  FileClock,
-  Globe,
-  LayoutDashboard,
-  LifeBuoy,
-  Package,
-  Shapes,
-} from 'lucide-react';
-import { cx } from '@codeca/ui';
+import { SidebarPlataforma } from '../components/SidebarPlataforma.js';
 import { NavigationProgress, PageArea } from '../components/PageFeedback.js';
-import { preloadRoute } from '../lib/routePreload.js';
+import { MENU_DA_PLATAFORMA } from '../lib/menuDaPlataforma.js';
+import { useAuth } from '../hooks/useAuth.js';
+import { useConsultaDeMidia } from '../hooks/useConsultaDeMidia.js';
+import { useMenuRecolhido } from '../hooks/useMenuRecolhido.js';
 
-/** Moldura do painel mestre, restrito a administradores da plataforma. */
-const ITEMS = [
-  { to: '/plataforma', label: 'Visão geral', icon: LayoutDashboard, end: true },
-  { to: '/plataforma/empresas', label: 'Empresas', icon: Building2 },
-  { to: '/plataforma/sites', label: 'Sites', icon: AppWindow },
-  { to: '/plataforma/segmentos', label: 'Segmentos', icon: Shapes },
-  { to: '/plataforma/planos', label: 'Planos', icon: Package },
-  { to: '/plataforma/cobranca', label: 'Cobrança', icon: CreditCard },
-  { to: '/plataforma/dominios', label: 'Domínios', icon: Globe },
-  { to: '/plataforma/suporte', label: 'Acesso de suporte', icon: LifeBuoy },
-  { to: '/plataforma/auditoria', label: 'Auditoria', icon: FileClock },
-];
-
+/**
+ * Moldura do painel mestre, restrito a administradores da plataforma.
+ *
+ * A navegacao e lateral e fixa. Era uma faixa horizontal no topo, que com nove
+ * destinos ja rolava de lado no celular e quebrava em duas linhas no tablet --
+ * e, por estar no fluxo, empurrava o conteudo para baixo em toda tela. A barra
+ * presa a janela devolve a altura ao conteudo e deixa os nove destinos
+ * visiveis de uma vez.
+ *
+ * Quem compensa a largura da barra e o padding desta coluna, e nao uma grade:
+ * a barra e `fixed` e nao ocupa espaco no fluxo, entao a medida daqui tem de
+ * acompanhar a de la -- `w-72`/`md:pl-72`, `w-[4.5rem]`/`md:pl-[4.5rem]`.
+ */
 export function PlatformLayout() {
-  return (
-    // `flex-col` + `flex-1` no `main`: sem isso o `main` so cresce ate o
-    // conteudo, e numa tela curta o fundo escuro do cabecalho reaparecia
-    // embaixo, como se a pagina tivesse duas metades.
-    <div className="flex min-h-dvh flex-col bg-slate-900">
-      <NavigationProgress />
-      {/*
-        O painel mestre usa fundo escuro de proposito, para a CODECA IA nunca
-        confundir em qual dos dois paineis esta. O escuro e neutro de apoio --
-        o azul da marca segue sendo o unico destaque, agora tambem no item
-        ativo do menu.
-      */}
-      <header className="border-b border-slate-800 bg-slate-900">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
-          <Link to="/plataforma" aria-label="CODECA Build, painel da plataforma" className="mr-2 flex items-center">
-            <Logo tone="dark" className="h-8" priority />
-          </Link>
-          <Link to="/painel" className="inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white">
-            <ArrowLeft aria-hidden="true" className="size-4" />
-            Voltar ao painel
-          </Link>
-          <span className="ml-auto rounded-full bg-amber-400/15 px-3 py-1 text-xs font-medium tracking-wide text-amber-300 ring-1 ring-inset ring-amber-400/20">
-            Área restrita da plataforma
-          </span>
-        </div>
-        {/*
-          No celular o menu vira uma unica faixa que rola de lado, em vez de
-          quebrar em quatro linhas e comer metade da tela antes do conteudo. A
-          partir de `md` volta a quebrar linha: ali ha espaco e ver tudo de
-          uma vez e melhor que rolar.
-        */}
-        <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" aria-label="Menu da plataforma">
-          <ul className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:-mx-6 sm:px-6 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
-            {ITEMS.map((item) => (
-              <li key={item.to} className="flex-none">
-                <NavLink
-                  to={item.to}
-                  end={item.end}
-                  onPointerEnter={() => preloadRoute(item.to)}
-                  onFocus={() => preloadRoute(item.to)}
-                  className={({ isActive }) =>
-                    cx(
-                      'inline-flex items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm',
-                      'transition-all duration-200 ease-[var(--ease-out-soft)]',
-                      isActive
-                        // O ativo deixa de ser so "mais claro" e passa a
-                        // carregar o azul da marca, como no painel do cliente.
-                        ? 'bg-brand-600/15 font-medium text-white ring-1 ring-inset ring-brand-500/30'
-                        : 'text-slate-300 hover:bg-white/5 hover:text-white',
-                    )
-                  }
-                >
-                  <item.icon aria-hidden="true" className="size-4" />
-                  {item.label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </header>
+  const { user, logout } = useAuth();
+  const { pathname } = useLocation();
+  const { recolhido, alternar } = useMenuRecolhido();
+  const [aberta, setAberta] = useState(false);
+  const gatilhoRef = useRef<HTMLButtonElement>(null);
+  const fecharRef = useRef<HTMLButtonElement>(null);
 
-      <main className="flex-1 bg-slate-50">
-        <PageArea />
-      </main>
+  // Abaixo de `md:` a barra e gaveta: ali nao ha trilho de icones nem recolher.
+  const ehCelular = useConsultaDeMidia('(max-width: 767px)');
+  const soIcones = recolhido && !ehCelular;
+
+  // Trocar de tela fecha a gaveta. O `onClick` de cada item ja faz isso, mas
+  // nao cobre voltar pelo navegador nem um link vindo do conteudo.
+  useEffect(() => setAberta(false), [pathname]);
+
+  /**
+   * Abrir leva o foco para dentro da gaveta; fechar o devolve ao hamburguer.
+   *
+   * A barra vem ANTES do conteudo no documento, entao sem isto o Tab seguinte
+   * ao hamburguer pularia a gaveta inteira e cairia no conteudo atras do veu
+   * -- um menu que o mouse abre e o teclado nao alcanca.
+   */
+  const jaAbriu = useRef(false);
+  useEffect(() => {
+    if (aberta) {
+      jaAbriu.current = true;
+      fecharRef.current?.focus();
+    } else if (jaAbriu.current) {
+      jaAbriu.current = false;
+      gatilhoRef.current?.focus();
+    }
+  }, [aberta]);
+
+  // Gaveta aberta: o fundo nao rola por baixo e Esc a fecha.
+  useEffect(() => {
+    if (!aberta) return undefined;
+    const anterior = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const aoTeclar = (evento: KeyboardEvent) => {
+      if (evento.key === 'Escape') setAberta(false);
+    };
+    document.addEventListener('keydown', aoTeclar);
+    return () => {
+      document.body.style.overflow = anterior;
+      document.removeEventListener('keydown', aoTeclar);
+    };
+  }, [aberta]);
+
+  return (
+    <div className="min-h-dvh bg-slate-50">
+      <SidebarPlataforma
+        itens={MENU_DA_PLATAFORMA}
+        aberta={aberta}
+        fora={ehCelular && !aberta}
+        fecharRef={fecharRef}
+        onFechar={() => setAberta(false)}
+        soIcones={soIcones}
+        recolhido={recolhido}
+        onAlternarRecolhido={alternar}
+        user={user}
+        onSair={() => void logout()}
+      />
+
+      {aberta ? (
+        <button
+          type="button"
+          /*
+            Fora do caminho do teclado: Esc e o X da gaveta ja fecham, e um
+            botao do tamanho da janela no meio da ordem do Tab seria so ruido
+            para quem usa leitor de tela -- alem de um segundo controle com o
+            mesmo nome do X.
+          */
+          aria-hidden="true"
+          tabIndex={-1}
+          onClick={() => setAberta(false)}
+          className="fixed inset-0 z-30 bg-scrim/50 md:hidden"
+        />
+      ) : null}
+
+      {/* `min-w-0`: sem isso um conteudo largo estica a coluna e a pagina
+          inteira passa a rolar de lado, atras da barra fixa. */}
+      <div
+        className={cx(
+          'flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200 ease-[var(--ease-out-soft)]',
+          soIcones ? 'md:pl-[4.5rem]' : 'md:pl-72',
+        )}
+        /*
+          Com a gaveta aberta o conteudo esta atras do veu: `inert` prende o
+          foco na gaveta sem biblioteca de armadilha de foco, e impede que o
+          leitor de tela anuncie a tela que a pessoa nao esta vendo.
+        */
+        {...(aberta && ehCelular ? { inert: true } : {})}
+      >
+        <NavigationProgress />
+
+        {/* No celular a barra sai da tela: o cabecalho e o unico caminho de volta. */}
+        <header className="sticky top-0 z-20 flex h-16 flex-none items-center gap-3 border-b border-slate-200 bg-white/80 px-4 backdrop-blur-xl md:hidden">
+          <Button ref={gatilhoRef} variant="ghost" size="icon" onClick={() => setAberta(true)} aria-label="Abrir menu">
+            <Menu aria-hidden="true" className="size-5" />
+          </Button>
+          <Link to="/plataforma" aria-label="CODECA Build, painel da plataforma" className="flex items-center">
+            <Logo className="h-8" priority />
+          </Link>
+          <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+            Plataforma
+          </span>
+        </header>
+
+        <main className="flex-1">
+          <PageArea />
+        </main>
+      </div>
     </div>
   );
 }

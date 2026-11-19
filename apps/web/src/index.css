@@ -204,6 +204,29 @@
     }
   }
 
+  /*
+    A mesma barra fina, sobre fundo escuro.
+    Acompanha `.rolagem-fina` e precisa vir DEPOIS dela: mesma especificidade,
+    entao quem vence e a ultima regra do arquivo.
+  */
+  .rolagem-escura {
+    scrollbar-color: var(--color-slate-600) transparent;
+  }
+
+  @supports selector(::-webkit-scrollbar) {
+    .rolagem-escura {
+      scrollbar-color: auto;
+    }
+
+    .rolagem-escura::-webkit-scrollbar-thumb {
+      background-color: var(--color-slate-700);
+    }
+
+    .rolagem-escura:hover::-webkit-scrollbar-thumb {
+      background-color: var(--color-slate-600);
+    }
+  }
+
   .link {
     @apply font-medium text-brand-700 underline decoration-brand-300 underline-offset-2 hover:decoration-brand-600;
   }

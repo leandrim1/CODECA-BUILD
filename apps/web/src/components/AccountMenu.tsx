@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, ExternalLink, Home, LogOut, Settings, Sparkles } from 'lucide-react';
 import { Badge, cx } from '@codeca/ui';
 import { useAuth } from '../hooks/useAuth.js';
+import { useConsultaDeMidia } from '../hooks/useConsultaDeMidia.js';
 import { ThemeToggle } from './ThemeToggle.js';
 import { api } from '../services/api.js';
 import { labels, tenantTone } from '../utils/labels.js';
@@ -55,25 +56,7 @@ function useSituacaoDaPlataforma(ativo: boolean): Situacao {
  * da barra lateral com um portal, e isso nao da para decidir em media query.
  */
 function useEhCelular(): boolean {
-  const [ehCelular, setEhCelular] = useState(() => {
-    try {
-      return window.matchMedia('(max-width: 639px)').matches;
-    } catch {
-      return false;
-    }
-  });
-  useEffect(() => {
-    let media: MediaQueryList;
-    try {
-      media = window.matchMedia('(max-width: 639px)');
-    } catch {
-      return undefined;
-    }
-    const aoMudar = (e: MediaQueryListEvent) => setEhCelular(e.matches);
-    media.addEventListener('change', aoMudar);
-    return () => media.removeEventListener('change', aoMudar);
-  }, []);
-  return ehCelular;
+  return useConsultaDeMidia('(max-width: 639px)');
 }
 
 const TEXTO_DA_SITUACAO: Record<Situacao, string> = {

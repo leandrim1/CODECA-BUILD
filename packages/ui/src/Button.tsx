@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ComponentPropsWithRef, ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cx } from './utils.js';
 
@@ -32,7 +32,15 @@ const SIZES: Record<ButtonSize, string> = {
   icon: 'h-9 w-9 shrink-0 justify-center',
 };
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+/**
+ * `ComponentPropsWithRef` e nao `ButtonHTMLAttributes`: o `ref` entra junto.
+ *
+ * No React 19 o `ref` e uma propriedade comum de componente de funcao -- nao
+ * precisa de `forwardRef` -- mas precisa estar no TIPO para o TypeScript
+ * aceita-lo. Quem chama usa isso para levar o foco ate um botao (abrir uma
+ * gaveta e focar o fechar, por exemplo). O `{...rest}` ja o repassava.
+ */
+export interface ButtonProps extends ComponentPropsWithRef<'button'> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;

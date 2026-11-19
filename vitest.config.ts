@@ -22,7 +22,16 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'packages/**/*.test.ts', 'apps/**/*.test.ts'],
+    // Os testes de componente ficam ao lado do componente, e nao em `tests/`:
+    // `react` e dependencia de `apps/web`, e a partir da raiz o import nao
+    // resolve.
+    include: [
+      'tests/**/*.test.ts',
+      'tests/**/*.test.tsx',
+      'packages/**/*.test.ts',
+      'apps/**/*.test.ts',
+      'apps/**/*.test.tsx',
+    ],
     environment: 'node',
     testTimeout: 60_000,
     hookTimeout: 120_000,
