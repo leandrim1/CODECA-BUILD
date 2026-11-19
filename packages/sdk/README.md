@@ -11,13 +11,29 @@ Sem dependencia de runtime: o pacote usa apenas `fetch`.
 O pacote vive dentro do monorepo da plataforma. Em um site separado, use uma
 destas vias:
 
+**A via que nao depende de terceiro** -- e a unica verificada:
+
 ```bash
-pnpm add "https://gitpkg.now.sh/leandrim1/CODECA-BUILD/packages/sdk?main"
+cd packages/sdk && npm pack --pack-destination /caminho/do/site
 ```
 
-Ou, mais simples e sem servico de terceiro: `pnpm pack` no pacote e commitar o
-tarball no site, ou copiar `packages/sdk/src` para `src/codeca/` do site. Os
+No site, aponte a dependencia para o arquivo:
+
+```json
+{ "dependencies": { "@codeca/sdk": "file:./codeca-sdk-0.1.0.tgz" } }
+```
+
+Tambem da para copiar `packages/sdk/src` para `src/codeca/` do site: os
 arquivos nao importam nada de fora.
+
+Ha ainda o gitpkg, que serve um subdiretorio de repositorio publico como
+pacote. O ultimo parametro e o **branch**, e tem de ser um que exista:
+
+```bash
+pnpm add "https://gitpkg.now.sh/leandrim1/CODECA-BUILD/packages/sdk?NOME-DO-BRANCH"
+```
+
+Esta via depende de um servico de terceiro e nao foi testada aqui.
 
 ---
 
