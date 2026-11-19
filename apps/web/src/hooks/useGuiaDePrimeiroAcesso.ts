@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from './useAuth.js';
 import { authApi } from '../services/endpoints.js';
 
@@ -10,8 +10,12 @@ import { authApi } from '../services/endpoints.js';
  * ela, dispensar o checklist deixaria o cartao na tela ate a resposta chegar,
  * e a pessoa clicaria de novo achando que o botao falhou.
  *
- * A sombra some assim que a sessao volta com o valor gravado -- ela adianta a
- * resposta, nao substitui.
+ * A sombra e DESCARTADA assim que a sessao traz um valor novo. Isso nao e
+ * detalhe: o hook e usado em mais de um lugar (a visao geral e o menu de
+ * ajuda), e cada um tem a sua copia do estado. Sem o descarte, a visao geral
+ * guardava "dispensei" na sombra dela, o menu gravava o desfazer no servidor,
+ * e a visao geral continuava preferindo a propria sombra -- o "Ver primeiros
+ * passos" nao trazia o cartao de volta. Medido em navegador.
  */
 export interface GuiaDePrimeiroAcesso {
   /** O tour nunca foi concluido nem pulado. */
@@ -61,6 +65,20 @@ export function useGuiaDePrimeiroAcesso(): GuiaDePrimeiroAcesso {
     setSombra((s) => ({ ...s, checklist: false }));
     gravar({ checklistDismissed: false });
   }, [gravar]);
+
+  /**
+   * Chegou valor novo do servidor: a sombra cumpriu o papel dela e sai.
+   *
+   * `user.onboarding` so troca de identidade quando o conteudo muda de
+   * verdade (`replaceEqualDeep` no `useAuth`), entao isto nao dispara a cada
+   * desenho.
+   */
+  const marcosVistos = useRef(user?.onboarding);
+  useEffect(() => {
+    if (marcosVistos.current === user?.onboarding) return;
+    marcosVistos.current = user?.onboarding;
+    setSombra({});
+  }, [user?.onboarding]);
 
   // Sem sessao carregada nada aparece: um tour sobre uma tela que ainda nao
   // existe aponta para elementos que nao estao la.

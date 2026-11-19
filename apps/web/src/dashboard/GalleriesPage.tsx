@@ -1,6 +1,6 @@
 import { ContentLimitNotice } from '../components/ContentUsage.js';
 import { useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Images, Pencil, Plus, Trash2 } from 'lucide-react';
 import { PUBLICATION_STATUSES } from '@codeca/shared';
 import {
   Badge,
@@ -76,8 +76,9 @@ export function GalleriesPage() {
         {(data) =>
           data.items.length === 0 ? (
             <EmptyState
+              icon={<Images aria-hidden="true" className="size-8" />}
               title="Nenhuma galeria cadastrada"
-              description="Uma galeria agrupa imagens que a sua empresa quer mostrar juntas."
+              description="Um conjunto de fotos que aparecem juntas no site — um portfólio, um ambiente, um evento."
               action={
                 <Can capability="content:write">
                   <Button onClick={() => setEditando('nova')}>Criar a primeira</Button>

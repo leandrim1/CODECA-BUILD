@@ -390,7 +390,17 @@ export function authRoutes() {
     return ok(c, {
       session: session ? serializeSession(session) : null,
       features: ctx.features,
-      platform: { name: ctx.env.PLATFORM_NAME, url: ctx.env.PLATFORM_URL },
+      platform: {
+        name: ctx.env.PLATFORM_NAME,
+        url: ctx.env.PLATFORM_URL,
+        /*
+          Endereco do suporte, quando houver.
+          `null` quando nao configurado, e o menu de ajuda entao NAO mostra o
+          item: um "Falar com o suporte" que abre um e-mail para lugar nenhum
+          e pior do que a ausencia dele.
+        */
+        supportEmail: ctx.env.SUPPORT_EMAIL ?? null,
+      },
     });
   });
 

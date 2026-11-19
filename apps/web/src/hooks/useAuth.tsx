@@ -30,7 +30,7 @@ interface AuthContextValue {
   user: SessionUser | null;
   memberships: SessionMembership[];
   features: FeatureFlags;
-  platform: { name: string; url: string };
+  platform: { name: string; url: string; supportEmail: string | null };
   loading: boolean;
   /** Empresa ativa no painel. */
   tenant: SessionMembership | null;
@@ -74,7 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [memberships, setMemberships] = useState<SessionMembership[]>([]);
   const [features, setFeatures] = useState<FeatureFlags>(DEFAULT_FEATURES);
-  const [platform, setPlatform] = useState({ name: 'Codeca Build', url: 'https://codecabuild.com' });
+  const [platform, setPlatform] = useState<{ name: string; url: string; supportEmail: string | null }>({
+    name: 'Codeca Build',
+    url: 'https://codecabuild.com',
+    supportEmail: null,
+  });
   const [loading, setLoading] = useState(true);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(() => readStoredTenant());
 

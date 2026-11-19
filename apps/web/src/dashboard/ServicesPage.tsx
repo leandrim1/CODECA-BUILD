@@ -76,7 +76,17 @@ export function ServicesPage() {
                 <EmptyState
                   icon={<Wrench aria-hidden="true" className="size-8" />}
                   title="Nenhum serviço cadastrado"
-                  description="Cadastre os serviços para que apareçam no site e no formulário de orçamento."
+                  description="Aqui você lista o que a sua empresa faz. Cada serviço vira um item no site e uma opção no formulário de orçamento."
+                  action={
+                    can('content:write') ? (
+                      <Button
+                        icon={<Plus aria-hidden="true" className="size-4" />}
+                        onClick={() => setEditing('new')}
+                      >
+                        Criar o primeiro serviço
+                      </Button>
+                    ) : undefined
+                  }
                 />
               </CardBody>
             </Card>

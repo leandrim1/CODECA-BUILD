@@ -1,10 +1,23 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, ExternalLink, Home, LogOut, Settings, Sparkles } from 'lucide-react';
+import {
+  ChevronDown,
+  CircleHelp,
+  ExternalLink,
+  Home,
+  LifeBuoy,
+  ListChecks,
+  LogOut,
+  Play,
+  Settings,
+  Sparkles,
+} from 'lucide-react';
 import { Badge, cx } from '@codeca/ui';
 import { useAuth } from '../hooks/useAuth.js';
 import { useConsultaDeMidia } from '../hooks/useConsultaDeMidia.js';
+import { useGuiaDePrimeiroAcesso } from '../hooks/useGuiaDePrimeiroAcesso.js';
+import { useNavigate } from 'react-router-dom';
 import { ThemeToggle } from './ThemeToggle.js';
 import { api } from '../services/api.js';
 import { labels, tenantTone } from '../utils/labels.js';
@@ -82,6 +95,8 @@ const PONTO_DA_SITUACAO: Record<Situacao, string> = {
 
 export function AccountMenu({ planName }: { planName: string }) {
   const { tenant, memberships, user, selectTenant, logout, platform, can } = useAuth();
+  const { refazerTour, reabrirChecklist } = useGuiaDePrimeiroAcesso();
+  const navegar = useNavigate();
   const [aberto, setAberto] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const gatilhoRef = useRef<HTMLButtonElement>(null);
@@ -202,7 +217,7 @@ export function AccountMenu({ planName }: { planName: string }) {
     ehCelular ? createPortal(conteudo, document.body) : conteudo;
 
   return (
-    <div className="relative" ref={containerRef} onKeyDown={aoTeclarNoMenu}>
+    <div className="relative" ref={containerRef} onKeyDown={aoTeclarNoMenu} data-tour="menu-da-conta">
       <button
         ref={gatilhoRef}
         type="button"
@@ -306,6 +321,71 @@ export function AccountMenu({ planName }: { planName: string }) {
                 <span className="text-sm text-slate-700">Tema</span>
                 <ThemeToggle />
               </div>
+
+              {/*
+                ------------------------------------------------- ajuda
+                O guia nao termina quando a pessoa fecha o tour: daqui ela o
+                refaz e traz os primeiros passos de volta. Os dois voltam para
+                a visao geral porque e la que eles existem -- refazer o tour na
+                tela de midia mostraria passos apontando para o nada.
+              */}
+              <div className="my-1 flex items-center gap-2 px-2.5 pt-1.5">
+                <CircleHelp aria-hidden="true" className="size-3.5 flex-none text-slate-500" />
+                <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-slate-500">
+                  Ajuda
+                </span>
+              </div>
+
+              <button
+                type="button"
+                role="menuitem"
+                data-item-do-menu
+                onClick={() => {
+                  fechar();
+                  refazerTour();
+                  navegar('/painel');
+                }}
+                className={itemClasse}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Play aria-hidden="true" className="size-4 flex-none text-slate-500" />
+                  Refazer tour
+                </span>
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                data-item-do-menu
+                onClick={() => {
+                  fechar();
+                  reabrirChecklist();
+                  navegar('/painel');
+                }}
+                className={itemClasse}
+              >
+                <span className="flex items-center gap-2.5">
+                  <ListChecks aria-hidden="true" className="size-4 flex-none text-slate-500" />
+                  Ver primeiros passos
+                </span>
+              </button>
+
+              {platform.supportEmail ? (
+                <a
+                  href={`mailto:${platform.supportEmail}`}
+                  role="menuitem"
+                  data-item-do-menu
+                  onClick={() => fechar()}
+                  className={itemClasse}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <LifeBuoy aria-hidden="true" className="size-4 flex-none text-slate-500" />
+                    Falar com o suporte
+                  </span>
+                </a>
+              ) : null}
+
+              <hr className="my-1.5 border-slate-200" />
 
               <a
                 href={platform.url}

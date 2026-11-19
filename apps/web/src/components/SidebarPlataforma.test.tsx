@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createRef } from 'react';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { SidebarPlataforma } from './SidebarPlataforma.js';
@@ -26,6 +26,7 @@ const USUARIO: SessionUser = {
   emailVerified: true,
   hasPassword: true,
   google: null,
+  onboarding: { tourDoneAt: null, checklistDismissedAt: null },
 };
 
 function montar(extra: Partial<Parameters<typeof SidebarPlataforma>[0]> = {}) {
@@ -49,6 +50,14 @@ function montar(extra: Partial<Parameters<typeof SidebarPlataforma>[0]> = {}) {
   );
   return { ...resultado, props };
 }
+
+/*
+  Limpeza explicita, e nao a automatica da biblioteca.
+  Os arquivos de teste rodam todos no MESMO processo (`singleFork`), e as
+  arvores renderizadas se acumulavam no mesmo `document`: isolado o arquivo
+  passava, na suite inteira `getByRole` encontrava dois botoes iguais.
+*/
+afterEach(cleanup);
 
 describe('SidebarPlataforma', () => {
   it('desenha os nove destinos da plataforma, com os enderecos de sempre', () => {

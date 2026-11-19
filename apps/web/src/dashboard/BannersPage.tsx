@@ -1,6 +1,6 @@
 import { ContentLimitNotice } from '../components/ContentUsage.js';
 import { useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { GalleryHorizontalEnd, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -75,8 +75,9 @@ export function BannersPage() {
         {(data) =>
           data.items.length === 0 ? (
             <EmptyState
+              icon={<GalleryHorizontalEnd aria-hidden="true" className="size-8" />}
               title="Nenhum banner cadastrado"
-              description="Um banner tem imagem, título e, se quiser, um botão que leva para outra página do site."
+              description="É a imagem grande que abre o seu site. Tem título e, se quiser, um botão que leva para outra página."
               action={
                 <Can capability="content:write">
                   <Button onClick={() => setEditando('novo')}>Criar o primeiro</Button>

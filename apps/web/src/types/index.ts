@@ -88,7 +88,7 @@ export interface FeatureFlags {
 export interface SessionResponse {
   session: SessionPayload | null;
   features: FeatureFlags;
-  platform: { name: string; url: string };
+  platform: { name: string; url: string; supportEmail: string | null };
 }
 
 export type { EffectivePlan };

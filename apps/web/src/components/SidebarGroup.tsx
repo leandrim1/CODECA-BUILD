@@ -36,7 +36,9 @@ export function SidebarGroup({
 
   if (!group.colapsavel) {
     return (
-      <div className="mb-6 last:mb-0">
+      // `data-tour` sai do id do grupo: um alvo novo nao precisa ser
+      // declarado em dois lugares, e renomear o titulo nao quebra o tour.
+      <div className="mb-6 last:mb-0" data-tour={`grupo-${group.id}`}>
         {/*
           Rotulo de grupo em peso medio e cor fraca: ele organiza a lista sem
           disputar atencao com os itens, que sao o que se clica.
@@ -50,7 +52,7 @@ export function SidebarGroup({
   }
 
   return (
-    <div className="mb-6 last:mb-0">
+    <div className="mb-6 last:mb-0" data-tour={`grupo-${group.id}`}>
       <button
         type="button"
         onClick={onAlternar}

@@ -39,6 +39,9 @@ const CAMPOS = [
   'usage',
   // Aviso da sincronizacao; `null` quando nao ha fonte ou nao ha pendencia.
   'syncNotice',
+  // Sinais do guia de primeiro acesso que a contagem nao da: "institucional
+  // preenchido" e "contato cadastrado" dependem de QUAIS campos tem conteudo.
+  'onboarding',
 ].sort();
 
 let api: TestApi;

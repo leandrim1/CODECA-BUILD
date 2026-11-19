@@ -129,7 +129,17 @@ function TestimonialsSection() {
                 <EmptyState
                   icon={<MessageSquareQuote aria-hidden="true" className="size-8" />}
                   title="Nenhum depoimento cadastrado"
-                  description="Registre depoimentos de clientes com a autorização deles."
+                  description="O que os seus clientes dizem da sua empresa, no site. Cadastre sempre com a autorização de quem falou."
+                  action={
+                    can('content:write') ? (
+                      <Button
+                        icon={<Plus aria-hidden="true" className="size-4" />}
+                        onClick={() => setEditing('new')}
+                      >
+                        Criar o primeiro depoimento
+                      </Button>
+                    ) : undefined
+                  }
                 />
               ) : (
                 <ul className="grid gap-3">
@@ -391,7 +401,17 @@ function TeamSection() {
                 <EmptyState
                   icon={<Users aria-hidden="true" className="size-8" />}
                   title="Nenhum integrante cadastrado"
-                  description="Apresente a equipe técnica responsável pelas obras."
+                  description="Quem é a sua equipe, com foto e função. Ajuda quem chega no site a saber com quem vai falar."
+                  action={
+                    can('content:write') ? (
+                      <Button
+                        icon={<Plus aria-hidden="true" className="size-4" />}
+                        onClick={() => setEditing('new')}
+                      >
+                        Criar o primeiro integrante
+                      </Button>
+                    ) : undefined
+                  }
                 />
               ) : (
                 <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -632,7 +652,17 @@ function FaqSection() {
                 <EmptyState
                   icon={<CircleHelp aria-hidden="true" className="size-8" />}
                   title="Nenhuma pergunta cadastrada"
-                  description="Responda as dúvidas que mais aparecem nos contatos."
+                  description="As dúvidas que mais chegam até você, respondidas no site. Poupa o cliente de perguntar e você de repetir."
+                  action={
+                    can('content:write') ? (
+                      <Button
+                        icon={<Plus aria-hidden="true" className="size-4" />}
+                        onClick={() => setEditing('new')}
+                      >
+                        Criar a primeira pergunta
+                      </Button>
+                    ) : undefined
+                  }
                 />
               ) : (
                 <ul className="grid gap-2">

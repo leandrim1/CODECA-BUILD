@@ -43,6 +43,8 @@ import { preloadRoute, preloadWhenIdle } from '../lib/routePreload.js';
 import { NAV_GROUPS, type NavItem } from '../lib/menuDoPainel.js';
 import { SidebarGroup, SidebarSectionLabel, SidebarSubList } from '../components/SidebarGroup.js';
 import { useGruposAbertos } from '../hooks/useGruposAbertos.js';
+import { OnboardingTour } from '../components/OnboardingTour.js';
+import { useGuiaDePrimeiroAcesso } from '../hooks/useGuiaDePrimeiroAcesso.js';
 
 /**
  * Moldura do painel da empresa.
@@ -60,6 +62,7 @@ export function DashboardLayout() {
   const { pathname } = useLocation();
   const { estaAberto, alternar, abrir } = useGruposAbertos();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { tourPendente, encerrarTour } = useGuiaDePrimeiroAcesso();
 
   /**
    * O menu so muda quando muda o que o decide: papel, modulos, plano.
@@ -163,8 +166,20 @@ export function DashboardLayout() {
 
   if (!tenant) return null;
 
+  /**
+   * O tour abre so na visao geral.
+   *
+   * Dois dos cinco passos apontam para elementos que so existem ali (a lista
+   * de primeiros passos) ou que dependem da barra montada. Abrir numa tela
+   * qualquer deixaria passos sem alvo logo no primeiro contato -- e o tour
+   * tambem nao deve interromper quem entrou por um link direto para uma tela
+   * de trabalho.
+   */
+  const tourAbreAgora = tourPendente && pathname === '/painel';
+
   return (
     <div className="min-h-dvh">
+      {tourAbreAgora ? <OnboardingTour aoEncerrar={encerrarTour} /> : null}
       {/*
        * Barra lateral presa a janela, em QUALQUER largura de tela.
        *
