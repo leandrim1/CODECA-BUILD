@@ -30,6 +30,10 @@
     "./server": {
       "types": "./dist/server.d.ts",
       "default": "./dist/server.js"
+    },
+    "./consent": {
+      "types": "./dist/consent-entry.d.ts",
+      "default": "./dist/consent-entry.js"
     }
   },
   "files": [

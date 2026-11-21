@@ -13,6 +13,7 @@ export default defineConfig({
       // O alias mais especifico vem primeiro.
       '@codeca/shared/server': resolve('./packages/shared/src/server/index.ts'),
       '@codeca/shared': resolve('./packages/shared/src/index.ts'),
+      '@codeca/sdk/consent': resolve('./packages/sdk/src/consent-entry.ts'),
       '@codeca/sdk/server': resolve('./packages/sdk/src/server.ts'),
       '@codeca/sdk': resolve('./packages/sdk/src/index.ts'),
       '@codeca/database': resolve('./packages/database/src/index.ts'),
