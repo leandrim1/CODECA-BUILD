@@ -40,7 +40,7 @@ import { OverviewPage } from './dashboard/OverviewPage.js';
  */
 const LandingPage = lazyRoute(['/'], () => import('./pages/LandingPage.js').then((m) => ({ default: m.LandingPage })));
 const DemoSitePage = lazyRoute(['/demonstracao'], () => import('./pages/DemoSitePage.js').then((m) => ({ default: m.DemoSitePage })));
-const LegalPage = lazyRoute(['/termos', '/privacidade'], () => import('./pages/LegalPage.js').then((m) => ({ default: m.LegalPage })));
+const LegalPage = lazyRoute(['/termos', '/privacidade', '/cookies'], () => import('./pages/LegalPage.js').then((m) => ({ default: m.LegalPage })));
 const DocumentModulePage = lazyRoute(['/painel/institucional', '/painel/contato'], () => import('./dashboard/DocumentModulePage.js').then((m) => ({ default: m.DocumentModulePage })));
 const CustomModulePage = lazyRoute(['/painel/p'], () => import('./dashboard/CustomModulePage.js').then((m) => ({ default: m.CustomModulePage })));
 const CustomDocumentPage = lazyRoute(['/painel/p'], () => import('./dashboard/CustomModulePage.js').then((m) => ({ default: m.CustomDocumentPage })));
@@ -89,6 +89,7 @@ export function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/termos" element={<LegalPage tipo="termos" />} />
           <Route path="/privacidade" element={<LegalPage tipo="privacidade" />} />
+          <Route path="/cookies" element={<LegalPage tipo="cookies" />} />
           {/* Site de demonstracao da avaliacao: publico, sem sessao. */}
           <Route path="/demonstracao/:siteId" element={<DemoSitePage />} />
 

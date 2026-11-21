@@ -1,4 +1,5 @@
 import { lt, or, schema, type Database } from '@codeca/database';
+import { CONSENT_RECORD_RETENTION_DAYS } from '@codeca/shared';
 
 /**
  * Limpeza de registros que so servem enquanto vigentes.
@@ -21,6 +22,7 @@ export interface HousekeepingReport {
   userTokens: number;
   oauthStates: number;
   analyticsStates: number;
+  consentRecords: number;
 }
 
 export async function pruneExpiredRecords(db: Database, now = new Date()): Promise<HousekeepingReport> {
@@ -52,6 +54,19 @@ export async function pruneExpiredRecords(db: Database, now = new Date()): Promi
     .where(lt(schema.analyticsOauthStates.expiresAt, ago(DAY)))
     .returning({ id: schema.analyticsOauthStates.id });
 
+  /*
+    Registro de escolha de cookies.
+
+    Guardar para sempre contraria a propria LGPD -- o tratamento termina
+    quando a finalidade se cumpre -- e guardar de menos deixa a empresa sem
+    como provar o consentimento que praticou. O prazo e declarado em
+    `@codeca/shared` e repetido na documentacao, para o numero ser um so.
+  */
+  const consentRecords = await db
+    .delete(schema.siteConsentRecords)
+    .where(lt(schema.siteConsentRecords.createdAt, ago(CONSENT_RECORD_RETENTION_DAYS * DAY)))
+    .returning({ id: schema.siteConsentRecords.id });
+
   return {
     rateLimits: rateLimits.length,
     sessions: sessions.length,
@@ -59,5 +74,6 @@ export async function pruneExpiredRecords(db: Database, now = new Date()): Promi
     userTokens: userTokens.length,
     oauthStates: oauthStates.length,
     analyticsStates: analyticsStates.length,
+    consentRecords: consentRecords.length,
   };
 }

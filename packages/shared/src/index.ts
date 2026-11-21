@@ -9,6 +9,7 @@ export * from './overview.js';
 export * from './onboarding.js';
 export * from './analytics.js';
 export * from './legal.js';
+export * from './consent.js';
 export * from './segments.js';
 export * from './modules/index.js';
 export * from './integration/index.js';

@@ -31,3 +31,13 @@ export {
 } from './consent-gate.js';
 
 export { montarConsentimento, type ConsentUiOptions } from './consent-ui.js';
+
+export {
+  carregarConfiguracaoDeCookies,
+  iniciarConsentimento,
+  type CarregarConfiguracaoOptions,
+  type ConsentimentoIniciado,
+  type CookieSettingsFromPanel,
+  type CookieToolFromPanel,
+  type IniciarConsentimentoOptions,
+} from './consent-settings.js';

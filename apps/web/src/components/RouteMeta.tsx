@@ -26,6 +26,7 @@ function metaDe(caminho: string): Meta {
   if (caminho === '/criar-conta') return { titulo: 'Criar conta | CODECA Build', indexar: false };
   if (caminho === '/termos') return { titulo: 'Termos de uso | CODECA Build', indexar: true };
   if (caminho === '/privacidade') return { titulo: 'Política de privacidade | CODECA Build', indexar: true };
+  if (caminho === '/cookies') return { titulo: 'Política de cookies | CODECA Build', indexar: true };
   if (['/recuperar-senha', '/redefinir-senha', '/confirmar-email', '/aceitar-convite'].includes(caminho)) {
     return { titulo: 'Acesso | CODECA Build', indexar: false };
   }

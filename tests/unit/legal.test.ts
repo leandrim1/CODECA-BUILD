@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_GRACE_PERIOD_DAYS, LEGAL_VERSION, TRIAL_PERIOD_DAYS } from '@codeca/shared';
 import { ANALYTICS_SCOPE } from '../../apps/api/src/lib/analytics/google.js';
+import { CONSENT_RECORD_RETENTION_DAYS } from '@codeca/shared';
+import { CSRF_COOKIE, SESSION_COOKIE } from '../../apps/api/src/lib/cookies.js';
+import { OAUTH_STATE_COOKIE } from '../../apps/api/src/lib/oauth-state.js';
+import { ANALYTICS_STATE_COOKIE } from '../../apps/api/src/lib/analytics/oauth-state.js';
+import { LOGIN_PENDING_COOKIE } from '../../apps/api/src/lib/login-code.js';
+import { COOKIES } from '../../apps/web/src/legal/cookies.js';
 import { EMPRESA } from '../../apps/web/src/legal/empresa.js';
 import { PRIVACIDADE } from '../../apps/web/src/legal/privacidade.js';
 import { TERMOS } from '../../apps/web/src/legal/termos.js';
@@ -31,6 +37,7 @@ function textoDe(documento: Documento): string {
 describe.each([
   ['Política de privacidade', PRIVACIDADE],
   ['Termos de uso', TERMOS],
+  ['Política de cookies', COOKIES],
 ])('%s', (_nome, documento) => {
   const texto = textoDe(documento);
 
@@ -138,5 +145,84 @@ describe('versao dos documentos', () => {
   it('e uma data AAAA-MM-DD valida', () => {
     expect(LEGAL_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(Number.isNaN(new Date(LEGAL_VERSION).getTime())).toBe(false);
+  });
+});
+
+describe('a Politica de cookies acompanha o codigo', () => {
+  const texto = textoDe(COOKIES);
+
+  /**
+   * Todo cookie que o codigo define precisa estar na pagina.
+   *
+   * O teste nao usa uma lista escrita a mao: le as chamadas de `setCookie` na
+   * API e resolve cada identificador. Um cookie novo cujo nome nao esteja neste
+   * mapa derruba o teste -- que e exatamente o aviso que se quer, porque sem
+   * ele a politica envelhece em silencio e passa a mentir.
+   */
+  const POR_IDENTIFICADOR: Record<string, string> = {
+    SESSION_COOKIE,
+    CSRF_COOKIE,
+    LOGIN_PENDING_COOKIE,
+    OAUTH_STATE_COOKIE,
+    ANALYTICS_STATE_COOKIE,
+  };
+
+  it('lista todos os cookies que a API define, e so eles', async () => {
+    const { readdirSync, readFileSync, statSync } = await import('node:fs');
+    const { join } = await import('node:path');
+
+    const arquivos: string[] = [];
+    const varrer = (dir: string) => {
+      for (const nome of readdirSync(dir)) {
+        const caminho = join(dir, nome);
+        if (statSync(caminho).isDirectory()) varrer(caminho);
+        else if (caminho.endsWith('.ts')) arquivos.push(caminho);
+      }
+    };
+    varrer('apps/api/src');
+
+    const identificadores = new Set<string>();
+    for (const caminho of arquivos) {
+      for (const achado of readFileSync(caminho, 'utf8').matchAll(/setCookie\(\s*c\s*,\s*([A-Za-z_][A-Za-z0-9_]*)/g)) {
+        identificadores.add(achado[1]!);
+      }
+    }
+
+    expect(identificadores.size).toBeGreaterThan(0);
+    for (const identificador of identificadores) {
+      const nome = POR_IDENTIFICADOR[identificador];
+      expect(nome, `cookie novo sem entrada no teste: ${identificador}`).toBeDefined();
+      expect(texto, `cookie ausente da politica: ${nome}`).toContain(nome!);
+    }
+
+    // E o contrario: a pagina nao inventa cookie que nao existe.
+    for (const achado of texto.matchAll(/codeca_[a-z_]+/g)) {
+      expect(Object.values(POR_IDENTIFICADOR)).toContain(achado[0]);
+    }
+  });
+
+  it('declara o prazo de guarda que a limpeza diaria aplica', () => {
+    expect(CONSENT_RECORD_RETENTION_DAYS).toBe(3 * 365);
+    expect(texto).toContain('três anos');
+  });
+
+  it('nao apresenta a CODECA como controladora dos dados dos visitantes dos clientes', () => {
+    expect(texto).toMatch(/a CODECA IA atua como operadora/i);
+    expect(texto).not.toMatch(/a CODECA .{0,40}controladora dos dados (de quem visita|dos visitantes)/i);
+  });
+
+  it('diz por que o painel nao exibe banner, em vez de so omitir', () => {
+    expect(texto).toMatch(/não exibe banner de cookies/i);
+    expect(texto).toMatch(/estritamente necess/i);
+  });
+
+  it('nao afirma que guarda senha ou token legivel por script', () => {
+    expect(texto).toMatch(/Não guardam senha nem token de autenticação acessível por script/i);
+  });
+
+  it('descreve as quatro categorias do consentimento dos sites', () => {
+    for (const categoria of ['necessários', 'preferências', 'estatísticas', 'marketing']) {
+      expect(texto.toLowerCase()).toContain(categoria);
+    }
   });
 });

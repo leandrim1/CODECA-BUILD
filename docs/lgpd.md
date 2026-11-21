@@ -86,11 +86,20 @@ Brasil, o que é verdade mas é vago.
 | Informação sobre compartilhamento | seção 3 deste documento e a política | `legal/privacidade.ts` |
 | Revogação de consentimento | desconectar o Google Analytics, desvincular o Google | telas de integração |
 
+A exportação leva também o consentimento de cookies dos sites da empresa: a
+configuração (quem é o controlador, quais ferramentas o site declara) e as
+escolhas registradas. Elas são prova de conformidade **da empresa**, não nossa
+— levar o conteúdo embora sem levar o registro do que foi consentido deixaria
+o cliente sem como demonstrá-lo. Os registros já nascem anônimos: não há IP nem
+identificador de visitante neles. Ver
+[cookies-e-consentimento.md](cookies-e-consentimento.md).
+
 ### O que a exclusão apaga, e o que fica
 
-Apagar a empresa derruba, em cascata, as 47 tabelas que apontam para ela:
+Apagar a empresa derruba, em cascata, as tabelas que apontam para ela:
 conteúdo, imagens, interessados, chaves de integração, domínios, vínculos de
-usuário, importações, sincronização, assinatura e o espelho das cobranças. Os
+usuário, importações, sincronização, a configuração de cookies dos sites e as
+escolhas de cookies registradas, a assinatura e o espelho das cobranças. Os
 arquivos saem do Vercel Blob **antes** do banco — se fosse ao contrário,
 perderíamos a lista de URLs e as imagens ficariam públicas e órfãs.
 

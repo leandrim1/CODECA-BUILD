@@ -57,6 +57,15 @@ export const RATE_LIMITS = {
   /** Leitura da API publica, por chave. Generoso: um site carrega varias de uma vez. */
   publicApi: { action: 'public_api', limit: 600, windowSeconds: 60 },
   /**
+   * Registro de escolha de cookies, por IP.
+   *
+   * A rota nao exige credencial -- o `sendBeacon` do navegador nao sabe enviar
+   * cabecalho -- entao o limite por IP e a protecao que sobra. Vinte por hora
+   * cabe de folga em quem troca de ideia no painel de preferencias varias
+   * vezes, e nao cabe em quem quer encher a tabela.
+   */
+  publicConsent: { action: 'public_consent', limit: 20, windowSeconds: 3600 },
+  /**
    * Importacao de site externo. Duas cotas, cada uma contra um abuso diferente.
    *
    * Por empresa, porque cada analise faz dezenas de requisicoes ao site de um

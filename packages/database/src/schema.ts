@@ -18,6 +18,7 @@ import {
 import { sql } from 'drizzle-orm';
 import type {
   AddressInput,
+  ConsentTool,
   LeadInterestType,
   PlanBillingInput,
   SuspensionPolicy,
@@ -564,6 +565,10 @@ export const siteOrigins = pgTable(
   },
   (table) => [
     uniqueIndex('site_origins_site_origin_key').on(table.siteId, table.origin),
+    // Descobrir o site a partir da origem que o navegador declara: e assim que
+    // o registro de consentimento chega sem credencial (o `sendBeacon` nao
+    // envia cabecalho). Sem este indice, seria uma varredura por registro.
+    index('site_origins_origin_idx').on(table.origin),
     foreignKey({
       columns: [table.siteId, table.tenantId],
       foreignColumns: [sites.id, sites.tenantId],
@@ -2791,4 +2796,98 @@ export const userRecoveryCodes = pgTable(
     createdAt,
   },
   (table) => [index('user_recovery_codes_user_idx').on(table.userId)],
+);
+
+/**
+ * Configuracao de cookies de um site.
+ *
+ * Uma linha por site, criada quando o painel mestre grava pela primeira vez.
+ * Site sem linha nao e erro: vale o padrao de `@codeca/shared`, que nao
+ * declara ferramenta nenhuma e nao afirma controlador nenhum.
+ *
+ * O **controlador** fica aqui e nao em `tenants` porque e por site: uma
+ * agencia atende vinte clientes na mesma conta, e quem responde pelos dados do
+ * visitante e o dono daquele site, nunca a agencia e nunca a CODECA.
+ */
+export const siteCookieSettings = pgTable(
+  'site_cookie_settings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    /** Nome do controlador, como aparece na politica do site do cliente. */
+    controllerName: text('controller_name').notNull().default(''),
+    /** CNPJ ou CPF do controlador, livre: cada cliente escreve como usa. */
+    controllerDocument: text('controller_document').notNull().default(''),
+    controllerContact: text('controller_contact').notNull().default(''),
+    privacyPolicyUrl: text('privacy_policy_url').notNull().default(''),
+    cookiePolicyUrl: text('cookie_policy_url').notNull().default(''),
+    policyVersion: text('policy_version').notNull().default('1'),
+    bannerEnabled: boolean('banner_enabled').notNull().default(true),
+    /** Gravar o registro de escolha na plataforma. Desligado, a rota descarta. */
+    recordConsent: boolean('record_consent').notNull().default(true),
+    /** Ferramentas declaradas, uma a uma, com a categoria de quem as instalou. */
+    tools: jsonb('tools').$type<ConsentTool[]>().notNull().default(sql`'[]'::jsonb`),
+    updatedByUserId: uuid('updated_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex('site_cookie_settings_site_key').on(table.siteId),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'site_cookie_settings_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
+/**
+ * Registro anonimo da escolha de cookies feita no site de um cliente.
+ *
+ * Serve a uma coisa so: a empresa poder demonstrar o consentimento que
+ * praticou. Por isso o que **nao** esta aqui importa tanto quanto o que esta
+ * -- nao ha IP, nao ha agente do navegador, nao ha identificador de visitante
+ * e nao ha nada que ligue duas linhas a mesma pessoa.
+ *
+ * `consentId` e sorteado no navegador e existe para o reenvio da mesma decisao
+ * (o `sendBeacon` pode repetir) nao virar duas linhas. Ele nao identifica
+ * ninguem: nao e guardado em cookie de terceiro, nao viaja entre dominios e o
+ * navegador o joga fora junto com a escolha quando ela e revogada.
+ *
+ * `domain` vem da origem conferida no servidor, nao do corpo enviado: o
+ * visitante nao pode atribuir a escolha dele ao site de outra empresa.
+ */
+export const siteConsentRecords = pgTable(
+  'site_consent_records',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').notNull(),
+    consentId: text('consent_id').notNull(),
+    /** Quando a pessoa decidiu, pelo relogio do navegador dela. */
+    decidedAt: timestamp('decided_at', { withTimezone: true }).notNull(),
+    domain: text('domain').notNull(),
+    granted: jsonb('granted').$type<string[]>().notNull(),
+    denied: jsonb('denied').$type<string[]>().notNull(),
+    policyVersion: text('policy_version').notNull(),
+    engineVersion: text('engine_version').notNull(),
+    /** Quando chegou aqui, pelo relogio do servidor. */
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex('site_consent_records_site_consent_key').on(table.siteId, table.consentId),
+    index('site_consent_records_site_created_idx').on(table.siteId, table.createdAt),
+    foreignKey({
+      columns: [table.siteId, table.tenantId],
+      foreignColumns: [sites.id, sites.tenantId],
+      name: 'site_consent_records_site_tenant_fk',
+    }).onDelete('cascade'),
+  ],
 );

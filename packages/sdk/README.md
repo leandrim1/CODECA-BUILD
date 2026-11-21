@@ -199,6 +199,66 @@ depois, com a sua credencial.
 
 ---
 
+## Consentimento de cookies
+
+Entrada separada (`@codeca/sdk/consent`), para o site que so le conteudo nao
+carregar o gerenciador -- e para o site que so precisa do banner nao carregar o
+cliente da API. Sem nenhuma dependencia.
+
+```ts
+import { iniciarConsentimento } from '@codeca/sdk/consent';
+
+const { manager, abrirPreferencias } = await iniciarConsentimento({
+  baseUrl: 'https://codecabuild.vercel.app',
+  publishableKey: 'cb_pub_...',
+  policyVersion: '1', // vale so se o painel nao responder
+});
+```
+
+Quatro coisas numa chamada: le a configuracao do site no painel (controlador,
+politicas, versao, ferramentas), cria o gerenciador, segura o que nao foi
+autorizado e monta o banner. **Falha de rede nao trava o banner** -- sem
+resposta do painel, vale a `policyVersion` do codigo.
+
+### Bloquear e nao carregar
+
+```html
+<script type="text/plain" data-codeca-consent="estatisticas"
+        data-codeca-src="https://www.googletagmanager.com/gtag/js?id=G-XXXX"></script>
+```
+
+Um `<script type="text/plain">` nao executa, e **nao passa a executar se o
+`type` mudar**: o navegador so avalia um script ao inseri-lo. O SDK cria outro
+no lugar, depois do "sim". O mesmo par de atributos vale para `<iframe>`.
+
+Para a ferramenta que exige estar presente antes da escolha, ha
+`pontearConsentModeDoGoogle(manager)`: o gtag entra negado e passa a coletar na
+atualizacao. E o caminho mais fraco dos dois.
+
+### As quatro categorias
+
+`necessarios` (sempre ativa, nao e escolha), `preferencias`, `estatisticas`,
+`marketing`. As tres ultimas nascem desligadas.
+
+### Pecas, para quem quer desenho proprio
+
+`createConsentManager`, `aplicarConsentimento`, `liberarMarcados`,
+`montarConsentimento`, `limparCookiesDe`, `revogarEReiniciar` e
+`carregarConfiguracaoDeCookies` sao exportados separadamente.
+
+### Onde a escolha mora
+
+No `localStorage` da origem do site. Nao ha cookie de terceiro e nao ha
+identificador de visitante -- o site de um cliente nao enxerga a escolha feita
+noutro. Com `reportTo` (o padrao de `iniciarConsentimento`), a plataforma recebe
+um registro anonimo: numero sorteado, data, dominio, categorias e versoes.
+`reportar: false` desliga o envio.
+
+Trocar a `policyVersion` invalida a escolha guardada e faz o banner voltar --
+o jeito honesto de pedir de novo quando o que se pede mudou.
+
+---
+
 ## Prazo
 
 Dez segundos por padrao, ajustavel em `timeoutMs`. Sem prazo, uma plataforma

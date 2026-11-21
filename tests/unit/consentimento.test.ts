@@ -9,6 +9,8 @@ import {
   pontearConsentModeDoGoogle,
   ATRIBUTO_CATEGORIA,
   ATRIBUTO_SRC,
+  carregarConfiguracaoDeCookies,
+  iniciarConsentimento,
 } from '@codeca/sdk/consent';
 
 /**
@@ -243,5 +245,171 @@ describe('isolamento entre sites', () => {
     expect(chaves).toEqual(['codeca:consentimento']);
     const guardado = JSON.parse(window.localStorage.getItem('codeca:consentimento')!);
     expect(guardado.domain).toBe(location.hostname);
+  });
+});
+
+describe('configuracao vinda do painel', () => {
+  const PAINEL = {
+    controllerName: 'Clinica Exemplo Ltda.',
+    controllerDocument: '12.345.678/0001-90',
+    controllerContact: 'privacidade@clinica.com.br',
+    privacyPolicyUrl: 'https://clinica.com.br/privacidade',
+    cookiePolicyUrl: 'https://clinica.com.br/cookies',
+    policyVersion: '7',
+    bannerEnabled: true,
+    tools: [],
+  };
+
+  const respostaDe = (dado: unknown, ok = true) =>
+    vi.fn(async () => ({ ok, json: async () => ({ data: dado }) }) as unknown as Response);
+
+  it('le a configuracao do site pela chave publicavel', async () => {
+    const buscar = respostaDe(PAINEL);
+    const settings = await carregarConfiguracaoDeCookies({
+      baseUrl: 'https://app.codecabuild.com.br/',
+      publishableKey: 'cb_pub_abc',
+      fetch: buscar as unknown as typeof fetch,
+    });
+
+    expect(settings?.controllerName).toBe('Clinica Exemplo Ltda.');
+    expect(settings?.policyVersion).toBe('7');
+    const [url, init] = buscar.mock.calls[0]! as [string, RequestInit];
+    // Barra sobrando no `baseUrl` nao vira duas no caminho.
+    expect(url).toBe('https://app.codecabuild.com.br/api/v1/consent/settings');
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer cb_pub_abc');
+  });
+
+  it('falha de rede nao trava o banner: devolve null', async () => {
+    const quebrado = vi.fn(async () => {
+      throw new Error('rede caiu');
+    });
+
+    const settings = await carregarConfiguracaoDeCookies({
+      baseUrl: 'https://app.codecabuild.com.br',
+      publishableKey: 'cb_pub_abc',
+      fetch: quebrado as unknown as typeof fetch,
+    });
+
+    expect(settings).toBeNull();
+  });
+
+  it('resposta recusada tambem devolve null, sem lancar', async () => {
+    const settings = await carregarConfiguracaoDeCookies({
+      baseUrl: 'https://app.codecabuild.com.br',
+      publishableKey: 'cb_pub_abc',
+      fetch: respostaDe(null, false) as unknown as typeof fetch,
+    });
+
+    expect(settings).toBeNull();
+  });
+
+  it('a versao do painel manda: escolha de outra versao deixa de valer', async () => {
+    // Escolha guardada na versao antiga.
+    createConsentManager({ policyVersion: '6' }).aceitarTudo();
+
+    const iniciado = await iniciarConsentimento({
+      baseUrl: 'https://app.codecabuild.com.br',
+      publishableKey: 'cb_pub_abc',
+      policyVersion: '6',
+      fetch: respostaDe(PAINEL) as unknown as typeof fetch,
+    });
+
+    // O painel veio com `7`: o banner volta a perguntar.
+    expect(iniciado.manager.decidiu()).toBe(false);
+    expect(iniciado.manager.permite('estatisticas')).toBe(false);
+    iniciado.destruir();
+  });
+
+  it('sem painel, vale a versao que o site passou -- e o banner aparece', async () => {
+    const iniciado = await iniciarConsentimento({
+      baseUrl: 'https://app.codecabuild.com.br',
+      publishableKey: 'cb_pub_abc',
+      policyVersion: POLITICA,
+      fetch: (vi.fn(async () => {
+        throw new Error('sem rede');
+      }) as unknown) as typeof fetch,
+    });
+
+    expect(iniciado.settings).toBeNull();
+    expect(document.querySelector('.codeca-consent')).not.toBeNull();
+    iniciado.destruir();
+  });
+
+  it('banner desligado no painel nao monta interface, mas o portao continua', async () => {
+    document.body.innerHTML = `
+      <script type="text/plain" ${ATRIBUTO_CATEGORIA}="estatisticas" ${ATRIBUTO_SRC}="https://exemplo.test/ga.js"></script>
+    `;
+
+    const iniciado = await iniciarConsentimento({
+      baseUrl: 'https://app.codecabuild.com.br',
+      publishableKey: 'cb_pub_abc',
+      fetch: respostaDe({ ...PAINEL, bannerEnabled: false }) as unknown as typeof fetch,
+    });
+
+    expect(document.querySelector('.codeca-consent')).toBeNull();
+    // Nada autorizado: o script marcado segue fora da pagina.
+    expect(document.querySelector('script[src="https://exemplo.test/ga.js"]')).toBeNull();
+    iniciado.destruir();
+  });
+
+  /**
+   * O envio NAO pode usar `navigator.sendBeacon`.
+   *
+   * Ele forca o modo de credenciais em `include`: anexaria os cookies que o
+   * visitante tenha do dominio da plataforma a um registro que existe para ser
+   * anonimo, e o preflight passaria a exigir `Allow-Credentials`, sem o qual o
+   * navegador descarta tudo em silencio. Foi assim em Chromium -- o banner
+   * funcionava e o registro nunca chegava ao banco. O teste trava as duas
+   * coisas: o envio e por `fetch`, e com `credentials: 'omit'`.
+   */
+  it('o registro vai para a plataforma sem credencial, e `reportar: false` cala o envio', async () => {
+    const beacon = vi.fn(() => true);
+    Object.defineProperty(navigator, 'sendBeacon', { value: beacon, configurable: true });
+    const envios: Array<[string, RequestInit]> = [];
+    // O envio usa o `fetch` GLOBAL, e nao o passado em `iniciarConsentimento`:
+    // quem relata e o gerenciador, que nao recebe cliente nenhum.
+    const buscar = vi.fn(async (url: unknown, init: unknown) => {
+      if (String(url).endsWith('/api/v1/consent')) envios.push([String(url), init as RequestInit]);
+      return { ok: true, json: async () => ({ data: PAINEL }) } as unknown as Response;
+    });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(buscar as unknown as typeof fetch);
+
+    const ligado = await iniciarConsentimento({
+      baseUrl: 'https://app.codecabuild.com.br',
+      publishableKey: 'cb_pub_abc',
+      fetch: buscar as unknown as typeof fetch,
+    });
+    ligado.manager.recusarOpcionais();
+
+    expect(beacon).not.toHaveBeenCalled();
+    expect(envios).toHaveLength(1);
+    expect(envios[0]![0]).toBe('https://app.codecabuild.com.br/api/v1/consent');
+    expect(envios[0]![1].credentials).toBe('omit');
+    ligado.destruir();
+
+    window.localStorage.clear();
+    envios.length = 0;
+
+    const calado = await iniciarConsentimento({
+      baseUrl: 'https://app.codecabuild.com.br',
+      publishableKey: 'cb_pub_abc',
+      reportar: false,
+      fetch: buscar as unknown as typeof fetch,
+    });
+    calado.manager.recusarOpcionais();
+    expect(envios).toHaveLength(0);
+    calado.destruir();
+  });
+
+  it('controlador vazio no painel nao vira o nome da plataforma', async () => {
+    const iniciado = await iniciarConsentimento({
+      baseUrl: 'https://app.codecabuild.com.br',
+      publishableKey: 'cb_pub_abc',
+      fetch: respostaDe({ ...PAINEL, controllerName: '' }) as unknown as typeof fetch,
+    });
+
+    const texto = document.querySelector('.codeca-consent')?.textContent ?? '';
+    expect(texto).not.toContain('CODECA');
+    iniciado.destruir();
   });
 });

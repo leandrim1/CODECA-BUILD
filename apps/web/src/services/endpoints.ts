@@ -1,6 +1,8 @@
 import { api, query } from './api.js';
 import type {
   AnalyticsConnectionView,
+  ConsentSummary,
+  SiteCookieSettings,
   AnalyticsPropertyOption,
   AnalyticsRange,
   AnalyticsReport,
@@ -19,6 +21,7 @@ import type {
 } from '@codeca/shared';
 import type {
   BannerRecord,
+  ConsentRecordRow,
   IssuedKey,
   SiteWebhookRow,
   WebhookDeliveryRow,
@@ -935,7 +938,25 @@ export const platformSiteApi = {
       body,
     ),
 
+  cookies: (siteId: string) =>
+    api.get<{ settings: SiteCookieSettings; summary: ConsentSummary }>(
+      `/api/platform/sites/${siteId}/cookies`,
+    ),
+
+  saveCookies: (siteId: string, body: SiteCookieSettings) =>
+    api.put<{ settings: SiteCookieSettings }>(`/api/platform/sites/${siteId}/cookies`, body),
+
+  consentRecords: (siteId: string, params: Record<string, string | number | undefined> = {}) =>
+    api.get<{
+      items: ConsentRecordRow[];
+      page: number;
+      pageSize: number;
+      total: number;
+      totalPages: number;
+    }>(`/api/platform/sites/${siteId}/cookies/records${query(params)}`),
+
   keys: (siteId: string) =>
+
     api.get<{ items: SiteApiKeyRow[] }>(`/api/platform/sites/${siteId}/keys`),
 
   createKey: (siteId: string, body: { kind: 'publishable' | 'secret'; name: string }) =>

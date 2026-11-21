@@ -11,6 +11,7 @@ comum; aqui está a superfície toda.
 3. Campos que merecem atenção
 4. Limites conhecidos da plataforma
 5. Erros
+6. Consentimento de cookies
 
 ---
 
@@ -220,3 +221,77 @@ só são legíveis nos módulos de coleção.
 
 O prazo padrão é de dez segundos, ajustável em `timeoutMs`. Sem prazo, uma
 plataforma lenta travaria a renderização até o navegador desistir sozinho.
+
+
+---
+
+## 6. Consentimento de cookies
+
+Importado de `@codeca/sdk/consent`, uma entrada separada: um site que só lê
+conteúdo não carrega o gerenciador, e um site que só precisa do banner não
+carrega o cliente da API.
+
+### Caminho curto
+
+```ts
+const { manager, abrirPreferencias } = await iniciarConsentimento({
+  baseUrl: process.env.NEXT_PUBLIC_CODECA_BASE_URL!,
+  publishableKey: process.env.NEXT_PUBLIC_CODECA_KEY!,
+  policyVersion: '1', // vale só se o painel não responder
+});
+```
+
+Faz quatro coisas: lê a configuração do site no painel, cria o gerenciador com
+a versão de política de lá, aplica o bloqueio do que não foi autorizado e monta
+o banner. Devolve também `settings` (ou `null`, se o painel não respondeu) e
+`destruir()`.
+
+Falha de rede **não** trava o banner: sem resposta do painel, vale a
+`policyVersion` passada no código e o banner aparece do mesmo jeito.
+
+### Peças, para quem quer desenho próprio
+
+| Função | O que faz |
+| --- | --- |
+| `createConsentManager({policyVersion, reportTo?})` | guarda a escolha no `localStorage` da origem |
+| `aplicarConsentimento(manager)` | libera o que foi autorizado, agora e a cada mudança |
+| `liberarMarcados(permite)` | uma passagem só, para conteúdo inserido depois |
+| `montarConsentimento({manager, ...})` | banner e painel em JS puro, sem dependência |
+| `pontearConsentModeDoGoogle(manager)` | gtag entra negado, atualiza no "sim" |
+| `revogarEReiniciar(manager, prefixos)` | apaga a escolha, limpa cookies, recarrega |
+| `carregarConfiguracaoDeCookies({...})` | só a leitura do painel; `null` em qualquer falha |
+
+`manager` tem `get`, `decidiu`, `permite`, `aceitarTudo`, `recusarOpcionais`,
+`salvar`, `revogar` e `aoMudar`.
+
+### As quatro categorias
+
+`necessarios` (sempre ativa, não é escolha), `preferencias`, `estatisticas`,
+`marketing`. As três últimas começam **desligadas**.
+
+### As duas rotas da plataforma
+
+| Rota | Credencial | Para que serve |
+| --- | --- | --- |
+| `GET /api/v1/consent/settings` | chave publicável | controlador, políticas, versão, ferramentas declaradas |
+| `POST /api/v1/consent` | **nenhuma** | registro anônimo da escolha |
+
+A rota do registro não pede credencial: ele sai do navegador do visitante, e a
+chave publicável estaria no código-fonte da página — exigi-la não impediria
+ninguém de forjar um registro. O que identifica o site é o `Origin`, conferido
+contra as origens cadastradas no painel; origem desconhecida recebe 204 e nada
+é gravado. Há limite por IP. Nenhum IP, agente de navegador ou identificador de
+visitante entra no banco.
+
+O envio é por `fetch` com `keepalive` e `credentials: 'omit'`, **não** por
+`navigator.sendBeacon`: este força o modo de credenciais em `include`, o que
+anexaria cookies do domínio da plataforma a um registro que existe para ser
+anônimo — e faria o navegador descartar a requisição em silêncio quando o
+preflight não devolve `Allow-Credentials`.
+
+### O que mudar no painel muda no site
+
+`policyVersion` diferente invalida a escolha guardada em todos os navegadores e
+o banner volta a perguntar. É o jeito honesto de pedir de novo quando o que se
+pede mudou — e por isso é um campo que alguém digita, não um número que a
+plataforma incrementa sozinha.

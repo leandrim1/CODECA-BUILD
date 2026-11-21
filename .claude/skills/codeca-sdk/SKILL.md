@@ -204,6 +204,48 @@ quisesse.
 O corpo traz `moduleKey`, `action`, `entityId`, `slug` e `publishedAt` — o que
 mudou, não o conteúdo. Busque o conteúdo pela API depois.
 
+## Cookies e consentimento
+
+O template já sobe com o banner ligado (`src/components/Cookies.tsx` no layout).
+O que **não** está no código do site, e por isso precisa ser dito:
+
+**Quem responde pelos dados não é a CODECA.** O controlador é a empresa dona do
+site. O nome, o CNPJ, o contato e os links das políticas vêm do painel —
+`/plataforma/sites`, aba **Cookies**. Enquanto o campo estiver vazio, o banner
+não afirma controlador nenhum: faltar é melhor do que afirmar o errado. Não
+escreva "CODECA Build" ali, e não gere política de cookies afirmando que a
+plataforma é a controladora dos dados dos visitantes do site do cliente.
+
+**Nada opcional começa ligado.** Necessários sim, preferências, estatísticas e
+marketing não. Caixa pré-marcada não é consentimento, e recusar tem de ser tão
+fácil quanto aceitar — os três botões do banner têm o mesmo peso de propósito.
+
+**Bloquear é não carregar.** Para um script de terceiro, marque-o na página:
+
+```html
+<script type="text/plain" data-codeca-consent="estatisticas"
+        data-codeca-src="https://www.googletagmanager.com/gtag/js?id=G-XXXX"></script>
+```
+
+Um `<script type="text/plain">` não executa, e o SDK só cria outro no lugar
+depois do "sim". Não basta deixar de enviar evento: o que importa é o que não
+entra na página. Para iframe (vídeo, mapa), o mesmo par de atributos, com o
+endereço em `data-codeca-src`.
+
+Se a ferramenta exigir estar presente antes da escolha, passe
+`consentModeDoGoogle: true` — o gtag entra negado e só passa a coletar depois.
+É o caminho mais fraco dos dois; prefira não carregar.
+
+**Declare no painel o que o site realmente carrega.** A lista de ferramentas da
+aba Cookies alimenta a política e o painel de preferências. Não invente entrada,
+e não classifique como necessário o que a pessoa pode recusar.
+
+**A escolha vive no domínio do site.** `localStorage`, primeira parte, sem
+cookie de terceiro e sem identificador de visitante — o site de um cliente não
+enxerga a escolha feita noutro. A plataforma recebe só um registro anônimo
+(sorteio aleatório, data, domínio, categorias, versões), e o cliente pode
+desligar esse envio no painel.
+
 ## O que muda sem ser quebra de contrato
 
 Isto derruba site em produção, e está no README do SDK justamente porque **não**

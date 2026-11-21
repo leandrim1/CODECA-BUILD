@@ -24,3 +24,4 @@ coverage/
 
 # Dependencias so do teste de carga (scripts/loadtest/setup.sh)
 scripts/loadtest/node_modules/
+scripts/consentimento/saida/

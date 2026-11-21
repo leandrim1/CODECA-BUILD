@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Site do cliente</title></head>
+<body>
+  <h1>Clínica Sorriso</h1>
+  <script type="text/plain" data-codeca-consent="estatisticas"
+          data-codeca-src="https://www.googletagmanager.com/gtag/js?id=G-FIM"></script>
+  <script type="module">
+    import { iniciarConsentimento } from '/sdk/consent-entry.js';
+    window.__pronto = iniciarConsentimento({
+      baseUrl: 'http://localhost:4010',
+      publishableKey: new URLSearchParams(location.search).get('k') ?? '',
+      policyVersion: 'local',
+    }).then((r) => { window.__r = r; return r; });
+  </script>
+</body></html>

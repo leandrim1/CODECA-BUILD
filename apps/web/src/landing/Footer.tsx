@@ -23,6 +23,7 @@ const COLUNAS = [
     itens: [
       { rotulo: 'Termos de uso', to: '/termos' },
       { rotulo: 'Política de privacidade', to: '/privacidade' },
+      { rotulo: 'Política de cookies', to: '/cookies' },
     ],
   },
 ] as const;

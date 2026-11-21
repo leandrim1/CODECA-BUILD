@@ -27,6 +27,7 @@ import {
   siteInfoSchema,
 } from './public-schemas.js';
 import { publicLeadSchema } from '../validators/lead.js';
+import { consentReportSchema, publicCookieSettingsSchema } from '../consent.js';
 
 /**
  * Documento OpenAPI de `/api/v1`, **gerado**.
@@ -70,6 +71,8 @@ const COMPONENTES = {
   ContactContent: DOCUMENT_SCHEMAS.contato,
   LeadInput: publicLeadSchema,
   LeadReceived: leadReceivedSchema,
+  CookieSettings: publicCookieSettingsSchema,
+  ConsentReport: consentReportSchema,
 } as const;
 
 type ComponenteNome = keyof typeof COMPONENTES;
@@ -114,9 +117,17 @@ interface RotaDescrita {
   /** Parametros de caminho, em ordem. */
   params?: Array<{ name: string; description: string }>;
   body?: ComponenteNome;
+  /** `null` quando a rota responde 204 sem corpo. */
   response: unknown;
-  /** Escopo exigido da chave. */
-  scope: (typeof API_KEY_SCOPES)[number];
+  /**
+   * Escopo exigido da chave, ou `null` quando a rota nao pede credencial.
+   *
+   * So o registro de consentimento e `null`: ele sai do navegador, onde a
+   * chave estaria a vista de qualquer um, e exigi-la nao impediria uma forja.
+   * Documentar isso e parte do contrato -- quem integra precisa saber que a
+   * rota e aberta e por que ela ainda assim nao aceita qualquer origem.
+   */
+  scope: (typeof API_KEY_SCOPES)[number] | null;
   /** Modulo que precisa estar habilitado no site, quando houver. */
   module?: string;
 }
@@ -341,6 +352,38 @@ const ROTAS: readonly RotaDescrita[] = [
     response: ref('LeadReceived'),
     scope: 'leads:write',
   },
+  {
+    method: 'get',
+    path: '/consent/settings',
+    summary: 'Configuração de cookies deste site',
+    description:
+      'Quem responde pelos dados deste site, os endereços das políticas e as '
+      + 'ferramentas que o site declara carregar -- tudo preenchido no painel '
+      + 'da plataforma. Mudar `policyVersion` aqui derruba a escolha guardada '
+      + 'nos navegadores e faz o banner voltar a perguntar. O controlador é a '
+      + 'empresa dona do site, nunca a CODECA Build: campo vazio significa '
+      + 'banner sem afirmação de controlador.',
+    response: ref('CookieSettings'),
+    scope: 'content:read',
+  },
+  {
+    method: 'post',
+    path: '/consent',
+    summary: 'Registra a escolha de cookies de um visitante',
+    description:
+      '**Sem credencial, de propósito**: o registro sai do navegador do '
+      + 'visitante, e a chave publicável estaria no código-fonte da página -- '
+      + 'exigi-la não impediria ninguém de forjar um registro. O que '
+      + 'identifica o site é o `Origin`, conferido contra as origens '
+      + 'cadastradas no painel; origem desconhecida recebe 204 e nada é '
+      + 'gravado, do mesmo jeito. Nada que identifique o visitante é '
+      + 'armazenado: nem IP, nem agente de navegador. O `domain` gravado vem '
+      + 'da origem conferida no servidor, não do corpo enviado, e reenviar a '
+      + 'mesma decisão não cria uma segunda linha. Limite por IP.',
+    body: 'ConsentReport',
+    response: null,
+    scope: null,
+  },
 ];
 
 /** Caminhos de `/api/v1` descritos aqui, no formato do Hono (`:slug`). */
@@ -429,30 +472,50 @@ export function buildOpenApiDocument(options: OpenApiOptions): Record<string, un
           }
         : {}),
       responses: {
-        [rota.method === 'post' ? '201' : '200']: {
-          description: 'Sucesso.',
-          content: { 'application/json': { schema: rota.response } },
-        },
-        '401': { description: 'Chave ausente, inválida ou revogada.' },
-        '402': {
+        ...(rota.response === null
+          ? {
+              '204': {
+                description:
+                  'Recebido. Também é a resposta quando a origem não é conhecida: '
+                  + 'dizer o contrário revelaria quais endereços existem.',
+              },
+            }
+          : {
+              [rota.method === 'post' ? '201' : '200']: {
+                description: 'Sucesso.',
+                content: { 'application/json': { schema: rota.response } },
+              },
+            }),
+        // Rota sem credencial nao tem 401, 402 nem 403 a descrever.
+        ...(rota.scope === null
+          ? {}
+          : {
+              '401': { description: 'Chave ausente, inválida ou revogada.' },
+              '402': {
+                description:
+                  'Assinatura com pendência e o plano do site manda parar de responder. '
+                  + 'Nada foi apagado.',
+              },
+              '403': {
+                description:
+                  rota.scope === 'content:read'
+                    ? 'A chave não tem o escopo necessario, ou pediu `preview` sem `content:draft`.'
+                    : 'A chave não tem o escopo necessario.',
+              },
+              '404': {
+                description: rota.module
+                  ? `Este site não tem o módulo \`${rota.module}\` habilitado, ou o registro não existe.`
+                  : 'Registro não encontrado.',
+              },
+            }),
+        '429': {
           description:
-            'Assinatura com pendência e o plano do site manda parar de responder. '
-            + 'Nada foi apagado.',
+            rota.scope === null
+              ? 'Limite de registros por IP excedido.'
+              : 'Limite de requisições da chave excedido.',
         },
-        '403': {
-          description:
-            rota.scope === 'content:read'
-              ? 'A chave não tem o escopo necessario, ou pediu `preview` sem `content:draft`.'
-              : 'A chave não tem o escopo necessario.',
-        },
-        '404': {
-          description: rota.module
-            ? `Este site não tem o módulo \`${rota.module}\` habilitado, ou o registro não existe.`
-            : 'Registro não encontrado.',
-        },
-        '429': { description: 'Limite de requisições da chave excedido.' },
       },
-      security: [{ ApiKey: [] }],
+      security: rota.scope === null ? [] : [{ ApiKey: [] }],
     };
   }
 

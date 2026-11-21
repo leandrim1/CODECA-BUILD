@@ -262,25 +262,40 @@ export function createConsentManager(options: ConsentOptions): ConsentManager {
 }
 
 /**
- * Envia o registro, sem bloquear a pagina e sem dado pessoal.
+ * Envia o registro, sem bloquear a pagina e sem levar nada do visitante junto.
  *
- * `sendBeacon` quando existe: ele sobrevive a pessoa sair da pagina logo apos
- * clicar, que e o caso comum de quem recusa e vai embora. O corpo leva so o
- * que esta no `ConsentRecord` -- nenhum IP, nenhum identificador de pessoa,
- * nenhuma pagina visitada.
+ * **Por que nao `navigator.sendBeacon`.** Ele parecia a escolha obvia -- foi
+ * feito exatamente para descarregar dado enquanto a pagina fecha -- mas a
+ * requisicao dele tem o modo de credenciais em `include`, por especificacao e
+ * sem como desligar. Duas consequencias, as duas ruins:
+ *
+ * 1. O navegador anexaria os cookies que o visitante tenha do dominio da
+ *    plataforma. Num registro que existe JUSTAMENTE para ser anonimo, mandar o
+ *    cookie de sessao de quem por acaso esta logado no painel e o oposto do
+ *    que se quer -- e ele chega ao log de acesso antes de qualquer codigo
+ *    nosso rodar.
+ * 2. Com credenciais, o preflight passa a exigir
+ *    `Access-Control-Allow-Credentials: true` na resposta. Sem isso o
+ *    navegador descarta a requisicao em silencio. Visto em Chromium: o banner
+ *    funcionava, a escolha era guardada, e o registro simplesmente nao
+ *    aparecia no banco.
+ *
+ * `fetch` com `keepalive` sobrevive a saida da pagina do mesmo jeito e aceita
+ * `credentials: 'omit'`. A escolha e registrada num clique, nao no
+ * fechamento, entao a diferenca de confiabilidade nem pesa aqui.
+ *
+ * O corpo leva so o que esta no `ConsentRecord`: nenhum IP, nenhum
+ * identificador de pessoa, nenhuma pagina visitada.
  */
 function relatar(url: string | undefined, registro: ConsentRecord): void {
   if (!url) return;
-  const corpo = JSON.stringify(registro);
   try {
-    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-      navigator.sendBeacon(url, new Blob([corpo], { type: 'application/json' }));
-      return;
-    }
     void fetch(url, {
       method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
       headers: { 'content-type': 'application/json' },
-      body: corpo,
+      body: JSON.stringify(registro),
       keepalive: true,
     }).catch(() => undefined);
   } catch {

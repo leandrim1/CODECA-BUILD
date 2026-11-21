@@ -5,6 +5,7 @@ import {
   buildOpenApiDocument,
   MODULE_REGISTRY,
   isModuleKey,
+  consentReportSchema,
   publicLeadSchema,
   publicListQuerySchema,
   publicProductQuerySchema,
@@ -19,6 +20,7 @@ import { z } from 'zod';
 import { clientIp, created, ok, parseJsonBody, parseParams, parseQuery, userAgent } from '../lib/http.js';
 import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ratelimit.js';
 import { assertScope } from '../lib/integration/keys.js';
+import { loadCookieSettings, siteFromOrigin, storeConsentRecord } from '../lib/consent.js';
 import {
   loadMedia,
   toPublicBanner,
@@ -144,11 +146,113 @@ export function publicApiRoutes() {
     return c.json(buildOpenApiDocument({ baseUrl: ctx.env.APP_URL }));
   });
 
+  /**
+   * Registro da escolha de cookies feita no site de um cliente.
+   *
+   * **Sem credencial, de proposito.**
+   *
+   * O registro sai do navegador do visitante, onde nao existe segredo. A
+   * chave publicavel estaria ali para ser lida por qualquer um no codigo-fonte
+   * da pagina -- exigi-la nao impediria ninguem de forjar um registro, so
+   * acrescentaria um passo a quem quisesse. E ela prenderia o registro ao
+   * estado da assinatura: um site com cobranca pendente pararia de registrar
+   * consentimento, que e o oposto do que a conformidade do cliente precisa.
+   *
+   * O que identifica o site e a origem: o navegador envia `Origin` e nao deixa
+   * a pagina mentir sobre ele. Origem que nao esta no cadastro responde 204 do
+   * mesmo jeito e nao grava nada -- dizer "nao conheco este endereco" diria a
+   * quem tenta quais enderecos existem.
+   *
+   * O que o registro **nao** prova: que um navegador de verdade o enviou. Quem
+   * le o codigo-fonte do site pode forjar um, com ou sem chave. Ele e prova de
+   * **o que foi reportado**, com data e versao da politica, dentro do limite
+   * por IP -- nao prova criptografica.
+   *
+   * O que NAO e guardado: IP, agente de navegador, e qualquer coisa que ligue
+   * duas linhas a mesma pessoa. O limite por IP usa o mesmo valor cifrado do
+   * resto da plataforma, que vence junto com a janela.
+   */
+  app.post('/consent', async (c) => {
+    const ctx = c.get('ctx');
+
+    await enforceRateLimit(
+      ctx.db,
+      RATE_LIMITS.publicConsent,
+      rateLimitSubjectFromIp(clientIp(c), ctx.env.AUTH_SECRET),
+      ctx.now(),
+    );
+
+    const origin = c.req.header('origin') ?? null;
+    if (origin) {
+      c.header('access-control-allow-origin', origin);
+      c.header('vary', 'origin');
+    }
+
+    const site = await siteFromOrigin(ctx.db, origin);
+    if (!site) return c.body(null, 204);
+
+    const settings = await loadCookieSettings(ctx.db, site.siteId);
+    // O cliente que prefere nao ter registro guardado aqui desliga no painel.
+    // A escolha do visitante continua valendo: ela mora no navegador dele.
+    if (!settings.recordConsent) return c.body(null, 204);
+
+    /*
+      Teto de corpo antes de ler. A rota nao tem credencial, e o registro
+      inteiro cabe em algumas centenas de bytes: ler megabytes para depois
+      recusar no schema seria trabalho feito a pedido de quem abusa.
+    */
+    const tamanho = Number(c.req.header('content-length') ?? 0);
+    if (Number.isFinite(tamanho) && tamanho > 4_096) {
+      throw AppError.badRequest('Registro de consentimento acima do tamanho aceito.');
+    }
+
+    const relato = await parseJsonBody(c, consentReportSchema);
+    await storeConsentRecord(ctx.db, {
+      tenantId: site.tenantId,
+      siteId: site.siteId,
+      host: site.host,
+      report: relato,
+      now: ctx.now(),
+    });
+
+    return c.body(null, 204);
+  });
+
   app.use('/*', apiKeyMiddleware());
   // A politica de suspensao do plano decide se este site continua respondendo.
   app.use('/*', enforcePublicSuspension());
   // Depois da autenticacao e da suspensao: um acerto no cache nunca pula nenhuma das duas.
   app.use('/*', publicResponseCache());
+
+  /**
+   * Configuracao de cookies deste site, para o banner mostrar a verdade.
+   *
+   * Sem isto, o texto do banner estaria no codigo do site e mudar o nome do
+   * controlador ou a lista de ferramentas exigiria uma nova publicacao. Com
+   * isto, o painel mestre e a fonte -- e `policyVersion` chegando diferente
+   * derruba a escolha guardada e faz o banner voltar, que e o que a lei pede
+   * quando o que se pede mudou.
+   *
+   * So o que o visitante pode ver. `recordConsent` fica de fora: e decisao
+   * entre o cliente e a CODECA, nao informacao do visitante.
+   */
+  app.get('/consent/settings', async (c) => {
+    const ctx = c.get('ctx');
+    const credencial = c.get('apiKey');
+    assertScope(credencial, 'content:read');
+
+    const settings = await loadCookieSettings(ctx.db, credencial.siteId);
+    return ok(c, {
+      controllerName: settings.controllerName,
+      controllerDocument: settings.controllerDocument,
+      controllerContact: settings.controllerContact,
+      privacyPolicyUrl: settings.privacyPolicyUrl,
+      cookiePolicyUrl: settings.cookiePolicyUrl,
+      policyVersion: settings.policyVersion,
+      bannerEnabled: settings.bannerEnabled,
+      tools: settings.tools,
+    });
+  });
 
   /** Identidade do site e modulos disponiveis. E o `getSite()` do SDK. */
   app.get('/site', async (c) => {

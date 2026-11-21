@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { LEGAL_VERSION, formatIsoDate } from '@codeca/shared';
 import { Logo } from '../landing/ui.js';
 import { EMPRESA } from '../legal/empresa.js';
+import { COOKIES } from '../legal/cookies.js';
 import { PRIVACIDADE } from '../legal/privacidade.js';
 import { TERMOS } from '../legal/termos.js';
 import type { Bloco, Documento } from '../legal/types.js';
@@ -16,12 +17,17 @@ import type { Bloco, Documento } from '../legal/types.js';
  * mesma gravada no aceite do cadastro (`users.terms_version`).
  */
 
-type Tipo = 'termos' | 'privacidade';
+type Tipo = 'termos' | 'privacidade' | 'cookies';
 
-const DOCUMENTOS: Record<Tipo, Documento> = { termos: TERMOS, privacidade: PRIVACIDADE };
+const DOCUMENTOS: Record<Tipo, Documento> = {
+  termos: TERMOS,
+  privacidade: PRIVACIDADE,
+  cookies: COOKIES,
+};
 const OUTRO: Record<Tipo, { to: string; rotulo: string }> = {
   termos: { to: '/privacidade', rotulo: 'Política de privacidade' },
-  privacidade: { to: '/termos', rotulo: 'Termos de uso' },
+  privacidade: { to: '/cookies', rotulo: 'Política de cookies' },
+  cookies: { to: '/privacidade', rotulo: 'Política de privacidade' },
 };
 
 export function LegalPage({ tipo }: { tipo: Tipo }) {

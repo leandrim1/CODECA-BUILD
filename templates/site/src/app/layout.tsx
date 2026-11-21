@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { codeca } from '@/lib/codeca';
+import { Cookies } from '@/components/Cookies';
 
 /**
  * O titulo e a descricao vem do conteudo, e nao do codigo.
@@ -24,7 +25,14 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        {children}
+        {/*
+          O consentimento fica no layout, e nao em cada pagina: ele precisa
+          existir na PRIMEIRA visualizacao, qualquer que seja a rota de entrada.
+        */}
+        <Cookies />
+      </body>
     </html>
   );
 }

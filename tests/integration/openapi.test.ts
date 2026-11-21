@@ -155,15 +155,47 @@ describe('forma do documento', () => {
     const doc = await documento();
     for (const [caminho, operacoes] of Object.entries(doc.paths)) {
       for (const [metodo, operacao] of Object.entries(operacoes)) {
-        const respostas = (operacao as { responses: Record<string, unknown> }).responses;
-        // 402 entra em todas porque a politica de suspensao pode parar
-        // qualquer rota de conteudo, e quem integra precisa distinguir isso
-        // de erro de credencial.
-        for (const codigo of ['401', '402', '403', '404', '429']) {
+        const op = operacao as { responses: Record<string, unknown>; security: unknown[] };
+        const respostas = op.responses;
+
+        // Toda rota pode recusar por limite, com ou sem credencial.
+        expect(respostas['429'], `${metodo.toUpperCase()} ${caminho} sem 429`).toBeDefined();
+
+        if (op.security.length === 0) {
+          // Rota aberta: prometer 401 seria descrever uma recusa que ela nunca
+          // devolve, e mandaria quem integra tratar um caso inexistente.
+          expect(respostas['401'], `${metodo.toUpperCase()} ${caminho} aberta, mas promete 401`).toBeUndefined();
+          continue;
+        }
+
+        // 402 entra em todas as autenticadas porque a politica de suspensao
+        // pode parar qualquer rota de conteudo, e quem integra precisa
+        // distinguir isso de erro de credencial.
+        for (const codigo of ['401', '402', '403', '404']) {
           expect(respostas[codigo], `${metodo.toUpperCase()} ${caminho} sem ${codigo}`).toBeDefined();
         }
       }
     }
+  });
+
+  /**
+   * Uma rota aberta e uma excecao a justificar, nao um padrao.
+   *
+   * Por isso o teste nomeia quais sao: uma rota nova sem credencial derruba
+   * aqui e obriga a decisao a ser explicita, em vez de passar despercebida no
+   * laco acima.
+   */
+  it('so o registro de consentimento dispensa credencial', async () => {
+    const doc = await documento();
+    const abertas: string[] = [];
+    for (const [caminho, operacoes] of Object.entries(doc.paths)) {
+      for (const [metodo, operacao] of Object.entries(operacoes)) {
+        if ((operacao as { security: unknown[] }).security.length === 0) {
+          abertas.push(`${metodo.toUpperCase()} ${caminho}`);
+        }
+      }
+    }
+    expect(abertas).toEqual(['POST /api/v1/consent']);
   });
 
   it('toda referencia aponta para um componente que existe', async () => {

@@ -16,6 +16,8 @@ import {
   MAX_CUSTOM_MODULES_PER_SITE,
   customModuleInputSchema,
   customModuleUpdateSchema,
+  paginationSchema,
+  siteCookieSettingsSchema,
   isReservedModuleKey,
   type ModuleKey,
 } from '@codeca/shared';
@@ -23,7 +25,8 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
-import { created, noContent, ok, parseJsonBody, parseJsonPatch, parseParams } from '../lib/http.js';
+import { created, noContent, ok, parseJsonBody, parseJsonPatch, parseParams, parseQuery } from '../lib/http.js';
+import { consentSummary, listConsentRecords, loadCookieSettings, saveCookieSettings } from '../lib/consent.js';
 import { issueApiKey, revokeApiKeyById, rotateApiKey } from '../lib/integration/keys.js';
 import { generateWebhookSecret } from '@codeca/shared/server';
 import { customFieldsOf, loadSiteModules } from '../lib/modules.js';
@@ -1060,6 +1063,95 @@ export function platformSiteRoutes() {
     });
 
     return ok(c, { items: normalizadas });
+  });
+
+  // ------------------------------------------------- cookies do site
+
+  /**
+   * Configuracao de cookies e as contagens de escolha.
+   *
+   * O ponto desta tela: dizer QUEM responde pelos dados do visitante naquele
+   * site. A CODECA nao se apresenta como controladora dos dados dos sites dos
+   * clientes -- quem responde pelo site de uma clinica e a clinica. Enquanto
+   * `controllerName` esta vazio, o banner do site nao afirma controlador
+   * nenhum: faltar e melhor do que mentir.
+   */
+  app.get('/sites/:siteId/cookies', requirePlatform('platform:tenants:read'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId } = parseParams(c, siteParamSchema);
+    await loadSite(ctx.db, siteId);
+
+    const [settings, summary] = await Promise.all([
+      loadCookieSettings(ctx.db, siteId),
+      consentSummary(ctx.db, siteId),
+    ]);
+
+    return ok(c, { settings, summary });
+  });
+
+  /** Substitui a configuracao inteira, pelo mesmo motivo das origens. */
+  app.put('/sites/:siteId/cookies', requirePlatform('platform:tenants:write'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId } = parseParams(c, siteParamSchema);
+    const site = await loadSite(ctx.db, siteId);
+    const session = sessionOf(c);
+    const input = await parseJsonBody(c, siteCookieSettingsSchema);
+
+    // Chave repetida faria duas linhas descreverem a mesma ferramenta, e a
+    // politica de cookies gerada mostraria a mesma entrada duas vezes.
+    const chaves = new Set<string>();
+    for (const tool of input.tools) {
+      if (chaves.has(tool.key)) {
+        throw AppError.badRequest(`Ferramenta repetida: ${tool.key}. Use um identificador por ferramenta.`);
+      }
+      chaves.add(tool.key);
+    }
+
+    const settings = await saveCookieSettings(ctx.db, {
+      tenantId: site.tenantId,
+      siteId,
+      userId: session.user.id,
+      settings: input,
+      now: ctx.now(),
+    });
+
+    await auditFromContext(c, {
+      action: AUDIT_ACTIONS.siteCookiesUpdated,
+      entityType: 'site_cookie_settings',
+      entityId: siteId,
+      tenantId: site.tenantId,
+      metadata: {
+        policyVersion: settings.policyVersion,
+        bannerEnabled: settings.bannerEnabled,
+        recordConsent: settings.recordConsent,
+        tools: settings.tools.map((t) => t.key),
+      },
+    });
+
+    return ok(c, { settings });
+  });
+
+  /**
+   * Registros de escolha, do mais recente ao mais antigo.
+   *
+   * Existe para a empresa poder demonstrar o consentimento que praticou. Nao
+   * ha nada aqui que identifique um visitante: nem IP, nem agente de
+   * navegador, nem identificador que atravesse dominios.
+   */
+  app.get('/sites/:siteId/cookies/records', requirePlatform('platform:tenants:read'), async (c) => {
+    const ctx = c.get('ctx');
+    const { siteId } = parseParams(c, siteParamSchema);
+    await loadSite(ctx.db, siteId);
+    const { page, pageSize } = parseQuery(c, paginationSchema);
+
+    const { items, total } = await listConsentRecords(ctx.db, { siteId, page, pageSize });
+    return ok(c, {
+      items,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    });
   });
 
   // ------------------------------------------- avisos de publicacao

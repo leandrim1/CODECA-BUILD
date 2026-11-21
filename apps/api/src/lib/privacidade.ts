@@ -46,6 +46,15 @@ export interface ExportedData {
   interessados: unknown[];
   dominios: unknown[];
   pessoas: unknown[];
+  /**
+   * Cookies: a configuracao do site e as escolhas registradas dos visitantes.
+   *
+   * Entra na exportacao porque e prova de conformidade DA EMPRESA, nao nossa:
+   * levar o conteudo embora sem levar o registro do consentimento praticado
+   * deixaria o cliente sem como demonstrar o que obteve. Os registros ja sao
+   * anonimos na origem -- nao ha IP nem identificador de visitante neles.
+   */
+  consentimento: { configuracao: Record<string, unknown> | null; escolhas: unknown[] };
   assinatura: Record<string, unknown> | null;
 }
 
@@ -81,6 +90,8 @@ export async function exportTenantData(db: Database, tenantId: string): Promise<
     vinculos,
     chaves,
     assinaturas,
+    configuracaoDeCookies,
+    escolhasDeCookies,
   ] = await Promise.all([
     db.select().from(schema.siteModules).where(eq(schema.siteModules.tenantId, tenantId)),
     db.select().from(schema.contentDocuments).where(eq(schema.contentDocuments.tenantId, tenantId)),
@@ -119,6 +130,23 @@ export async function exportTenantData(db: Database, tenantId: string): Promise<
       .from(schema.siteApiKeys)
       .where(eq(schema.siteApiKeys.tenantId, tenantId)),
     db.select().from(schema.subscriptions).where(eq(schema.subscriptions.tenantId, tenantId)),
+    db
+      .select()
+      .from(schema.siteCookieSettings)
+      .where(eq(schema.siteCookieSettings.tenantId, tenantId)),
+    db
+      .select({
+        consentId: schema.siteConsentRecords.consentId,
+        decidedAt: schema.siteConsentRecords.decidedAt,
+        domain: schema.siteConsentRecords.domain,
+        granted: schema.siteConsentRecords.granted,
+        denied: schema.siteConsentRecords.denied,
+        policyVersion: schema.siteConsentRecords.policyVersion,
+        engineVersion: schema.siteConsentRecords.engineVersion,
+        recebidoEm: schema.siteConsentRecords.createdAt,
+      })
+      .from(schema.siteConsentRecords)
+      .where(eq(schema.siteConsentRecords.tenantId, tenantId)),
   ]);
 
   const assinatura = assinaturas[0] ?? null;
@@ -146,6 +174,10 @@ export async function exportTenantData(db: Database, tenantId: string): Promise<
     interessados,
     dominios,
     pessoas: vinculos,
+    consentimento: {
+      configuracao: configuracaoDeCookies[0] ?? null,
+      escolhas: escolhasDeCookies,
+    },
     assinatura: assinatura
       ? {
           status: assinatura.status,
@@ -180,6 +212,7 @@ export async function deletionPreview(db: Database, tenantId: string): Promise<R
     interessados: dados.interessados.length,
     dominios: dados.dominios.length,
     pessoas: dados.pessoas.length,
+    escolhasDeCookies: dados.consentimento.escolhas.length,
   };
 }
 

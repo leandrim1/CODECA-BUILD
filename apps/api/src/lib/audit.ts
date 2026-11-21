@@ -108,6 +108,7 @@ export const AUDIT_ACTIONS = {
   siteKeyRotated: 'site.key_rotated',
   siteKeyRevoked: 'site.key_revoked',
   siteOriginsUpdated: 'site.origins_updated',
+  siteCookiesUpdated: 'site.cookies_updated',
   siteWebhookCreated: 'site.webhook_created',
   siteWebhookUpdated: 'site.webhook_updated',
   siteWebhookDeleted: 'site.webhook_deleted',

@@ -2,13 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { DemoTransition } from '../DemoPanels.js';
 import { Copy, KeyRound, Plus, RotateCw, Save, Trash2 } from 'lucide-react';
 import {
+  CONSENT_CATEGORIES,
+  CONSENT_CATEGORY_LABELS,
   CUSTOM_FIELD_TYPES,
   CUSTOM_FIELD_TYPE_LABELS,
   SAFE_ICONS,
   DELIVERY_STATE_LABELS,
   MODULE_REGISTRY,
   formatDateTime,
+  type ConsentCategory,
+  type ConsentTool,
   type ModuleKey,
+  type SiteCookieSettings,
 } from '@codeca/shared';
 import {
   Alert,
@@ -65,6 +70,7 @@ const ABAS = [
   { id: 'campos', label: 'Campos do projeto' },
   { id: 'modulos', label: 'Módulos e campos' },
   { id: 'origens', label: 'Origens' },
+  { id: 'cookies', label: 'Cookies' },
   { id: 'chaves', label: 'Chaves' },
   { id: 'avisos', label: 'Avisos de publicação' },
 ] as const;
@@ -180,6 +186,7 @@ function ConfiguracaoDoSite({ siteId, onClose }: { siteId: string; onClose: () =
                 <AbaModulos siteId={siteId} modules={data.modules} onSaved={() => void detalhe.reload()} />
               ) : null}
               {aba === 'origens' ? <AbaOrigens siteId={siteId} /> : null}
+              {aba === 'cookies' ? <AbaCookies siteId={siteId} /> : null}
               {aba === 'chaves' ? <AbaChaves siteId={siteId} /> : null}
               {aba === 'avisos' ? <AbaAvisos siteId={siteId} /> : null}
             </>
@@ -583,6 +590,303 @@ function AbaOrigens({ siteId }: { siteId: string }) {
         }
       </ResourcePanel>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- cookies
+
+/**
+ * Cookies e consentimento de um site.
+ *
+ * O campo que organiza a tela e o **controlador**. A CODECA nao se apresenta
+ * como controladora dos dados dos visitantes dos sites dos clientes: quem
+ * responde pelo site de uma clinica e a clinica. Enquanto este campo esta
+ * vazio o banner do site nao afirma controlador nenhum -- e por isso a tela
+ * avisa, em vez de preencher com o nome da plataforma.
+ *
+ * A lista de ferramentas comeca vazia e e preenchida a mao, uma por uma, com a
+ * categoria de quem instalou. Nao ha deteccao automatica: a plataforma nao sabe
+ * o que o site de cada cliente carrega, e adivinhar aqui viraria uma politica
+ * de cookies ficticia.
+ */
+function AbaCookies({ siteId }: { siteId: string }) {
+  const toast = useToast();
+  const dados = useResource('platformSiteApi.cookies', () => platformSiteApi.cookies(siteId), [siteId], {
+    fresh: true,
+  });
+  const [form, setForm] = useState<SiteCookieSettings | null>(null);
+
+  useEffect(() => {
+    if (dados.data) setForm(dados.data.settings);
+  }, [dados.data]);
+
+  const salvar = useMutation((corpo: SiteCookieSettings) => platformSiteApi.saveCookies(siteId, corpo), {
+    onSuccess: () => {
+      toast.success('Configuração de cookies salva');
+      void dados.reload();
+    },
+    onError: (error) => toast.error('Não foi possível salvar', error.message),
+  });
+
+  const trocar = <C extends keyof SiteCookieSettings>(campo: C, valor: SiteCookieSettings[C]) =>
+    setForm((atual) => (atual ? { ...atual, [campo]: valor } : atual));
+
+  const trocarFerramenta = (indice: number, mudanca: Partial<ConsentTool>) =>
+    setForm((atual) =>
+      atual
+        ? { ...atual, tools: atual.tools.map((t, i) => (i === indice ? { ...t, ...mudanca } : t)) }
+        : atual,
+    );
+
+  return (
+    <ResourcePanel resource={dados}>
+      {(data) =>
+        !form ? null : (
+          <div className="space-y-6">
+            {form.controllerName.trim() === '' ? (
+              <Alert tone="warning" title="Sem controlador informado, o site não afirma quem responde pelos dados">
+                Preencha o nome da empresa dona deste site. A CODECA Build é operadora: quem responde
+                pelos dados de quem visita o site do cliente é o próprio cliente, e um texto legal que
+                dissesse outra coisa seria falso.
+              </Alert>
+            ) : null}
+
+            <Card>
+              <CardHeader title="Controlador dos dados" description="Aparece na política de cookies e no banner do site." />
+              <CardBody className="grid gap-4 md:grid-cols-2">
+                <TextInput
+                  label="Nome do controlador"
+                  placeholder="Clínica Exemplo Ltda."
+                  value={form.controllerName}
+                  onChange={(e) => trocar('controllerName', e.target.value)}
+                />
+                <TextInput
+                  label="CNPJ ou CPF"
+                  placeholder="00.000.000/0000-00"
+                  value={form.controllerDocument}
+                  onChange={(e) => trocar('controllerDocument', e.target.value)}
+                />
+                <TextInput
+                  label="E-mail de contato"
+                  type="email"
+                  placeholder="privacidade@exemplo.com.br"
+                  hint="Para onde o visitante escreve ao exercer um direito."
+                  value={form.controllerContact}
+                  onChange={(e) => trocar('controllerContact', e.target.value)}
+                />
+                <TextInput
+                  label="Versão da política"
+                  hint="Mudou o texto, mude aqui: o banner volta a perguntar."
+                  value={form.policyVersion}
+                  onChange={(e) => trocar('policyVersion', e.target.value)}
+                />
+                <TextInput
+                  label="Política de privacidade (URL)"
+                  placeholder="https://exemplo.com.br/privacidade"
+                  value={form.privacyPolicyUrl}
+                  onChange={(e) => trocar('privacyPolicyUrl', e.target.value)}
+                />
+                <TextInput
+                  label="Política de cookies (URL)"
+                  placeholder="https://exemplo.com.br/cookies"
+                  value={form.cookiePolicyUrl}
+                  onChange={(e) => trocar('cookiePolicyUrl', e.target.value)}
+                />
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader title="Comportamento" />
+              <CardBody className="space-y-4">
+                <Switch
+                  label="Mostrar o banner de consentimento"
+                  hint="Desligue apenas se o site não carregar nada além do necessário."
+                  checked={form.bannerEnabled}
+                  onChange={(valor) => trocar('bannerEnabled', valor)}
+                />
+                <Switch
+                  label="Guardar o registro da escolha na CODECA"
+                  hint="Serve para o cliente demonstrar o consentimento. Não guarda IP nem identificador do visitante."
+                  checked={form.recordConsent}
+                  onChange={(valor) => trocar('recordConsent', valor)}
+                />
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title="Ferramentas declaradas"
+                description="O que este site carrega, uma por uma. A lista alimenta a política de cookies e o painel de preferências."
+                actions={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setForm((atual) =>
+                        atual
+                          ? {
+                              ...atual,
+                              tools: [
+                                ...atual.tools,
+                                {
+                                  key: '',
+                                  name: '',
+                                  provider: '',
+                                  category: 'estatisticas',
+                                  purpose: '',
+                                  cookies: [],
+                                  privacyUrl: '',
+                                },
+                              ],
+                            }
+                          : atual,
+                      )
+                    }
+                  >
+                    <Plus aria-hidden="true" className="size-4" />
+                    Acrescentar
+                  </Button>
+                }
+              />
+              <CardBody className="space-y-4">
+                {form.tools.length === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    Nenhuma ferramenta declarada. Um site que só usa o necessário fica assim mesmo --
+                    acrescente apenas o que ele realmente carrega.
+                  </p>
+                ) : (
+                  form.tools.map((tool, indice) => (
+                    <div
+                      key={indice}
+                      className="grid gap-3 rounded-lg border border-slate-200 p-3 md:grid-cols-2"
+                    >
+                      <TextInput
+                        label="Identificador"
+                        placeholder="google-analytics"
+                        hint="Letras minúsculas, números e hífen."
+                        value={tool.key}
+                        onChange={(e) => trocarFerramenta(indice, { key: e.target.value })}
+                      />
+                      <TextInput
+                        label="Nome"
+                        placeholder="Google Analytics 4"
+                        value={tool.name}
+                        onChange={(e) => trocarFerramenta(indice, { name: e.target.value })}
+                      />
+                      <Select
+                        label="Categoria"
+                        value={tool.category}
+                        onChange={(e) =>
+                          trocarFerramenta(indice, { category: e.target.value as ConsentCategory })
+                        }
+                        options={CONSENT_CATEGORIES.map((id) => ({
+                          value: id,
+                          label: CONSENT_CATEGORY_LABELS[id],
+                        }))}
+                      />
+                      <TextInput
+                        label="Fornecedor"
+                        placeholder="Google LLC"
+                        value={tool.provider}
+                        onChange={(e) => trocarFerramenta(indice, { provider: e.target.value })}
+                      />
+                      <TextInput
+                        label="Cookies gravados"
+                        placeholder="_ga, _ga_*"
+                        hint="Separe por vírgula. Use * quando o nome varia."
+                        value={tool.cookies.join(', ')}
+                        onChange={(e) =>
+                          trocarFerramenta(indice, {
+                            cookies: e.target.value
+                              .split(',')
+                              .map((n) => n.trim())
+                              .filter((n) => n !== ''),
+                          })
+                        }
+                      />
+                      <TextInput
+                        label="Política do fornecedor (URL)"
+                        placeholder="https://policies.google.com/privacy"
+                        value={tool.privacyUrl}
+                        onChange={(e) => trocarFerramenta(indice, { privacyUrl: e.target.value })}
+                      />
+                      <div className="md:col-span-2">
+                        <TextArea
+                          label="Para que serve"
+                          rows={2}
+                          placeholder="Medir quantas pessoas visitam cada página."
+                          value={tool.purpose}
+                          onChange={(e) => trocarFerramenta(indice, { purpose: e.target.value })}
+                        />
+                      </div>
+                      <div className="md:col-span-2 flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setForm((atual) =>
+                              atual
+                                ? { ...atual, tools: atual.tools.filter((_, i) => i !== indice) }
+                                : atual,
+                            )
+                          }
+                        >
+                          <Trash2 aria-hidden="true" className="size-4" />
+                          Remover
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title="Escolhas registradas"
+                description="Prova do consentimento, sem nada que identifique quem decidiu."
+              />
+              <CardBody>
+                {data.summary.total === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    Nenhuma escolha registrada ainda. Elas chegam quando o site publicado começa a
+                    receber visitas.
+                  </p>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {CONSENT_CATEGORIES.filter((id) => id !== 'necessarios').map((id) => (
+                      <div key={id} className="rounded-lg border border-slate-200 p-3">
+                        <p className="text-sm text-slate-600">{CONSENT_CATEGORY_LABELS[id]}</p>
+                        <p className="text-2xl font-semibold text-slate-900">
+                          {data.summary.granted[id]}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          de {data.summary.total}{' '}
+                          {data.summary.total === 1 ? 'escolha' : 'escolhas'} autorizaram
+                        </p>
+                      </div>
+                    ))}
+                    <div className="rounded-lg border border-slate-200 p-3 sm:col-span-2 lg:col-span-4">
+                      <p className="text-xs text-slate-500">
+                        Primeira em {formatDateTime(data.summary.firstAt)} · última em{' '}
+                        {formatDateTime(data.summary.lastAt)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+
+            <div className="flex justify-end">
+              <Button loading={salvar.loading} onClick={() => void salvar.run(form)}>
+                <Save aria-hidden="true" className="size-4" />
+                Salvar configuração
+              </Button>
+            </div>
+          </div>
+        )
+      }
+    </ResourcePanel>
   );
 }
 

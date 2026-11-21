@@ -387,7 +387,33 @@ sem janela.
 
 ---
 
-## 9. Checklist de um site novo
+## 9. Cookies e consentimento
+
+Aba **Cookies** da configuracao do site. O detalhe inteiro esta em
+`docs/cookies-e-consentimento.md`; o que importa para quem integra:
+
+**Quem responde pelos dados nao e a CODECA.** O controlador e a empresa dona
+do site, e o nome dele e preenchido nessa aba. Campo vazio significa banner sem
+afirmacao de controlador -- nunca com o nome da plataforma.
+
+**A lista de ferramentas comeca vazia.** Ela e preenchida a mao, uma por uma,
+com a categoria de quem instalou. A plataforma nao sabe o que o site carrega e
+nao adivinha.
+
+O site le essa configuracao em `GET /api/v1/consent/settings` (chave
+publicavel) e envia o registro anonimo da escolha em `POST /api/v1/consent` --
+esta sem credencial, porque o registro sai do navegador do visitante e a chave
+publicavel estaria no codigo-fonte da pagina -- exigi-la nao impediria uma
+forja. O `Origin`, conferido contra o cadastro de origens, e o que identifica o
+site, e ha limite por IP. Trocar a `policyVersion` na aba derruba a escolha guardada nos
+navegadores e faz o banner voltar.
+
+No `@codeca/sdk`, uma chamada liga tudo:
+`iniciarConsentimento({ baseUrl, publishableKey })`.
+
+---
+
+## 10. Checklist de um site novo
 
 Tudo abaixo acontece em **`/plataforma/sites`**, na configuracao do projeto.
 
@@ -401,4 +427,7 @@ Tudo abaixo acontece em **`/plataforma/sites`**, na configuracao do projeto.
 6. Conferir `GET /api/v1/site` a partir do site.
 7. Aba **Avisos de publicacao**: cadastrar o endereco de revalidacao
    **apenas se** o site renderiza no servidor com cache (secao 6).
-8. Aba **Identidade**: trocar a situacao de `draft` para `active`.
+8. Aba **Cookies**: informar o controlador (a empresa dona do site) e
+   declarar as ferramentas que o site carrega. Sem isso, o banner do site nao
+   afirma quem responde pelos dados.
+9. Aba **Identidade**: trocar a situacao de `draft` para `active`.

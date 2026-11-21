@@ -804,3 +804,22 @@ export interface WebhookDeliveryRow {
   deliveredAt: string | null;
   createdAt: string;
 }
+
+/**
+ * Uma escolha de cookies registrada no site de um cliente.
+ *
+ * Nao ha campo de visitante aqui porque nao existe no banco: nem IP, nem
+ * agente de navegador, nem identificador que atravesse dominios. `consentId` e
+ * sorteado no navegador e serve para o reenvio da mesma decisao nao virar duas
+ * linhas.
+ */
+export interface ConsentRecordRow {
+  consentId: string;
+  decidedAt: string;
+  domain: string;
+  granted: string[];
+  denied: string[];
+  policyVersion: string;
+  engineVersion: string;
+  receivedAt: string;
+}
