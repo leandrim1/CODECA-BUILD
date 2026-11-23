@@ -79,6 +79,22 @@ export const envSchema = z.object({
 
   /** Envio de e-mail transacional. Sem chave, os links vao para o log. */
   RESEND_API_KEY: z.string().optional(),
+
+  /**
+   * Desafio de bot (Cloudflare Turnstile) no cadastro e na recuperacao de
+   * senha.
+   *
+   * As duas chaves sao opcionais e so valem juntas: sem elas a plataforma se
+   * comporta exatamente como antes. A auditoria encontrou o cadastro protegido
+   * so por limite de taxa por IP -- suficiente contra forca bruta, nao contra
+   * cadastro em massa distribuido, que consome banco, e-mail e a reputacao do
+   * remetente.
+   *
+   * `TURNSTILE_SITE_KEY` NAO e segredo: ela aparece na pagina, por desenho do
+   * provedor. A outra e, e por isso so o servidor a le.
+   */
+  TURNSTILE_SITE_KEY: z.string().optional(),
+  TURNSTILE_SECRET_KEY: z.string().optional(),
   MAIL_FROM: z.string().default('Codeca Build <nao-responda@localhost>'),
 
   /**
@@ -375,6 +391,20 @@ export interface FeatureFlags {
    * mesmas credenciais.
    */
   googleAnalytics: boolean;
+  /**
+   * Desafio de bot nos formularios publicos. Exige as duas chaves do
+   * Turnstile: com so uma delas o desafio nao fecha o ciclo e seria pior do
+   * que nao ter -- atrito para a pessoa, sem verificacao no servidor.
+   */
+  botProtection: boolean;
+  /**
+   * Chave publica do desafio, para a tela montar o widget.
+   *
+   * Vazia quando o desafio esta desligado. Nao e segredo: o provedor a publica
+   * na pagina por desenho -- o que prova alguma coisa e a conferencia do token
+   * no servidor, com a outra chave.
+   */
+  turnstileSiteKey: string;
 }
 
 export function featureFlags(env: Env): FeatureFlags {
@@ -391,6 +421,9 @@ export function featureFlags(env: Env): FeatureFlags {
     googleAnalytics: Boolean(
       env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && parseEncryptionKey(env.INTEGRATIONS_ENCRYPTION_KEY),
     ),
+    botProtection: Boolean(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY),
+    turnstileSiteKey:
+      env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY ? env.TURNSTILE_SITE_KEY : '',
   };
 }
 

@@ -14,6 +14,13 @@ export type AppErrorCode =
   | 'plan_without_panel'
   | 'storage_limit_reached'
   | 'subscription_required'
+  /**
+   * Desafio de bot nao resolvido ou invalido.
+   *
+   * Separado de `validation_error` porque a tela reage diferente: nao e campo
+   * mal preenchido, e um desafio para refazer.
+   */
+  | 'bot_challenge_required'
   | 'rate_limited'
   | 'payload_too_large'
   | 'unsupported_media_type'
@@ -34,6 +41,9 @@ const STATUS_BY_CODE: Record<AppErrorCode, number> = {
   plan_without_panel: 402,
   storage_limit_reached: 402,
   subscription_required: 402,
+  // 403 e nao 400: o pedido esta bem formado, o que falta e a prova de que
+  // nao e um robo.
+  bot_challenge_required: 403,
   rate_limited: 429,
   payload_too_large: 413,
   unsupported_media_type: 415,

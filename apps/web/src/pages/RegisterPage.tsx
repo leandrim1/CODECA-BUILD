@@ -4,6 +4,7 @@ import { Alert, Button, Checkbox, TextInput, useToast } from '@codeca/ui';
 import { slugify } from '@codeca/shared';
 import { GoogleResultAlert, GoogleSignIn, useGoogleResult } from '../components/GoogleAuth.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { DesafioDeBot } from '../components/DesafioDeBot.js';
 import { useMutation } from '../hooks/useResource.js';
 import { authApi } from '../services/endpoints.js';
 import { useForm } from '../utils/forms.js';
@@ -11,7 +12,7 @@ import { useForm } from '../utils/forms.js';
 export function RegisterPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const { applySession, refresh } = useAuth();
+  const { applySession, refresh, features } = useAuth();
   const [generalError, setGeneralError] = useState<string | null>(null);
   const google = useGoogleResult();
 
@@ -23,6 +24,9 @@ export function RegisterPage() {
     phone: '',
     acceptedTerms: false,
   });
+  // `null` enquanto o desafio nao foi resolvido. Com o desafio desligado o
+  // valor nunca e consultado.
+  const [botToken, setBotToken] = useState<string | null>(null);
 
   const register = useMutation(authApi.register, {
     onSuccess: async (result) => {
@@ -72,7 +76,7 @@ export function RegisterPage() {
         onSubmit={(event) => {
           event.preventDefault();
           setGeneralError(null);
-          void register.run(values);
+          void register.run({ ...values, ...(botToken ? { botToken } : {}) });
         }}
       >
         {generalError ? <Alert tone="danger">{generalError}</Alert> : null}
@@ -143,7 +147,14 @@ export function RegisterPage() {
           <p className="-mt-2 text-xs font-medium text-rose-600">{errors.acceptedTerms}</p>
         ) : null}
 
-        <Button type="submit" size="lg" loading={register.loading}>
+        <DesafioDeBot siteKey={features.turnstileSiteKey} onToken={setBotToken} />
+
+        <Button
+          type="submit"
+          size="lg"
+          loading={register.loading}
+          disabled={features.botProtection && !botToken}
+        >
           Criar conta
         </Button>
       </form>

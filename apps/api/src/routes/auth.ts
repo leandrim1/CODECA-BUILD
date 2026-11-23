@@ -30,6 +30,7 @@ import { clearSessionCookies, setSessionCookies } from '../lib/cookies.js';
 import { assertSameOrigin, isStateChanging } from '../lib/csrf.js';
 import { clientIp, created, noContent, ok, parseJsonBody, userAgent } from '../lib/http.js';
 import { RATE_LIMITS, enforceRateLimit, rateLimitSubjectFromIp } from '../lib/ratelimit.js';
+import { verificarDesafioDeBot } from '../lib/bot-challenge.js';
 import { createSession, resolveSession, revokeAllUserSessions, revokeSession, serializeSession } from '../lib/session.js';
 import { buildActionUrl, consumeUserToken, issueUserToken } from '../lib/tokens.js';
 import { requireAuth, sessionMiddleware, sessionOf } from '../middleware/auth.js';
@@ -112,6 +113,14 @@ export function authRoutes() {
     await enforceRateLimit(ctx.db, RATE_LIMITS.register, rateLimitSubjectFromIp(ip, ctx.env.AUTH_SECRET), ctx.now());
 
     const input = await parseJsonBody(c, registerSchema);
+    /*
+      Desafio de bot, quando configurado.
+
+      O limite por IP barra forca bruta de um endereco; nao barra cadastro em
+      massa distribuido, que consome banco, cota de e-mail e a reputacao do
+      remetente. Sem as chaves no ambiente isto nao faz nada.
+    */
+    await verificarDesafioDeBot(ctx.env, input.botToken, ip);
 
     const [existing] = await ctx.db
       .select({ id: schema.users.id })
@@ -515,6 +524,7 @@ export function authRoutes() {
       ctx.now(),
     );
     const input = await parseJsonBody(c, requestPasswordResetSchema);
+    await verificarDesafioDeBot(ctx.env, input.botToken, ip);
 
     const [user] = await ctx.db
       .select({ id: schema.users.id, name: schema.users.name })

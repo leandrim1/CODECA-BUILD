@@ -51,6 +51,8 @@ const DEFAULT_FEATURES: FeatureFlags = {
   transactionalEmail: false,
   googleAuth: false,
   emailCodeAuth: false,
+  botProtection: false,
+  turnstileSiteKey: '',
 };
 
 function readStoredTenant(): string | null {

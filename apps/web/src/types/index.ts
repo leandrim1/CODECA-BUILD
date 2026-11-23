@@ -83,6 +83,10 @@ export interface FeatureFlags {
   googleAuth: boolean;
   /** Login por codigo enviado por e-mail (depende do provedor de e-mail). */
   emailCodeAuth: boolean;
+  /** Desafio de bot nos formularios publicos. */
+  botProtection: boolean;
+  /** Chave publica do desafio; vazia quando ele esta desligado. */
+  turnstileSiteKey: string;
 }
 
 export interface SessionResponse {

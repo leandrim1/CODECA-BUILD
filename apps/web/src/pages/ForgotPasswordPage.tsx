@@ -3,10 +3,14 @@ import { Link } from 'react-router-dom';
 import { Alert, Button, TextInput } from '@codeca/ui';
 import { useMutation } from '../hooks/useResource.js';
 import { authApi } from '../services/endpoints.js';
+import { useAuth } from '../hooks/useAuth.js';
+import { DesafioDeBot } from '../components/DesafioDeBot.js';
 
 export function ForgotPasswordPage() {
+  const { features } = useAuth();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [botToken, setBotToken] = useState<string | null>(null);
 
   const request = useMutation(authApi.forgotPassword, { onSuccess: () => setSent(true) });
 
@@ -35,7 +39,7 @@ export function ForgotPasswordPage() {
           className="mt-8 grid gap-4"
           onSubmit={(event) => {
             event.preventDefault();
-            void request.run(email);
+            void request.run({ email, ...(botToken ? { botToken } : {}) });
           }}
         >
           {request.error ? <Alert tone="danger">{request.error.message}</Alert> : null}
@@ -47,7 +51,14 @@ export function ForgotPasswordPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
-          <Button type="submit" size="lg" loading={request.loading}>
+          <DesafioDeBot siteKey={features.turnstileSiteKey} onToken={setBotToken} />
+
+          <Button
+            type="submit"
+            size="lg"
+            loading={request.loading}
+            disabled={features.botProtection && !botToken}
+          >
             Enviar link
           </Button>
           <Link to="/entrar" className="text-center text-sm link">

@@ -170,7 +170,8 @@ export const authApi = {
     api.post<{ tenantId: string; session: SessionPayload | null }>('/api/auth/company', body),
   verifyEmail: (token: string) => api.post<{ verified: boolean }>('/api/auth/verify-email', { token }),
   resendVerification: (email: string) => api.post<{ sent: boolean }>('/api/auth/resend-verification', { email }),
-  forgotPassword: (email: string) => api.post<{ sent: boolean }>('/api/auth/forgot-password', { email }),
+  forgotPassword: (entrada: { email: string; botToken?: string }) =>
+    api.post<{ sent: boolean }>('/api/auth/forgot-password', entrada),
   resetPassword: (token: string, password: string) =>
     api.post<{ reset: boolean }>('/api/auth/reset-password', { token, password }),
   acceptInvite: (body: unknown) =>

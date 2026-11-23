@@ -3,6 +3,15 @@ import { TENANT_ROLES } from '../roles.js';
 import { emailSchema, passwordSchema, personNameSchema, phoneSchema, slugSchema, uuidSchema } from './common.js';
 
 export const registerSchema = z.object({
+  /**
+   * Prova do desafio de bot, quando ele esta ligado no ambiente.
+   *
+   * Opcional no schema porque o desafio e opcional na plataforma: quem nao o
+   * configurou nao deve ter o formulario recusado. Quem configurou tem a
+   * ausencia barrada no servidor, por `verificarDesafioDeBot` -- e nao aqui,
+   * porque o schema nao sabe o que esta no ambiente.
+   */
+  botToken: z.string().max(4096).optional(),
   name: personNameSchema,
   email: emailSchema,
   password: passwordSchema,
@@ -21,7 +30,11 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
-export const requestPasswordResetSchema = z.object({ email: emailSchema });
+export const requestPasswordResetSchema = z.object({
+  email: emailSchema,
+  /** Prova do desafio de bot; ver o comentario em `registerSchema`. */
+  botToken: z.string().max(4096).optional(),
+});
 
 export const resetPasswordSchema = z.object({
   token: z.string().trim().min(20).max(200),
