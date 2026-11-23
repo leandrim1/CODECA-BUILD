@@ -1,4 +1,5 @@
 import { and, eq, schema, type Database } from '@codeca/database';
+import { agendarRemocaoDoBlob } from './blob-cleanup.js';
 import { AppError } from '@codeca/shared';
 import type { BlobStorage } from './blob.js';
 
@@ -240,9 +241,18 @@ export async function deleteTenant(
     try {
       await blob.remove(imagem.url);
       apagados += 1;
-    } catch {
-      // Um arquivo que resiste nao pode impedir a exclusao do resto: o numero
-      // volta no resumo e vai para a auditoria, para alguem resolver depois.
+    } catch (error) {
+      /*
+        Um arquivo que resiste nao pode impedir a exclusao do resto. Antes o
+        numero so voltava no resumo; agora a tarefa fica na fila, porque a
+        empresa esta sendo apagada e esta e a ultima vez que alguem olha para
+        esta lista de URLs.
+      */
+      await agendarRemocaoDoBlob(db, {
+        tenantId: input.tenantId,
+        blobUrl: imagem.url,
+        erro: error,
+      });
       falharam += 1;
     }
   }

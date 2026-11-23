@@ -12,6 +12,7 @@ import {
 import { buildBlobPathname } from '../blob.js';
 import type { BlobStorage } from '../blob.js';
 import { assertStorageAvailable, loadEffectivePlan } from '../plan-limits.js';
+import { agendarRemocaoDoBlob } from '../blob-cleanup.js';
 import { SiteFetchError, type SiteFetcher } from './fetcher.js';
 
 /**
@@ -317,7 +318,14 @@ export async function importImage(
   if (!row) {
     // Evita arquivo orfao no Blob quando o registro no banco falha -- o mesmo
     // cuidado que a rota de upload do painel tem.
-    await ctx.blob.remove(stored.url).catch(() => undefined);
+    await ctx.blob.remove(stored.url).catch((error: unknown) =>
+      agendarRemocaoDoBlob(ctx.db, {
+        tenantId: ctx.tenantId,
+        blobUrl: stored.url,
+        pathname: stored.pathname,
+        erro: error,
+      }),
+    );
     throw new ImageImportError('armazenamento', 'Não foi possível registrar a imagem importada.');
   }
 

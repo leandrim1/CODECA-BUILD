@@ -2891,3 +2891,35 @@ export const siteConsentRecords = pgTable(
     }).onDelete('cascade'),
   ],
 );
+
+/**
+ * Arquivos que precisam sair do Vercel Blob e ainda nao sairam.
+ *
+ * A exclusao de midia tira a linha do banco antes de apagar o arquivo -- se
+ * fosse ao contrario e o banco falhasse, perderiamos a URL e o arquivo ficaria
+ * orfao para sempre. O preco dessa ordem e que a falha na segunda metade
+ * passava em branco: o arquivo seguia ocupando o balde e deixava de ser
+ * cobrado. Agora ela vira uma tarefa aqui, e o job diario tenta de novo.
+ *
+ * **Sem chave estrangeira para `tenants`.** Quando a empresa e excluida, os
+ * arquivos dela precisam sair do Blob exatamente nesse momento; um
+ * `on delete cascade` apagaria a tarefa junto com a empresa e deixaria o
+ * arquivo la para sempre. `tenantId` fica solto, so para agrupar.
+ */
+export const blobCleanupQueue = pgTable(
+  'blob_cleanup_queue',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id'),
+    blobUrl: text('blob_url').notNull(),
+    pathname: text('pathname').notNull().default(''),
+    attempts: integer('attempts').notNull().default(0),
+    lastError: text('last_error').notNull().default(''),
+    lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex('blob_cleanup_queue_url_key').on(table.blobUrl),
+    index('blob_cleanup_queue_pendente_idx').on(table.attempts, table.createdAt),
+  ],
+);

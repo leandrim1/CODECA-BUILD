@@ -69,6 +69,14 @@ const DATA_TABLES = [
    * todos os seguintes.
    */
   'sync_runs',
+  /**
+   * Fila de limpeza do Blob, pelo mesmo motivo: ela nao tem chave estrangeira
+   * para `tenants` **de proposito** -- quando a empresa e excluida, os
+   * arquivos dela precisam sair do Blob exatamente nesse momento, e um
+   * CASCADE apagaria a tarefa junto. O preco e que ela tambem nao some no
+   * `reset`, e uma tarefa deixada por um teste vazaria para o seguinte.
+   */
+  'blob_cleanup_queue',
 ] as const;
 
 export interface TestDatabase extends DatabaseHandle {

@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
 import { auditFromContext } from '../lib/audit-context.js';
 import { buildBlobPathname, blobPathBelongsToTenant } from '../lib/blob.js';
+import { agendarRemocaoDoBlob } from '../lib/blob-cleanup.js';
 import { clientIp, created, noContent, ok, parseJsonBody, parseParams, parseQuery } from '../lib/http.js';
 import { sniffImageType } from '../lib/import/images.js';
 import { countMediaReferences, describeUsage, findReferencedMediaIds } from '../lib/media-usage.js';
@@ -228,8 +229,16 @@ export function mediaRoutes() {
       .returning();
 
     if (!row) {
-      // Evita arquivo orfao no Blob quando o registro no banco falha.
-      await ctx.blob.remove(stored.url).catch(() => undefined);
+      // Evita arquivo orfao no Blob quando o registro no banco falha. Se a
+      // propria remocao falhar, a tarefa fica na fila em vez de se perder.
+      await ctx.blob.remove(stored.url).catch((error: unknown) =>
+        agendarRemocaoDoBlob(ctx.db, {
+          tenantId: tenant.tenantId,
+          blobUrl: stored.url,
+          pathname: stored.pathname,
+          erro: error,
+        }),
+      );
       throw AppError.internal('Não foi possível registrar o arquivo enviado.');
     }
 
@@ -318,11 +327,17 @@ export function mediaRoutes() {
     try {
       await ctx.blob.remove(row.blobUrl);
     } catch (error) {
-      console.error(
-        '[media] falha ao remover do Blob',
-        row.blobPathname,
-        error instanceof Error ? error.message : error,
-      );
+      /*
+        A linha ja saiu do banco, entao a cota ja foi liberada. Se o arquivo
+        ficasse so no log, ele seguiria ocupando o balde sem ser cobrado --
+        custo nosso, crescente e invisivel. Vira tarefa, e o job diario insiste.
+      */
+      await agendarRemocaoDoBlob(ctx.db, {
+        tenantId: tenant.tenantId,
+        blobUrl: row.blobUrl,
+        pathname: row.blobPathname,
+        erro: error,
+      });
     }
 
     await auditFromContext(c, {

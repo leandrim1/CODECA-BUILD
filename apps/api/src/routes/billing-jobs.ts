@@ -1,4 +1,5 @@
 import { pruneExpiredRecords } from '../lib/housekeeping.js';
+import { drenarFilaDoBlob } from '../lib/blob-cleanup.js';
 import { AppError, type SyncRunOrigin } from '@codeca/shared';
 import { timingSafeEqual } from 'node:crypto';
 import { Hono, type Context } from 'hono';
@@ -258,6 +259,35 @@ async function executarJob(c: Context<AppBindings>) {
     return null;
   });
 
+  // 6. Arquivos que nao sairam do Blob na primeira tentativa. Mesma regra: uma
+  //    falha aqui nao derruba o resto do job.
+  const limpezaDoBlob = await drenarFilaDoBlob(ctx.db, ctx.blob, ctx.now()).catch(async (error: unknown) => {
+    console.error('[blob] falha ao drenar a fila:', error instanceof Error ? error.message : error);
+    await ctx.monitor.report({
+      kind: 'job_failed',
+      severity: 'warning',
+      message: 'A limpeza de arquivos pendentes no Blob falhou.',
+      error,
+      alertKey: 'job_failed:blob_cleanup',
+    });
+    return null;
+  });
+
+  /*
+    Desistencia e evento operacional, nao rotina: um arquivo que o provedor
+    recusa dez vezes seguidas fica ocupando o balde sem ninguem olhar. Sem
+    este alerta, o custo voltaria a crescer em silencio -- que foi o defeito
+    que esta fila veio corrigir.
+  */
+  if (limpezaDoBlob && limpezaDoBlob.desistidas > 0) {
+    await ctx.monitor.report({
+      kind: 'job_failed',
+      severity: 'warning',
+      message: `${limpezaDoBlob.desistidas} arquivo(s) no Blob esgotaram as tentativas de remoção.`,
+      alertKey: 'blob_cleanup:desistidas',
+    });
+  }
+
   if (report.failures.length > 0 || report.divergences.length > 0) {
     // Alerta operacional no log: a origem fica visivel no painel mestre.
     console.warn(
@@ -335,7 +365,7 @@ async function executarJob(c: Context<AppBindings>) {
     { falhas: report.failures.length, eventosRetomados: replayed },
   );
 
-  return ok(c, { ...report, deliveries, domains, housekeeping, sync, notices });
+  return ok(c, { ...report, deliveries, domains, housekeeping, limpezaDoBlob, sync, notices });
 }
 
 /**
