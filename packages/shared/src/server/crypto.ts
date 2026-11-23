@@ -19,10 +19,33 @@ const scrypt = promisify(scryptCallback) as (
   password: string | Buffer,
   salt: string | Buffer,
   keylen: number,
-  options: { N: number; r: number; p: number },
+  options: { N: number; r: number; p: number; maxmem?: number },
 ) => Promise<Buffer>;
 
-const SCRYPT_PARAMS = { N: 16_384, r: 8, p: 1 } as const;
+/**
+ * Custo do hash de senha.
+ *
+ * `N` e o unico parametro que importa aqui, e ele e uma troca medida: cada
+ * dobra multiplica por dois o trabalho de quem tentar quebrar o hash depois de
+ * um vazamento -- e tambem o nosso, a cada login. Medido nesta maquina:
+ *
+ * | N      | memoria | tempo  |
+ * | ------ | ------- | ------ |
+ * | 2^14   | 16 MB   |  42 ms |
+ * | 2^15   | 32 MB   |  82 ms |
+ * | 2^16   | 64 MB   | 173 ms |
+ * | 2^17   | 128 MB  | 347 ms |
+ *
+ * Estava em 2^14, que e o **piso** da recomendacao da OWASP. Passa a 2^16:
+ * quatro vezes mais caro para quem ataca, 173 ms para quem entra, e 64 MB
+ * dentro dos 1024 MB da funcao com folga larga. 2^17 seria a primeira escolha
+ * da OWASP, mas 128 MB por login numa funcao que tambem atende tudo o mais
+ * estreita demais a margem para o ganho que traz.
+ *
+ * O `maxmem` precisa ser declarado: o padrao do Node e 32 MB, e sem ele
+ * qualquer N acima de 2^14 lanca em vez de calcular.
+ */
+const SCRYPT_PARAMS = { N: 65_536, r: 8, p: 1, maxmem: 128 * 1024 * 1024 } as const;
 const KEY_LENGTH = 64;
 
 /**
@@ -58,12 +81,40 @@ export async function verifyPassword(password: string, stored: string | null): P
   } catch {
     return false;
   }
+  /*
+    Os parametros saem do proprio hash guardado, e nao da constante acima.
+    E o que permite subir o custo sem invalidar nenhuma senha existente: o
+    hash antigo continua conferindo com os parametros dele.
+
+    O teto de memoria acompanha o N guardado, com folga, porque um hash
+    gravado com N maior tambem precisa ser conferido.
+  */
   const derived = await scrypt(password.normalize('NFKC'), Buffer.from(saltRaw, 'base64'), expected.length, {
     N,
     r,
     p,
+    maxmem: Math.max(32 * 1024 * 1024, 256 * N * r),
   });
   return derived.length === expected.length && timingSafeEqual(derived, expected);
+}
+
+/**
+ * O hash guardado foi gerado com custo menor do que o de hoje?
+ *
+ * Subir o custo so protege senha nova: as que ja estao no banco continuam com
+ * o custo antigo ate alguem regrava-las. Como a senha em claro so existe no
+ * instante do login, e esse o unico momento em que da para refazer o hash --
+ * e e o que esta funcao sinaliza a quem trata o login.
+ */
+export function precisaRehashDeSenha(stored: string | null): boolean {
+  if (!stored) return false;
+  const parts = stored.split('$');
+  if (parts.length !== 6 || parts[0] !== 'scrypt') return true;
+  const N = Number(parts[1]);
+  const r = Number(parts[2]);
+  const p = Number(parts[3]);
+  if (!Number.isFinite(N) || !Number.isFinite(r) || !Number.isFinite(p)) return true;
+  return N < SCRYPT_PARAMS.N || r < SCRYPT_PARAMS.r || p < SCRYPT_PARAMS.p;
 }
 
 /**

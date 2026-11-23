@@ -35,6 +35,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # A varredura de segredos precisa do historico inteiro: uma chave que
+          # entrou e saiu continua no repositorio para quem clona.
+          fetch-depth: 0
 
       # Sem `version`: a versao do pnpm vem do campo `packageManager`.
       - uses: pnpm/action-setup@v4
@@ -73,3 +77,12 @@ jobs:
       - name: Auditoria de dependencias (desenvolvimento, informativa)
         run: pnpm audit --dev
         continue-on-error: true
+
+      # Varredura de segredo no HISTORICO, nao so no commit atual. O
+      # repositorio e publico: uma chave que entrou e saiu continua acessivel
+      # a quem clonar. A varredura por padrao que fizemos a mao nao encontrou
+      # nada; esta usa entropia tambem, que grep nao alcanca.
+      - name: Segredos no historico
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

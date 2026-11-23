@@ -15,7 +15,12 @@ import {
   updateProfileSchema,
   verifyEmailSchema,
 } from '@codeca/shared';
-import { hashPassword, hashToken, verifyPassword } from '@codeca/shared/server';
+import {
+  hashPassword,
+  hashToken,
+  precisaRehashDeSenha,
+  verifyPassword,
+} from '@codeca/shared/server';
 import { Hono, type Context } from 'hono';
 import { AUDIT_ACTIONS, recordAudit } from '../lib/audit.js';
 import { claimFirstPlatformAdmin } from '../lib/bootstrap.js';
@@ -291,11 +296,30 @@ export function authRoutes() {
       throw invalid;
     }
 
-    // Senha correta: zera as tentativas erradas. O contador e da SENHA; o codigo
-    // da segunda etapa tem os seus proprios limites.
+    /*
+      Senha correta: zera as tentativas erradas, e aproveita para regravar o
+      hash quando ele foi gerado com custo menor do que o de hoje.
+
+      Subir o custo do scrypt so protege senha nova; as que ja estao no banco
+      continuam com o custo antigo ate alguem regrava-las. A senha em claro so
+      existe neste instante -- depois daqui nao ha mais como refazer o hash
+      sem pedir que a pessoa troque de senha.
+
+      O contador de tentativas e da SENHA; o codigo da segunda etapa tem os
+      proprios limites.
+    */
+    const senhaRegravada = precisaRehashDeSenha(user.passwordHash)
+      ? await hashPassword(input.password)
+      : null;
+
     await ctx.db
       .update(schema.users)
-      .set({ failedLoginCount: 0, lockedUntil: null, updatedAt: now })
+      .set({
+        failedLoginCount: 0,
+        lockedUntil: null,
+        ...(senhaRegravada ? { passwordHash: senhaRegravada } : {}),
+        updatedAt: now,
+      })
       .where(eq(schema.users.id, user.id));
 
     /*

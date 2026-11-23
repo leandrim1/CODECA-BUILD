@@ -1,0 +1,33 @@
+# Atualizacao automatica de dependencias.
+#
+# A auditoria de novembro de 2026 encontrou 8 falhas conhecidas -- duas
+# criticas -- todas em ferramenta de desenvolvimento. Nenhuma ia para
+# producao, mas nenhuma estava sendo corrigida tambem: nao havia nada no
+# repositorio que avisasse que elas existiam.
+#
+# Semanal, e nao diario: o volume de um monorepo com este tamanho em cadencia
+# diaria vira ruido, e ruido e ignorado.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # Uma proposta por grupo, em vez de uma por pacote: atualizar vitest sem
+    # atualizar @vitest/mocker junto so gera conflito de versao.
+    groups:
+      desenvolvimento:
+        dependency-type: development
+        update-types: [minor, patch]
+      producao:
+        dependency-type: production
+        update-types: [patch]
+    labels: [dependencias]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencias]
