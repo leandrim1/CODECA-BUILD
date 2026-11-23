@@ -70,7 +70,7 @@
         },
         {
           "key": "content-security-policy-report-only",
-          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://challenges.cloudflare.com 'sha256-WJNP/cP/4duiSdm2wm520VKdd+KcIAmBZazXQy2aH7I=' 'sha256-w/36HONNsvbyHiiH3D5Jw30VaQGfUkAqiXC44BSYomA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.public.blob.vercel-storage.com; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; upgrade-insecure-requests"
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://challenges.cloudflare.com 'sha256-WJNP/cP/4duiSdm2wm520VKdd+KcIAmBZazXQy2aH7I=' 'sha256-w/36HONNsvbyHiiH3D5Jw30VaQGfUkAqiXC44BSYomA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; upgrade-insecure-requests"
         }
       ]
     }

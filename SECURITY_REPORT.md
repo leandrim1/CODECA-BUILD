@@ -143,10 +143,25 @@ servidor. Provedor fora do ar deixa passar, de propósito: trancar o cadastro
 inteiro porque um terceiro caiu seria estrago maior do que o que o desafio
 evita.
 
-**18 — Headers.** O CSP está em **report-only** porque não consegui medir
-`img-src` contra o host real do Vercel Blob — o ambiente local serve
-`blob.test` e tem o Blob desligado. Aplicado, mediria 11 telas sem nenhuma
-violação; promovê-lo sem confirmar as imagens arriscaria apagar todas elas.
+**18 — Headers.** O CSP está em **report-only**.
+
+A primeira versão de `img-src` só liberava o host do Vercel Blob. Conferindo as
+telas que a medição não cobriu, apareceu um bloqueio real:
+`SyncPage.tsx:1025` renderiza `change.sourceImageUrl`, a prévia da imagem **no
+site antigo do cliente** — um domínio arbitrário, por desenho ("a imagem só é
+baixada quando a alteração for aprovada"). A política teria quebrado justamente
+a tela que existe para comparar as duas imagens.
+
+`img-src` passou a aceitar `https:`. A troca, declarada: um script injetado
+poderia vazar dado por uma URL de imagem. O que torna isso aceitável é que
+`script-src` continua estrito (hash + `self`), então rodar o script injetado é
+a parte difícil que segue bloqueada — e o cookie de sessão é `HttpOnly`, então
+não há o que ler por script. A alternativa seria passar a prévia por um proxy
+nosso, o que muda o comportamento do produto e abre superfície de SSRF.
+
+Medido com a política aplicada: imagem do Blob, imagem do site de origem e
+arquivo próprio carregam; `http://` é promovida a https pelo
+`upgrade-insecure-requests`.
 
 ---
 
