@@ -22,7 +22,7 @@ import { moduleApi } from '../services/endpoints.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { ImageField } from '../components/MediaPicker.js';
 import { formatList, numberOrNull, parseList } from '../utils/forms.js';
-import type { SiteModuleFieldView } from '../types/index.js';
+import type { MediaRef, SiteModuleFieldView } from '../types/index.js';
 
 /**
  * Conteudo dos modulos de instancia unica (institucional, contato).
@@ -64,6 +64,7 @@ export function DocumentModulePage({ moduleKey }: { moduleKey: 'institucional' |
             fields={data.fields}
             inicial={data.data}
             personalizados={data.customFields ?? {}}
+            imagens={data.images ?? {}}
             atualizadoEm={data.updatedAt}
             onSaved={() => {
               documento.reload();
@@ -84,6 +85,7 @@ function Formulario({
   fields,
   inicial,
   personalizados,
+  imagens,
   atualizadoEm,
   onSaved,
 }: {
@@ -92,6 +94,8 @@ function Formulario({
   inicial: Record<string, unknown>;
   /** Valores dos campos personalizados, que vem fora de `data`. */
   personalizados: Record<string, unknown>;
+  /** Imagens ja gravadas, por id, para os campos de imagem poderem mostra-las. */
+  imagens: Record<string, MediaRef>;
   atualizadoEm: string | null;
   onSaved: () => void;
 }) {
@@ -167,6 +171,7 @@ function Formulario({
               key={campo.key}
               campo={campo}
               valor={valores[campo.key] ?? ''}
+              imagens={imagens}
               onChange={(proximo) => definir(campo.key, proximo)}
             />
           ),
@@ -190,10 +195,12 @@ function Formulario({
 function Campo({
   campo,
   valor,
+  imagens,
   onChange,
 }: {
   campo: SiteModuleFieldView;
   valor: FormValue;
+  imagens: Record<string, MediaRef>;
   onChange: (valor: FormValue) => void;
 }) {
   const travado = !campo.editable;
@@ -225,10 +232,12 @@ function Campo({
   }
 
   if (campo.type === 'image') {
+    const id = typeof valor === 'string' && valor !== '' ? valor : null;
     return (
       <ImageField
         label={campo.label}
-        value={typeof valor === 'string' && valor !== '' ? valor : null}
+        value={id}
+        preview={id ? imagens[id] ?? null : null}
         onChange={(mediaId) => onChange(mediaId)}
         {...(dica ? { hint: dica } : {})}
       />

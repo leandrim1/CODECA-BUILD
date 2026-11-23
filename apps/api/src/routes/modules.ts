@@ -21,6 +21,7 @@ import {
   loadSiteModules,
 } from '../lib/modules.js';
 import { mergeCustomFields, parseCustomFields } from '../lib/custom-fields.js';
+import { loadMediaByIds } from '../lib/media-refs.js';
 import {
   enabledCustomModules,
   loadCustomModules,
@@ -136,8 +137,35 @@ export function moduleRoutes() {
     const state = await loadSiteModules(ctx.db, tenant.siteId);
     const definicao = state.modules.find((m) => m.key === key);
 
+    /*
+      Imagens resolvidas, para a tela poder MOSTRAR o que esta gravado.
+
+      O documento guarda so o id (`logoImageId`, `coverImageId`...), e sem a
+      URL o painel desenhava o campo com o botao "Remover" -- porque o id esta
+      la -- e a moldura vazia ao lado. Quem acabou de escolher um logotipo via
+      exatamente a tela de quem nao escolheu nada.
+
+      Os ids vem dos campos declarados como imagem, e nao de uma lista escrita
+      a mao: um campo de imagem novo (inclusive personalizado) passa a resolver
+      sozinho.
+    */
+    const camposDeImagem = (definicao?.fields ?? []).filter(
+      (campo) => campo.type === 'image' || campo.type === 'imageList',
+    );
+    const dados = { ...(row?.data ?? {}), ...(row?.customFields ?? {}) } as Record<string, unknown>;
+    const idsDeImagem: Array<string | null> = [];
+    for (const campo of camposDeImagem) {
+      const valor = dados[campo.key];
+      if (typeof valor === 'string') idsDeImagem.push(valor);
+      else if (Array.isArray(valor)) {
+        for (const item of valor) if (typeof item === 'string') idsDeImagem.push(item);
+      }
+    }
+    const imagens = await loadMediaByIds(ctx.db, tenant.tenantId, idsDeImagem);
+
     return ok(c, {
       moduleKey: key,
+      images: Object.fromEntries(imagens),
       // Documento ausente nao e erro: o modulo pode ter sido habilitado depois
       // do site. O schema devolve a forma vazia valida.
       data: row?.data ?? DOCUMENT_SCHEMAS[key].parse(key === 'institucional'

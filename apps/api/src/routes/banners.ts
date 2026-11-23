@@ -13,7 +13,7 @@ import {
   parseJsonBodyWithRaw,
   parseParams,
 } from '../lib/http.js';
-import { assertMediaBelongsToTenant } from '../lib/media-refs.js';
+import { assertMediaBelongsToTenant, loadMediaByIds, type MediaRef } from '../lib/media-refs.js';
 import {
   assertEditablePatch,
   assertEditableCreate,
@@ -33,6 +33,28 @@ import type { AppBindings } from '../types.js';
 
 const bannerParamSchema = z.object({ tenantId: uuidSchema, bannerId: uuidSchema });
 
+type LinhaDeBanner = typeof schema.banners.$inferSelect;
+
+/**
+ * Anexa a imagem resolvida a cada banner.
+ *
+ * A linha guarda so `imageId`, e sem a URL a tela desenhava a moldura vazia
+ * com o botao "Remover" ao lado -- porque o id esta la. O painel declarava
+ * `image` no tipo e a rota nunca mandava: o TypeScript nao pega isso porque a
+ * resposta e tipada a mao do lado do navegador.
+ */
+async function comImagem<T extends Pick<LinhaDeBanner, 'imageId'>>(
+  db: Parameters<typeof loadMediaByIds>[0],
+  tenantId: string,
+  rows: T[],
+): Promise<Array<T & { image: MediaRef | null }>> {
+  const imagens = await loadMediaByIds(db, tenantId, rows.map((row) => row.imageId));
+  return rows.map((row) => ({
+    ...row,
+    image: row.imageId ? imagens.get(row.imageId) ?? null : null,
+  }));
+}
+
 export function bannerRoutes() {
   const app = new Hono<AppBindings>();
 
@@ -47,7 +69,7 @@ export function bannerRoutes() {
       .where(eq(schema.banners.siteId, tenant.siteId))
       .orderBy(asc(schema.banners.sortOrder), asc(schema.banners.createdAt));
 
-    return ok(c, { items: rows });
+    return ok(c, { items: await comImagem(ctx.db, tenant.tenantId, rows) });
   });
 
   app.post('/:tenantId/banners', requireCapability('content:write'), async (c) => {
@@ -82,7 +104,7 @@ export function bannerRoutes() {
       entityId: row?.id ?? null,
     });
 
-    return created(c, { banner: row ?? null });
+    return created(c, { banner: row ? (await comImagem(ctx.db, tenant.tenantId, [row]))[0]! : null });
   });
 
   app.patch('/:tenantId/banners/:bannerId', requireCapability('content:write'), async (c) => {
@@ -142,7 +164,7 @@ export function bannerRoutes() {
       entityId: bannerId,
     });
 
-    return ok(c, { banner: row ?? null });
+    return ok(c, { banner: row ? (await comImagem(ctx.db, tenant.tenantId, [row]))[0]! : null });
   });
 
   app.delete('/:tenantId/banners/:bannerId', requireCapability('content:write'), async (c) => {

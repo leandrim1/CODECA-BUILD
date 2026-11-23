@@ -775,6 +775,13 @@ export interface ModuleDocumentResponse {
   data: Record<string, unknown>;
   /** Valores dos campos personalizados, fora de `data`. */
   customFields: Record<string, unknown>;
+  /**
+   * Imagens dos campos de imagem, por id.
+   *
+   * O documento guarda so o id; sem a URL a tela nao tem como mostrar o que
+   * esta gravado, e desenha a moldura vazia ao lado do botao "Remover".
+   */
+  images: Record<string, MediaRef>;
   fields: SiteModuleFieldView[];
   updatedAt: string | null;
 }

@@ -203,6 +203,21 @@ export function ImageField({
   tag?: string;
 }) {
   const [open, setOpen] = useState(false);
+  /**
+   * A imagem escolhida agora, enquanto o servidor ainda nao a devolveu.
+   *
+   * Sem isto, escolher uma imagem nao mudava nada na tela: o `preview` vem do
+   * que o servidor mandou quando o formulario abriu, e so se atualiza depois
+   * de gravar e recarregar. Quem acabou de escolher um logotipo via a moldura
+   * vazia -- a mesma tela de quem nao escolheu nada -- e concluia, com razao,
+   * que a selecao nao funcionou.
+   *
+   * O `id` entra na comparacao de proposito: se o valor mudar por fora
+   * (remocao, ou o formulario sendo recarregado com outro conteudo), este
+   * resto deixa de valer sozinho, sem precisar de efeito para limpa-lo.
+   */
+  const [escolhida, setEscolhida] = useState<MediaRef | null>(null);
+  const mostrar = escolhida && escolhida.id === value ? escolhida : (preview?.url ? preview : null);
 
   return (
     <div className="grid gap-1.5">
@@ -210,8 +225,8 @@ export function ImageField({
 
       <div className="flex items-center gap-3">
         <div className="size-20 flex-none overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-          {preview?.url ? (
-            <MediaThumb asset={preview} />
+          {mostrar?.url ? (
+            <MediaThumb asset={mostrar} />
           ) : (
             <div className="grid size-full place-items-center text-slate-300">
               <ImagePlus aria-hidden="true" className="size-6" />
@@ -243,6 +258,13 @@ export function ImageField({
         onClose={() => setOpen(false)}
         tag={tag}
         onSelect={(asset) => {
+          setEscolhida({
+            id: asset.id,
+            url: asset.blobUrl,
+            alt: asset.alt,
+            width: asset.width,
+            height: asset.height,
+          });
           onChange(asset.id, asset);
           setOpen(false);
         }}
@@ -266,7 +288,13 @@ export function GalleryField({
   hint?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const byId = new Map(previews.map((item) => [item.id, item]));
+  /**
+   * As imagens escolhidas agora, pelo mesmo motivo do campo de imagem unica:
+   * `previews` vem do servidor e so se atualiza depois de gravar. Sem isto,
+   * cada imagem recem-adicionada aparecia como um quadrado cinza.
+   */
+  const [escolhidas, setEscolhidas] = useState<MediaRef[]>([]);
+  const byId = new Map([...escolhidas, ...previews].map((item) => [item.id, item]));
 
   function move(index: number, direction: -1 | 1) {
     const next = [...value];
@@ -340,7 +368,22 @@ export function GalleryField({
         open={open}
         onClose={() => setOpen(false)}
         onSelect={(asset) => {
-          if (!value.includes(asset.id)) onChange([...value, asset.id], [asset]);
+          if (value.includes(asset.id)) return;
+          setEscolhidas((atuais) =>
+            atuais.some((item) => item.id === asset.id)
+              ? atuais
+              : [
+                  ...atuais,
+                  {
+                    id: asset.id,
+                    url: asset.blobUrl,
+                    alt: asset.alt,
+                    width: asset.width,
+                    height: asset.height,
+                  },
+                ],
+          );
+          onChange([...value, asset.id], [asset]);
         }}
         multiple
       />
