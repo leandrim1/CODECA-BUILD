@@ -70,7 +70,7 @@ dez tentativas vira alerta.
 | 1 | Esconder chaves de API | OK | **OK** | — |
 | 2 | Segredos no Git | OK | **OK** | Varredura no CI (gitleaks, histórico completo) |
 | 3 | Pública × secreta | OK | **OK** | — |
-| 4 | Isolamento por linha (RLS) | Parcial | **Parcial** | Não mexido; ver "Não feito" |
+| 4 | Isolamento por linha (RLS) | Parcial | **Parcial, com guarda** | RLS medido e descartado; guarda estática no lugar |
 | 5 | Criptografar dados sensíveis | Parcial | **Parcial** | Não mexido; exige migração |
 | 6 | Autenticação no servidor | OK | **OK** | — |
 | 7 | Acesso aos logs | OK | **OK** | — |
@@ -87,6 +87,48 @@ dez tentativas vira alerta.
 | 18 | Headers de segurança | Parcial | **Parcial** | CSP + HSTS + frame-options no documento, em **report-only** |
 | 19 | Forçar HTTPS | Parcial | **OK** | HSTS passa a valer no documento |
 | 20 | Dependências | Parcial | **OK** | Dependabot semanal + gitleaks no CI |
+
+### 4 — RLS: por que não, e o que ficou no lugar
+
+RLS no Postgres precisa saber de qual empresa é a requisição. O caminho usual é
+um parâmetro de sessão (`app.tenant_id`) lido pela policy. **Medi o
+comportamento desse parâmetro com o pool de conexões, contra PostgreSQL 16:**
+
+```
+conexao reutilizada enxerga o valor de outra requisicao: "EMPRESA-A"
+SET LOCAL dentro da transacao: "EMPRESA-B"
+depois do COMMIT, na mesma conexao: "EMPRESA-A"
+```
+
+A primeira linha condena o desenho: o valor **vaza entre requisições**. A
+requisição seguinte que pegasse aquela conexão sem definir o próprio valor
+seria filtrada pela empresa errada — e o sintoma não é erro, é dado faltando.
+
+`SET LOCAL` resolve o vazamento (morre no commit), mas só vale dentro de uma
+transação. Isso exigiria envolver **cada requisição de empresa numa transação
+única** — e as rotas de empresa fazem chamadas HTTP externas: `domains.ts`
+(API da Vercel), `billing.ts` (ValidaPay), `media.ts` (Blob), `members.ts`
+(Resend). Segurar uma conexão do Neon durante essas chamadas troca um risco de
+isolamento por um risco de disponibilidade.
+
+**Conclusão:** RLS aqui exige antes separar a camada de dados das chamadas
+externas. É trabalho real, não um ajuste — e entregá-lo pela metade daria a
+sensação de proteção sem a proteção.
+
+**O que foi feito no lugar**, e que era a segunda saída proposta na Fase 1:
+`tests/unit/isolamento-das-consultas.test.ts` varre as 18 rotas montadas sob
+`tenantScoped` e exige que toda consulta a tabela de empresa esteja amarrada ao
+contexto verificado. Hoje: **nenhuma exceção**. O teste também prova que sabe
+acusar, recebendo o defeito que existe para pegar.
+
+Isso não substitui RLS: não protege contra SQL executado fora da aplicação. O
+que ele fecha é o caminho pelo qual o defeito entraria — uma rota nova que
+esqueça o filtro para de passar no CI.
+
+Vale registrar o que o banco **já** garante: as 36 tabelas que têm `site_id` e
+`tenant_id` têm a chave estrangeira composta `(site_id, tenant_id)`. Uma linha
+não consegue apontar para o site de outra empresa, nem por escrita direta no
+banco.
 
 ### Detalhe dos que mudaram
 
@@ -131,7 +173,7 @@ violação; promovê-lo sem confirmar as imagens arriscaria apagar todas elas.
 | --- | --- |
 | **4 — Alinhar limites** | Depende da sua resposta. Reduzir limite bloqueia novos cadastros de quem já passou |
 | **7 — Cifrar lead** | Exige migração de dados e mexe em busca por e-mail. Combinado: paro e aviso antes |
-| **8 — RLS** | Maior risco de quebrar tudo. O isolamento hoje é consistente (checado: nenhuma consulta de conteúdo filtra só por id), mas depende de 100% das queries continuarem corretas |
+| **8 — RLS literal** | Medido e descartado: não cabe nesta arquitetura hoje. Ver abaixo |
 | **3 (metade) — Órfãos** | Exige `list` no port do Blob. É diagnóstico, não correção |
 
 ## Riscos remanescentes
@@ -139,7 +181,7 @@ violação; promovê-lo sem confirmar as imagens arriscaria apagar todas elas.
 | Prioridade | Risco |
 | --- | --- |
 | **Alto** | Limites de plano possivelmente divergentes do contratado (cobrança) |
-| **Médio** | Sem RLS: uma rota nova que esqueça o filtro vira vazamento entre empresas |
+| **Médio** | Sem RLS: SQL executado fora da aplicação não tem barreira no banco. O caminho pela aplicação está guardado por teste |
 | **Médio** | Dados de lead (nome, e-mail, telefone) em texto claro |
 | **Médio** | CSP ainda não aplicado |
 | **Baixo** | Corrida na importação de sites |
@@ -149,9 +191,10 @@ violação; promovê-lo sem confirmar as imagens arriscaria apagar todas elas.
 
 | | |
 | --- | --- |
-| `pnpm typecheck` | a confirmar no fecho |
-| `pnpm build` | a confirmar no fecho |
-| Suíte completa | a confirmar no fecho |
+| `pnpm typecheck` | verde |
+| `pnpm build` | verde |
+| Suíte completa | **108 arquivos, 1885 testes, 0 falhas** (antes da etapa 8) |
+| Isolamento das consultas | 18 rotas varridas, 0 exceções |
 | Corrida de limites | 1 aceita de 20 disparos, teto respeitado |
 | CSP em Chromium | 11 telas, 0 violações |
 
