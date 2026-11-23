@@ -193,7 +193,7 @@ violação; promovê-lo sem confirmar as imagens arriscaria apagar todas elas.
 | --- | --- |
 | `pnpm typecheck` | verde |
 | `pnpm build` | verde |
-| Suíte completa | **108 arquivos, 1885 testes, 0 falhas** (antes da etapa 8) |
+| Suíte completa | **109 arquivos, 1890 testes, 0 falhas** |
 | Isolamento das consultas | 18 rotas varridas, 0 exceções |
 | Corrida de limites | 1 aceita de 20 disparos, teto respeitado |
 | CSP em Chromium | 11 telas, 0 violações |
