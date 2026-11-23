@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, ilike, schema, sql } from '@codeca/database';
-import { assertContentLimit } from '../lib/plan-limits.js';
+import { comVagaDeConteudo } from '../lib/content-slot.js';
 import {
   AppError,
   contentQuerySchema,
@@ -295,7 +295,6 @@ export function customModuleRoutes() {
       );
     }
 
-    await assertContentLimit(ctx.db, tenant.tenantId);
     const valores = parseRecordData({ modulo, overrides: state.overrides, raw, partial: false });
 
     const slug = await uniqueRecordSlug(ctx.db, {
@@ -305,22 +304,25 @@ export function customModuleRoutes() {
     });
 
     const publicando = input.publicationStatus === 'published';
-    const [row] = await ctx.db
-      .insert(schema.customRecords)
-      .values({
-        tenantId: tenant.tenantId,
-        siteId: tenant.siteId,
-        moduleKey,
-        title: input.title,
-        slug,
-        data: valores ?? {},
-        publicationStatus: input.publicationStatus,
-        featured: input.featured,
-        sortOrder: input.sortOrder,
-        publishedAt: publicando ? ctx.now() : null,
-      })
-      .returning();
-    if (!row) throw AppError.internal('Não foi possível cadastrar o registro.');
+    const row = await comVagaDeConteudo(ctx.db, tenant.tenantId, async (tx) => {
+      const [criado] = await tx
+        .insert(schema.customRecords)
+        .values({
+          tenantId: tenant.tenantId,
+          siteId: tenant.siteId,
+          moduleKey,
+          title: input.title,
+          slug,
+          data: valores ?? {},
+          publicationStatus: input.publicationStatus,
+          featured: input.featured,
+          sortOrder: input.sortOrder,
+          publishedAt: publicando ? ctx.now() : null,
+        })
+        .returning();
+      if (!criado) throw AppError.internal('Não foi possível cadastrar o registro.');
+      return criado;
+    });
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentCreated,

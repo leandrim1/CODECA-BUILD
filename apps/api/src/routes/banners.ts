@@ -1,5 +1,5 @@
 import { and, asc, eq, schema } from '@codeca/database';
-import { assertContentLimit } from '../lib/plan-limits.js';
+import { comVagaDeConteudo } from '../lib/content-slot.js';
 import { AppError, bannerInputSchema, uuidSchema } from '@codeca/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -82,12 +82,15 @@ export function bannerRoutes() {
 
     const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
     assertEditableCreate('banners', raw, overrides);
-    await assertContentLimit(ctx.db, tenant.tenantId);
+    const row = await comVagaDeConteudo(ctx.db, tenant.tenantId, async (tx) => {
+      const [criado] = await tx
+        .insert(schema.banners)
+        .values({ tenantId: tenant.tenantId, siteId: tenant.siteId, ...input })
+        .returning();
+      if (!criado) throw AppError.conflict('Não foi possível criar o banner.');
+      return criado;
+    });
 
-    const [row] = await ctx.db
-      .insert(schema.banners)
-      .values({ tenantId: tenant.tenantId, siteId: tenant.siteId, ...input })
-      .returning();
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentCreated,

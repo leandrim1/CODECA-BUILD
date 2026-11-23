@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, ilike, schema, sql } from '@codeca/database';
-import { assertContentLimit } from '../lib/plan-limits.js';
+import { comVagaDeConteudo } from '../lib/content-slot.js';
 import {
   AppError,
   categoryInputSchema,
@@ -178,8 +178,6 @@ export function catalogRoutes() {
     const { data: input, raw } = await parseJsonBodyWithRaw(c, productInputSchema);
 
     const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'produtos', raw);
-    await assertContentLimit(ctx.db, tenant.tenantId);
-
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [
       input.coverImageId,
       ...input.galleryImageIds,
@@ -191,31 +189,34 @@ export function catalogRoutes() {
       desired: input.slug ?? input.title,
     });
 
-    const [row] = await ctx.db
-      .insert(schema.products)
-      .values({
-        customFields: personalizados ?? {},
-        tenantId: tenant.tenantId,
-        siteId: tenant.siteId,
-        slug,
-        title: input.title,
-        summary: input.summary,
-        description: input.description,
-        code: input.code,
-        categoryId: input.categoryId,
-        price: input.price,
-        priceOnRequest: input.priceOnRequest,
-        currency: input.currency,
-        unit: input.unit,
-        isAvailable: input.isAvailable,
-        coverImageId: input.coverImageId,
-        publicationStatus: input.publicationStatus,
-        sortOrder: input.sortOrder,
-        seoTitle: input.seoTitle,
-        seoDescription: input.seoDescription,
-      })
-      .returning();
-    if (!row) throw AppError.conflict('Não foi possível criar o produto.');
+    const row = await comVagaDeConteudo(ctx.db, tenant.tenantId, async (tx) => {
+      const [criado] = await tx
+        .insert(schema.products)
+        .values({
+          customFields: personalizados ?? {},
+          tenantId: tenant.tenantId,
+          siteId: tenant.siteId,
+          slug,
+          title: input.title,
+          summary: input.summary,
+          description: input.description,
+          code: input.code,
+          categoryId: input.categoryId,
+          price: input.price,
+          priceOnRequest: input.priceOnRequest,
+          currency: input.currency,
+          unit: input.unit,
+          isAvailable: input.isAvailable,
+          coverImageId: input.coverImageId,
+          publicationStatus: input.publicationStatus,
+          sortOrder: input.sortOrder,
+          seoTitle: input.seoTitle,
+          seoDescription: input.seoDescription,
+        })
+        .returning();
+      if (!criado) throw AppError.conflict('Não foi possível criar o produto.');
+      return criado;
+    });
 
     await syncGallery(ctx.db, 'product', {
       tenantId: tenant.tenantId,
@@ -406,27 +407,30 @@ export function catalogRoutes() {
 
     const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
     assertEditableCreate('categorias', raw, overrides);
-    await assertContentLimit(ctx.db, tenant.tenantId);
-
     const slug = await slugDeCategoria(ctx.db, {
       siteId: tenant.siteId,
       moduleKey: input.moduleKey,
       desired: input.slug ?? input.name,
     });
 
-    const [row] = await ctx.db
-      .insert(schema.categories)
-      .values({
-        tenantId: tenant.tenantId,
-        siteId: tenant.siteId,
-        moduleKey: input.moduleKey,
-        name: input.name,
-        slug,
-        description: input.description,
-        publicationStatus: input.publicationStatus,
-        sortOrder: input.sortOrder,
-      })
-      .returning();
+    const row = await comVagaDeConteudo(ctx.db, tenant.tenantId, async (tx) => {
+      const [criado] = await tx
+        .insert(schema.categories)
+        .values({
+          tenantId: tenant.tenantId,
+          siteId: tenant.siteId,
+          moduleKey: input.moduleKey,
+          name: input.name,
+          slug,
+          description: input.description,
+          publicationStatus: input.publicationStatus,
+          sortOrder: input.sortOrder,
+        })
+        .returning();
+      if (!criado) throw AppError.conflict('Não foi possível criar a categoria.');
+      return criado;
+    });
+
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentCreated,
@@ -537,26 +541,27 @@ export function catalogRoutes() {
 
     const { overrides } = await loadSiteModules(ctx.db, tenant.siteId);
     assertEditableCreate('galerias', raw, overrides);
-    await assertContentLimit(ctx.db, tenant.tenantId);
-
     const slug = await buildUniqueSlug(ctx.db, 'galleries', {
       tenantId: tenant.tenantId,
       desired: input.slug ?? input.title,
     });
 
-    const [row] = await ctx.db
-      .insert(schema.galleries)
-      .values({
-        tenantId: tenant.tenantId,
-        siteId: tenant.siteId,
-        slug,
-        title: input.title,
-        description: input.description,
-        publicationStatus: input.publicationStatus,
-        sortOrder: input.sortOrder,
-      })
-      .returning();
-    if (!row) throw AppError.conflict('Não foi possível criar a galeria.');
+    const row = await comVagaDeConteudo(ctx.db, tenant.tenantId, async (tx) => {
+      const [criado] = await tx
+        .insert(schema.galleries)
+        .values({
+          tenantId: tenant.tenantId,
+          siteId: tenant.siteId,
+          slug,
+          title: input.title,
+          description: input.description,
+          publicationStatus: input.publicationStatus,
+          sortOrder: input.sortOrder,
+        })
+        .returning();
+      if (!criado) throw AppError.conflict('Não foi possível criar a galeria.');
+      return criado;
+    });
 
     await syncGallery(ctx.db, 'gallery', {
       tenantId: tenant.tenantId,

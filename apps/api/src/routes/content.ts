@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, ilike, inArray, schema, sql, type Database } from '@codeca/database';
-import { assertContentLimit } from '../lib/plan-limits.js';
+import { comVagaDeConteudo } from '../lib/content-slot.js';
 import {
   AppError,
   contentQuerySchema,
@@ -108,8 +108,6 @@ export function contentRoutes() {
     const { data: input, raw } = await parseJsonBodyWithRaw(c, serviceInputSchema);
 
     const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'servicos', raw);
-    await assertContentLimit(ctx.db, tenant.tenantId);
-
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.imageId]);
 
     const slug = await buildUniqueSlug(ctx.db, 'services', {
@@ -117,25 +115,30 @@ export function contentRoutes() {
       desired: input.slug ?? input.title,
     });
 
-    const [row] = await ctx.db
-      .insert(schema.services)
-      .values({
-        customFields: personalizados ?? {},
-        tenantId: tenant.tenantId,
-        siteId: tenant.siteId,
-        slug,
-        title: input.title,
-        summary: input.summary,
-        description: input.description,
-        icon: input.icon,
-        imageId: input.imageId,
-        highlights: input.highlights,
-        publicationStatus: input.publicationStatus,
-        sortOrder: input.sortOrder,
-        seoTitle: input.seoTitle,
-        seoDescription: input.seoDescription,
-      })
-      .returning();
+    const row = await comVagaDeConteudo(ctx.db, tenant.tenantId, async (tx) => {
+      const [criado] = await tx
+        .insert(schema.services)
+        .values({
+          customFields: personalizados ?? {},
+          tenantId: tenant.tenantId,
+          siteId: tenant.siteId,
+          slug,
+          title: input.title,
+          summary: input.summary,
+          description: input.description,
+          icon: input.icon,
+          imageId: input.imageId,
+          highlights: input.highlights,
+          publicationStatus: input.publicationStatus,
+          sortOrder: input.sortOrder,
+          seoTitle: input.seoTitle,
+          seoDescription: input.seoDescription,
+        })
+        .returning();
+      if (!criado) throw AppError.conflict('Não foi possível criar o serviço.');
+      return criado;
+    });
+
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentCreated,
@@ -307,19 +310,23 @@ export function contentRoutes() {
     const tenant = c.get('tenant');
     const { data: input, raw } = await parseJsonBodyWithRaw(c, testimonialInputSchema);
     const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'depoimentos', raw);
-    await assertContentLimit(ctx.db, tenant.tenantId);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.photoId]);
     await assertProjectBelongsToTenant(ctx.db, tenant.tenantId, input.relatedProjectId);
 
-    const [row] = await ctx.db
-      .insert(schema.testimonials)
-      .values({
-        tenantId: tenant.tenantId,
-        siteId: tenant.siteId,
-        customFields: personalizados ?? {},
-        ...input,
-      })
-      .returning();
+    const row = await comVagaDeConteudo(ctx.db, tenant.tenantId, async (tx) => {
+      const [criado] = await tx
+        .insert(schema.testimonials)
+        .values({
+          tenantId: tenant.tenantId,
+          siteId: tenant.siteId,
+          customFields: personalizados ?? {},
+          ...input,
+        })
+        .returning();
+      if (!criado) throw AppError.conflict('Não foi possível criar o depoimento.');
+      return criado;
+    });
+
 
     await auditFromContext(c, {
       action: AUDIT_ACTIONS.contentCreated,
@@ -421,18 +428,22 @@ export function contentRoutes() {
     const tenant = c.get('tenant');
     const { data: input, raw } = await parseJsonBodyWithRaw(c, teamMemberInputSchema);
     const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'equipe', raw);
-    await assertContentLimit(ctx.db, tenant.tenantId);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.photoId]);
 
-    const [row] = await ctx.db
-      .insert(schema.teamMembers)
-      .values({
-        tenantId: tenant.tenantId,
-        siteId: tenant.siteId,
-        customFields: personalizados ?? {},
-        ...input,
-      })
-      .returning();
+    const row = await comVagaDeConteudo(ctx.db, tenant.tenantId, async (tx) => {
+      const [criado] = await tx
+        .insert(schema.teamMembers)
+        .values({
+          tenantId: tenant.tenantId,
+          siteId: tenant.siteId,
+          customFields: personalizados ?? {},
+          ...input,
+        })
+        .returning();
+      if (!criado) throw AppError.conflict('Não foi possível criar o profissional.');
+      return criado;
+    });
+
 
     return created(c, { member: row ?? null });
   });
@@ -506,11 +517,15 @@ export function contentRoutes() {
     const ctx = c.get('ctx');
     const tenant = c.get('tenant');
     const input = await parseJsonBody(c, faqInputSchema);
-    await assertContentLimit(ctx.db, tenant.tenantId);
-    const [row] = await ctx.db
-      .insert(schema.faqs)
-      .values({ tenantId: tenant.tenantId, siteId: tenant.siteId, ...input })
-      .returning();
+    const row = await comVagaDeConteudo(ctx.db, tenant.tenantId, async (tx) => {
+      const [criado] = await tx
+        .insert(schema.faqs)
+        .values({ tenantId: tenant.tenantId, siteId: tenant.siteId, ...input })
+        .returning();
+      if (!criado) throw AppError.conflict('Não foi possível criar a pergunta.');
+      return criado;
+    });
+
     return created(c, { faq: row ?? null });
   });
 

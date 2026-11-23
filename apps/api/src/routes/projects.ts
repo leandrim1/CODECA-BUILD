@@ -13,6 +13,7 @@ import {
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
+import { comVagaDeConteudo } from '../lib/content-slot.js';
 import { auditFromContext } from '../lib/audit-context.js';
 import {
   created,
@@ -25,7 +26,6 @@ import {
   parseQuery,
 } from '../lib/http.js';
 import { assertMediaBelongsToTenant, loadGallery, loadMediaByIds, syncGallery } from '../lib/media-refs.js';
-import { assertContentLimit } from '../lib/plan-limits.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
 import { requireCapability, sessionOf } from '../middleware/auth.js';
 import { lerAlteracao, lerCriacao } from '../lib/modules.js';
@@ -157,7 +157,6 @@ export function projectRoutes() {
 
     const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'obras', raw);
 
-    await assertContentLimit(ctx.db, tenant.tenantId);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.coverImageId, ...input.galleryImageIds]);
 
     const slug = await buildUniqueSlug(ctx.db, 'projects', {
@@ -165,37 +164,40 @@ export function projectRoutes() {
       desired: input.slug ?? input.title,
     });
 
-    const [row] = await ctx.db
-      .insert(schema.projects)
-      .values({
-        customFields: personalizados ?? {},
-        tenantId: tenant.tenantId,
-        siteId: tenant.siteId,
-        slug,
-        title: input.title,
-        description: input.description,
-        shortDescription: input.shortDescription,
-        category: input.category,
-        status: input.status,
-        stage: input.stage,
-        progressPercent: input.progressPercent,
-        city: input.city,
-        state: input.state,
-        neighborhood: input.neighborhood,
-        showLocation: input.showLocation,
-        startDate: input.startDate,
-        expectedCompletionDate: input.expectedCompletionDate,
-        completedDate: input.completedDate,
-        coverImageId: input.coverImageId,
-        publicationStatus: input.publicationStatus,
-        featured: input.featured,
-        seoTitle: input.seoTitle,
-        seoDescription: input.seoDescription,
-        sortOrder: input.sortOrder,
-        publishedAt: input.publicationStatus === 'published' ? ctx.now() : null,
-      })
-      .returning();
-    if (!row) throw AppError.internal('Não foi possível cadastrar a obra.');
+    const row = await comVagaDeConteudo(ctx.db, tenant.tenantId, async (tx) => {
+      const [criado] = await tx
+        .insert(schema.projects)
+        .values({
+          customFields: personalizados ?? {},
+          tenantId: tenant.tenantId,
+          siteId: tenant.siteId,
+          slug,
+          title: input.title,
+          description: input.description,
+          shortDescription: input.shortDescription,
+          category: input.category,
+          status: input.status,
+          stage: input.stage,
+          progressPercent: input.progressPercent,
+          city: input.city,
+          state: input.state,
+          neighborhood: input.neighborhood,
+          showLocation: input.showLocation,
+          startDate: input.startDate,
+          expectedCompletionDate: input.expectedCompletionDate,
+          completedDate: input.completedDate,
+          coverImageId: input.coverImageId,
+          publicationStatus: input.publicationStatus,
+          featured: input.featured,
+          seoTitle: input.seoTitle,
+          seoDescription: input.seoDescription,
+          sortOrder: input.sortOrder,
+          publishedAt: input.publicationStatus === 'published' ? ctx.now() : null,
+        })
+        .returning();
+      if (!criado) throw AppError.internal('Não foi possível cadastrar a obra.');
+      return criado;
+    });
 
     await syncGallery(ctx.db, 'project', {
       tenantId: tenant.tenantId,

@@ -12,6 +12,7 @@ import {
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { AUDIT_ACTIONS } from '../lib/audit.js';
+import { comVagaDeConteudo } from '../lib/content-slot.js';
 import { auditFromContext } from '../lib/audit-context.js';
 import {
   created,
@@ -30,7 +31,6 @@ import {
   queueContentPublished,
   visibilityChanged,
 } from '../lib/integration/outbound.js';
-import { assertContentLimit } from '../lib/plan-limits.js';
 import { buildUniqueSlug } from '../lib/slugs.js';
 import { requireCapability } from '../middleware/auth.js';
 import { requireModule } from '../middleware/modules.js';
@@ -181,7 +181,6 @@ export function propertyRoutes() {
 
     const personalizados = await lerCriacao(ctx.db, tenant.siteId, 'imoveis', raw);
 
-    await assertContentLimit(ctx.db, tenant.tenantId);
     await assertMediaBelongsToTenant(ctx.db, tenant.tenantId, [input.coverImageId, ...input.galleryImageIds]);
 
     const slug = await buildUniqueSlug(ctx.db, 'properties', {
@@ -189,47 +188,49 @@ export function propertyRoutes() {
       desired: input.slug ?? input.title,
     });
 
-    const [row] = await ctx.db
-      .insert(schema.properties)
-      .values({
-        customFields: personalizados ?? {},
-        tenantId: tenant.tenantId,
-        siteId: tenant.siteId,
-        slug,
-        title: input.title,
-        reference: input.reference,
-        description: input.description,
-        shortDescription: input.shortDescription,
-        type: input.type,
-        purpose: input.purpose,
-        price: input.price,
-        priceOnRequest: input.priceOnRequest,
-        condoFee: input.condoFee,
-        iptu: input.iptu,
-        currency: input.currency,
-        address: input.address,
-        builtAreaM2: input.builtAreaM2,
-        landAreaM2: input.landAreaM2,
-        bedrooms: input.bedrooms,
-        suites: input.suites,
-        bathrooms: input.bathrooms,
-        parkingSpots: input.parkingSpots,
-        floor: input.floor,
-        features: input.features,
-        coverImageId: input.coverImageId,
-        publicationStatus: input.publicationStatus,
-        commercialStatus: input.commercialStatus,
-        featured: input.featured,
-        deliveryDate: input.deliveryDate,
-        videoUrl: input.videoUrl,
-        seoTitle: input.seoTitle,
-        seoDescription: input.seoDescription,
-        sortOrder: input.sortOrder,
-        publishedAt: input.publicationStatus === 'published' ? ctx.now() : null,
-      })
-      .returning();
-
-    if (!row) throw AppError.internal('Não foi possível cadastrar o imóvel.');
+    const row = await comVagaDeConteudo(ctx.db, tenant.tenantId, async (tx) => {
+      const [criado] = await tx
+        .insert(schema.properties)
+        .values({
+          customFields: personalizados ?? {},
+          tenantId: tenant.tenantId,
+          siteId: tenant.siteId,
+          slug,
+          title: input.title,
+          reference: input.reference,
+          description: input.description,
+          shortDescription: input.shortDescription,
+          type: input.type,
+          purpose: input.purpose,
+          price: input.price,
+          priceOnRequest: input.priceOnRequest,
+          condoFee: input.condoFee,
+          iptu: input.iptu,
+          currency: input.currency,
+          address: input.address,
+          builtAreaM2: input.builtAreaM2,
+          landAreaM2: input.landAreaM2,
+          bedrooms: input.bedrooms,
+          suites: input.suites,
+          bathrooms: input.bathrooms,
+          parkingSpots: input.parkingSpots,
+          floor: input.floor,
+          features: input.features,
+          coverImageId: input.coverImageId,
+          publicationStatus: input.publicationStatus,
+          commercialStatus: input.commercialStatus,
+          featured: input.featured,
+          deliveryDate: input.deliveryDate,
+          videoUrl: input.videoUrl,
+          seoTitle: input.seoTitle,
+          seoDescription: input.seoDescription,
+          sortOrder: input.sortOrder,
+          publishedAt: input.publicationStatus === 'published' ? ctx.now() : null,
+        })
+        .returning();
+      if (!criado) throw AppError.internal('Não foi possível cadastrar o imóvel.');
+      return criado;
+    });
 
     await syncGallery(ctx.db, 'property', {
       tenantId: tenant.tenantId,
