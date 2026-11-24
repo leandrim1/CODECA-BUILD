@@ -3,6 +3,8 @@ export * from './roles.js';
 export * from './constants.js';
 export * from './slug.js';
 export * from './senha.js';
+export * from './telefone.js';
+export * from './nome.js';
 export * from './domain.js';
 export * from './whatsapp.js';
 export * from './plans.js';

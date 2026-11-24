@@ -1,6 +1,15 @@
 import { z } from 'zod';
 import { TENANT_ROLES } from '../roles.js';
-import { emailSchema, passwordSchema, personNameSchema, phoneSchema, slugSchema, uuidSchema } from './common.js';
+import {
+  emailSchema,
+  nomeDePessoaSchema,
+  passwordSchema,
+  personNameSchema,
+  phoneSchema,
+  slugSchema,
+  telefoneBrSchema,
+  uuidSchema,
+} from './common.js';
 
 export const registerSchema = z.object({
   /**
@@ -12,13 +21,19 @@ export const registerSchema = z.object({
    * porque o schema nao sabe o que esta no ambiente.
    */
   botToken: z.string().max(4096).optional(),
-  name: personNameSchema,
+  /*
+    `nomeDePessoaSchema` e `telefoneBrSchema` (e nao os schemas gerais) porque
+    estes dois campos ganharam limpeza propria na tela de cadastro: o servidor
+    repete a MESMA limpeza antes de validar. As outras rotas seguem com
+    `personNameSchema` e `phoneSchema`.
+  */
+  name: nomeDePessoaSchema,
   email: emailSchema,
   password: passwordSchema,
   /** Dados da primeira empresa criada junto com a conta. */
   companyName: z.string().trim().min(2, 'Informe o nome da empresa.').max(160),
   companySlug: slugSchema.optional(),
-  phone: phoneSchema.default(''),
+  phone: telefoneBrSchema.default(''),
   acceptedTerms: z.literal(true, { message: 'E necessario aceitar os termos de uso.' }),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;

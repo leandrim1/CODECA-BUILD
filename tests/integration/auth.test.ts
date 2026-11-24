@@ -128,6 +128,64 @@ describe('cadastro', () => {
     expect(completa.status).toBe(201);
   });
 
+  /*
+    Nome e telefone passam pela MESMA limpeza da tela antes de serem guardados.
+    Quem chama a API direto nao passou por campo nenhum, entao e aqui que o
+    numero vira digito e o nome perde o que nao e letra.
+  */
+  it('limpa o nome e guarda o telefone so em digitos', async () => {
+    const response = await api.client().post('/api/auth/register', {
+      name: '  Marina 123 Souza @# ',
+      email: 'limpeza@a.com.br',
+      password: 'Abcdefgh1!',
+      companyName: '3M Soluções & Cia',
+      phone: '+55 (19) 99999-0000',
+      acceptedTerms: true,
+    });
+    expect(response.status).toBe(201);
+
+    const [user] = await api.db
+      .select({ name: schema.users.name, phone: schema.users.phone })
+      .from(schema.users)
+      .where(eq(schema.users.email, 'limpeza@a.com.br'));
+    expect(user?.name).toBe('Marina Souza');
+    expect(user?.phone).toBe('19999990000');
+
+    // O nome da EMPRESA nao sofre a limpeza, e o contato dela continua
+    // mascarado: e o que sai impresso no site do cliente.
+    const [tenant] = await api.db
+      .select({ nome: schema.tenants.displayName, telefone: schema.tenants.contactPhone })
+      .from(schema.tenants)
+      .where(eq(schema.tenants.contactEmail, 'limpeza@a.com.br'));
+    expect(tenant?.nome).toBe('3M Soluções & Cia');
+    expect(tenant?.telefone).toBe('(19) 99999-0000');
+  });
+
+  it('recusa telefone com DDD inexistente e nome sem duas letras', async () => {
+    const telefone = await api.client().post('/api/auth/register', {
+      name: 'Marina Souza',
+      email: 'ddd@a.com.br',
+      password: 'Abcdefgh1!',
+      companyName: 'Alpha',
+      phone: '(00) 99999-0000',
+      acceptedTerms: true,
+    });
+    expect(telefone.status).toBe(422);
+    expect((telefone.body as { error: { details: { fields: Record<string, string> } } }).error.details.fields.phone)
+      .toBe('Informe um telefone válido com DDD');
+
+    const nome = await api.client().post('/api/auth/register', {
+      name: 'M1',
+      email: 'nome@a.com.br',
+      password: 'Abcdefgh1!',
+      companyName: 'Alpha',
+      acceptedTerms: true,
+    });
+    expect(nome.status).toBe(422);
+    expect((nome.body as { error: { details: { fields: Record<string, string> } } }).error.details.fields.name)
+      .toBe('Informe seu nome usando apenas letras');
+  });
+
   it('gera slug distinto para empresas com o mesmo nome', async () => {
     const first = await registerAccount(api, { email: 'a@x.com.br', companyName: 'Construtora Igual' });
     const second = await registerAccount(api, { email: 'b@x.com.br', companyName: 'Construtora Igual' });

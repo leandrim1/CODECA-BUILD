@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Alert, Button, Checkbox, TextInput, useToast } from '@codeca/ui';
 import { slugify, validarSenha } from '@codeca/shared';
 import { CampoDeSenha } from '../components/CampoDeSenha.js';
+import { CampoDeNome, CampoDeTelefone } from '../components/CamposComMascara.js';
 import { GoogleResultAlert, GoogleSignIn, OrDivider, useGoogleResult } from '../components/GoogleAuth.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { DesafioDeBot } from '../components/DesafioDeBot.js';
@@ -119,14 +120,17 @@ export function RegisterPage() {
             onChange={(event) => setField('companyName', event.target.value)}
           />
 
-          <TextInput
+          {/*
+            O campo do NOME DA PESSOA limpa o que nao e letra; o da EMPRESA,
+            logo acima, nao limpa nada -- "3M Soluções" e "Padaria & Cia" sao
+            nomes legitimos.
+          */}
+          <CampoDeNome
             compacto
-            label="Seu nome"
             required
-            autoComplete="name"
             value={values.name}
             error={errors.name}
-            onChange={(event) => setField('name', event.target.value)}
+            onChange={(nome) => setField('name', nome)}
           />
 
           {/*
@@ -164,14 +168,15 @@ export function RegisterPage() {
             onChange={(event) => setField('email', event.target.value)}
           />
 
-          <TextInput
+          {/*
+            O formulario guarda SO OS DIGITOS (`19999990000`) -- a mascara vive
+            dentro do campo. E o que viaja para a API e o que fica no banco.
+          */}
+          <CampoDeTelefone
             compacto
-            label="Telefone"
-            autoComplete="tel"
-            placeholder="(19) 99999-0000"
             value={values.phone}
             error={errors.phone}
-            onChange={(event) => setField('phone', event.target.value)}
+            onChange={(digitos) => setField('phone', digitos)}
           />
         </div>
 

@@ -19,6 +19,15 @@ continua sendo responsabilidade de quem opera a plataforma.
   login nao aplica a regra: senha definida antes dela continua entrando. A
   senha nao vai para log algum, nem na recusa: a mensagem cita as regras que
   faltaram, nunca o valor digitado.
+- **Nome e telefone do cadastro** (`packages/shared/src/nome.ts`,
+  `packages/shared/src/telefone.ts`): a tela limpa o que e digitado, colado ou
+  preenchido pelo navegador, e o servidor repete a MESMA limpeza antes de
+  validar (`nomeDePessoaSchema`, `telefoneBrSchema`, usados so por
+  `registerSchema`). Nome aceita letra de qualquer idioma, espaco, hifen e
+  apostrofo, com duas letras no minimo e 80 caracteres no maximo; telefone e
+  guardado so em digitos, com DDD de 11 a 99 e o nono digito no celular. O
+  nome da EMPRESA nao passa por isso: "3M Soluções" e "Padaria & Cia" sao
+  legitimos.
 - **Sessoes opacas**: o cookie carrega um token aleatorio de 32 bytes; o banco
   guarda apenas o HMAC desse token com `AUTH_SECRET`. Um vazamento do banco nao
   permite montar um cookie valido, e o token em claro nao aparece em log algum.
