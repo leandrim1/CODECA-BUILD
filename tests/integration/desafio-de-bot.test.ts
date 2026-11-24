@@ -22,7 +22,7 @@ afterEach(async () => {
 const CADASTRO = {
   name: 'Maria Souza',
   email: 'maria@empresa.com.br',
-  password: 'uma-senha-boa-123',
+  password: 'senhaSegura123',
   companyName: 'Empresa da Maria',
   phone: '(19) 99999-0000',
   acceptedTerms: true,

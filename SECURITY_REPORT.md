@@ -84,7 +84,7 @@ dez tentativas vira alerta.
 | 15 | Escapar conteúdo | OK | **OK** | — |
 | 16 | Upload de arquivos | OK | **OK** | — |
 | 17 | Respostas enxutas | OK | **OK** | — |
-| 18 | Headers de segurança | Parcial | **Parcial** | CSP + HSTS + frame-options no documento, em **report-only** |
+| 18 | Headers de segurança | Parcial | **OK** | CSP **aplicado** + HSTS (2 anos) + frame-options no documento |
 | 19 | Forçar HTTPS | Parcial | **OK** | HSTS passa a valer no documento |
 | 20 | Dependências | Parcial | **OK** | Dependabot semanal + gitleaks no CI |
 
@@ -143,7 +143,49 @@ servidor. Provedor fora do ar deixa passar, de propósito: trancar o cadastro
 inteiro porque um terceiro caiu seria estrago maior do que o que o desafio
 evita.
 
-**18 — Headers.** O CSP está em **report-only**.
+**18 — Headers.** O CSP está **aplicado**.
+
+Subiu primeiro em `report-only` e foi promovido depois, com a medição em mãos.
+O que a medição em produção mostrou, em cinco rotas:
+
+**Uma única violação real, e ela é segura.** O bundle não tem `eval`, `new
+Function` nem `Function(`. Interceptando as chamadas, o responsável é
+`$ZodObjectJIT`: o Zod 4 compila validadores com `new Function` para ganhar
+velocidade. O próprio Zod trata isso como **sonda** em `try/catch`
+(`util.js:218-230`), e o comentário da linha 219 descreve o efeito colateral
+— "strict CSPs report the caught `new Function` as a `securitypolicyviolation`
+even though the throw is swallowed".
+
+Medido, não suposto: o mesmo Zod 4.6.7, isolado, sob CSP aplicado e sob
+`unsafe-eval` liberado, devolve resultado idêntico nos dois casos — objeto
+inválido recusado com as mesmas 2 queixas, objeto válido aceito com o mesmo
+valor, zero exceções. Sem `unsafe-eval` ele cai no caminho sem JIT. O custo de
+aplicar a política é velocidade de validação, não comportamento.
+
+**Controle, para não confundir ferramenta com produto:** uma página sem nenhum
+script, servida com o mesmo CSP e aberta pelo mesmo Chromium automatizado, não
+gera a violação. Então ela vinha da aplicação, não da medição.
+
+**`report-only` não coletava nada.** A política não tem `report-uri` nem
+`report-to`, então as violações só apareciam no console de cada visitante. E
+`upgrade-insecure-requests` é **ignorado** numa política report-only — o
+navegador avisa isso explicitamente. Metade do que estava escrito só passou a
+valer com a promoção.
+
+**HSTS: correção de um erro.** A Vercel já servia
+`max-age=63072000; includeSubDomains; preload` por conta própria em
+`*.vercel.app`. O cabeçalho desta auditoria sobrescreveu com um ano e sem
+`preload` — ou seja, deixou **mais fraco** do que estava. Corrigido para dois
+anos. O `preload` segue de fora por ser uma decisão difícil de desfazer:
+compromete o domínio e todos os subdomínios a HTTPS por meses. Em
+`codecabuild.vercel.app` não faz diferença prática, porque `vercel.app` inteiro
+já está na lista de preload dos navegadores; em domínio próprio, faria.
+
+**Turnstile e a política.** O Cloudflare documenta que o widget precisa de
+`script-src` e `frame-src` com `challenges.cloudflare.com`; `connect-src` só
+entra no modo pre-clearance, e ali o valor exigido é `'self'`. A política
+atende os três, e `tests/unit/csp.test.ts` trava isso — sem o widget, o botão
+"Criar conta" nunca habilita.
 
 A primeira versão de `img-src` só liberava o host do Vercel Blob. Conferindo as
 telas que a medição não cobriu, apareceu um bloqueio real:
@@ -171,14 +213,21 @@ arquivo próprio carregam; `http://` é promovida a https pelo
    leitura em `plans.limits`). A etapa 4 não começa sem isso.
 2. **Decidir a fonte de verdade dos limites**: código reescrevendo o banco no
    deploy, ou painel mestre como autoridade.
-3. **Promover o CSP** de report-only para aplicado, depois de abrir o painel em
-   produção e confirmar no console que nenhuma imagem é bloqueada. É trocar
-   `content-security-policy-report-only` por `content-security-policy` em
-   `vercel.json`.
-4. **Turnstile**: criar as chaves em dash.cloudflare.com e definir
-   `TURNSTILE_SITE_KEY` e `TURNSTILE_SECRET_KEY` na Vercel. Enquanto não
-   existirem, nada muda.
-5. **Dependabot**: ligar em Settings → Code security do repositório.
+3. ~~**Promover o CSP**~~ — feito, com a medição em produção. Ver o ponto 18.
+4. ~~**Turnstile**~~ — feito: as duas chaves estão na Vercel e `/api/health`
+   reporta `botProtection: true`. Falta um único teste, que só pode ser feito
+   num navegador comum: enviar o formulário uma vez. O "Sucesso!" do widget
+   prova a **site key**; a **secret key** só é exercitada quando o servidor
+   pergunta ao Cloudflare se o token vale. Se ela estiver errada, o widget diz
+   "Sucesso!" e o envio falha. Jeito de conferir sem criar conta: em
+   `/recuperar-senha`, enviar um e-mail inexistente — o desafio é conferido
+   antes da busca do usuário (`auth.ts:526`), então nada é gravado.
+5. ~~**Dependabot**~~ — ligado, e já encontrou 9 alertas (2 críticos). Três
+   execuções falharam com `security_update_not_possible`: o `tinypool` precisa
+   de 2.1.2 e o máximo resolvível sob o vitest atual é 1.1.1. Corrigir depende
+   de subir o vitest, o que o Dependabot não faz sozinho. Tudo em ferramenta de
+   desenvolvimento: o único que parecia de produção, `@hono/node-server`, está
+   em `devDependencies` e só é importado no `vite.config.ts`.
 6. **Rotação de chaves: nada a fazer.** A varredura não encontrou segredo
    exposto no histórico.
 

@@ -64,6 +64,41 @@ describe('politica de seguranca de conteudo', () => {
     expect(scriptSrc).not.toContain("'unsafe-eval'");
   });
 
+  it('a politica esta aplicada, nao apenas relatada', () => {
+    /*
+      Em `report-only` o navegador relata e nao bloqueia -- e, sem `report-uri`
+      nem `report-to`, relata so no console de quem visita, onde ninguem le.
+      Pior: `upgrade-insecure-requests` e ignorado numa politica report-only,
+      entao metade do que esta escrito aqui nao valeria nada.
+
+      O que destravou aplicar: a unica violacao real era a sonda do Zod
+      (`new Function('')` dentro de try/catch, em util.js), e foi medido que
+      sem `unsafe-eval` ele cai no caminho sem JIT e valida igual.
+    */
+    expect(cabecalho('content-security-policy'), 'o CSP precisa estar aplicado').toBeTruthy();
+    expect(
+      cabecalho('content-security-policy-report-only'),
+      'as duas politicas ao mesmo tempo dobram o trabalho do navegador sem ganho',
+    ).toBeNull();
+  });
+
+  it('atende o que o Turnstile exige para carregar', () => {
+    /*
+      Documentado pelo Cloudflare: script-src e frame-src precisam do dominio
+      do desafio. `connect-src` so entra no modo pre-clearance, e ali o valor
+      exigido e 'self' -- a busca e em /cdn-cgi/ no proprio dominio.
+
+      Isto e um teste porque o cadastro depende dele: sem o widget, o botao
+      "Criar conta" nunca habilita.
+    */
+    const scriptSrc = /script-src ([^;]+)/.exec(csp ?? '')?.[1] ?? '';
+    const frameSrc = /frame-src ([^;]+)/.exec(csp ?? '')?.[1] ?? '';
+    const connectSrc = /connect-src ([^;]+)/.exec(csp ?? '')?.[1] ?? '';
+    expect(scriptSrc).toContain('https://challenges.cloudflare.com');
+    expect(frameSrc).toContain('https://challenges.cloudflare.com');
+    expect(connectSrc).toContain("'self'");
+  });
+
   it('fecha as diretivas que nao caem no default-src', () => {
     for (const diretiva of ['base-uri', 'object-src', 'frame-ancestors', 'form-action']) {
       expect(csp, `falta ${diretiva}`).toContain(diretiva);
@@ -82,7 +117,7 @@ describe('cabecalhos do documento', () => {
     expect(cabecalho('x-frame-options')).toBe('DENY');
     expect(cabecalho('referrer-policy')).toBe('strict-origin-when-cross-origin');
     expect(cabecalho('cross-origin-opener-policy')).toBe('same-origin');
-    expect(cabecalho('strict-transport-security')).toContain('max-age=31536000');
+    expect(cabecalho('strict-transport-security')).toContain('max-age=63072000');
     expect(cabecalho('permissions-policy')).toContain('geolocation=()');
   });
 });
