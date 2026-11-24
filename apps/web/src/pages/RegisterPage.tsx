@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Alert, Button, Checkbox, TextInput, useToast } from '@codeca/ui';
-import { slugify } from '@codeca/shared';
+import { slugify, validarSenha } from '@codeca/shared';
+import { CampoDeSenha } from '../components/CampoDeSenha.js';
 import { GoogleResultAlert, GoogleSignIn, OrDivider, useGoogleResult } from '../components/GoogleAuth.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { DesafioDeBot } from '../components/DesafioDeBot.js';
@@ -27,10 +28,6 @@ export function RegisterPage() {
   // `null` enquanto o desafio nao foi resolvido. Com o desafio desligado o
   // valor nunca e consultado.
   const [botToken, setBotToken] = useState<string | null>(null);
-  // A regra da senha so aparece quando ela esta em foco (ou em erro). Fora
-  // desses dois momentos ela ocupa uma linha sem informar nada: quem ainda
-  // nao chegou no campo nao vai ler, e quem ja preencheu nao precisa mais.
-  const [senhaEmFoco, setSenhaEmFoco] = useState(false);
 
   const register = useMutation(authApi.register, {
     onSuccess: async (result) => {
@@ -54,6 +51,7 @@ export function RegisterPage() {
   });
 
   const previewSlug = slugify(values.companyName);
+  const senhaValida = validarSenha(values.password).valida;
 
   return (
     <div>
@@ -177,19 +175,18 @@ export function RegisterPage() {
           />
         </div>
 
-        <TextInput
+        {/*
+          A lista de conferencia substitui a dica de uma linha: ela mostra as
+          cinco regras com o estado de cada uma, e so ocupa altura quando o
+          campo esta em uso. As regras vem de `validarSenha`, a mesma funcao
+          que o servidor cobra.
+        */}
+        <CampoDeSenha
           compacto
-          label="Senha"
-          type="password"
           required
-          autoComplete="new-password"
-          placeholder="Ao menos 10 caracteres, com letras e números"
           value={values.password}
           error={errors.password}
-          hint={senhaEmFoco ? 'Ao menos 10 caracteres, com letras e números.' : undefined}
-          onFocus={() => setSenhaEmFoco(true)}
-          onBlur={() => setSenhaEmFoco(false)}
-          onChange={(event) => setField('password', event.target.value)}
+          onChange={(senha) => setField('password', senha)}
         />
 
         <Checkbox
@@ -209,11 +206,23 @@ export function RegisterPage() {
 
         <DesafioDeBot siteKey={features.turnstileSiteKey} onToken={setBotToken} />
 
+        {/*
+          O botao so libera com as tres provas reunidas: senha dentro das
+          regras, aceite marcado e desafio de bot resolvido (quando ligado).
+
+          E conveniencia, nao seguranca: o servidor refaz as tres conferencias
+          em `/api/auth/register` -- quem chama a API direto nao passa por
+          botao nenhum.
+        */}
         <Button
           type="submit"
           size="md"
           loading={register.loading}
-          disabled={features.botProtection && !botToken}
+          disabled={
+            !senhaValida
+            || !values.acceptedTerms
+            || (features.botProtection && !botToken)
+          }
         >
           Criar conta
         </Button>

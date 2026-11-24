@@ -33,7 +33,7 @@ describe('cadastro por e-mail e senha', () => {
     const response = await api.client().post('/api/auth/register', {
       name: 'Responsavel Teste',
       email: 'sem@aceite.test',
-      password: 'senhaSegura123',
+      password: 'senhaSegura123!',
       companyName: 'Sem Aceite',
       phone: '(19) 99999-0000',
       acceptedTerms: false,

@@ -65,7 +65,7 @@ describe('primeira conta da instalacao', () => {
     const response = await client.post('/api/auth/register', {
       name: 'Responsavel Teste',
       email: 'dono@construtorahorizonte.com.br',
-      password: 'senhaSegura123',
+      password: 'senhaSegura123!',
       companyName: 'Construtora Horizonte',
       phone: '(19) 99999-0000',
       acceptedTerms: true,

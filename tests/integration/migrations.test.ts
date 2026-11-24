@@ -260,7 +260,7 @@ describe('depoimentos, equipe e FAQ viram modulos', () => {
     const banco = await bancoAntesDe(MODULOS_NOVOS, [SEGMENTOS]);
     try {
       await seedDatabase(banco.db, {
-        demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' },
+        demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123!' },
       });
 
       const [site] = await banco.db.select({ id: schema.sites.id }).from(schema.sites);
@@ -285,7 +285,7 @@ describe('depoimentos, equipe e FAQ viram modulos', () => {
     const banco = await bancoAntesDe(MODULOS_NOVOS, [SEGMENTOS]);
     try {
       await seedDatabase(banco.db, {
-        demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' },
+        demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123!' },
       });
       const [site] = await banco.db
         .select({ id: schema.sites.id, tenantId: schema.sites.tenantId })
@@ -317,7 +317,7 @@ describe('depoimentos, equipe e FAQ viram modulos', () => {
     const banco = await bancoAntesDe(MODULOS_NOVOS, [SEGMENTOS]);
     try {
       await seedDatabase(banco.db, {
-        demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' },
+        demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123!' },
       });
       await banco.aplicar();
       await expect(banco.aplicar()).resolves.toBeUndefined();
@@ -677,7 +677,7 @@ describe('dominios sem hospedagem', () => {
   async function bancoComSite() {
     const banco = await bancoAntesDe(DOMINIOS_SEM_HOSPEDAGEM);
     await seedDatabase(banco.db, {
-      demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' },
+      demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123!' },
     });
     const [site] = await banco.db
       .select({ id: schema.sites.id, tenantId: schema.sites.tenantId })
@@ -809,7 +809,7 @@ describe('limite geral de conteudos', () => {
   /** Banco no estado de ANTES: planos com os limites e as descricoes antigos. */
   async function bancoLegado() {
     const banco = await bancoAntesDe(LIMITE_GERAL);
-    await seedDatabase(banco.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' } });
+    await seedDatabase(banco.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123!' } });
     for (const [codigo, antigo] of Object.entries(LEGADO)) {
       await banco.db.execute(sql`
         update plans
@@ -1009,7 +1009,7 @@ describe('acentos nos textos de fabrica', () => {
   /** Banco como ele estava: o seed gravou os textos sem acento. */
   async function bancoLegado() {
     const banco = await bancoAntesDe(ACENTOS);
-    await seedDatabase(banco.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' } });
+    await seedDatabase(banco.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123!' } });
     await banco.db.execute(sql`update plans set name = 'Avaliacao' where code = 'trial'`);
     await banco.db.execute(sql`
       update segments
@@ -1083,7 +1083,7 @@ describe('acentos nos textos de fabrica', () => {
 describe('login com provedores externos', () => {
   async function bancoComUsuarios() {
     const banco = await bancoAntesDe(LOGIN_EXTERNO);
-    await seedDatabase(banco.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' } });
+    await seedDatabase(banco.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123!' } });
     return banco;
   }
 
@@ -1189,7 +1189,7 @@ describe('codigos de acesso por e-mail', () => {
   it('so acrescenta a tabela: usuarios e senhas existentes ficam como estavam', async () => {
     const banco = await bancoAntesDe(CODIGOS_DE_ACESSO);
     try {
-      await seedDatabase(banco.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' } });
+      await seedDatabase(banco.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123!' } });
       const antes = await banco.db.select({ id: schema.users.id, hash: schema.users.passwordHash }).from(schema.users);
 
       await banco.aplicar();

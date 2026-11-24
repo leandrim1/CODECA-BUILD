@@ -256,7 +256,7 @@ async function semear(): Promise<{ cliente: Sessao; plataforma: Sessao }> {
   await seedDatabase(db);
 
   const [plano] = await db.select().from(schema.plans).where(eq(schema.plans.code, 'profissional'));
-  const senha = await hashPassword('senhaSegura123');
+  const senha = await hashPassword('senhaSegura123!');
   const [user] = await db
     .insert(schema.users)
     .values({

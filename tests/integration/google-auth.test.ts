@@ -349,11 +349,11 @@ describe('e-mail que ja existe', () => {
   });
 
   it('o login com e-mail e senha continua funcionando depois da tentativa', async () => {
-    await registerAccount(api, { email: 'dono@alpha.com.br', companyName: 'Alpha', password: 'senhaSegura123' });
+    await registerAccount(api, { email: 'dono@alpha.com.br', companyName: 'Alpha', password: 'senhaSegura123!' });
     await signInWithGoogle(api.client(), google, { sub: 'sub-x', email: 'dono@alpha.com.br' });
 
     const client = api.client();
-    const login = await client.post('/api/auth/login', { email: 'dono@alpha.com.br', password: 'senhaSegura123' });
+    const login = await client.post('/api/auth/login', { email: 'dono@alpha.com.br', password: 'senhaSegura123!' });
     expect(login.status).toBe(200);
     expect(login.body.session.memberships).toHaveLength(1);
   });
@@ -394,7 +394,7 @@ describe('e-mail que ja existe', () => {
     const aceite = await api.client().post('/api/auth/accept-invite', {
       token: extractToken(mensagem!.text),
       name: 'Convidado',
-      password: 'senhaSegura123',
+      password: 'senhaSegura123!',
     });
     expect(aceite.status, aceite.errorMessage ?? '').toBe(200);
     expect(aceite.body.session.memberships[0]).toMatchObject({ tenantId: dono.tenantId, role: 'editor' });
@@ -419,7 +419,7 @@ describe('vincular o Google a uma conta que ja existe', () => {
     client.post('/api/auth/google/start', { intent: 'link', password });
 
   async function completeLink(client: TestClient, identity: GoogleIdentity) {
-    const start = await startLink(client, 'senhaSegura123');
+    const start = await startLink(client, 'senhaSegura123!');
     expect(start.status, start.errorMessage ?? '').toBe(200);
     const url = start.body.authorizationUrl as string;
     const code = google.authorize(url, identity);
@@ -427,7 +427,7 @@ describe('vincular o Google a uma conta que ja existe', () => {
   }
 
   it('exige estar logado', async () => {
-    const response = await api.client().post('/api/auth/google/start', { intent: 'link', password: 'senhaSegura123' });
+    const response = await api.client().post('/api/auth/google/start', { intent: 'link', password: 'senhaSegura123!' });
     expect(response.status).toBe(401);
   });
 
@@ -482,7 +482,7 @@ describe('vincular o Google a uma conta que ja existe', () => {
     const dono = await registerAccount(api, { email: 'dono@alpha.com.br', companyName: 'Alpha' });
     await completeLink(dono.client, { sub: 'google-1', email: 'um@gmail.com' });
 
-    const segundo = await startLink(dono.client, 'senhaSegura123');
+    const segundo = await startLink(dono.client, 'senhaSegura123!');
 
     expect(segundo.status).toBe(409);
     expect(await identities()).toHaveLength(1);
@@ -491,7 +491,7 @@ describe('vincular o Google a uma conta que ja existe', () => {
   it('o fluxo de vinculo nao termina em outra pessoa', async () => {
     const a = await registerAccount(api, { email: 'a@alpha.com.br', companyName: 'Alpha' });
     const b = await registerAccount(api, { email: 'b@beta.com.br', companyName: 'Beta' });
-    const start = await startLink(a.client, 'senhaSegura123');
+    const start = await startLink(a.client, 'senhaSegura123!');
     const url = start.body.authorizationUrl as string;
     const state = new URL(url).searchParams.get('state')!;
     const code = google.authorize(url, { sub: 'google-de-a', email: 'a@gmail.com' });
@@ -506,7 +506,7 @@ describe('vincular o Google a uma conta que ja existe', () => {
 
   it('um vinculo sem sessao no retorno nao vincula', async () => {
     const a = await registerAccount(api, { email: 'a@alpha.com.br', companyName: 'Alpha' });
-    const start = await startLink(a.client, 'senhaSegura123');
+    const start = await startLink(a.client, 'senhaSegura123!');
     const url = start.body.authorizationUrl as string;
     const state = new URL(url).searchParams.get('state')!;
     const code = google.authorize(url, { sub: 'google-de-a', email: 'a@gmail.com' });
@@ -527,7 +527,7 @@ describe('vincular o Google a uma conta que ja existe', () => {
     expect(errada.status).toBe(422);
     expect(await identities()).toHaveLength(1);
 
-    const certa = await dono.client.post('/api/auth/google/unlink', { password: 'senhaSegura123' });
+    const certa = await dono.client.post('/api/auth/google/unlink', { password: 'senhaSegura123!' });
     expect(certa.status).toBe(204);
     expect(await identities()).toHaveLength(0);
     expect(await audit('user.google_unlinked')).toHaveLength(1);
@@ -535,7 +535,7 @@ describe('vincular o Google a uma conta que ja existe', () => {
     // Sem vinculo, o mesmo Google nao entra na conta: o e-mail ja existe.
     const tentativa = await signInWithGoogle(api.client(), google, { sub: 'google-1', email: 'dono@alpha.com.br' });
     expect(tentativa.location).toBe('/entrar?google=email_in_use');
-    const senha = await api.client().post('/api/auth/login', { email: 'dono@alpha.com.br', password: 'senhaSegura123' });
+    const senha = await api.client().post('/api/auth/login', { email: 'dono@alpha.com.br', password: 'senhaSegura123!' });
     expect(senha.status).toBe(200);
   });
 
@@ -771,13 +771,13 @@ describe('sessao, logout e coexistencia com a senha', () => {
       expect(mensagem).toBeDefined();
       const reset = await comEmail.client().post('/api/auth/reset-password', {
         token: extractToken(mensagem.text),
-        password: 'novaSenhaSegura123',
+        password: 'novaSenhaSegura123!',
       });
       expect(reset.status).toBe(200);
 
       // A senha nova e aceita: o login avanca para a 2a etapa em vez de recusar.
       const com = comEmail.client();
-      const login = await com.post('/api/auth/login', { email: 'maria@gmail.com', password: 'novaSenhaSegura123' });
+      const login = await com.post('/api/auth/login', { email: 'maria@gmail.com', password: 'novaSenhaSegura123!' });
       expect(login.status).toBe(200);
       expect(login.body.status).toBe('code_required');
 

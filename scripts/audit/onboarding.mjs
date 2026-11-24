@@ -32,7 +32,7 @@ mkdirSync(SAIDA, { recursive: true });
 const SITE_PARA_IMPORTAR = process.env.ONBOARDING_SITE ?? 'https://clinicasorriso.com.br/';
 const carimbo = Date.now();
 const EMAIL = `agencia.${carimbo}@exemplo.com.br`;
-const SENHA = 'senhaSegura123';
+const SENHA = 'senhaSegura123!';
 const EMPRESA = `Agência Teste ${carimbo}`;
 
 const passos = [];
@@ -103,7 +103,9 @@ try {
   await pagina.getByLabel('Seu nome').fill('Marina da Agência');
   await pagina.getByLabel('E-mail').fill(EMAIL);
   await pagina.getByLabel('Telefone').fill('(41) 99999-0000');
-  await pagina.getByLabel('Senha').fill(SENHA);
+  // `getByLabel('Senha')` passou a casar com dois elementos: o campo e o
+  // botao de mostrar/ocultar ("Mostrar senha"). O seletor pelo campo e exato.
+  await pagina.locator('input[autocomplete="new-password"]').fill(SENHA);
   await pagina.getByRole('checkbox').check();
   await capturar('2-cadastro-preenchido');
   await pagina.getByRole('button', { name: 'Criar conta' }).click();

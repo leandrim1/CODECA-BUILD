@@ -56,7 +56,9 @@ try {
   await pagina.getByLabel('Seu nome').fill('Marina da Padaria');
   await pagina.getByLabel('E-mail').fill(EMAIL);
   await pagina.getByLabel('Telefone').fill('(41) 99999-0000');
-  await pagina.getByLabel('Senha').fill('senhaSegura123');
+  // `getByLabel('Senha')` passou a casar com dois elementos: o campo e o
+  // botao de mostrar/ocultar ("Mostrar senha"). O seletor pelo campo e exato.
+  await pagina.locator('input[autocomplete="new-password"]').fill('senhaSegura123!');
   await pagina.getByRole('checkbox').check();
   await pagina.getByRole('button', { name: 'Criar conta' }).click();
   await pagina.waitForURL(/\/painel/, { timeout: 20_000 }).catch(() => undefined);

@@ -11,6 +11,14 @@ continua sendo responsabilidade de quem opera a plataforma.
   guardados junto do hash (`scrypt$N$r$p$salt$hash`), o que permite elevar o
   custo no futuro sem invalidar as senhas existentes. A comparacao usa
   `timingSafeEqual`.
+- **Forca da senha** (`packages/shared/src/senha.ts`): toda senha NOVA
+  (cadastro, redefinicao, troca e aceite de convite) precisa de 10 caracteres,
+  uma maiuscula, uma minuscula, um numero e um caractere especial. A mesma
+  funcao (`validarSenha`) desenha a lista de conferencia da tela de cadastro e
+  recusa no servidor, via `passwordSchema` -- a tela nunca e a validacao. O
+  login nao aplica a regra: senha definida antes dela continua entrando. A
+  senha nao vai para log algum, nem na recusa: a mensagem cita as regras que
+  faltaram, nunca o valor digitado.
 - **Sessoes opacas**: o cookie carrega um token aleatorio de 32 bytes; o banco
   guarda apenas o HMAC desse token com `AUTH_SECRET`. Um vazamento do banco nao
   permite montar um cookie valido, e o token em claro nao aparece em log algum.

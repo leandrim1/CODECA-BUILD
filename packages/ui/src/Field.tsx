@@ -26,13 +26,32 @@ export interface FieldShellProps {
    * cadastro. Trocar o padrao apertaria centenas de campos de uma vez.
    */
   compacto?: boolean;
+  /**
+   * `id` de um texto de apoio desenhado FORA do campo -- hoje a lista de
+   * conferencia da senha, que nao cabe em `hint` por ser uma lista.
+   *
+   * Entra no `aria-describedby` junto com a dica e o erro: para o leitor de
+   * tela, a lista pertence ao campo mesmo morando noutro elemento.
+   */
+  describedById?: string | undefined;
 }
 
-export function Field({ label, hint, error, required, children, className, compacto }: FieldShellProps) {
+export function Field({
+  label,
+  hint,
+  error,
+  required,
+  children,
+  className,
+  compacto,
+  describedById,
+}: FieldShellProps) {
   const inputId = useId();
   const hintId = `${inputId}-hint`;
   const errorId = `${inputId}-error`;
-  const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined;
+  const describedBy = [hint ? hintId : null, error ? errorId : null, describedById ?? null]
+    .filter(Boolean)
+    .join(' ') || undefined;
 
   return (
     <div className={cx('grid', compacto ? 'gap-1' : 'gap-1.5', className)}>
@@ -71,7 +90,12 @@ export function Field({ label, hint, error, required, children, className, compa
  * vale o minimo de 4,5:1. `slate-400` sobre branco media 2,63:1 -- era o
  * "placeholder quase invisivel".
  */
-const CONTROL =
+/**
+ * Exportado (e nao so interno) para o campo que precisa de markup proprio --
+ * a senha, com o botao de olho dentro da caixa -- continuar com borda, foco e
+ * contraste identicos aos demais, sem copiar a lista de classes.
+ */
+export const CONTROL_CLASSES =
   'w-full rounded-xl border border-contorno bg-white px-3.5 py-2.5 text-sm text-slate-900 '
   + 'transition-[border-color,box-shadow,outline-color] duration-200 ease-[var(--ease-out-soft)] '
   + 'placeholder:text-slate-500 hover:border-slate-500 '
@@ -105,7 +129,7 @@ export function TextInput({ label, hint, error, required, className, compacto, .
           required={required}
           // 38px em vez de 42px: so o padding vertical muda, entao borda, raio,
           // foco e contraste continuam identicos ao campo padrao.
-          className={compacto ? CONTROL.replace('py-2.5', 'py-2') : CONTROL}
+          className={compacto ? CONTROL_CLASSES.replace('py-2.5', 'py-2') : CONTROL_CLASSES}
           {...rest}
         />
       )}
@@ -129,7 +153,7 @@ export function TextArea({ label, hint, error, required, className, rows = 4, ..
           aria-describedby={describedBy}
           aria-invalid={invalid}
           required={required}
-          className={cx(CONTROL, 'resize-y')}
+          className={cx(CONTROL_CLASSES, 'resize-y')}
           {...rest}
         />
       )}
@@ -169,7 +193,7 @@ export function Select({
           aria-describedby={describedBy}
           aria-invalid={invalid}
           required={required}
-          className={CONTROL}
+          className={CONTROL_CLASSES}
           {...rest}
         >
           {placeholder ? <option value="">{placeholder}</option> : null}
@@ -350,7 +374,7 @@ export function ColorInput({
           value={value}
           onChange={(event) => onChange(event.target.value.toUpperCase())}
           aria-invalid={!isHex}
-          className={cx(CONTROL, 'font-mono text-xs uppercase')}
+          className={cx(CONTROL_CLASSES, 'font-mono text-xs uppercase')}
           maxLength={9}
           spellCheck={false}
         />

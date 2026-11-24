@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { BRAZIL_STATES, SOCIAL_NETWORKS } from '../constants.js';
 import { SLUG_PATTERN } from '../slug.js';
+import { SENHA_MAX, mensagemDeSenhaInvalida, validarSenha } from '../senha.js';
 
 /** Schemas basicos reutilizados por todos os recursos. */
 
@@ -19,11 +20,26 @@ export const emailSchema = z
   .max(254)
   .regex(EMAIL, 'Informe um e-mail válido.');
 
+/**
+ * Senha nova (cadastro, redefinicao, troca e aceite de convite).
+ *
+ * As regras moram em `validarSenha`, a mesma funcao que desenha a lista de
+ * conferencia na tela de cadastro -- aqui elas sao COBRADAS. O servidor nunca
+ * confia na conferencia do navegador: quem chama a API direto passa longe
+ * dela.
+ *
+ * A mensagem lista apenas o que faltou, para a pessoa nao ter de adivinhar
+ * qual das cinco regras tropecou. O login nao usa este schema: senha antiga de
+ * conta antiga continua entrando (o que muda e o que se pode DEFINIR daqui em
+ * diante).
+ */
 export const passwordSchema = z
   .string()
-  .min(10, 'A senha deve ter ao menos 10 caracteres.')
-  .max(200, 'A senha deve ter no maximo 200 caracteres.')
-  .refine((v) => /[A-Za-z]/.test(v) && /[0-9]/.test(v), 'Use ao menos uma letra e um número.');
+  .max(SENHA_MAX, `A senha deve ter no máximo ${SENHA_MAX} caracteres.`)
+  .superRefine((valor, ctx) => {
+    if (validarSenha(valor).valida) return;
+    ctx.addIssue({ code: 'custom', message: mensagemDeSenhaInvalida(valor) });
+  });
 
 export const personNameSchema = z.string().trim().min(2, 'Informe o nome completo.').max(120);
 

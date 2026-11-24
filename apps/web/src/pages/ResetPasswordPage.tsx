@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Alert, Button, TextInput, useToast } from '@codeca/ui';
+import { TEXTO_DAS_REGRAS_DE_SENHA } from '@codeca/shared';
 import { useMutation } from '../hooks/useResource.js';
 import { authApi } from '../services/endpoints.js';
 
@@ -65,7 +66,7 @@ export function ResetPasswordPage() {
           autoComplete="new-password"
           value={password}
           error={reset.error?.fieldErrors.password}
-          hint="Ao menos 10 caracteres, com letras e números."
+          hint={TEXTO_DAS_REGRAS_DE_SENHA}
           onChange={(event) => setPassword(event.target.value)}
         />
         <TextInput

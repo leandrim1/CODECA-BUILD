@@ -77,7 +77,7 @@ async function addAdmin(email: string): Promise<TestClient> {
   const accepted = await client.post('/api/auth/accept-invite', {
     token: extractToken(message!.text),
     name: 'Administrador',
-    password: 'senhaSegura123',
+    password: 'senhaSegura123!',
   });
   expect(accepted.status, accepted.errorMessage ?? '').toBe(200);
   return client;

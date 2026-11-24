@@ -50,7 +50,7 @@ const PORT = Number(process.env.LT_PORT ?? 3999);
 const TENANTS = Number(process.env.LT_TENANTS ?? 60);
 const PROPERTIES_PER_TENANT = Number(process.env.LT_PROPERTIES ?? 30);
 const POOL_MAX = Number(process.env.DB_POOL_MAX ?? 10);
-const PASSWORD = 'senhaSegura123';
+const PASSWORD = 'senhaSegura123!';
 
 const pool = new pg.Pool({ connectionString: URL_DB, max: POOL_MAX, connectionTimeoutMillis: 10_000 });
 // Cada conexao nova e instrumentada na criacao; `pool.query` e transacoes passam
