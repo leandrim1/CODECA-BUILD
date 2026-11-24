@@ -24,6 +24,7 @@ import {
   TextInput,
   useToast,
 } from '@codeca/ui';
+import { CampoDeTelefone } from '../components/CamposComMascara.js';
 import { GoogleIcon, GoogleResultAlert, useGoogleResult } from '../components/GoogleAuth.js';
 import { useAuth, useTenantId } from '../hooks/useAuth.js';
 import { useMutation, useResource } from '../hooks/useResource.js';
@@ -581,11 +582,16 @@ function AccountSection({ email, onSaved }: { email: string; onSaved: () => void
             error={profile.errors.name}
             onChange={(event) => profile.setField('name', event.target.value)}
           />
-          <TextInput
-            label="Telefone"
+          {/*
+            O MESMO campo do cadastro, e nao uma caixa de texto solta: desde
+            que o cadastro passou a guardar o telefone so em digitos, uma
+            caixa comum mostraria `19999990000` a quem abrisse o perfil. Aqui a
+            mascara volta na exibicao e o que se salva continua em digitos.
+          */}
+          <CampoDeTelefone
             value={profile.values.phone}
             error={profile.errors.phone}
-            onChange={(event) => profile.setField('phone', event.target.value)}
+            onChange={(digitos) => profile.setField('phone', digitos)}
           />
         </CardBody>
       </Card>

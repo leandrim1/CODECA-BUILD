@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { BRAZIL_STATES, SOCIAL_NETWORKS } from '../constants.js';
 import { SLUG_PATTERN } from '../slug.js';
 import { SENHA_MAX, mensagemDeSenhaInvalida, validarSenha } from '../senha.js';
+import { NOME_INVALIDO, NOME_MAX, nomeFinal, nomeValido } from '../nome.js';
+import { TELEFONE_INVALIDO, digitosDeTelefone, telefoneValido } from '../telefone.js';
 
 /** Schemas basicos reutilizados por todos os recursos. */
 
@@ -42,6 +44,37 @@ export const passwordSchema = z
   });
 
 export const personNameSchema = z.string().trim().min(2, 'Informe o nome completo.').max(120);
+
+/**
+ * Nome de pessoa com a mesma limpeza que o campo faz na tela.
+ *
+ * SANITIZA e so entao valida, na ordem: o que chega com numero ou simbolo
+ * perde o excesso ("Maria 123" vira "Maria") em vez de ser recusado, porque e
+ * exatamente o que a tela teria feito com a mesma digitacao. O servidor repete
+ * a limpeza porque a tela nao e barreira nenhuma para quem chama a API direto
+ * -- e o que fica no banco e o resultado daqui, nunca o que veio no corpo.
+ *
+ * Nao substitui `personNameSchema`: convite e perfil continuam com a regra
+ * antiga, e so o cadastro passa por esta.
+ */
+export const nomeDePessoaSchema = z
+  .string()
+  .max(400, `O nome deve ter no máximo ${NOME_MAX} caracteres.`)
+  .transform(nomeFinal)
+  .refine(nomeValido, NOME_INVALIDO);
+
+/**
+ * Telefone brasileiro, guardado apenas em digitos.
+ *
+ * Mesma ordem: reduz a digitos (tirando mascara, `+55` e zero de operadora) e
+ * so entao confere DDD, comprimento e o nono digito. Vazio continua valendo,
+ * porque o campo e opcional -- quem nao informou nao erra.
+ */
+export const telefoneBrSchema = z
+  .string()
+  .max(32)
+  .transform(digitosDeTelefone)
+  .refine((d) => d === '' || telefoneValido(d), TELEFONE_INVALIDO);
 
 export const phoneSchema = z
   .string()

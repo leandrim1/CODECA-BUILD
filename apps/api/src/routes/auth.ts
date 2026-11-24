@@ -2,6 +2,7 @@ import { and, eq, isNull, schema, type Database } from '@codeca/database';
 import {
   AppError,
   LEGAL_VERSION,
+  formatarTelefone,
   acceptInviteSchema,
   changePasswordSchema,
   confirmTotpSchema,
@@ -154,7 +155,16 @@ export function authRoutes() {
         userId: user.id,
         contactEmail: input.email,
         companyName: input.companyName,
-        phone: input.phone,
+        /*
+          Mascarado aqui, e so aqui.
+
+          `users.phone` guarda digitos puros (`19999990000`): e dado de
+          cadastro, e quem o mostra formata. Este outro campo e o
+          `contactPhone` da EMPRESA, que sai impresso no bloco de contato do
+          site do cliente e no painel, onde ninguem formata nada -- guardar
+          digitos crus ali publicaria `19999990000` na cara do visitante.
+        */
+        phone: formatarTelefone(input.phone),
         slug,
         trialPlanId: trialPlan.id,
         ...(ctx.env.DEMO_SITE_ON_SIGNUP
