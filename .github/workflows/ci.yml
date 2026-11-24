@@ -83,6 +83,6 @@ jobs:
       # a quem clonar. A varredura por padrao que fizemos a mao nao encontrou
       # nada; esta usa entropia tambem, que grep nao alcanca.
       - name: Segredos no historico
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
