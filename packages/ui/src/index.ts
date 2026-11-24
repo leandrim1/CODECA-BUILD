@@ -2,6 +2,7 @@ export { cx, nextId } from './utils.js';
 export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from './Button.js';
 export {
   Field,
+  CONTROL_CLASSES,
   TextInput,
   TextArea,
   Select,

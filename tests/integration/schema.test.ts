@@ -148,8 +148,8 @@ describe('seed', () => {
   it('cria administrador da plataforma e construtora de demonstracao com conteudo', async () => {
     await ctx.reset();
     const result = await seedDatabase(ctx.db, {
-      platformAdmin: { email: 'Admin@Plataforma.com', password: 'senhaSegura123' },
-      demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' },
+      platformAdmin: { email: 'Admin@Plataforma.com', password: 'senhaSegura123!' },
+      demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123!' },
     });
     expect(result.platformAdminId).not.toBeNull();
     expect(result.demoTenantId).not.toBeNull();
@@ -176,7 +176,7 @@ describe('seed', () => {
 
   it('nao recria a construtora de demonstracao em execucoes seguintes', async () => {
     const before = await ctx.db.select().from(schema.tenants);
-    await seedDatabase(ctx.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123' } });
+    await seedDatabase(ctx.db, { demo: { email: 'demo@horizonte.com.br', password: 'senhaSegura123!' } });
     const after = await ctx.db.select().from(schema.tenants);
     expect(after).toHaveLength(before.length);
   });

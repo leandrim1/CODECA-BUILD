@@ -312,7 +312,7 @@ describe('auditoria', () => {
     expect(logs[0]?.ipHash).not.toContain('.');
 
     const serialized = JSON.stringify(logs);
-    expect(serialized).not.toContain('senhaSegura123');
+    expect(serialized).not.toContain('senhaSegura123!');
     expect(serialized.toLowerCase()).not.toContain('"password"');
   });
 });

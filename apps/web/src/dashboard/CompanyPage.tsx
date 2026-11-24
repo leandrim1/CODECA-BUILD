@@ -5,6 +5,7 @@ import {
   BRAZIL_STATES,
   SOCIAL_NETWORKS,
   SOCIAL_NETWORK_LABELS,
+  TEXTO_DAS_REGRAS_DE_SENHA,
   formatWhatsAppNumber,
   isValidWhatsAppNumber,
   whatsAppLink,
@@ -606,7 +607,7 @@ function AccountSection({ email, onSaved }: { email: string; onSaved: () => void
             autoComplete="new-password"
             value={password.values.newPassword}
             error={password.errors.newPassword}
-            hint="Ao menos 10 caracteres, com letras e números."
+            hint={TEXTO_DAS_REGRAS_DE_SENHA}
             onChange={(event) => password.setField('newPassword', event.target.value)}
           />
           <Button loading={changePassword.loading} onClick={() => void changePassword.run(undefined)}>

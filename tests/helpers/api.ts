@@ -435,7 +435,7 @@ export async function registerAccount(
   },
 ): Promise<RegisteredAccount> {
   const client = api.client();
-  const password = input.password ?? 'senhaSegura123';
+  const password = input.password ?? 'senhaSegura123!';
 
   const response = await client.post('/api/auth/register', {
     name: input.name ?? 'Responsavel Teste',

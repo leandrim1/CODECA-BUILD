@@ -23,7 +23,7 @@ let clock = new Date('2026-06-01T12:00:00Z');
 let api: TestApi;
 const google = createFakeGoogle({ now: () => clock });
 
-const SENHA = 'senhaSegura123';
+const SENHA = 'senhaSegura123!';
 
 beforeAll(async () => {
   api = await createTestApi({

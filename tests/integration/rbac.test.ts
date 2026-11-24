@@ -45,7 +45,7 @@ async function addMember(role: 'admin' | 'editor' | 'viewer', email: string): Pr
   const accepted = await client.post('/api/auth/accept-invite', {
     token: extractToken(message!.text),
     name: `Membro ${role}`,
-    password: 'senhaSegura123',
+    password: 'senhaSegura123!',
   });
   expect(accepted.status, accepted.errorMessage ?? '').toBe(200);
   return client;

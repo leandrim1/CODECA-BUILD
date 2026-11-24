@@ -533,13 +533,13 @@ async function createPlatformAdmin(email: string) {
   await api.db.insert(schema.users).values({
     email,
     name: 'Administrador da Plataforma',
-    passwordHash: await hashPassword('senhaSegura123'),
+    passwordHash: await hashPassword('senhaSegura123!'),
     platformRole: 'platform_admin',
     emailVerifiedAt: new Date(),
   });
 
   const client = api.client();
-  const login = await client.post('/api/auth/login', { email, password: 'senhaSegura123' });
+  const login = await client.post('/api/auth/login', { email, password: 'senhaSegura123!' });
   expect(login.status).toBe(200);
   return client;
 }

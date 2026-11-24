@@ -60,7 +60,7 @@ describe('cadastro', () => {
     const response = await client.post('/api/auth/register', {
       name: 'Outro Nome',
       email: 'duplicado@a.com.br',
-      password: 'senhaSegura123',
+      password: 'senhaSegura123!',
       companyName: 'Beta',
       acceptedTerms: true,
     });
@@ -79,6 +79,53 @@ describe('cadastro', () => {
     });
     expect(response.status).toBe(422);
     expect(response.errorCode).toBe('validation_error');
+  });
+
+  /*
+    A lista de conferencia da tela nao vale como validacao: quem chama a API
+    direto nunca passou por ela. Aqui a senha e forte o bastante para enganar a
+    regra antiga (10 caracteres, com letra e numero) e so tropeca nas novas.
+  */
+  it('recusa senha sem simbolo e diz exatamente qual regra faltou', async () => {
+    const response = await api.client().post('/api/auth/register', {
+      name: 'Teste Sem Simbolo',
+      email: 'sem-simbolo@a.com.br',
+      password: 'Abcdefghij1',
+      companyName: 'Delta',
+      acceptedTerms: true,
+    });
+    expect(response.status).toBe(422);
+    expect(response.errorCode).toBe('validation_error');
+    expect((response.body as { error: { details: { fields: Record<string, string> } } }).error.details.fields.password)
+      .toBe('A senha precisa de: um caractere especial.');
+
+    // Nenhuma conta nasceu da tentativa recusada.
+    const [usuario] = await api.db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.email, 'sem-simbolo@a.com.br'));
+    expect(usuario).toBeUndefined();
+  });
+
+  it('recusa senha sem maiuscula e aceita a mesma senha com uma', async () => {
+    const semMaiuscula = await api.client().post('/api/auth/register', {
+      name: 'Teste Minusculo',
+      email: 'minusculo@a.com.br',
+      password: 'abcdefgh1!',
+      companyName: 'Epsilon',
+      acceptedTerms: true,
+    });
+    expect(semMaiuscula.status).toBe(422);
+
+    // Exatamente 10 caracteres, uma de cada regra: o limite inferior do aceite.
+    const completa = await api.client().post('/api/auth/register', {
+      name: 'Teste Completo',
+      email: 'completo@a.com.br',
+      password: 'Abcdefgh1!',
+      companyName: 'Zeta',
+      acceptedTerms: true,
+    });
+    expect(completa.status).toBe(201);
   });
 
   it('gera slug distinto para empresas com o mesmo nome', async () => {
@@ -115,7 +162,7 @@ describe('login e sessao', () => {
     const client = api.client();
     const response = await client.post('/api/auth/login', {
       email: 'cookies@a.com.br',
-      password: 'senhaSegura123',
+      password: 'senhaSegura123!',
     });
 
     const cookies = response.headers.getSetCookie();
@@ -159,7 +206,7 @@ describe('login e sessao', () => {
 
     const blocked = await client.post('/api/auth/login', {
       email: 'bloqueio@a.com.br',
-      password: 'senhaSegura123',
+      password: 'senhaSegura123!',
     });
     expect(blocked.status).toBe(429);
     expect(blocked.errorMessage).toMatch(/bloqueada/i);
@@ -305,7 +352,7 @@ describe('recuperacao de senha', () => {
     expect(message).toBeDefined();
     const token = extractToken(message!.text);
 
-    const reset = await anonymous.post('/api/auth/reset-password', { token, password: 'novaSenha4567' });
+    const reset = await anonymous.post('/api/auth/reset-password', { token, password: 'novaSenha4567!' });
     expect(reset.status).toBe(200);
 
     // A sessao anterior foi invalidada.
@@ -316,7 +363,7 @@ describe('recuperacao de senha', () => {
     // codigo e enviado, o que prova que a senha trocou.
     const relogin = await comEmail.client().post('/api/auth/login', {
       email: 'reset@a.com.br',
-      password: 'novaSenha4567',
+      password: 'novaSenha4567!',
     });
     expect(relogin.status).toBe(200);
     expect(relogin.body.status).toBe('code_required');
@@ -360,13 +407,13 @@ describe('troca de senha', () => {
 
     const wrong = await account.client.post('/api/auth/change-password', {
       currentPassword: 'erradaAbc123',
-      newPassword: 'outraSenha789',
+      newPassword: 'outraSenha789!',
     });
     expect(wrong.status).toBe(422);
 
     const right = await account.client.post('/api/auth/change-password', {
       currentPassword: account.password,
-      newPassword: 'outraSenha789',
+      newPassword: 'outraSenha789!',
     });
     expect(right.status).toBe(200);
 
