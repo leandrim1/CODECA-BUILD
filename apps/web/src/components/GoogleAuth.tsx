@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Alert, Button, Skeleton } from '@codeca/ui';
+import { Alert, Button, Skeleton, cx } from '@codeca/ui';
 import { GOOGLE_AUTH_ERRORS, type GoogleAuthResult } from '@codeca/shared';
 import { useAuth } from '../hooks/useAuth.js';
 import { ApiError } from '../services/api.js';
@@ -59,11 +59,20 @@ export function GoogleSignIn({
   next,
   onError,
   showDivider = true,
+  compacto = false,
 }: {
   next?: string;
   onError: (message: string) => void;
   /** O "ou" depois do botao. Falso quando nao ha outra opcao abaixo dele. */
   showDivider?: boolean;
+  /**
+   * Botao de 40px em vez de 48px, com menos folga ate o divisor.
+   *
+   * Opcao, e nao padrao: so o cadastro precisa caber em uma dobra. Em
+   * `/entrar` o botao continua grande, que e o certo quando ele e a acao
+   * principal da tela.
+   */
+  compacto?: boolean;
 }) {
   const { features, loading } = useAuth();
   const [starting, setStarting] = useState(false);
@@ -82,7 +91,7 @@ export function GoogleSignIn({
     return () => window.removeEventListener('pageshow', restore);
   }, []);
 
-  if (loading) return <Skeleton className="h-12 w-full rounded-xl" />;
+  if (loading) return <Skeleton className={cx(compacto ? 'h-10' : 'h-12', 'w-full rounded-xl')} />;
   if (!features.googleAuth) return null;
 
   const start = async () => {
@@ -105,10 +114,10 @@ export function GoogleSignIn({
   };
 
   return (
-    <div className="grid gap-4">
+    <div className={cx('grid', compacto ? 'gap-2' : 'gap-4')}>
       <Button
         variant="outline"
-        size="lg"
+        size={compacto ? 'md' : 'lg'}
         className="w-full justify-center"
         loading={starting}
         icon={<GoogleIcon />}

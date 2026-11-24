@@ -17,16 +17,25 @@ export interface FieldShellProps {
   required?: boolean;
   children: (ids: { inputId: string; describedBy: string | undefined; invalid: boolean }) => ReactNode;
   className?: string;
+  /**
+   * Densidade reduzida: rotulo a 4px do campo e campo de 38px em vez de 42px.
+   *
+   * E opcao, e nao o novo padrao, de proposito. A altura confortavel continua
+   * valendo em todo o painel, onde o formulario tem a pagina inteira. Quem
+   * precisa disto e a tela que tem de caber em uma dobra -- hoje so o
+   * cadastro. Trocar o padrao apertaria centenas de campos de uma vez.
+   */
+  compacto?: boolean;
 }
 
-export function Field({ label, hint, error, required, children, className }: FieldShellProps) {
+export function Field({ label, hint, error, required, children, className, compacto }: FieldShellProps) {
   const inputId = useId();
   const hintId = `${inputId}-hint`;
   const errorId = `${inputId}-error`;
   const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined;
 
   return (
-    <div className={cx('grid gap-1.5', className)}>
+    <div className={cx('grid', compacto ? 'gap-1' : 'gap-1.5', className)}>
       <label htmlFor={inputId} className="text-sm font-medium text-slate-700">
         {label}
         {required ? <span className="ml-0.5 text-brand-600">*</span> : null}
@@ -74,18 +83,29 @@ export interface TextInputProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   label: ReactNode;
   hint?: string;
   error?: string | undefined;
+  /** Ver `FieldShellProps.compacto`. */
+  compacto?: boolean;
 }
 
-export function TextInput({ label, hint, error, required, className, ...rest }: TextInputProps) {
+export function TextInput({ label, hint, error, required, className, compacto, ...rest }: TextInputProps) {
   return (
-    <Field label={label} {...(hint ? { hint } : {})} error={error} required={required} className={className}>
+    <Field
+      label={label}
+      {...(hint ? { hint } : {})}
+      error={error}
+      required={required}
+      className={className}
+      compacto={compacto}
+    >
       {({ inputId, describedBy, invalid }) => (
         <input
           id={inputId}
           aria-describedby={describedBy}
           aria-invalid={invalid}
           required={required}
-          className={CONTROL}
+          // 38px em vez de 42px: so o padding vertical muda, entao borda, raio,
+          // foco e contraste continuam identicos ao campo padrao.
+          className={compacto ? CONTROL.replace('py-2.5', 'py-2') : CONTROL}
           {...rest}
         />
       )}
