@@ -36,10 +36,10 @@
   "devDependencies": {
     "@codeca/sdk": "workspace:*",
     "@codeca/shared": "workspace:*",
-    "@electric-sql/pglite": "^0.5.13",
+    "@electric-sql/pglite": "^0.5.17",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.5.2",
+    "@testing-library/user-event": "^14.6.13",
     "@types/node": "^22.10.2",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.45.4",
