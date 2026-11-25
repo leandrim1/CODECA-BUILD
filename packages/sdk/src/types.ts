@@ -315,18 +315,51 @@ export interface InstitutionalContent {
 
 export interface ContactContent {
   email: string;
+  /** So digitos, sem mascara: `19999990000`. */
   phone: string;
+  /** Link direto da conversa: `https://wa.me/5511999999999`. */
   whatsapp: string;
   whatsappMessage: string;
   addressLine: string;
   city: string;
+  /** Sigla da UF, ou vazio. */
   state: string;
+  /** So digitos: `13010000`. */
   postalCode: string;
+  /** Texto legivel, gerado a partir de `businessHoursSchedule`. */
   businessHours: string;
+  /**
+   * Horario por dia da semana, para o site calcular "aberto agora".
+   *
+   * `null` nos sites que ainda nao abriram a tela de contato depois desta
+   * mudanca -- nesses, `businessHours` continua sendo a unica fonte.
+   */
+  businessHoursSchedule: BusinessHoursSchedule | null;
   serviceArea: string;
   mapUrl: string;
+  /** Coordenadas do endereco, quando marcadas no mapa do painel. */
+  latitude: number | null;
+  longitude: number | null;
   social: Partial<Record<SocialNetwork, string>>;
 }
+
+/** Um periodo de atendimento: `08:00` as `12:00`. */
+export interface BusinessHoursPeriod {
+  abre: string;
+  fecha: string;
+}
+
+export interface BusinessHoursDay {
+  aberto: boolean;
+  vinteQuatroHoras: boolean;
+  /** Um periodo; dois quando o dia tem intervalo. */
+  periodos: BusinessHoursPeriod[];
+}
+
+export type BusinessHoursSchedule = Record<
+  'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab' | 'dom',
+  BusinessHoursDay
+>;
 
 export interface PropertyQuery {
   page?: number;

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ChangeEvent, type ClipboardEvent } from 'react';
+import { useLayoutEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type ReactNode } from 'react';
 import { CONTROL_CLASSES, Field, cx } from '@codeca/ui';
 import {
   NOME_INVALIDO,
@@ -85,10 +85,13 @@ export interface CampoDeTelefoneProps {
   /** SO digitos (`19999990000`): a mascara e assunto desta tela. */
   value: string;
   onChange: (digitos: string) => void;
-  label?: string;
+  label?: ReactNode;
   /** Erro vindo do servidor; o erro local aparece depois do blur. */
   error?: string | undefined;
   compacto?: boolean;
+  hint?: string;
+  /** Campo travado pela politica do site (o cadeado do painel). */
+  disabled?: boolean;
 }
 
 export function CampoDeTelefone({
@@ -97,6 +100,8 @@ export function CampoDeTelefone({
   label = 'Telefone',
   error,
   compacto,
+  hint,
+  disabled,
 }: CampoDeTelefoneProps) {
   const { ref, destino, restaurar } = useCursorEstavel();
   const [tocado, setTocado] = useState(false);
@@ -159,7 +164,7 @@ export function CampoDeTelefone({
   const erroLocal = tocado && value !== '' && !telefoneValido(value) ? TELEFONE_INVALIDO : undefined;
 
   return (
-    <Field label={label} error={error ?? erroLocal} compacto={compacto}>
+    <Field label={label} error={error ?? erroLocal} compacto={compacto} {...(hint ? { hint } : {})}>
       {({ inputId, describedBy, invalid }) => (
         <input
           ref={ref}
@@ -169,6 +174,7 @@ export function CampoDeTelefone({
           autoComplete="tel-national"
           placeholder="(19) 99999-0000"
           maxLength={TELEFONE_MAX_MASCARA}
+          disabled={disabled}
           value={exibido}
           aria-describedby={describedBy}
           aria-invalid={invalid}

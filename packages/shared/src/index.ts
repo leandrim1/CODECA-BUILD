@@ -5,6 +5,8 @@ export * from './slug.js';
 export * from './senha.js';
 export * from './telefone.js';
 export * from './nome.js';
+export * from './contato.js';
+export * from './horarios.js';
 export * from './domain.js';
 export * from './whatsapp.js';
 export * from './plans.js';

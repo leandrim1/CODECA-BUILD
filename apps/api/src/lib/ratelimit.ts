@@ -53,6 +53,15 @@ export const RATE_LIMITS = {
   publicLeadDaily: { action: 'public_lead_daily', limit: 40, windowSeconds: 86_400 },
   upload: { action: 'upload', limit: 120, windowSeconds: 3600 },
   domainCheck: { action: 'domain_check', limit: 30, windowSeconds: 3600 },
+  /**
+   * Consulta de CEP e geocodificacao, por IP.
+   *
+   * Sessenta por minuto e o teto da politica do Nominatim (1 req/s). Quem
+   * preenche um endereco faz umas poucas consultas; este numero existe para
+   * impedir que a rota seja usada como proxy de geocodificacao -- a conta
+   * cairia na nossa reputacao com eles, nao na de quem abusou.
+   */
+  enderecoBusca: { action: 'endereco_busca', limit: 60, windowSeconds: 60 },
   invite: { action: 'invite', limit: 20, windowSeconds: 3600 },
   /** Leitura da API publica, por chave. Generoso: um site carrega varias de uma vez. */
   publicApi: { action: 'public_api', limit: 600, windowSeconds: 60 },

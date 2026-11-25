@@ -1,6 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Lock, Save } from 'lucide-react';
-import { SOCIAL_NETWORKS, SOCIAL_NETWORK_LABELS, type SocialNetwork } from '@codeca/shared';
+import {
+  BRAZIL_STATES,
+  CEP_INVALIDO,
+  SOCIAL_NETWORKS,
+  SOCIAL_NETWORK_LABELS,
+  TELEFONE_INVALIDO,
+  WHATSAPP_INVALIDO,
+  anoDeFundacaoValido,
+  cepValido,
+  errosDosHorarios,
+  horariosDoTexto,
+  mensagemDeAnoInvalido,
+  normalizarWhatsApp,
+  telefoneValido,
+  textoDosHorarios,
+  whatsappValido,
+  type HorariosDeAtendimento,
+  type SocialNetwork,
+} from '@codeca/shared';
 import {
   Alert,
   Button,
@@ -22,7 +40,19 @@ import { moduleApi } from '../services/endpoints.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { ImageField } from '../components/MediaPicker.js';
 import { formatList, numberOrNull, parseList } from '../utils/forms.js';
+import { CampoDeTelefone } from '../components/CamposComMascara.js';
+import { BotaoDeLocalizacao, CampoDeAno, CampoDeCep, CampoDeWhatsApp } from './CamposDeContato.js';
+import { CampoDeHorarios } from './CampoDeHorarios.js';
+import type { EnderecoEncontrado } from '../services/endpoints.js';
 import type { MediaRef, SiteModuleFieldView } from '../types/index.js';
+
+/*
+  O mapa carrega sozinho, e so quando a tela de contato abre: sao ~150 KB de
+  Leaflet que nao interessam a quem veio editar o institucional.
+*/
+const MapaDeEndereco = lazy(() =>
+  import('./MapaDeEndereco.js').then((m) => ({ default: m.MapaDeEndereco })),
+);
 
 /**
  * Conteudo dos modulos de instancia unica (institucional, contato).
@@ -39,7 +69,7 @@ import type { MediaRef, SiteModuleFieldView } from '../types/index.js';
  */
 
 /** Valor do formulario: texto para todo campo, convertido na gravacao. */
-type FormValue = string | boolean | string[] | Record<string, string> | null;
+type FormValue = string | boolean | string[] | Record<string, string> | HorariosDeAtendimento | null;
 
 export function DocumentModulePage({ moduleKey }: { moduleKey: 'institucional' | 'contato' }) {
   const tenantId = useTenantId();
@@ -131,6 +161,32 @@ function Formulario({
     setValores((atual) => ({ ...atual, [key]: value }));
   }
 
+  /**
+   * Varios campos de uma vez.
+   *
+   * O CEP, o mapa e o "usar minha localizacao" preenchem endereco, cidade,
+   * estado e coordenada juntos. Chamar `definir` quatro vezes seguidas
+   * perderia atualizacoes, porque cada uma leria o estado de antes.
+   */
+  function definirVarios(patch: Record<string, FormValue>) {
+    alterado.current = true;
+    setValores((atual) => ({ ...atual, ...patch }));
+  }
+
+  const erros = errosDoDocumento(moduleKey, valores);
+  const temErro = Object.keys(erros).length > 0;
+
+  /*
+    O horario que ja estava gravado em texto livre, quando ninguem ainda
+    escolheu os horarios na grade. O que der para interpretar vira estrutura
+    sozinho; o que nao der aparece no aviso, para nao sumir da tela.
+  */
+  const horariosGravados = valores.businessHoursSchedule as HorariosDeAtendimento | null;
+  const textoDeHorarioAntigo =
+    moduleKey === 'contato' && !horariosGravados && typeof valores.businessHours === 'string'
+      ? valores.businessHours
+      : '';
+
   return (
     <Card>
       <CardHeader
@@ -144,6 +200,7 @@ function Formulario({
           <Button
             onClick={() => void salvar.run(undefined)}
             loading={salvar.loading}
+            disabled={temErro}
             icon={<Save aria-hidden="true" className="size-4" />}
           >
             Salvar
@@ -170,17 +227,27 @@ function Formulario({
             <Campo
               key={campo.key}
               campo={campo}
+              moduleKey={moduleKey}
+              tenantId={tenantId}
               valor={valores[campo.key] ?? ''}
+              valores={valores}
+              erro={erros[campo.key]}
+              textoDeHorarioAntigo={textoDeHorarioAntigo}
               imagens={imagens}
               onChange={(proximo) => definir(campo.key, proximo)}
+              onPatch={definirVarios}
             />
           ),
         )}
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {temErro ? (
+            <p className="text-sm text-rose-600">Corrija os campos destacados para salvar.</p>
+          ) : null}
           <Button
             onClick={() => void salvar.run(undefined)}
             loading={salvar.loading}
+            disabled={temErro}
             icon={<Save aria-hidden="true" className="size-4" />}
           >
             Salvar
@@ -191,17 +258,75 @@ function Formulario({
   );
 }
 
+/**
+ * Erros que a tela consegue ver antes de enviar.
+ *
+ * Mesmas regras do servidor (`modules/documents.ts`), vindas das mesmas
+ * funcoes -- aqui elas existem para o botao Salvar nao mandar o que vai
+ * voltar recusado, e para o aviso aparecer embaixo do campo certo.
+ */
+export function errosDoDocumento(
+  moduleKey: string,
+  valores: Record<string, FormValue>,
+): Record<string, string> {
+  const erros: Record<string, string> = {};
+  const texto = (chave: string) => (typeof valores[chave] === 'string' ? (valores[chave] as string) : '');
+
+  if (moduleKey === 'institucional') {
+    const ano = texto('foundedYear');
+    if (ano !== '' && !anoDeFundacaoValido(ano)) erros.foundedYear = mensagemDeAnoInvalido();
+  }
+
+  if (moduleKey === 'contato') {
+    const telefone = texto('phone');
+    if (telefone !== '' && !telefoneValido(telefone)) erros.phone = TELEFONE_INVALIDO;
+
+    const whatsapp = texto('whatsapp');
+    if (whatsapp !== '' && !whatsappValido(whatsapp)) erros.whatsapp = WHATSAPP_INVALIDO;
+
+    const cep = texto('postalCode');
+    if (cep !== '' && !cepValido(cep)) erros.postalCode = CEP_INVALIDO;
+
+    const uf = texto('state');
+    if (uf !== '' && !(BRAZIL_STATES as readonly string[]).includes(uf)) {
+      erros.state = 'Informe uma UF válida.';
+    }
+
+    const horarios = valores.businessHoursSchedule as HorariosDeAtendimento | null;
+    const porDia = errosDosHorarios(horarios ?? null);
+    const dias = Object.keys(porDia);
+    if (dias.length > 0) {
+      erros.businessHoursSchedule = 'Confira os horários destacados abaixo.';
+    }
+  }
+
+  return erros;
+}
+
 /** Um campo do modulo, no controle que o tipo pede. */
 function Campo({
   campo,
+  moduleKey,
+  tenantId,
   valor,
+  valores,
+  erro,
+  textoDeHorarioAntigo,
   imagens,
   onChange,
+  onPatch,
 }: {
   campo: SiteModuleFieldView;
+  moduleKey: string;
+  tenantId: string;
   valor: FormValue;
+  /** Os demais valores: o mapa resume o endereco a partir deles. */
+  valores: Record<string, FormValue>;
+  erro?: string | undefined;
+  textoDeHorarioAntigo?: string;
   imagens: Record<string, MediaRef>;
   onChange: (valor: FormValue) => void;
+  onPatch: (patch: Record<string, FormValue>) => void;
 }) {
   const travado = !campo.editable;
   const dica = travado ? 'Mantido pela CODECA IA neste site.' : campo.help;
@@ -214,10 +339,159 @@ function Campo({
   const comum = {
     label: rotulo,
     ...(dica ? { hint: dica } : {}),
+    ...(erro ? { error: erro } : {}),
     readOnly: travado,
     disabled: travado,
     required: campo.required ?? false,
   };
+
+  /*
+    Campos com controle proprio, escolhidos pela CHAVE e nao pelo tipo.
+
+    O tipo descreve a forma do dado (texto, numero, url) e e o que o SDK e a
+    API publica enxergam. Quem precisa de mais do que uma caixa de texto e a
+    TELA, e so em alguns campos conhecidos -- declarar um tipo novo no
+    registro para cada um deles espalharia detalhe de interface por um
+    contrato que o site do cliente tambem le.
+  */
+  const texto = typeof valor === 'string' ? valor : '';
+
+  if (moduleKey === 'institucional' && campo.key === 'foundedYear') {
+    return (
+      <CampoDeAno
+        label={rotulo}
+        hint={dica}
+        disabled={travado}
+        value={texto}
+        error={erro}
+        onChange={(proximo) => onChange(proximo)}
+      />
+    );
+  }
+
+  if (moduleKey === 'contato') {
+    /** Preenchimento vindo do CEP, do mapa ou da localizacao do aparelho. */
+    const aplicarEndereco = (endereco: EnderecoEncontrado) => {
+      const patch: Record<string, FormValue> = {};
+      // So sobrescreve o que veio preenchido: a consulta nao conhece
+      // complemento nem sala, e apagar o que a pessoa digitou seria pior do
+      // que deixar um campo desatualizado.
+      if (endereco.addressLine) patch.addressLine = endereco.addressLine;
+      if (endereco.city) patch.city = endereco.city;
+      if (endereco.state) patch.state = endereco.state;
+      if (endereco.cep) patch.postalCode = endereco.cep;
+      if (endereco.latitude !== null) patch.latitude = String(endereco.latitude);
+      if (endereco.longitude !== null) patch.longitude = String(endereco.longitude);
+      onPatch(patch);
+    };
+
+    if (campo.key === 'phone') {
+      return (
+        <CampoDeTelefone
+          label={rotulo}
+          hint={dica}
+          disabled={travado}
+          value={texto}
+          error={erro}
+          onChange={(digitos) => onChange(digitos)}
+        />
+      );
+    }
+
+    if (campo.key === 'whatsapp') {
+      return (
+        <CampoDeWhatsApp
+          label={rotulo}
+          hint={dica}
+          disabled={travado}
+          value={texto}
+          error={erro}
+          onChange={(proximo) => onChange(proximo)}
+        />
+      );
+    }
+
+    if (campo.key === 'postalCode') {
+      return (
+        <CampoDeCep
+          label={rotulo}
+          hint={dica}
+          disabled={travado}
+          tenantId={tenantId}
+          value={texto}
+          error={erro}
+          onChange={(digitos) => onChange(digitos)}
+          onEndereco={aplicarEndereco}
+        />
+      );
+    }
+
+    /*
+      A latitude desenha o MAPA inteiro, e a longitude nao desenha nada: as
+      duas sao o mesmo dado, e o controle que as edita e um so. Declaradas no
+      registro porque o schema as valida e o site do cliente as le.
+    */
+    if (campo.key === 'latitude') {
+      const lat = texto === '' ? null : Number(texto);
+      const lon = typeof valores.longitude === 'string' && valores.longitude !== ''
+        ? Number(valores.longitude)
+        : null;
+      const resumo = [valores.addressLine, valores.city, valores.state]
+        .filter((parte): parte is string => typeof parte === 'string' && parte !== '')
+        .join(' · ');
+
+      return (
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm font-medium text-slate-700">Local no mapa</span>
+            <BotaoDeLocalizacao tenantId={tenantId} disabled={travado} onEndereco={aplicarEndereco} />
+          </div>
+          <Suspense
+            fallback={
+              <div className="h-72 animate-pulse rounded-2xl bg-slate-100 sm:h-80" aria-label="Carregando o mapa" />
+            }
+          >
+            <MapaDeEndereco
+              tenantId={tenantId}
+              latitude={Number.isFinite(lat) ? lat : null}
+              longitude={lon !== null && Number.isFinite(lon) ? lon : null}
+              resumo={resumo}
+              disabled={travado}
+              onEndereco={aplicarEndereco}
+              onCoordenada={(latitude, longitude) =>
+                onPatch({ latitude: String(latitude), longitude: String(longitude) })
+              }
+            />
+          </Suspense>
+        </div>
+      );
+    }
+
+    if (campo.key === 'longitude') return null;
+
+    if (campo.key === 'businessHoursSchedule') {
+      return (
+        <CampoDeHorarios
+          label={campo.label}
+          disabled={travado}
+          valor={(valor as HorariosDeAtendimento | null) ?? null}
+          textoAntigo={textoDeHorarioAntigo ?? null}
+          onChange={(horarios) =>
+            // O texto legivel sai junto: e o campo que o site e o SDK ja liam,
+            // e ele nao pode divergir da grade que acabou de ser editada.
+            onPatch({ businessHoursSchedule: horarios, businessHours: textoDosHorarios(horarios) })
+          }
+        />
+      );
+    }
+
+    /*
+      O texto do horario e gerado, nao digitado. Some da tela quando o cliente
+      pode editar a grade; continua aparecendo quando o campo esta travado,
+      porque campo travado se mostra, como todos os outros.
+    */
+    if (campo.key === 'businessHours' && !travado) return null;
+  }
 
   if (campo.type === 'boolean') {
     return (
@@ -383,6 +657,11 @@ function paraFormulario(
     const valor = dados[campo.key];
     if (campo.key === 'social') {
       saida.social = (valor as Record<string, string> | undefined) ?? {};
+    } else if (campo.key === 'businessHoursSchedule') {
+      // Objeto, e nao texto: o tipo declarado e `tags` (o registro nao tem um
+      // tipo "estrutura"), entao sem este desvio a conversao o transformaria
+      // em lista de palavras.
+      saida[campo.key] = (valor as HorariosDeAtendimento | null) ?? null;
     } else if (campo.type === 'boolean') {
       saida[campo.key] = valor === true;
     } else if (campo.type === 'tags') {
@@ -395,6 +674,31 @@ function paraFormulario(
       saida[campo.key] = String(valor);
     }
   }
+
+  /*
+    Horario gravado como texto, antes desta tela existir.
+
+    Tenta virar grade na abertura: "Seg a Sex: 08:00–18:00" tem tudo o que a
+    estrutura precisa, e obrigar a pessoa a digitar de novo o que ja estava
+    certo seria trabalho inventado. O que nao for reconhecido continua `null`,
+    e a tela mostra o texto antigo em vez de descarta-lo.
+  */
+  /*
+    WhatsApp gravado como telefone, antes de o campo virar link.
+
+    Converte na abertura para a tela mostrar o que sera salvo. Sem isto, o
+    campo abre com "(19) 99999-0000" embaixo de um exemplo que pede
+    `https://wa.me/...`, e a conversao so apareceria depois de tocar no campo.
+  */
+  if (typeof saida.whatsapp === 'string' && saida.whatsapp !== '') {
+    saida.whatsapp = normalizarWhatsApp(saida.whatsapp);
+  }
+
+  if (saida.businessHoursSchedule === null || saida.businessHoursSchedule === undefined) {
+    const interpretado = horariosDoTexto(dados.businessHours);
+    if (interpretado) saida.businessHoursSchedule = interpretado;
+  }
+
   return saida;
 }
 
@@ -446,6 +750,8 @@ function paraApi(
     const valor = valores[campo.key];
     if (campo.key === 'social') {
       corpo.social = valor ?? {};
+    } else if (campo.key === 'businessHoursSchedule') {
+      corpo[campo.key] = valor ?? null;
     } else if (campo.type === 'boolean') {
       corpo[campo.key] = valor === true;
     } else if (campo.type === 'tags') {

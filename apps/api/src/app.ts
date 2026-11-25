@@ -22,6 +22,7 @@ import { billingJobRoutes, syncJobRoutes } from './routes/billing-jobs.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { contentRoutes } from './routes/content.js';
 import { domainRoutes } from './routes/domains.js';
+import { enderecoRoutes } from './routes/endereco.js';
 import { leadRoutes } from './routes/leads.js';
 import { mediaRoutes } from './routes/media.js';
 import { moduleRoutes } from './routes/modules.js';
@@ -207,6 +208,7 @@ export function createApp(options: CreateAppOptions = {}) {
   tenantScoped.route('/', domainRoutes());
   tenantScoped.route('/', billingRoutes());
   tenantScoped.route('/', analyticsRoutes());
+  tenantScoped.route('/', enderecoRoutes());
   tenantScoped.route('/', siteImportRoutes());
   tenantScoped.route('/', siteSyncRoutes());
   tenantScoped.route('/', demoTenantRoutes());
