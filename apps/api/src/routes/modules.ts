@@ -2,6 +2,7 @@ import { and, eq, schema } from '@codeca/database';
 import {
   AppError,
   DOCUMENT_SCHEMAS,
+  normalizarDocumento,
   MODULE_REGISTRY,
   emptyCustomFields,
   isModuleKey,
@@ -200,7 +201,9 @@ export function moduleRoutes() {
     const key = parseDocumentModuleKey(moduleKey);
     await assertModuleEnabled(ctx.db, tenant.siteId, key);
 
-    const { data: validado, raw } = await parseJsonBodyWithRaw(c, DOCUMENT_SCHEMAS[key]);
+    const { data: validado, raw } = await parseJsonBodyWithRaw(c, DOCUMENT_SCHEMAS[key], (corpo) =>
+      normalizarDocumento(key, corpo),
+    );
     const enviado = validado as Record<string, unknown>;
 
     const [atual] = await ctx.db

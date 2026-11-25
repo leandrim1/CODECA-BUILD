@@ -53,6 +53,19 @@ export const RATE_LIMITS = {
   publicLeadDaily: { action: 'public_lead_daily', limit: 40, windowSeconds: 86_400 },
   upload: { action: 'upload', limit: 120, windowSeconds: 3600 },
   domainCheck: { action: 'domain_check', limit: 30, windowSeconds: 3600 },
+  /**
+   * Geolocalizacao: tres cotas, cada uma contra um abuso diferente.
+   *
+   * `geoPorUsuario` limita uma conta que deixou a tela aberta pedindo sem
+   * parar. `geoPorIp` limita quem nao tem conta mas achou o endereco da rota.
+   * `geoProvedor` e GLOBAL, com assunto fixo, e e a unica que importa para o
+   * provedor: 60 por minuto e o teto de 1 req/s da politica do Nominatim. A
+   * fila em processo espaca pedidos dentro de uma instancia, mas em funcao
+   * serverless ha varias -- entre elas, quem conta e esta linha.
+   */
+  geoPorUsuario: { action: 'geo_usuario', limit: 120, windowSeconds: 300 },
+  geoPorIp: { action: 'geo_ip', limit: 180, windowSeconds: 300 },
+  geoProvedor: { action: 'geo_provedor', limit: 60, windowSeconds: 60 },
   invite: { action: 'invite', limit: 20, windowSeconds: 3600 },
   /** Leitura da API publica, por chave. Generoso: um site carrega varias de uma vez. */
   publicApi: { action: 'public_api', limit: 600, windowSeconds: 60 },

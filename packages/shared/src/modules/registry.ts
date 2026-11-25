@@ -1,3 +1,4 @@
+import { BRAZIL_STATES } from '../constants.js';
 import type { ModuleDefinition, ModuleField } from './types.js';
 
 /**
@@ -62,13 +63,33 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
     fields: [
       campo('email', 'E-mail', 'email'),
       campo('phone', 'Telefone', 'phone'),
-      campo('whatsapp', 'WhatsApp', 'phone'),
+      campo('whatsapp', 'WhatsApp', 'url', true, {
+        help: 'Link direto da conversa. Ex.: https://wa.me/5511999999999',
+      }),
       campo('whatsappMessage', 'Mensagem inicial do WhatsApp', 'longText'),
+      campo('postalCode', 'CEP', 'text', true, { help: 'Preenche endereço, cidade e estado.' }),
       campo('addressLine', 'Endereço', 'text'),
+      campo('addressNumber', 'Número', 'text'),
+      campo('addressComplement', 'Complemento', 'text'),
+      campo('neighborhood', 'Bairro', 'text'),
       campo('city', 'Cidade', 'text'),
-      campo('state', 'Estado', 'text'),
-      campo('postalCode', 'CEP', 'text'),
-      campo('businessHours', 'Horário de atendimento', 'longText'),
+      /*
+        `select` e nao `text`: as 27 UFs sao uma lista fechada, e o painel
+        desenha lista fechada como lista. As opcoes viajam com a definicao,
+        entao a tela nao precisa conhecer o Brasil.
+      */
+      campo('state', 'Estado', 'select', true, { options: BRAZIL_STATES }),
+      /*
+        Coordenadas do pino. Declaradas porque o schema as valida e o site as
+        le -- mas quem as edita e o mapa, nao um campo de texto solto.
+      */
+      campo('latitude', 'Latitude', 'number'),
+      campo('longitude', 'Longitude', 'number'),
+      campo('mapSettings', 'Mapa no site', 'tags'),
+      campo('geocodedAt', 'Coordenada obtida em', 'text', false),
+      campo('geocodeSource', 'Origem da coordenada', 'text', false),
+      campo('businessHoursSchedule', 'Horário de atendimento', 'tags'),
+      campo('businessHours', 'Horário de atendimento (texto)', 'longText'),
       campo('serviceArea', 'Área de atuação', 'longText'),
       campo('mapUrl', 'Link do mapa', 'url'),
       campo('social', 'Redes sociais', 'tags'),

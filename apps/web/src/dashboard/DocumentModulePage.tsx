@@ -1,6 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Lock, Save } from 'lucide-react';
-import { SOCIAL_NETWORKS, SOCIAL_NETWORK_LABELS, type SocialNetwork } from '@codeca/shared';
+import {
+  BRAZIL_STATES,
+  CEP_INVALIDO,
+  SOCIAL_NETWORKS,
+  SOCIAL_NETWORK_LABELS,
+  TELEFONE_INVALIDO,
+  WHATSAPP_INVALIDO,
+  anoDeFundacaoValido,
+  cepValido,
+  errosDosHorarios,
+  horariosDoTexto,
+  mensagemDeAnoInvalido,
+  normalizarWhatsApp,
+  lerMapSettings,
+  mapSettingsPadrao,
+  type MapSettings,
+  type NormalizedAddress,
+  telefoneValido,
+  textoDosHorarios,
+  whatsappValido,
+  type HorariosDeAtendimento,
+  type SocialNetwork,
+} from '@codeca/shared';
 import {
   Alert,
   Button,
@@ -22,6 +44,11 @@ import { moduleApi } from '../services/endpoints.js';
 import { ResourcePanel } from '../components/ResourcePanel.js';
 import { ImageField } from '../components/MediaPicker.js';
 import { formatList, numberOrNull, parseList } from '../utils/forms.js';
+import { CampoDeTelefone } from '../components/CamposComMascara.js';
+import { CampoDeAno, CampoDeWhatsApp } from './CamposDeContato.js';
+import { AddressPicker } from '../components/endereco/AddressPicker.js';
+import { ConfiguracoesDoMapa } from './ConfiguracoesDoMapa.js';
+import { CampoDeHorarios } from './CampoDeHorarios.js';
 import type { MediaRef, SiteModuleFieldView } from '../types/index.js';
 
 /**
@@ -39,7 +66,7 @@ import type { MediaRef, SiteModuleFieldView } from '../types/index.js';
  */
 
 /** Valor do formulario: texto para todo campo, convertido na gravacao. */
-type FormValue = string | boolean | string[] | Record<string, string> | null;
+type FormValue = string | boolean | string[] | Record<string, string> | HorariosDeAtendimento | null;
 
 export function DocumentModulePage({ moduleKey }: { moduleKey: 'institucional' | 'contato' }) {
   const tenantId = useTenantId();
@@ -131,6 +158,32 @@ function Formulario({
     setValores((atual) => ({ ...atual, [key]: value }));
   }
 
+  /**
+   * Varios campos de uma vez.
+   *
+   * O CEP, o mapa e o "usar minha localizacao" preenchem endereco, cidade,
+   * estado e coordenada juntos. Chamar `definir` quatro vezes seguidas
+   * perderia atualizacoes, porque cada uma leria o estado de antes.
+   */
+  function definirVarios(patch: Record<string, FormValue>) {
+    alterado.current = true;
+    setValores((atual) => ({ ...atual, ...patch }));
+  }
+
+  const erros = errosDoDocumento(moduleKey, valores);
+  const temErro = Object.keys(erros).length > 0;
+
+  /*
+    O horario que ja estava gravado em texto livre, quando ninguem ainda
+    escolheu os horarios na grade. O que der para interpretar vira estrutura
+    sozinho; o que nao der aparece no aviso, para nao sumir da tela.
+  */
+  const horariosGravados = valores.businessHoursSchedule as HorariosDeAtendimento | null;
+  const textoDeHorarioAntigo =
+    moduleKey === 'contato' && !horariosGravados && typeof valores.businessHours === 'string'
+      ? valores.businessHours
+      : '';
+
   return (
     <Card>
       <CardHeader
@@ -144,6 +197,7 @@ function Formulario({
           <Button
             onClick={() => void salvar.run(undefined)}
             loading={salvar.loading}
+            disabled={temErro}
             icon={<Save aria-hidden="true" className="size-4" />}
           >
             Salvar
@@ -170,17 +224,28 @@ function Formulario({
             <Campo
               key={campo.key}
               campo={campo}
+              moduleKey={moduleKey}
+              tenantId={tenantId}
               valor={valores[campo.key] ?? ''}
+              valores={valores}
+              erro={erros[campo.key]}
+              errosDoFormulario={erros}
+              textoDeHorarioAntigo={textoDeHorarioAntigo}
               imagens={imagens}
               onChange={(proximo) => definir(campo.key, proximo)}
+              onPatch={definirVarios}
             />
           ),
         )}
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {temErro ? (
+            <p className="text-sm text-rose-600">Corrija os campos destacados para salvar.</p>
+          ) : null}
           <Button
             onClick={() => void salvar.run(undefined)}
             loading={salvar.loading}
+            disabled={temErro}
             icon={<Save aria-hidden="true" className="size-4" />}
           >
             Salvar
@@ -191,17 +256,78 @@ function Formulario({
   );
 }
 
+/**
+ * Erros que a tela consegue ver antes de enviar.
+ *
+ * Mesmas regras do servidor (`modules/documents.ts`), vindas das mesmas
+ * funcoes -- aqui elas existem para o botao Salvar nao mandar o que vai
+ * voltar recusado, e para o aviso aparecer embaixo do campo certo.
+ */
+export function errosDoDocumento(
+  moduleKey: string,
+  valores: Record<string, FormValue>,
+): Record<string, string> {
+  const erros: Record<string, string> = {};
+  const texto = (chave: string) => (typeof valores[chave] === 'string' ? (valores[chave] as string) : '');
+
+  if (moduleKey === 'institucional') {
+    const ano = texto('foundedYear');
+    if (ano !== '' && !anoDeFundacaoValido(ano)) erros.foundedYear = mensagemDeAnoInvalido();
+  }
+
+  if (moduleKey === 'contato') {
+    const telefone = texto('phone');
+    if (telefone !== '' && !telefoneValido(telefone)) erros.phone = TELEFONE_INVALIDO;
+
+    const whatsapp = texto('whatsapp');
+    if (whatsapp !== '' && !whatsappValido(whatsapp)) erros.whatsapp = WHATSAPP_INVALIDO;
+
+    const cep = texto('postalCode');
+    if (cep !== '' && !cepValido(cep)) erros.postalCode = CEP_INVALIDO;
+
+    const uf = texto('state');
+    if (uf !== '' && !(BRAZIL_STATES as readonly string[]).includes(uf)) {
+      erros.state = 'Informe uma UF válida.';
+    }
+
+    const horarios = valores.businessHoursSchedule as HorariosDeAtendimento | null;
+    const porDia = errosDosHorarios(horarios ?? null);
+    const dias = Object.keys(porDia);
+    if (dias.length > 0) {
+      erros.businessHoursSchedule = 'Confira os horários destacados abaixo.';
+    }
+  }
+
+  return erros;
+}
+
 /** Um campo do modulo, no controle que o tipo pede. */
 function Campo({
   campo,
+  moduleKey,
+  tenantId,
   valor,
+  valores,
+  erro,
+  errosDoFormulario = {},
+  textoDeHorarioAntigo,
   imagens,
   onChange,
+  onPatch,
 }: {
   campo: SiteModuleFieldView;
+  moduleKey: string;
+  tenantId: string;
   valor: FormValue;
+  /** Os demais valores: o mapa resume o endereco a partir deles. */
+  valores: Record<string, FormValue>;
+  erro?: string | undefined;
+  /** Todos os erros do formulario: o endereco mostra varios de uma vez. */
+  errosDoFormulario?: Record<string, string>;
+  textoDeHorarioAntigo?: string;
   imagens: Record<string, MediaRef>;
   onChange: (valor: FormValue) => void;
+  onPatch: (patch: Record<string, FormValue>) => void;
 }) {
   const travado = !campo.editable;
   const dica = travado ? 'Mantido pela CODECA IA neste site.' : campo.help;
@@ -214,10 +340,179 @@ function Campo({
   const comum = {
     label: rotulo,
     ...(dica ? { hint: dica } : {}),
+    ...(erro ? { error: erro } : {}),
     readOnly: travado,
     disabled: travado,
     required: campo.required ?? false,
   };
+
+  /*
+    Campos com controle proprio, escolhidos pela CHAVE e nao pelo tipo.
+
+    O tipo descreve a forma do dado (texto, numero, url) e e o que o SDK e a
+    API publica enxergam. Quem precisa de mais do que uma caixa de texto e a
+    TELA, e so em alguns campos conhecidos -- declarar um tipo novo no
+    registro para cada um deles espalharia detalhe de interface por um
+    contrato que o site do cliente tambem le.
+  */
+  const texto = typeof valor === 'string' ? valor : '';
+  const textoDe = (v: FormValue | undefined) => (typeof v === 'string' ? v : '');
+
+  if (moduleKey === 'institucional' && campo.key === 'foundedYear') {
+    return (
+      <CampoDeAno
+        label={rotulo}
+        hint={dica}
+        disabled={travado}
+        value={texto}
+        error={erro}
+        onChange={(proximo) => onChange(proximo)}
+      />
+    );
+  }
+
+  if (moduleKey === 'contato') {
+    if (campo.key === 'phone') {
+      return (
+        <CampoDeTelefone
+          label={rotulo}
+          hint={dica}
+          disabled={travado}
+          value={texto}
+          error={erro}
+          onChange={(digitos) => onChange(digitos)}
+        />
+      );
+    }
+
+    if (campo.key === 'whatsapp') {
+      return (
+        <CampoDeWhatsApp
+          label={rotulo}
+          hint={dica}
+          disabled={travado}
+          value={texto}
+          error={erro}
+          onChange={(proximo) => onChange(proximo)}
+        />
+      );
+    }
+
+    /*
+      Um campo desenha o ENDERECO INTEIRO, e os demais somem.
+
+      CEP, rua, numero, complemento, bairro, cidade, UF e coordenada sao um
+      dado so para quem preenche -- o CEP preenche a rua, o mapa preenche a
+      coordenada, e arrastar o pino mexe em todos. Oito caixas soltas na tela
+      obrigariam a pessoa a costurar isso de cabeca.
+    */
+    if (campo.key === 'postalCode') {
+      const endereco: NormalizedAddress = {
+        street: textoDe(valores.addressLine),
+        number: textoDe(valores.addressNumber),
+        complement: textoDe(valores.addressComplement),
+        neighborhood: textoDe(valores.neighborhood),
+        city: textoDe(valores.city),
+        state: textoDe(valores.state),
+        postalCode: textoDe(valores.postalCode),
+        country: 'BR',
+        ...(textoDe(valores.latitude) !== '' ? { lat: Number(valores.latitude) } : {}),
+        ...(textoDe(valores.longitude) !== '' ? { lng: Number(valores.longitude) } : {}),
+      };
+
+      return (
+        <AddressPicker
+          value={endereco}
+          disabled={travado}
+          settings={lerMapSettings(valores.mapSettings)}
+          erros={{
+            postalCode: erro,
+            street: errosDoFormulario.addressLine,
+            city: errosDoFormulario.city,
+            state: errosDoFormulario.state,
+          }}
+          onChange={(proximo) => {
+            const patch: Record<string, FormValue> = {
+              addressLine: proximo.street,
+              addressNumber: proximo.number ?? '',
+              addressComplement: proximo.complement ?? '',
+              neighborhood: proximo.neighborhood ?? '',
+              city: proximo.city,
+              state: proximo.state,
+              postalCode: proximo.postalCode,
+              latitude: typeof proximo.lat === 'number' ? String(proximo.lat) : '',
+              longitude: typeof proximo.lng === 'number' ? String(proximo.lng) : '',
+            };
+            /*
+              Carimbo de auditoria so quando a coordenada muda de verdade:
+              digitar o complemento nao e geocodificar.
+            */
+            if (proximo.lat !== endereco.lat || proximo.lng !== endereco.lng) {
+              patch.geocodedAt = new Date().toISOString();
+              patch.geocodeSource = 'painel';
+            }
+            onPatch(patch);
+          }}
+        />
+      );
+    }
+
+    /* Os campos que o AddressPicker ja desenha nao aparecem duas vezes. */
+    if (
+      campo.key === 'addressLine'
+      || campo.key === 'addressNumber'
+      || campo.key === 'addressComplement'
+      || campo.key === 'neighborhood'
+      || campo.key === 'city'
+      || campo.key === 'state'
+      || campo.key === 'latitude'
+      || campo.key === 'longitude'
+      || campo.key === 'geocodedAt'
+      || campo.key === 'geocodeSource'
+    ) {
+      return null;
+    }
+
+    if (campo.key === 'mapSettings') {
+      const lat = textoDe(valores.latitude) !== '' ? Number(valores.latitude) : null;
+      const lng = textoDe(valores.longitude) !== '' ? Number(valores.longitude) : null;
+      return (
+        <div className="grid gap-3">
+          <span className="text-sm font-medium text-slate-700">{campo.label}</span>
+          <ConfiguracoesDoMapa
+            settings={lerMapSettings(valor)}
+            disabled={travado}
+            latitude={lat}
+            longitude={lng}
+            onChange={(proximo: MapSettings) => onChange(proximo as unknown as FormValue)}
+          />
+        </div>
+      );
+    }
+
+    if (campo.key === 'businessHoursSchedule') {
+      return (
+        <CampoDeHorarios
+          label={campo.label}
+          disabled={travado}
+          valor={(valor as HorariosDeAtendimento | null) ?? null}
+          textoAntigo={textoDeHorarioAntigo ?? null}
+          onChange={(horarios) =>
+            // O texto legivel sai junto: e o campo que o site e o SDK ja liam,
+            // e ele nao pode divergir da grade que acabou de ser editada.
+            onPatch({ businessHoursSchedule: horarios, businessHours: textoDosHorarios(horarios) })
+          }
+        />
+      );
+    }
+
+    /*
+      O texto do horario e gerado, nao digitado. Some da tela quando o cliente
+      pode editar a grade; continua aparecendo quando o campo esta travado,
+      porque campo travado se mostra, como todos os outros.
+    */
+    if (campo.key === 'businessHours' && !travado) return null;
+  }
 
   if (campo.type === 'boolean') {
     return (
@@ -383,6 +678,15 @@ function paraFormulario(
     const valor = dados[campo.key];
     if (campo.key === 'social') {
       saida.social = (valor as Record<string, string> | undefined) ?? {};
+    } else if (campo.key === 'businessHoursSchedule') {
+      // Objeto, e nao texto: o tipo declarado e `tags` (o registro nao tem um
+      // tipo "estrutura"), entao sem este desvio a conversao o transformaria
+      // em lista de palavras.
+      saida[campo.key] = (valor as HorariosDeAtendimento | null) ?? null;
+    } else if (campo.key === 'mapSettings') {
+      // Mesmo caso: configuracao e objeto, e `lerMapSettings` garante que o
+      // formulario sempre abra com algo valido.
+      saida[campo.key] = lerMapSettings(valor) as unknown as FormValue;
     } else if (campo.type === 'boolean') {
       saida[campo.key] = valor === true;
     } else if (campo.type === 'tags') {
@@ -395,6 +699,31 @@ function paraFormulario(
       saida[campo.key] = String(valor);
     }
   }
+
+  /*
+    Horario gravado como texto, antes desta tela existir.
+
+    Tenta virar grade na abertura: "Seg a Sex: 08:00–18:00" tem tudo o que a
+    estrutura precisa, e obrigar a pessoa a digitar de novo o que ja estava
+    certo seria trabalho inventado. O que nao for reconhecido continua `null`,
+    e a tela mostra o texto antigo em vez de descarta-lo.
+  */
+  /*
+    WhatsApp gravado como telefone, antes de o campo virar link.
+
+    Converte na abertura para a tela mostrar o que sera salvo. Sem isto, o
+    campo abre com "(19) 99999-0000" embaixo de um exemplo que pede
+    `https://wa.me/...`, e a conversao so apareceria depois de tocar no campo.
+  */
+  if (typeof saida.whatsapp === 'string' && saida.whatsapp !== '') {
+    saida.whatsapp = normalizarWhatsApp(saida.whatsapp);
+  }
+
+  if (saida.businessHoursSchedule === null || saida.businessHoursSchedule === undefined) {
+    const interpretado = horariosDoTexto(dados.businessHours);
+    if (interpretado) saida.businessHoursSchedule = interpretado;
+  }
+
   return saida;
 }
 
@@ -446,6 +775,10 @@ function paraApi(
     const valor = valores[campo.key];
     if (campo.key === 'social') {
       corpo.social = valor ?? {};
+    } else if (campo.key === 'businessHoursSchedule') {
+      corpo[campo.key] = valor ?? null;
+    } else if (campo.key === 'mapSettings') {
+      corpo[campo.key] = valor ?? mapSettingsPadrao();
     } else if (campo.type === 'boolean') {
       corpo[campo.key] = valor === true;
     } else if (campo.type === 'tags') {

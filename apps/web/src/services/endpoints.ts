@@ -487,6 +487,36 @@ export const moduleApi = {
     ),
 };
 
+/**
+ * Consulta de endereco: CEP, coordenada e busca por texto.
+ *
+ * Passa pela nossa API, e nao direto do navegador, por causa da CSP
+ * (`connect-src 'self'`) e do `User-Agent` que o Nominatim exige -- ver
+ * `apps/api/src/lib/endereco.ts`.
+ */
+export interface EnderecoEncontrado {
+  cep: string;
+  addressLine: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export const enderecoApi = {
+  porCep: (tenantId: string, cep: string) =>
+    api.get<EnderecoEncontrado>(`${tenantBase(tenantId)}/endereco/cep/${encodeURIComponent(cep)}`),
+
+  porCoordenada: (tenantId: string, lat: number, lon: number) =>
+    api.get<EnderecoEncontrado>(`${tenantBase(tenantId)}/endereco/coordenada?lat=${lat}&lon=${lon}`),
+
+  buscar: (tenantId: string, termo: string) =>
+    api.get<{ items: Array<EnderecoEncontrado & { descricao: string }> }>(
+      `${tenantBase(tenantId)}/endereco/busca?q=${encodeURIComponent(termo)}`,
+    ),
+};
+
 export const bannerApi = {
   list: (tenantId: string) =>
     api.get<{ items: BannerRecord[] }>(`${tenantBase(tenantId)}/banners`),

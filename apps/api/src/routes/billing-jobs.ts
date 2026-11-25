@@ -1,5 +1,6 @@
 import { pruneExpiredRecords } from '../lib/housekeeping.js';
 import { drenarFilaDoBlob } from '../lib/blob-cleanup.js';
+import { limparCacheVencido } from '../lib/geo/cache.js';
 import { AppError, type SyncRunOrigin } from '@codeca/shared';
 import { timingSafeEqual } from 'node:crypto';
 import { Hono, type Context } from 'hono';
@@ -286,6 +287,20 @@ async function executarJob(c: Context<AppBindings>) {
       message: `${limpezaDoBlob.desistidas} arquivo(s) no Blob esgotaram as tentativas de remoção.`,
       alertKey: 'blob_cleanup:desistidas',
     });
+  }
+
+  /*
+    7. Cache de geolocalizacao vencido.
+
+    Sem isto a tabela so cresce, guardando resposta que ninguem le mais. A
+    falha e informativa: cache velho atrapalha o disco, nao o cliente.
+  */
+  const cacheDeGeo = await limparCacheVencido(ctx.db, ctx.now()).catch((error: unknown) => {
+    console.error('[geo] falha ao limpar o cache:', error instanceof Error ? error.message : error);
+    return null;
+  });
+  if (cacheDeGeo && cacheDeGeo > 0) {
+    console.info(`[geo] ${cacheDeGeo} entrada(s) de cache vencidas removidas.`);
   }
 
   if (report.failures.length > 0 || report.divergences.length > 0) {

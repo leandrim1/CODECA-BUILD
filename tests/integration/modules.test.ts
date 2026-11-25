@@ -92,6 +92,114 @@ describe('provisionamento do site', () => {
   });
 });
 
+/**
+ * Os campos que a tela de contato e a de institucional aprenderam a conferir.
+ *
+ * A tela e a primeira barreira, nao a unica: quem chama a API direto nao
+ * passou por campo nenhum. Cada caso aqui e um que o painel ja recusa.
+ */
+describe('validacao dos campos de contato e institucional', () => {
+  const contato = () => `/api/tenants/${empresa.tenantId}/modules/contato/document`;
+  const institucional = () => `/api/tenants/${empresa.tenantId}/modules/institucional/document`;
+
+  it('recusa ano de fundacao fora do intervalo e aceita o ano de hoje', async () => {
+    const futuro = await empresa.client.put(institucional(), {
+      companyName: 'Construtora Horizonte',
+      foundedYear: new Date().getUTCFullYear() + 1,
+    });
+    expect(futuro.status).toBe(422);
+
+    const antigo = await empresa.client.put(institucional(), {
+      companyName: 'Construtora Horizonte',
+      foundedYear: 1799,
+    });
+    expect(antigo.status).toBe(422);
+
+    const certo = await empresa.client.put(institucional(), {
+      companyName: 'Construtora Horizonte',
+      foundedYear: new Date().getUTCFullYear(),
+    });
+    expect(certo.status).toBe(200);
+  });
+
+  it('converte o WhatsApp antigo em link e recusa outra URL', async () => {
+    const convertido = await empresa.client.put(contato(), { whatsapp: '(19) 99999-0000' });
+    expect(convertido.status).toBe(200);
+    expect(convertido.body.data.whatsapp).toBe('https://wa.me/5519999990000');
+
+    const outra = await empresa.client.put(contato(), { whatsapp: 'https://instagram.com/empresa' });
+    expect(outra.status).toBe(422);
+    expect(outra.body.error.details.fields.whatsapp).toContain('wa.me');
+  });
+
+  it('guarda o CEP em digitos e recusa CEP incompleto', async () => {
+    const certo = await empresa.client.put(contato(), { postalCode: '13010-000' });
+    expect(certo.status).toBe(200);
+    expect(certo.body.data.postalCode).toBe('13010000');
+
+    expect((await empresa.client.put(contato(), { postalCode: '1301' })).status).toBe(422);
+  });
+
+  it('recusa UF inexistente e normaliza a sigla', async () => {
+    const certo = await empresa.client.put(contato(), { state: 'sp' });
+    expect(certo.status).toBe(200);
+    expect(certo.body.data.state).toBe('SP');
+
+    expect((await empresa.client.put(contato(), { state: 'XX' })).status).toBe(422);
+  });
+
+  it('recusa coordenada fora do mundo', async () => {
+    const certo = await empresa.client.put(contato(), { latitude: -22.9071, longitude: -47.0632 });
+    expect(certo.status).toBe(200);
+    expect(certo.body.data.latitude).toBe(-22.9071);
+
+    expect((await empresa.client.put(contato(), { latitude: 95 })).status).toBe(422);
+  });
+
+  it('grava o horario estruturado junto com o texto que o site le', async () => {
+    const horarios = {
+      seg: { aberto: true, vinteQuatroHoras: false, periodos: [{ abre: '08:00', fecha: '18:00' }] },
+      ter: { aberto: false, vinteQuatroHoras: false, periodos: [] },
+      qua: { aberto: false, vinteQuatroHoras: false, periodos: [] },
+      qui: { aberto: false, vinteQuatroHoras: false, periodos: [] },
+      sex: { aberto: false, vinteQuatroHoras: false, periodos: [] },
+      sab: { aberto: false, vinteQuatroHoras: false, periodos: [] },
+      dom: { aberto: false, vinteQuatroHoras: false, periodos: [] },
+    };
+    const resposta = await empresa.client.put(contato(), {
+      businessHoursSchedule: horarios,
+      businessHours: 'Seg: 08:00–18:00 · Ter a Dom: Fechado',
+    });
+    expect(resposta.status).toBe(200);
+    expect(resposta.body.data.businessHoursSchedule.seg.periodos[0].abre).toBe('08:00');
+    expect(resposta.body.data.businessHours).toContain('Seg: 08:00–18:00');
+  });
+
+  it('recusa horario com hora inexistente', async () => {
+    const resposta = await empresa.client.put(contato(), {
+      businessHoursSchedule: {
+        seg: { aberto: true, vinteQuatroHoras: false, periodos: [{ abre: '25:00', fecha: '18:00' }] },
+        ter: { aberto: false, vinteQuatroHoras: false, periodos: [] },
+        qua: { aberto: false, vinteQuatroHoras: false, periodos: [] },
+        qui: { aberto: false, vinteQuatroHoras: false, periodos: [] },
+        sex: { aberto: false, vinteQuatroHoras: false, periodos: [] },
+        sab: { aberto: false, vinteQuatroHoras: false, periodos: [] },
+        dom: { aberto: false, vinteQuatroHoras: false, periodos: [] },
+      },
+    });
+    expect(resposta.status).toBe(422);
+  });
+
+  it('documento antigo continua sendo lido, com os campos novos vazios', async () => {
+    // Sites que nunca abriram a tela nova nao tem as chaves no JSONB: o
+    // schema as preenche na leitura, em vez de recusar o documento.
+    const resposta = await empresa.client.get(contato());
+    expect(resposta.status).toBe(200);
+    expect(resposta.body.data).toHaveProperty('businessHoursSchedule');
+    expect(resposta.body.data).toHaveProperty('latitude');
+  });
+});
+
 describe('escrita do documento', () => {
   it('grava e devolve o que foi validado', async () => {
     const response = await empresa.client.put(

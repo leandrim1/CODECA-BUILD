@@ -48,6 +48,19 @@ export async function parseJsonBody<T extends z.ZodType>(c: Context, schema: T):
 export async function parseJsonBodyWithRaw<T extends z.ZodType>(
   c: Context,
   schema: T,
+  /**
+   * Arruma o corpo antes de validar (normalizar CEP, WhatsApp, UF).
+   *
+   * Existe porque a normalizacao NAO pode morar dentro do schema: a API
+   * publica gera o `openapi.json` a partir dele, e `z.toJSONSchema` recusa
+   * `.transform()`. Aqui as duas coisas convivem -- o servidor arruma o que
+   * recebe, e o contrato publico continua sendo gerado.
+   *
+   * O `raw` devolvido continua sendo o que o CLIENTE mandou, sem a arrumacao:
+   * a politica de campos precisa saber o que foi enviado, nao o que nos
+   * acrescentamos.
+   */
+  preparar?: (corpo: Record<string, unknown>) => Record<string, unknown>,
 ): Promise<{ data: z.output<T>; raw: Record<string, unknown> }> {
   let raw: unknown;
   try {
@@ -55,7 +68,10 @@ export async function parseJsonBodyWithRaw<T extends z.ZodType>(
   } catch {
     throw AppError.badRequest('Corpo da requisição deve ser um JSON válido.');
   }
-  const result = schema.safeParse(raw);
+  const corpo = raw !== null && typeof raw === 'object' && !Array.isArray(raw)
+    ? (raw as Record<string, unknown>)
+    : {};
+  const result = schema.safeParse(preparar ? preparar(corpo) : raw);
   if (!result.success) throw validationError(result.error);
   return {
     data: result.data,

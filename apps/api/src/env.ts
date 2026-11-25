@@ -159,6 +159,24 @@ export const envSchema = z.object({
   /** Contato de suporte mostrado nos avisos. Sem ele, a linha e omitida. */
   SUPPORT_EMAIL: tolerant('SUPPORT_EMAIL', z.string().email().optional()),
   /**
+   * Geolocalizacao (ver `docs/geo.md`).
+   *
+   * Nenhuma delas e obrigatoria: sem nada configurado a plataforma usa
+   * OpenStreetMap, que nao pede chave. Elas existem para trocar de provedor
+   * ou apontar para uma instancia propria sem tocar em codigo.
+   *
+   * `GEO_CONTACT_EMAIL` e a unica que vale a pena preencher em producao: a
+   * politica de uso do Nominatim pede um contato no `User-Agent`, e eles
+   * bloqueiam quem nao identifica. Sem ela, o fallback e `SUPPORT_EMAIL`.
+   */
+  GEO_PROVIDER: tolerant('GEO_PROVIDER', z.string().trim().default('nominatim')),
+  GEO_CONTACT_EMAIL: tolerant('GEO_CONTACT_EMAIL', z.string().email().optional()),
+  /** Instancia propria de Nominatim, quando houver. Sem barra no fim. */
+  GEO_NOMINATIM_URL: tolerant('GEO_NOMINATIM_URL', z.string().url().optional()),
+  /** Provedor de CEP: `viacep` (com queda para a BrasilAPI) e o padrao. */
+  GEO_CEP_PROVIDER: tolerant('GEO_CEP_PROVIDER', z.string().trim().default('viacep')),
+
+  /**
    * Segredo do webhook do Resend (eventos de entrega, devolucao e spam).
    * Sem ele, a rota recusa tudo: nao ha como provar a origem.
    */
