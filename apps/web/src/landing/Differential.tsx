@@ -4,6 +4,7 @@ import { DEFAULT_SEGMENTS, type ModuleKey } from '@codeca/shared';
 import { cx } from '@codeca/ui';
 import { Reveal } from './Reveal.js';
 import { Container, Eyebrow, SectionTitle } from './ui.js';
+import fundo3d from '../assets/landing/diferencial-fundo-3d.webp';
 
 /**
  * Rotulos com acento: os do sistema vem sem, e esta e uma pagina de venda.
@@ -46,7 +47,22 @@ export function Differential() {
 
   return (
     <section className="relative overflow-hidden bg-brand-900 py-20 text-white sm:py-28" aria-labelledby="titulo-diferencial">
-      <div aria-hidden="true" className="lp-grid-dark pointer-events-none absolute inset-0" />
+      {/*
+        Cenario 3D no lugar da cor chapada. `cover` e centro: a imagem preenche
+        a faixa sem esticar, e o que sobra e cortado.
+
+        Ate `lg` o enquadramento anda para 62%, onde esta o monitor: empilhada,
+        a secao fica estreita e alta, e o centro cairia no vazio azul da
+        esquerda.
+      */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[position:62%_center] bg-cover bg-no-repeat lg:bg-center"
+        style={{ backgroundImage: `url(${fundo3d})` }}
+      />
+      <div aria-hidden="true" className="lp-dif-veu pointer-events-none absolute inset-0" />
+      {/* A grade continua, agora discreta: so o suficiente para a imagem nao virar foto solta. */}
+      <div aria-hidden="true" className="lp-grid-dark pointer-events-none absolute inset-0 opacity-40" />
       <Container className="relative grid gap-12 lg:grid-cols-[minmax(0,6fr)_minmax(0,5fr)] lg:items-center lg:gap-20">
         <Reveal>
           <Eyebrow tone="dark">Diferencial</Eyebrow>
@@ -68,7 +84,14 @@ export function Differential() {
         </Reveal>
 
         <Reveal delay={140}>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-5 shadow-[0_24px_60px_-20px_rgb(0_0_0/0.5)] backdrop-blur-sm sm:p-7">
+          {/*
+            O vidro ficou mais presente: antes era `bg-white/[0.05]` sobre uma
+            cor chapada, onde 5% ja bastava. Sobre a imagem, esse vidro
+            desaparecia e o monitor 3D atravessava o cartao, disputando com o
+            menu de modulos. A tinta escura e o desfoque maior devolvem a
+            hierarquia -- o cartao e o assunto, a imagem e o ambiente.
+          */}
+          <div className="lp-dif-cartao rounded-3xl border border-white/15 p-5 shadow-[0_24px_60px_-20px_rgb(0_0_0/0.6)] backdrop-blur-md sm:p-7">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-300">
               Estrutura inicial do painel, por segmento
             </p>

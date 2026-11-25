@@ -37,6 +37,116 @@
   mask-image: radial-gradient(ellipse 90% 80% at 50% 0%, #000 0%, transparent 80%);
 }
 
+/**
+ * Veu azul sobre a imagem 3D do bloco final.
+ *
+ * Sem ele o texto branco cai em cima da tela do notebook, que e quase branca:
+ * a medicao da imagem crua deu 1,3:1 naquela faixa, contra os 4,5:1 que a WCAG
+ * pede. Com o veu, a mesma faixa mede 9:1 (titulo em branco) e 7,7:1 (paragrafo
+ * em brand-100).
+ *
+ * Sao duas camadas de proposito, e nao uma cor chapada:
+ *
+ * - a elipse central escurece onde o texto fica, e so ali;
+ * - a tinta de baixo, mais fraca, unifica o azul da imagem com o da marca sem
+ *   apagar o brilho do notebook e dos icones nas bordas.
+ *
+ * O resultado e profundidade: o centro recua, as pontas continuam vivas. Um
+ * veu uniforme forte o bastante para o centro apagaria a imagem inteira.
+ */
+.lp-cta-veu {
+  background-image:
+    radial-gradient(
+      ellipse 78% 68% at 50% 50%,
+      rgb(10 22 58 / 0.88) 0%,
+      rgb(14 29 74 / 0.78) 45%,
+      rgb(20 44 112 / 0.52) 78%,
+      rgb(26 63 180 / 0.38) 100%
+    ),
+    linear-gradient(to bottom, rgb(16 33 84 / 0.55), rgb(16 33 84 / 0.3) 50%, rgb(16 33 84 / 0.6));
+}
+
+/**
+ * Tela estreita pede veu mais forte, e a medicao e que disse isso.
+ *
+ * Abaixo de 640px a faixa fica quase quadrada e alta (725px em 320px de
+ * largura), o titulo sobe para fora da elipse central e cai bem na tela do
+ * notebook: medido 1,21:1 com o veu de cima, contra os 4,5:1 exigidos. Aqui a
+ * elipse cobre a faixa inteira e a tinta de baixo e mais densa.
+ *
+ * O preco e ver menos da imagem no celular, onde o recorte ja mostra pouco:
+ * ler o convite importa mais do que admirar o notebook em 320px.
+ */
+@media (max-width: 639px) {
+  .lp-cta-veu {
+    background-image:
+      radial-gradient(
+        ellipse 120% 100% at 50% 50%,
+        rgb(10 22 58 / 0.8) 0%,
+        rgb(13 27 70 / 0.74) 55%,
+        rgb(18 38 98 / 0.6) 100%
+      ),
+      linear-gradient(to bottom, rgb(14 29 74 / 0.5), rgb(14 29 74 / 0.36) 50%, rgb(14 29 74 / 0.52));
+  }
+}
+
+/**
+ * Veu do bloco "Diferencial".
+ *
+ * Diferente do veu do convite final, este NAO e simetrico: as duas colunas da
+ * secao pedem coisas opostas da mesma imagem.
+ *
+ * - A esquerda mora o titulo em branco. Ali o veu e denso, e o que se ve da
+ *   imagem sao os vultos do fundo -- cenario, nao concorrencia.
+ * - A direita mora o painel, que e o assunto da secao. Ali o veu afrouxa, para
+ *   o monitor 3D e os icones aparecerem ATRAS do cartao e darem a profundidade
+ *   que a imagem veio trazer.
+ *
+ * A transicao e um gradiente horizontal, e nao um corte: o olho le uma cena so.
+ */
+.lp-dif-veu {
+  background-image:
+    linear-gradient(
+      to right,
+      rgb(10 22 58 / 0.9) 0%,
+      rgb(11 24 64 / 0.85) 38%,
+      rgb(13 28 76 / 0.5) 62%,
+      rgb(15 32 86 / 0.34) 100%
+    ),
+    linear-gradient(to bottom, rgb(12 26 68 / 0.5), rgb(12 26 68 / 0.16) 45%, rgb(12 26 68 / 0.42));
+}
+
+/*
+  Em uma coluna (celular e tablet em pe) nao ha "esquerda e direita": texto e
+  painel se empilham sobre o mesmo pedaco de imagem, e o veu tem de ser parelho
+  -- e mais denso, porque o recorte vertical traz o monitor para o meio da
+  coluna de texto.
+*/
+@media (max-width: 1023px) {
+  .lp-dif-veu {
+    background-image:
+      radial-gradient(
+        ellipse 130% 85% at 50% 42%,
+        rgb(10 22 58 / 0.84) 0%,
+        rgb(12 26 70 / 0.78) 55%,
+        rgb(15 32 86 / 0.62) 100%
+      ),
+      linear-gradient(to bottom, rgb(12 26 68 / 0.46), rgb(12 26 68 / 0.3) 50%, rgb(12 26 68 / 0.52));
+  }
+}
+
+/**
+ * Vidro do cartao do painel, no mesmo azul profundo do veu.
+ *
+ * Fica aqui, e nao numa utilidade do Tailwind, porque a paleta da marca para
+ * em `brand-900` (#1b3375) -- claro demais para separar o cartao de um fundo
+ * que ja e escuro. Este tom e o mesmo do nucleo do veu, entao o cartao parece
+ * recortado da propria cena, e nao colado por cima dela.
+ */
+.lp-dif-cartao {
+  background-color: rgb(10 22 58 / 0.72);
+}
+
 /* Entrada discreta: sobe 12px e aparece. Sem JS, o conteudo ja esta visivel. */
 .lp-reveal {
   transition:
