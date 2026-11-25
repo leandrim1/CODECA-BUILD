@@ -37,9 +37,9 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.13",
+    "@electric-sql/pglite": "^0.5.17",
     "@types/node": "^22.10.2",
-    "@types/ws": "8.18.1",
+    "@types/ws": "8.18.2",
     "drizzle-kit": "^0.31.11",
     "typescript": "~5.9.3"
   }
