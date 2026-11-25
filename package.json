@@ -31,7 +31,7 @@
   "dependencies": {
     "@codeca/api": "workspace:*",
     "@vercel/functions": "^3.11.3",
-    "hono": "^4.13.18"
+    "hono": "^4.13.20"
   },
   "devDependencies": {
     "@codeca/sdk": "workspace:*",
