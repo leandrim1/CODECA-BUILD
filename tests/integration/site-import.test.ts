@@ -386,8 +386,15 @@ describe('confirmacao da importacao', () => {
     expect(contatoDados['addressLine']).toBe('Rua das Flores, 123');
     expect(contatoDados['city']).toBe('Curitiba');
     expect(contatoDados['state']).toBe('PR');
-    expect(contatoDados['postalCode']).toBe('80010-100');
-    expect(contatoDados['whatsapp']).toBe('(41) 99988-7766');
+    /*
+      Digitos, e nao `80010-100`: o CEP passou a ser guardado normalizado, e a
+      mascara virou assunto de quem exibe. O site importado trazia a mascara
+      (e continua trazendo); quem a tira e `normalizarDocumento`, na gravacao.
+    */
+    expect(contatoDados['postalCode']).toBe('80010100');
+    // O campo e link desde que o WhatsApp deixou de ser telefone; o site
+    // importado traz o numero, e a gravacao o converte.
+    expect(contatoDados['whatsapp']).toBe('https://wa.me/5541999887766');
     expect((contatoDados['social'] as Record<string, string>)['instagram']).toContain('instagram.com');
 
     // --- servicos, como rascunho

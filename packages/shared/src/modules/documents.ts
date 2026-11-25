@@ -16,6 +16,7 @@ import {
   whatsappValido,
 } from '../contato.js';
 import { horariosSchema } from '../horarios.js';
+import { mapSettingsPadrao, mapSettingsSchema } from '../geo/map-settings.js';
 import type { DocumentModuleKey } from './registry.js';
 
 /**
@@ -77,19 +78,21 @@ export const contatoDocumentSchema = z.object({
   /**
    * WhatsApp: link `https://wa.me/<numero>`, e nada mais.
    *
-   * `normalizarWhatsApp` roda ANTES da conferencia para que os valores
-   * antigos -- este campo guardava telefone -- virem link em vez de travar a
-   * tela: o formulario envia o documento inteiro, entao um WhatsApp legado
-   * recusado impediria de salvar qualquer outro campo.
+   * A CONVERSAO do valor antigo (este campo guardava telefone) acontece em
+   * `normalizarDocumento`, chamado pela rota antes desta validacao -- e nao
+   * aqui dentro com `.transform()`.
+   *
+   * O motivo e concreto: `z.toJSONSchema` nao sabe representar transformacao,
+   * e a API publica gera o `openapi.json` a partir destes schemas. Com o
+   * transform embutido, o documento inteiro parava de ser gerado.
    */
-  whatsapp: z
-    .string()
-    .max(200)
-    .default('')
-    .transform(normalizarWhatsApp)
-    .refine(whatsappValido, WHATSAPP_INVALIDO),
+  whatsapp: z.string().max(200).default('').refine(whatsappValido, WHATSAPP_INVALIDO),
   whatsappMessage: texto(600),
   addressLine: texto(240),
+  /** Numero separado da rua: o site precisa dos dois para montar o endereco. */
+  addressNumber: texto(20),
+  addressComplement: texto(80),
+  neighborhood: texto(120),
   city: texto(120),
   /** Sigla de UF, das 27 que existem. Vazio continua valendo. */
   state: z
@@ -98,12 +101,15 @@ export const contatoDocumentSchema = z.object({
     .toUpperCase()
     .default('')
     .refine((v) => v === '' || (BRAZIL_STATES as readonly string[]).includes(v), 'Informe uma UF válida.'),
-  /** CEP guardado so em digitos; a mascara e assunto da tela. */
+  /**
+   * CEP guardado so em digitos; a mascara e assunto da tela.
+   *
+   * A limpeza mora em `normalizarDocumento`, pelo mesmo motivo do WhatsApp.
+   */
   postalCode: z
     .string()
     .max(12)
     .default('')
-    .transform(digitosDeCep)
     .refine((v) => v === '' || cepValido(v), CEP_INVALIDO),
   /**
    * Texto legivel do horario, gerado a partir da estrutura.
@@ -127,9 +133,45 @@ export const contatoDocumentSchema = z.object({
     .nullable()
     .default(null)
     .refine((v) => v === null || longitudeValida(v), COORDENADA_INVALIDA),
+  /**
+   * Como o mapa aparece no site. So apresentacao -- nenhum id de fornecedor.
+   *
+   * `.catch()` e nao `.transform()`: configuracao corrompida ou ausente vira o
+   * padrao em vez de derrubar a leitura do documento -- e, ao contrario do
+   * transform, `catch` tem representacao em JSON Schema, que e o que a API
+   * publica precisa para gerar o `openapi.json`.
+   */
+  mapSettings: mapSettingsSchema.catch(() => mapSettingsPadrao()),
+  /** Auditoria da ultima geocodificacao. Nunca entra em decisao. */
+  geocodedAt: z.union([z.literal(''), z.iso.datetime()]).default(''),
+  geocodeSource: texto(40),
   social: socialLinksSchema,
 });
 export type ContatoDocument = z.infer<typeof contatoDocumentSchema>;
+
+/**
+ * Arruma o documento ANTES de valida-lo.
+ *
+ * Mora fora dos schemas de proposito. A validacao tem de continuar
+ * representavel em JSON Schema, porque e dela que sai o `openapi.json` da API
+ * publica -- e `z.toJSONSchema` recusa `.transform()`. Separando as duas
+ * coisas, o servidor continua normalizando o que recebe e o contrato publico
+ * continua sendo gerado.
+ *
+ * Vale para quem chama a API direto tanto quanto para o painel: o painel ja
+ * manda o valor limpo, e aqui e onde o resto do mundo passa a mandar tambem.
+ */
+export function normalizarDocumento(
+  key: DocumentModuleKey,
+  dados: Record<string, unknown>,
+): Record<string, unknown> {
+  if (key !== 'contato') return dados;
+  const saida = { ...dados };
+  if (typeof saida.whatsapp === 'string') saida.whatsapp = normalizarWhatsApp(saida.whatsapp);
+  if (typeof saida.postalCode === 'string') saida.postalCode = digitosDeCep(saida.postalCode);
+  if (typeof saida.state === 'string') saida.state = saida.state.trim().toUpperCase();
+  return saida;
+}
 
 export const DOCUMENT_SCHEMAS = {
   institucional: institucionalDocumentSchema,

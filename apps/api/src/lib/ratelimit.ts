@@ -54,14 +54,18 @@ export const RATE_LIMITS = {
   upload: { action: 'upload', limit: 120, windowSeconds: 3600 },
   domainCheck: { action: 'domain_check', limit: 30, windowSeconds: 3600 },
   /**
-   * Consulta de CEP e geocodificacao, por IP.
+   * Geolocalizacao: tres cotas, cada uma contra um abuso diferente.
    *
-   * Sessenta por minuto e o teto da politica do Nominatim (1 req/s). Quem
-   * preenche um endereco faz umas poucas consultas; este numero existe para
-   * impedir que a rota seja usada como proxy de geocodificacao -- a conta
-   * cairia na nossa reputacao com eles, nao na de quem abusou.
+   * `geoPorUsuario` limita uma conta que deixou a tela aberta pedindo sem
+   * parar. `geoPorIp` limita quem nao tem conta mas achou o endereco da rota.
+   * `geoProvedor` e GLOBAL, com assunto fixo, e e a unica que importa para o
+   * provedor: 60 por minuto e o teto de 1 req/s da politica do Nominatim. A
+   * fila em processo espaca pedidos dentro de uma instancia, mas em funcao
+   * serverless ha varias -- entre elas, quem conta e esta linha.
    */
-  enderecoBusca: { action: 'endereco_busca', limit: 60, windowSeconds: 60 },
+  geoPorUsuario: { action: 'geo_usuario', limit: 120, windowSeconds: 300 },
+  geoPorIp: { action: 'geo_ip', limit: 180, windowSeconds: 300 },
+  geoProvedor: { action: 'geo_provedor', limit: 60, windowSeconds: 60 },
   invite: { action: 'invite', limit: 20, windowSeconds: 3600 },
   /** Leitura da API publica, por chave. Generoso: um site carrega varias de uma vez. */
   publicApi: { action: 'public_api', limit: 600, windowSeconds: 60 },

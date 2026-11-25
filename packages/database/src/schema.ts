@@ -2906,6 +2906,27 @@ export const siteConsentRecords = pgTable(
  * `on delete cascade` apagaria a tarefa junto com a empresa e deixaria o
  * arquivo la para sempre. `tenantId` fica solto, so para agrupar.
  */
+/**
+ * Cache das respostas de geolocalizacao.
+ *
+ * A chave carrega o tipo da consulta (`cep:`, `rev:`, `busca:`) e o valor e o
+ * endereco ja NORMALIZADO -- nunca o JSON do provedor. Assim, trocar de
+ * provedor nao invalida o cache, e nenhuma leitura depende do formato de
+ * ninguem.
+ */
+export const geoCache = pgTable(
+  'geo_cache',
+  {
+    key: text('key').primaryKey(),
+    value: jsonb('value').notNull(),
+    /** De onde veio a resposta. Auditoria, nao chave de leitura. */
+    provider: text('provider').notNull().default(''),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt,
+  },
+  (table) => [index('geo_cache_expira_idx').on(table.expiresAt)],
+);
+
 export const blobCleanupQueue = pgTable(
   'blob_cleanup_queue',
   {

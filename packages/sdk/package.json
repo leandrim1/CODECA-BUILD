@@ -34,6 +34,10 @@
     "./consent": {
       "types": "./dist/consent-entry.d.ts",
       "default": "./dist/consent-entry.js"
+    },
+    "./map": {
+      "types": "./dist/map-entry.d.ts",
+      "default": "./dist/map-entry.js"
     }
   },
   "files": [
@@ -42,7 +46,10 @@
     "README.md",
     "CHANGELOG.md"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/map-entry.js",
+    "./src/map-entry.ts"
+  ],
   "engines": {
     "node": ">=20.9"
   },

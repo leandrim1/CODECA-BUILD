@@ -7,6 +7,7 @@ export * from './telefone.js';
 export * from './nome.js';
 export * from './contato.js';
 export * from './horarios.js';
+export * from './geo/index.js';
 export * from './domain.js';
 export * from './whatsapp.js';
 export * from './plans.js';

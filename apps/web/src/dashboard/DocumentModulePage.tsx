@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Lock, Save } from 'lucide-react';
 import {
   BRAZIL_STATES,
@@ -13,6 +13,10 @@ import {
   horariosDoTexto,
   mensagemDeAnoInvalido,
   normalizarWhatsApp,
+  lerMapSettings,
+  mapSettingsPadrao,
+  type MapSettings,
+  type NormalizedAddress,
   telefoneValido,
   textoDosHorarios,
   whatsappValido,
@@ -41,18 +45,11 @@ import { ResourcePanel } from '../components/ResourcePanel.js';
 import { ImageField } from '../components/MediaPicker.js';
 import { formatList, numberOrNull, parseList } from '../utils/forms.js';
 import { CampoDeTelefone } from '../components/CamposComMascara.js';
-import { BotaoDeLocalizacao, CampoDeAno, CampoDeCep, CampoDeWhatsApp } from './CamposDeContato.js';
+import { CampoDeAno, CampoDeWhatsApp } from './CamposDeContato.js';
+import { AddressPicker } from '../components/endereco/AddressPicker.js';
+import { ConfiguracoesDoMapa } from './ConfiguracoesDoMapa.js';
 import { CampoDeHorarios } from './CampoDeHorarios.js';
-import type { EnderecoEncontrado } from '../services/endpoints.js';
 import type { MediaRef, SiteModuleFieldView } from '../types/index.js';
-
-/*
-  O mapa carrega sozinho, e so quando a tela de contato abre: sao ~150 KB de
-  Leaflet que nao interessam a quem veio editar o institucional.
-*/
-const MapaDeEndereco = lazy(() =>
-  import('./MapaDeEndereco.js').then((m) => ({ default: m.MapaDeEndereco })),
-);
 
 /**
  * Conteudo dos modulos de instancia unica (institucional, contato).
@@ -232,6 +229,7 @@ function Formulario({
               valor={valores[campo.key] ?? ''}
               valores={valores}
               erro={erros[campo.key]}
+              errosDoFormulario={erros}
               textoDeHorarioAntigo={textoDeHorarioAntigo}
               imagens={imagens}
               onChange={(proximo) => definir(campo.key, proximo)}
@@ -311,6 +309,7 @@ function Campo({
   valor,
   valores,
   erro,
+  errosDoFormulario = {},
   textoDeHorarioAntigo,
   imagens,
   onChange,
@@ -323,6 +322,8 @@ function Campo({
   /** Os demais valores: o mapa resume o endereco a partir deles. */
   valores: Record<string, FormValue>;
   erro?: string | undefined;
+  /** Todos os erros do formulario: o endereco mostra varios de uma vez. */
+  errosDoFormulario?: Record<string, string>;
   textoDeHorarioAntigo?: string;
   imagens: Record<string, MediaRef>;
   onChange: (valor: FormValue) => void;
@@ -355,6 +356,7 @@ function Campo({
     contrato que o site do cliente tambem le.
   */
   const texto = typeof valor === 'string' ? valor : '';
+  const textoDe = (v: FormValue | undefined) => (typeof v === 'string' ? v : '');
 
   if (moduleKey === 'institucional' && campo.key === 'foundedYear') {
     return (
@@ -370,21 +372,6 @@ function Campo({
   }
 
   if (moduleKey === 'contato') {
-    /** Preenchimento vindo do CEP, do mapa ou da localizacao do aparelho. */
-    const aplicarEndereco = (endereco: EnderecoEncontrado) => {
-      const patch: Record<string, FormValue> = {};
-      // So sobrescreve o que veio preenchido: a consulta nao conhece
-      // complemento nem sala, e apagar o que a pessoa digitou seria pior do
-      // que deixar um campo desatualizado.
-      if (endereco.addressLine) patch.addressLine = endereco.addressLine;
-      if (endereco.city) patch.city = endereco.city;
-      if (endereco.state) patch.state = endereco.state;
-      if (endereco.cep) patch.postalCode = endereco.cep;
-      if (endereco.latitude !== null) patch.latitude = String(endereco.latitude);
-      if (endereco.longitude !== null) patch.longitude = String(endereco.longitude);
-      onPatch(patch);
-    };
-
     if (campo.key === 'phone') {
       return (
         <CampoDeTelefone
@@ -411,63 +398,97 @@ function Campo({
       );
     }
 
+    /*
+      Um campo desenha o ENDERECO INTEIRO, e os demais somem.
+
+      CEP, rua, numero, complemento, bairro, cidade, UF e coordenada sao um
+      dado so para quem preenche -- o CEP preenche a rua, o mapa preenche a
+      coordenada, e arrastar o pino mexe em todos. Oito caixas soltas na tela
+      obrigariam a pessoa a costurar isso de cabeca.
+    */
     if (campo.key === 'postalCode') {
+      const endereco: NormalizedAddress = {
+        street: textoDe(valores.addressLine),
+        number: textoDe(valores.addressNumber),
+        complement: textoDe(valores.addressComplement),
+        neighborhood: textoDe(valores.neighborhood),
+        city: textoDe(valores.city),
+        state: textoDe(valores.state),
+        postalCode: textoDe(valores.postalCode),
+        country: 'BR',
+        ...(textoDe(valores.latitude) !== '' ? { lat: Number(valores.latitude) } : {}),
+        ...(textoDe(valores.longitude) !== '' ? { lng: Number(valores.longitude) } : {}),
+      };
+
       return (
-        <CampoDeCep
-          label={rotulo}
-          hint={dica}
+        <AddressPicker
+          value={endereco}
           disabled={travado}
-          tenantId={tenantId}
-          value={texto}
-          error={erro}
-          onChange={(digitos) => onChange(digitos)}
-          onEndereco={aplicarEndereco}
+          settings={lerMapSettings(valores.mapSettings)}
+          erros={{
+            postalCode: erro,
+            street: errosDoFormulario.addressLine,
+            city: errosDoFormulario.city,
+            state: errosDoFormulario.state,
+          }}
+          onChange={(proximo) => {
+            const patch: Record<string, FormValue> = {
+              addressLine: proximo.street,
+              addressNumber: proximo.number ?? '',
+              addressComplement: proximo.complement ?? '',
+              neighborhood: proximo.neighborhood ?? '',
+              city: proximo.city,
+              state: proximo.state,
+              postalCode: proximo.postalCode,
+              latitude: typeof proximo.lat === 'number' ? String(proximo.lat) : '',
+              longitude: typeof proximo.lng === 'number' ? String(proximo.lng) : '',
+            };
+            /*
+              Carimbo de auditoria so quando a coordenada muda de verdade:
+              digitar o complemento nao e geocodificar.
+            */
+            if (proximo.lat !== endereco.lat || proximo.lng !== endereco.lng) {
+              patch.geocodedAt = new Date().toISOString();
+              patch.geocodeSource = 'painel';
+            }
+            onPatch(patch);
+          }}
         />
       );
     }
 
-    /*
-      A latitude desenha o MAPA inteiro, e a longitude nao desenha nada: as
-      duas sao o mesmo dado, e o controle que as edita e um so. Declaradas no
-      registro porque o schema as valida e o site do cliente as le.
-    */
-    if (campo.key === 'latitude') {
-      const lat = texto === '' ? null : Number(texto);
-      const lon = typeof valores.longitude === 'string' && valores.longitude !== ''
-        ? Number(valores.longitude)
-        : null;
-      const resumo = [valores.addressLine, valores.city, valores.state]
-        .filter((parte): parte is string => typeof parte === 'string' && parte !== '')
-        .join(' · ');
+    /* Os campos que o AddressPicker ja desenha nao aparecem duas vezes. */
+    if (
+      campo.key === 'addressLine'
+      || campo.key === 'addressNumber'
+      || campo.key === 'addressComplement'
+      || campo.key === 'neighborhood'
+      || campo.key === 'city'
+      || campo.key === 'state'
+      || campo.key === 'latitude'
+      || campo.key === 'longitude'
+      || campo.key === 'geocodedAt'
+      || campo.key === 'geocodeSource'
+    ) {
+      return null;
+    }
 
+    if (campo.key === 'mapSettings') {
+      const lat = textoDe(valores.latitude) !== '' ? Number(valores.latitude) : null;
+      const lng = textoDe(valores.longitude) !== '' ? Number(valores.longitude) : null;
       return (
         <div className="grid gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm font-medium text-slate-700">Local no mapa</span>
-            <BotaoDeLocalizacao tenantId={tenantId} disabled={travado} onEndereco={aplicarEndereco} />
-          </div>
-          <Suspense
-            fallback={
-              <div className="h-72 animate-pulse rounded-2xl bg-slate-100 sm:h-80" aria-label="Carregando o mapa" />
-            }
-          >
-            <MapaDeEndereco
-              tenantId={tenantId}
-              latitude={Number.isFinite(lat) ? lat : null}
-              longitude={lon !== null && Number.isFinite(lon) ? lon : null}
-              resumo={resumo}
-              disabled={travado}
-              onEndereco={aplicarEndereco}
-              onCoordenada={(latitude, longitude) =>
-                onPatch({ latitude: String(latitude), longitude: String(longitude) })
-              }
-            />
-          </Suspense>
+          <span className="text-sm font-medium text-slate-700">{campo.label}</span>
+          <ConfiguracoesDoMapa
+            settings={lerMapSettings(valor)}
+            disabled={travado}
+            latitude={lat}
+            longitude={lng}
+            onChange={(proximo: MapSettings) => onChange(proximo as unknown as FormValue)}
+          />
         </div>
       );
     }
-
-    if (campo.key === 'longitude') return null;
 
     if (campo.key === 'businessHoursSchedule') {
       return (
@@ -662,6 +683,10 @@ function paraFormulario(
       // tipo "estrutura"), entao sem este desvio a conversao o transformaria
       // em lista de palavras.
       saida[campo.key] = (valor as HorariosDeAtendimento | null) ?? null;
+    } else if (campo.key === 'mapSettings') {
+      // Mesmo caso: configuracao e objeto, e `lerMapSettings` garante que o
+      // formulario sempre abra com algo valido.
+      saida[campo.key] = lerMapSettings(valor) as unknown as FormValue;
     } else if (campo.type === 'boolean') {
       saida[campo.key] = valor === true;
     } else if (campo.type === 'tags') {
@@ -752,6 +777,8 @@ function paraApi(
       corpo.social = valor ?? {};
     } else if (campo.key === 'businessHoursSchedule') {
       corpo[campo.key] = valor ?? null;
+    } else if (campo.key === 'mapSettings') {
+      corpo[campo.key] = valor ?? mapSettingsPadrao();
     } else if (campo.type === 'boolean') {
       corpo[campo.key] = valor === true;
     } else if (campo.type === 'tags') {

@@ -1,30 +1,11 @@
 // @vitest-environment happy-dom
 import { useState } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CampoDeAno, CampoDeCep, CampoDeWhatsApp } from './CamposDeContato.js';
+import { CampoDeAno, CampoDeWhatsApp } from './CamposDeContato.js';
 import { CampoDeHorarios } from './CampoDeHorarios.js';
 import { horariosVazios, textoDosHorarios, type HorariosDeAtendimento } from '@codeca/shared';
-
-vi.mock('../services/endpoints.js', () => ({
-  enderecoApi: {
-    porCep: vi.fn(async (_tenant: string, cep: string) =>
-      cep === '13010000'
-        ? {
-            cep: '13010000',
-            addressLine: 'Rua Francisco Glicério',
-            neighborhood: 'Centro',
-            city: 'Campinas',
-            state: 'SP',
-            latitude: null,
-            longitude: null,
-          }
-        : Promise.reject(new Error('CEP não encontrado.'))),
-    porCoordenada: vi.fn(),
-    buscar: vi.fn(),
-  },
-}));
 
 afterEach(cleanup);
 
@@ -100,51 +81,6 @@ describe('CampoDeWhatsApp', () => {
     await usuario.paste('https://instagram.com/empresa');
     await usuario.tab();
     expect(screen.getByText(/Informe um link no formato/)).toBeTruthy();
-  });
-});
-
-describe('CampoDeCep', () => {
-  function Tela() {
-    const [cep, setCep] = useState('');
-    const [endereco, setEndereco] = useState('');
-    return (
-      <>
-        <CampoDeCep
-          label="CEP"
-          tenantId="t1"
-          value={cep}
-          onChange={setCep}
-          onEndereco={(e) => setEndereco(`${e.addressLine} · ${e.city} · ${e.state}`)}
-        />
-        <output>{endereco}</output>
-      </>
-    );
-  }
-
-  it('aplica a máscara 00000-000', async () => {
-    const usuario = userEvent.setup();
-    render(<Tela />);
-    const campo = screen.getByLabelText('CEP') as HTMLInputElement;
-    await usuario.type(campo, '13010000');
-    expect(campo.value).toBe('13010-000');
-  });
-
-  it('busca sozinho ao completar oito dígitos e preenche o endereço', async () => {
-    const usuario = userEvent.setup();
-    render(<Tela />);
-    await usuario.type(screen.getByLabelText('CEP'), '13010000');
-    await waitFor(() =>
-      expect(screen.getByRole('status').textContent).toBe('Rua Francisco Glicério · Campinas · SP'),
-    );
-  });
-
-  it('CEP inexistente vira aviso, e não erro de formulário', async () => {
-    const usuario = userEvent.setup();
-    render(<Tela />);
-    await usuario.type(screen.getByLabelText('CEP'), '99999999');
-    await waitFor(() => expect(screen.getByText(/Não foi possível consultar o CEP agora/)).toBeTruthy());
-    // O campo segue preenchido e editável: dá para digitar o endereço à mão.
-    expect((screen.getByLabelText('CEP') as HTMLInputElement).value).toBe('99999-999');
   });
 });
 

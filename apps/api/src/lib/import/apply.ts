@@ -2,6 +2,7 @@ import { and, eq, schema, type Database } from '@codeca/database';
 import {
   AppError,
   DOCUMENT_SCHEMAS,
+  normalizarDocumento,
   MODULE_REGISTRY,
   bannerInputSchema,
   blockedFields,
@@ -157,7 +158,15 @@ export async function applyDocumentFields(
   const previous: Record<string, unknown> = {};
   for (const key of chaves) previous[key] = base[key] ?? null;
 
-  const combinado = { ...base, ...input.fields };
+  /*
+    A mesma arrumacao que a gravacao pelo painel faz.
+
+    A importacao escreve o documento direto, sem passar pela rota, e sem esta
+    linha o site importado ficava com CEP mascarado e WhatsApp em telefone
+    enquanto o painel gravava tudo normalizado -- dois formatos para o mesmo
+    campo, dependendo de por onde o dado entrou.
+  */
+  const combinado = normalizarDocumento(input.moduleKey, { ...base, ...input.fields });
   const parsed = DOCUMENT_SCHEMAS[input.moduleKey].safeParse(combinado);
   if (!parsed.success) {
     const primeiro = parsed.error.issues[0];

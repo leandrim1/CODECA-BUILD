@@ -69,6 +69,9 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
       campo('whatsappMessage', 'Mensagem inicial do WhatsApp', 'longText'),
       campo('postalCode', 'CEP', 'text', true, { help: 'Preenche endereço, cidade e estado.' }),
       campo('addressLine', 'Endereço', 'text'),
+      campo('addressNumber', 'Número', 'text'),
+      campo('addressComplement', 'Complemento', 'text'),
+      campo('neighborhood', 'Bairro', 'text'),
       campo('city', 'Cidade', 'text'),
       /*
         `select` e nao `text`: as 27 UFs sao uma lista fechada, e o painel
@@ -82,6 +85,9 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
       */
       campo('latitude', 'Latitude', 'number'),
       campo('longitude', 'Longitude', 'number'),
+      campo('mapSettings', 'Mapa no site', 'tags'),
+      campo('geocodedAt', 'Coordenada obtida em', 'text', false),
+      campo('geocodeSource', 'Origem da coordenada', 'text', false),
       campo('businessHoursSchedule', 'Horário de atendimento', 'tags'),
       campo('businessHours', 'Horário de atendimento (texto)', 'longText'),
       campo('serviceArea', 'Área de atuação', 'longText'),

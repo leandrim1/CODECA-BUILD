@@ -1,5 +1,6 @@
 import { codeca } from '@/lib/codeca';
 import { FormularioDeContato } from '@/components/FormularioDeContato';
+import { CodecaMap } from '@/components/CodecaMap';
 
 export const revalidate = 3600;
 
@@ -12,12 +13,12 @@ export default async function Contato() {
 
       {contato.phone ? <p>Telefone: {contato.phone}</p> : null}
       {contato.email ? <p>E-mail: {contato.email}</p> : null}
-      {contato.addressLine ? (
-        <p>
-          {contato.addressLine}
-          {contato.city ? `, ${contato.city}` : ''}
-        </p>
-      ) : null}
+      {/*
+        O mapa ja vem com o endereco em texto e os botoes "Como chegar", e
+        continua mostrando os dois se o mapa nao carregar. Nao precisa repetir
+        o endereco aqui.
+      */}
+      <CodecaMap contato={contato} />
 
       <FormularioDeContato />
     </main>

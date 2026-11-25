@@ -22,7 +22,7 @@ import { billingJobRoutes, syncJobRoutes } from './routes/billing-jobs.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { contentRoutes } from './routes/content.js';
 import { domainRoutes } from './routes/domains.js';
-import { enderecoRoutes } from './routes/endereco.js';
+import { geoRoutes } from './routes/geo.js';
 import { leadRoutes } from './routes/leads.js';
 import { mediaRoutes } from './routes/media.js';
 import { moduleRoutes } from './routes/modules.js';
@@ -208,11 +208,20 @@ export function createApp(options: CreateAppOptions = {}) {
   tenantScoped.route('/', domainRoutes());
   tenantScoped.route('/', billingRoutes());
   tenantScoped.route('/', analyticsRoutes());
-  tenantScoped.route('/', enderecoRoutes());
   tenantScoped.route('/', siteImportRoutes());
   tenantScoped.route('/', siteSyncRoutes());
   tenantScoped.route('/', demoTenantRoutes());
   tenantScoped.route('/', selfServiceRoutes());
+  /*
+    Geolocalizacao fica FORA do escopo de empresa: a consulta nao pertence a
+    um site, e o mesmo AddressPicker serve qualquer formulario do painel. A
+    fronteira e a sessao, aplicada dentro da propria rota.
+  */
+  const geoScoped = new Hono<AppBindings>();
+  geoScoped.use('*', sessionMiddleware());
+  geoScoped.route('/', geoRoutes());
+  app.route('/geo', geoScoped);
+
   app.route('/tenants', tenantScoped);
 
   // Painel mestre da plataforma.

@@ -321,6 +321,10 @@ export interface ContactContent {
   whatsapp: string;
   whatsappMessage: string;
   addressLine: string;
+  /** Numero, separado da rua. */
+  addressNumber: string;
+  addressComplement: string;
+  neighborhood: string;
   city: string;
   /** Sigla da UF, ou vazio. */
   state: string;
@@ -340,7 +344,36 @@ export interface ContactContent {
   /** Coordenadas do endereco, quando marcadas no mapa do painel. */
   latitude: number | null;
   longitude: number | null;
+  /** Como o mapa aparece no site. Ver `@codeca/sdk/map`. */
+  mapSettings: MapSettings;
+  /** Quando a coordenada foi obtida. Auditoria; nao entra em decisao. */
+  geocodedAt: string;
+  /** De onde ela veio (`painel`, por exemplo). Auditoria. */
+  geocodeSource: string;
   social: Partial<Record<SocialNetwork, string>>;
+}
+
+/**
+ * Apresentacao do mapa, escolhida pelo cliente no painel.
+ *
+ * Nenhum campo guarda id, URL ou chave de fornecedor: `estilo` e o nome de um
+ * preset da plataforma. Trocar quem serve o mapa nao invalida nada disto.
+ */
+export interface MapSettings {
+  zoom: number;
+  altura: 'compacta' | 'media' | 'grande';
+  formato: 'cartao' | 'largura-total';
+  estilo: string;
+  /** Vazio = a cor primaria do site. */
+  corDoPino: string;
+  icone: 'pino' | 'loja' | 'predio' | 'casa';
+  mostrarControles: boolean;
+  mostrarComoChegar: boolean;
+  mostrarHorario: boolean;
+  posicaoDoEndereco: 'lado' | 'abaixo' | 'oculto';
+  /** Mostra um cartao e so carrega o mapa quando o visitante clicar. */
+  carregarAoClicar: boolean;
+  comoChegar: { google: boolean; waze: boolean; apple: boolean };
 }
 
 /** Um periodo de atendimento: `08:00` as `12:00`. */

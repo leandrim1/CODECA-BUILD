@@ -32,6 +32,7 @@ assets/
 ├── src/lib/codeca-navegador.ts            cliente do navegador (chave publicável)
 ├── src/app/page.tsx                       inicial, buscas em paralelo
 ├── src/app/contato/page.tsx               dados de contato
+├── src/components/CodecaMap.tsx           mapa do endereço
 ├── src/components/FormularioDeContato.tsx envio de interessado
 ├── src/app/api/codeca/webhook/route.ts    aviso de publicação revalida o cache
 └── next.config.ts                         libera o domínio das imagens
@@ -203,6 +204,47 @@ quisesse.
 
 O corpo traz `moduleKey`, `action`, `entityId`, `slug` e `publishedAt` — o que
 mudou, não o conteúdo. Busque o conteúdo pela API depois.
+
+## Endereço e mapa
+
+O endereço vem **normalizado** da plataforma, e é nesse formato que ele deve
+ser usado — nunca remontado a partir de texto livre:
+
+| Campo | Formato |
+| :--- | :--- |
+| `addressLine`, `addressNumber`, `addressComplement`, `neighborhood`, `city` | texto |
+| `state` | sigla da UF |
+| `postalCode` | **só dígitos** (`13010000`) — formate na exibição |
+| `latitude`, `longitude` | número ou `null` |
+| `mapSettings` | como o mapa aparece (estilo, altura, zoom, "Como chegar") |
+
+O mapa é o `<codeca-map>` do SDK, e `src/components/CodecaMap.tsx` já o
+embrulha para uso em JSX:
+
+```tsx
+import { CodecaMap } from '@/components/CodecaMap';
+
+const contato = await codeca.contact.get();
+<CodecaMap contato={contato} />
+```
+
+Três coisas que esse componente resolve e que é fácil errar escrevendo do
+zero:
+
+- **O cartão vem antes do mapa.** Endereço em texto e botões "Como chegar"
+  (Google Maps, Waze, Apple Maps) são o conteúdo real; o mapa é acréscimo. Se
+  o Leaflet não carregar, ou o provedor de ladrilhos estiver fora, a página
+  continua dizendo onde a empresa fica.
+- **Nada carrega antes de aparecer.** O Leaflet só é buscado quando o mapa
+  entra na tela — e, se o cliente marcou "carregar ao clicar" no painel, só
+  depois do clique. Site com muito tráfego não deve disparar milhares de
+  pedidos de ladrilho por dia a um serviço gratuito.
+- **A atribuição é obrigatória.** "© OpenStreetMap contributors" é condição da
+  licença, não enfeite: o componente já a mantém visível, e removê-la quebra
+  os termos de uso.
+
+Sem `latitude`/`longitude` não há mapa — e o componente mostra só o endereço,
+que é o comportamento certo. Quem preenche a coordenada é o cliente, no painel.
 
 ## Cookies e consentimento
 
