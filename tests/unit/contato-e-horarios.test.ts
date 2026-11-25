@@ -12,6 +12,7 @@ import {
   horariosDoTexto,
   horariosVazios,
   institucionalDocumentSchema,
+  normalizarDocumento,
   normalizarWhatsApp,
   textoDosHorarios,
   whatsappValido,
@@ -103,10 +104,25 @@ describe('cep e UF no documento de contato', () => {
     expect(cepValido('1301000')).toBe(false);
   });
 
-  it('o schema aceita CEP com mascara e devolve digitos', () => {
-    const r = contatoDocumentSchema.safeParse({ postalCode: '13010-000' });
-    expect(r.success).toBe(true);
-    expect(r.data?.postalCode).toBe('13010000');
+  /*
+    Quem tira a mascara e `normalizarDocumento`, e nao o schema.
+
+    A limpeza morava dentro do schema e precisou sair: `z.toJSONSchema` nao
+    representa `.transform()`, e a API publica gera o `openapi.json` a partir
+    destes schemas -- com o transform embutido, o documento inteiro parava de
+    ser gerado. A rota (e o importador) chamam a normalizacao antes de
+    validar, entao o que chega ao banco continua em digitos.
+  */
+  it('a normalizacao tira a mascara, e o schema aceita o resultado', () => {
+    const limpo = normalizarDocumento('contato', { postalCode: '13010-000' });
+    expect(limpo.postalCode).toBe('13010000');
+    expect(contatoDocumentSchema.safeParse(limpo).data?.postalCode).toBe('13010000');
+  });
+
+  it('a normalizacao tambem arruma WhatsApp e UF antes da validacao', () => {
+    const limpo = normalizarDocumento('contato', { whatsapp: '(19) 99999-0000', state: 'sp' });
+    expect(limpo.whatsapp).toBe('https://wa.me/5519999990000');
+    expect(limpo.state).toBe('SP');
   });
 
   it('o schema recusa CEP incompleto e UF inexistente', () => {
