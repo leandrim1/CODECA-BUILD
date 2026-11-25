@@ -90,6 +90,63 @@
   }
 }
 
+/**
+ * Veu do bloco "Diferencial".
+ *
+ * Diferente do veu do convite final, este NAO e simetrico: as duas colunas da
+ * secao pedem coisas opostas da mesma imagem.
+ *
+ * - A esquerda mora o titulo em branco. Ali o veu e denso, e o que se ve da
+ *   imagem sao os vultos do fundo -- cenario, nao concorrencia.
+ * - A direita mora o painel, que e o assunto da secao. Ali o veu afrouxa, para
+ *   o monitor 3D e os icones aparecerem ATRAS do cartao e darem a profundidade
+ *   que a imagem veio trazer.
+ *
+ * A transicao e um gradiente horizontal, e nao um corte: o olho le uma cena so.
+ */
+.lp-dif-veu {
+  background-image:
+    linear-gradient(
+      to right,
+      rgb(10 22 58 / 0.9) 0%,
+      rgb(11 24 64 / 0.85) 38%,
+      rgb(13 28 76 / 0.5) 62%,
+      rgb(15 32 86 / 0.34) 100%
+    ),
+    linear-gradient(to bottom, rgb(12 26 68 / 0.5), rgb(12 26 68 / 0.16) 45%, rgb(12 26 68 / 0.42));
+}
+
+/*
+  Em uma coluna (celular e tablet em pe) nao ha "esquerda e direita": texto e
+  painel se empilham sobre o mesmo pedaco de imagem, e o veu tem de ser parelho
+  -- e mais denso, porque o recorte vertical traz o monitor para o meio da
+  coluna de texto.
+*/
+@media (max-width: 1023px) {
+  .lp-dif-veu {
+    background-image:
+      radial-gradient(
+        ellipse 130% 85% at 50% 42%,
+        rgb(10 22 58 / 0.84) 0%,
+        rgb(12 26 70 / 0.78) 55%,
+        rgb(15 32 86 / 0.62) 100%
+      ),
+      linear-gradient(to bottom, rgb(12 26 68 / 0.46), rgb(12 26 68 / 0.3) 50%, rgb(12 26 68 / 0.52));
+  }
+}
+
+/**
+ * Vidro do cartao do painel, no mesmo azul profundo do veu.
+ *
+ * Fica aqui, e nao numa utilidade do Tailwind, porque a paleta da marca para
+ * em `brand-900` (#1b3375) -- claro demais para separar o cartao de um fundo
+ * que ja e escuro. Este tom e o mesmo do nucleo do veu, entao o cartao parece
+ * recortado da propria cena, e nao colado por cima dela.
+ */
+.lp-dif-cartao {
+  background-color: rgb(10 22 58 / 0.72);
+}
+
 /* Entrada discreta: sobe 12px e aparece. Sem JS, o conteudo ja esta visivel. */
 .lp-reveal {
   transition:
