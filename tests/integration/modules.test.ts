@@ -190,6 +190,58 @@ describe('validacao dos campos de contato e institucional', () => {
     expect(resposta.status).toBe(422);
   });
 
+  /*
+    O defeito que apareceu em producao.
+
+    `geocodedAt` e `geocodeSource` nasceram travados, e a verificacao de campo
+    travado compara o enviado com o GRAVADO. Documento salvo antes deles
+    existir nao tem as chaves; o `''` que o schema preenche na leitura contava
+    como alteracao, e a tela de contato parava de salvar inteira -- por causa
+    de dois campos que ninguem edita.
+  */
+  it('salva um documento gravado ANTES de os campos de auditoria existirem', async () => {
+    // Grava direto no banco, sem as chaves novas: e o estado de um site real.
+    await api.db
+      .insert(schema.contentDocuments)
+      .values({
+        tenantId: empresa.tenantId,
+        siteId: empresa.siteId,
+        moduleKey: 'contato',
+        data: { email: 'antigo@a.com.br', phone: '1933330000', city: 'Campinas' },
+      })
+      .onConflictDoUpdate({
+        target: [schema.contentDocuments.siteId, schema.contentDocuments.moduleKey],
+        set: { data: { email: 'antigo@a.com.br', phone: '1933330000', city: 'Campinas' } },
+      });
+
+    const resposta = await empresa.client.put(contato(), { email: 'novo@a.com.br', city: 'Campinas' });
+    expect(resposta.status, resposta.errorMessage ?? '').toBe(200);
+    expect(resposta.body.data.email).toBe('novo@a.com.br');
+  });
+
+  it('o carimbo da coordenada e do servidor, nao do cliente', async () => {
+    const comCoordenada = await empresa.client.put(contato(), {
+      latitude: -22.9071,
+      longitude: -47.0632,
+      // O cliente tenta carimbar: o servidor ignora e escreve o seu.
+      geocodedAt: '1999-01-01T00:00:00.000Z',
+      geocodeSource: 'inventado',
+    });
+    expect(comCoordenada.status).toBe(200);
+    expect(comCoordenada.body.data.geocodeSource).toBe('painel');
+    expect(comCoordenada.body.data.geocodedAt).not.toBe('1999-01-01T00:00:00.000Z');
+
+    // Salvar de novo sem mexer na coordenada preserva o carimbo anterior.
+    const carimbo = comCoordenada.body.data.geocodedAt;
+    const semMexer = await empresa.client.put(contato(), {
+      latitude: -22.9071,
+      longitude: -47.0632,
+      city: 'Valinhos',
+    });
+    expect(semMexer.status).toBe(200);
+    expect(semMexer.body.data.geocodedAt).toBe(carimbo);
+  });
+
   it('documento antigo continua sendo lido, com os campos novos vazios', async () => {
     // Sites que nunca abriram a tela nova nao tem as chaves no JSONB: o
     // schema as preenche na leitura, em vez de recusar o documento.

@@ -86,8 +86,25 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> = {
       campo('latitude', 'Latitude', 'number'),
       campo('longitude', 'Longitude', 'number'),
       campo('mapSettings', 'Mapa no site', 'tags'),
-      campo('geocodedAt', 'Coordenada obtida em', 'text', false),
-      campo('geocodeSource', 'Origem da coordenada', 'text', false),
+      /*
+        Auditoria da coordenada. NAO sao travados, e isso e deliberado.
+
+        Travado significa "a CODECA IA mantem, o cliente nao mexe" -- e a
+        verificacao compara o que foi enviado com o que esta gravado. Como
+        estes campos nasceram depois, o documento de qualquer site antigo nao
+        tem as chaves, e o `''` que o schema preenche na leitura contava como
+        alteracao de campo travado: a tela de contato parava de salvar
+        inteira, por causa de dois campos que ninguem edita.
+
+        Quem os preenche e o SERVIDOR, na gravacao, comparando a coordenada
+        nova com a guardada -- que e o que auditoria quer dizer.
+      */
+      campo('geocodedAt', 'Coordenada obtida em', 'text', true, {
+        help: 'Preenchido automaticamente ao marcar o local.',
+      }),
+      campo('geocodeSource', 'Origem da coordenada', 'text', true, {
+        help: 'Preenchido automaticamente ao marcar o local.',
+      }),
       campo('businessHoursSchedule', 'Horário de atendimento', 'tags'),
       campo('businessHours', 'Horário de atendimento (texto)', 'longText'),
       campo('serviceArea', 'Área de atuação', 'longText'),

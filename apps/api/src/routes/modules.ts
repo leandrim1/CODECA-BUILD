@@ -216,6 +216,28 @@ export function moduleRoutes() {
         ),
       );
 
+    /*
+      Carimbo de auditoria da coordenada, escrito AQUI.
+
+      `geocodedAt` e `geocodeSource` respondem "de onde veio esta coordenada,
+      e quando" -- e auditoria que o cliente pode escrever nao responde nada.
+      O servidor compara o que chegou com o que esta gravado e so carimba
+      quando a coordenada mudou de verdade: mexer no complemento nao e
+      geocodificar.
+    */
+    if (key === 'contato') {
+      const anterior = (atual?.data ?? {}) as Record<string, unknown>;
+      const mudouCoordenada =
+        enviado.latitude !== anterior['latitude'] || enviado.longitude !== anterior['longitude'];
+      if (mudouCoordenada && enviado.latitude !== null && enviado.longitude !== null) {
+        enviado.geocodedAt = ctx.now().toISOString();
+        enviado.geocodeSource = 'painel';
+      } else {
+        enviado.geocodedAt = anterior['geocodedAt'] ?? '';
+        enviado.geocodeSource = anterior['geocodeSource'] ?? '';
+      }
+    }
+
     const estadoModulos = await loadSiteModules(ctx.db, tenant.siteId);
     const { overrides } = estadoModulos;
     const alterados = assertEditableChanges(key, atual?.data ?? {}, enviado, overrides);

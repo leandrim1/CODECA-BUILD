@@ -444,13 +444,13 @@ function Campo({
               longitude: typeof proximo.lng === 'number' ? String(proximo.lng) : '',
             };
             /*
-              Carimbo de auditoria so quando a coordenada muda de verdade:
-              digitar o complemento nao e geocodificar.
+              O carimbo de auditoria NAO sai daqui.
+
+              Quem o escreve e o servidor, comparando a coordenada que chegou
+              com a guardada. Carimbar no cliente deixaria o relogio do
+              aparelho e a boa vontade de quem chama a API decidindo o que a
+              auditoria registra.
             */
-            if (proximo.lat !== endereco.lat || proximo.lng !== endereco.lng) {
-              patch.geocodedAt = new Date().toISOString();
-              patch.geocodeSource = 'painel';
-            }
             onPatch(patch);
           }}
         />
