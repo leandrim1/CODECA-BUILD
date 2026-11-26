@@ -29,12 +29,15 @@ import {
   Card,
   CardBody,
   CardHeader,
+  FORM_GRID_CLASSES,
+  FORM_SPAN_FULL,
   Field,
   PageHeader,
   Select,
   Switch,
   TextArea,
   TextInput,
+  cx,
   useToast,
 } from '@codeca/ui';
 import { useTenantId } from '../hooks/useAuth.js';
@@ -141,6 +144,7 @@ function Formulario({
   }, [fields, inicial, personalizados]);
 
   const travados = useMemo(() => fields.filter((campo) => !campo.editable), [fields]);
+  const plano = useMemo(() => planoDoFormulario(moduleKey, fields), [moduleKey, fields]);
 
   const salvar = useMutation(
     () => moduleApi.saveDocument(tenantId, moduleKey, paraApi(fields, valores, inicial, personalizados)),
@@ -212,31 +216,37 @@ function Formulario({
           </Alert>
         ) : null}
 
-        {fields.map((campo) =>
-          campo.key === 'social' ? (
-            <RedesSociais
+        <div className={FORM_GRID_CLASSES}>
+          {plano.map(({ campo, largura, reservarDica }) => (
+            <div
               key={campo.key}
-              campo={campo}
-              valor={(valores.social as Record<string, string> | null) ?? {}}
-              onChange={(proximo) => definir('social', proximo)}
-            />
-          ) : (
-            <Campo
-              key={campo.key}
-              campo={campo}
-              moduleKey={moduleKey}
-              tenantId={tenantId}
-              valor={valores[campo.key] ?? ''}
-              valores={valores}
-              erro={erros[campo.key]}
-              errosDoFormulario={erros}
-              textoDeHorarioAntigo={textoDeHorarioAntigo}
-              imagens={imagens}
-              onChange={(proximo) => definir(campo.key, proximo)}
-              onPatch={definirVarios}
-            />
-          ),
-        )}
+              className={cx(largura === 'inteira' && FORM_SPAN_FULL, 'min-w-0')}
+            >
+              {campo.key === 'social' ? (
+                <RedesSociais
+                  campo={campo}
+                  valor={(valores.social as Record<string, string> | null) ?? {}}
+                  onChange={(proximo) => definir('social', proximo)}
+                />
+              ) : (
+                <Campo
+                  campo={campo}
+                  moduleKey={moduleKey}
+                  tenantId={tenantId}
+                  valor={valores[campo.key] ?? ''}
+                  valores={valores}
+                  erro={erros[campo.key]}
+                  errosDoFormulario={erros}
+                  reservarDica={reservarDica}
+                  textoDeHorarioAntigo={textoDeHorarioAntigo}
+                  imagens={imagens}
+                  onChange={(proximo) => definir(campo.key, proximo)}
+                  onPatch={definirVarios}
+                />
+              )}
+            </div>
+          ))}
+        </div>
 
         <div className="flex flex-wrap items-center justify-end gap-3">
           {temErro ? (
@@ -301,6 +311,126 @@ export function errosDoDocumento(
   return erros;
 }
 
+/*
+  ------------------------------------------------------------------------
+  Onde cada campo cai na grade de duas colunas.
+  ------------------------------------------------------------------------
+
+  O calculo mora AQUI, no pai, e nao dentro de `Campo`: a grade precisa saber
+  a largura de cada celula antes de desenhar, e precisa saber quais campos
+  nao viram celula nenhuma. Se `Campo` continuasse decidindo sozinho devolver
+  `null`, cada campo escondido deixaria um buraco de meia largura na linha.
+*/
+
+/**
+ * Campos que o bloco de endereco ja desenha, e que por isso nao aparecem
+ * soltos. Os dois ultimos sao carimbo de auditoria: quem os escreve e o
+ * servidor, na gravacao.
+ */
+const CAMPOS_DO_ENDERECO = new Set([
+  'addressLine',
+  'addressNumber',
+  'addressComplement',
+  'neighborhood',
+  'city',
+  'state',
+  'latitude',
+  'longitude',
+  'geocodedAt',
+  'geocodeSource',
+]);
+
+/**
+ * Campos curtos que mesmo assim ocupam a linha inteira.
+ *
+ * `postalCode` porque o que ele desenha e o endereco completo com o mapa, e
+ * `mapUrl` porque um endereco do Google Maps nao cabe em meia linha sem
+ * virar reticencias.
+ */
+const LINHA_INTEIRA = new Set(['postalCode', 'mapUrl']);
+
+/**
+ * Tipos cujo controle e alto ou largo demais para meia linha.
+ *
+ * `image` fica de fora: a miniatura de 80px com o botao ao lado cabe numa
+ * metade, e logotipo e imagem de destaque lado a lado se comparam melhor do
+ * que empilhados.
+ */
+const TIPOS_INTEIROS = new Set(['longText', 'tags', 'imageList', 'boolean']);
+
+/** O campo nao vira celula: outro controle ja o desenha. */
+export function campoOculto(moduleKey: string, campo: SiteModuleFieldView): boolean {
+  if (moduleKey !== 'contato') return false;
+  if (CAMPOS_DO_ENDERECO.has(campo.key)) return true;
+  // O texto do horario e gerado pela grade; so aparece quando esta travado,
+  // porque campo travado se mostra, como todos os outros.
+  if (campo.key === 'businessHours' && campo.editable) return true;
+  return false;
+}
+
+export function larguraDoCampo(moduleKey: string, campo: SiteModuleFieldView): 'inteira' | 'metade' {
+  if (TIPOS_INTEIROS.has(campo.type)) return 'inteira';
+  if (moduleKey === 'contato' && LINHA_INTEIRA.has(campo.key)) return 'inteira';
+  return 'metade';
+}
+
+/** A dica que o campo vai mostrar -- a mesma conta que `Campo` faz. */
+function dicaDoCampo(campo: SiteModuleFieldView): string | undefined {
+  return campo.editable ? campo.help : 'Mantido pela CODECA IA neste site.';
+}
+
+export interface ItemDoFormulario {
+  campo: SiteModuleFieldView;
+  largura: 'inteira' | 'metade';
+  /** Ver `FieldShellProps.reservarDica`. */
+  reservarDica: boolean;
+}
+
+/**
+ * A lista de campos virada em celulas da grade.
+ *
+ * Emparelha as metades na ordem em que elas aparecem -- que e a ordem em que
+ * a grade as coloca -- e, quando so uma das duas tem dica, manda a outra
+ * reservar a linha do texto. Sem isso a caixa de um termina 16px acima da do
+ * outro e a linha seguinte comeca torta.
+ */
+export function planoDoFormulario(
+  moduleKey: string,
+  fields: SiteModuleFieldView[],
+): ItemDoFormulario[] {
+  const itens = fields
+    .filter((campo) => !campoOculto(moduleKey, campo))
+    .map((campo) => ({
+      campo,
+      largura: larguraDoCampo(moduleKey, campo),
+      temDica: Boolean(dicaDoCampo(campo)),
+      reservarDica: false,
+    }));
+
+  let i = 0;
+  while (i < itens.length) {
+    const esquerda = itens[i];
+    const direita = itens[i + 1];
+    if (!esquerda || esquerda.largura !== 'metade') {
+      i += 1;
+      continue;
+    }
+    // Metade sozinha na linha (a proxima ocupa a linha inteira): nada a
+    // alinhar.
+    if (!direita || direita.largura !== 'metade') {
+      i += 1;
+      continue;
+    }
+    if (esquerda.temDica !== direita.temDica) {
+      const semDica = esquerda.temDica ? direita : esquerda;
+      semDica.reservarDica = true;
+    }
+    i += 2;
+  }
+
+  return itens.map(({ campo, largura, reservarDica }) => ({ campo, largura, reservarDica }));
+}
+
 /** Um campo do modulo, no controle que o tipo pede. */
 function Campo({
   campo,
@@ -310,6 +440,7 @@ function Campo({
   valores,
   erro,
   errosDoFormulario = {},
+  reservarDica = false,
   textoDeHorarioAntigo,
   imagens,
   onChange,
@@ -324,6 +455,8 @@ function Campo({
   erro?: string | undefined;
   /** Todos os erros do formulario: o endereco mostra varios de uma vez. */
   errosDoFormulario?: Record<string, string>;
+  /** Ver `FieldShellProps.reservarDica`; quem decide e `planoDoFormulario`. */
+  reservarDica?: boolean;
   textoDeHorarioAntigo?: string;
   imagens: Record<string, MediaRef>;
   onChange: (valor: FormValue) => void;
@@ -341,6 +474,7 @@ function Campo({
     label: rotulo,
     ...(dica ? { hint: dica } : {}),
     ...(erro ? { error: erro } : {}),
+    reservarDica,
     readOnly: travado,
     disabled: travado,
     required: campo.required ?? false,
@@ -363,6 +497,7 @@ function Campo({
       <CampoDeAno
         label={rotulo}
         hint={dica}
+        reservarDica={reservarDica}
         disabled={travado}
         value={texto}
         error={erro}
@@ -377,6 +512,7 @@ function Campo({
         <CampoDeTelefone
           label={rotulo}
           hint={dica}
+          reservarDica={reservarDica}
           disabled={travado}
           value={texto}
           error={erro}
@@ -390,6 +526,7 @@ function Campo({
         <CampoDeWhatsApp
           label={rotulo}
           hint={dica}
+          reservarDica={reservarDica}
           disabled={travado}
           value={texto}
           error={erro}
@@ -457,22 +594,6 @@ function Campo({
       );
     }
 
-    /* Os campos que o AddressPicker ja desenha nao aparecem duas vezes. */
-    if (
-      campo.key === 'addressLine'
-      || campo.key === 'addressNumber'
-      || campo.key === 'addressComplement'
-      || campo.key === 'neighborhood'
-      || campo.key === 'city'
-      || campo.key === 'state'
-      || campo.key === 'latitude'
-      || campo.key === 'longitude'
-      || campo.key === 'geocodedAt'
-      || campo.key === 'geocodeSource'
-    ) {
-      return null;
-    }
-
     if (campo.key === 'mapSettings') {
       const lat = textoDe(valores.latitude) !== '' ? Number(valores.latitude) : null;
       const lng = textoDe(valores.longitude) !== '' ? Number(valores.longitude) : null;
@@ -506,12 +627,6 @@ function Campo({
       );
     }
 
-    /*
-      O texto do horario e gerado, nao digitado. Some da tela quando o cliente
-      pode editar a grade; continua aparecendo quando o campo esta travado,
-      porque campo travado se mostra, como todos os outros.
-    */
-    if (campo.key === 'businessHours' && !travado) return null;
   }
 
   if (campo.type === 'boolean') {
@@ -564,6 +679,7 @@ function Campo({
       <Select
         label={rotulo}
         {...(dica ? { hint: dica } : {})}
+        reservarDica={reservarDica}
         disabled={travado}
         required={campo.required ?? false}
         value={typeof valor === 'string' ? valor : ''}

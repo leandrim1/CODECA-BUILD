@@ -16,12 +16,15 @@ import {
   Card,
   CardBody,
   CardHeader,
+  FORM_GRID_CLASSES,
+  FORM_SPAN_FULL,
   PageHeader,
   Select,
   Switch,
   Tabs,
   TextArea,
   TextInput,
+  cx,
   useToast,
 } from '@codeca/ui';
 import { CampoDeTelefone } from '../components/CamposComMascara.js';
@@ -200,7 +203,12 @@ export function CompanyPage() {
                     </Button>
                   }
                 />
-                <CardBody className="grid gap-4 lg:max-w-2xl">
+                {/*
+                  `max-w-4xl` e nao `2xl`: em duas colunas, 42rem deixaria
+                  cada campo com 20rem, estreito demais para uma razao
+                  social.
+                */}
+                <CardBody className={cx(FORM_GRID_CLASSES, 'lg:max-w-4xl')}>
                   <TextInput
                     label="Nome de exibição"
                     required
@@ -213,36 +221,36 @@ export function CompanyPage() {
                   <TextInput
                     label="Razão social"
                     required
+                    reservarDica
                     value={profile.values.legalName}
                     error={profile.errors.legalName}
                     disabled={readOnly}
                     onChange={(event) => profile.setField('legalName', event.target.value)}
                   />
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <TextInput
-                      label="CNPJ"
-                      value={profile.values.taxId}
-                      error={profile.errors.taxId}
-                      disabled={readOnly}
-                      onChange={(event) => profile.setField('taxId', event.target.value)}
-                    />
-                    <TextInput
-                      label="Ano de fundação"
-                      inputMode="numeric"
-                      value={profile.values.foundedYear}
-                      error={profile.errors.foundedYear}
-                      disabled={readOnly}
-                      onChange={(event) => profile.setField('foundedYear', event.target.value)}
-                    />
-                    <TextInput
-                      label="Registro no CREA"
-                      value={profile.values.creaNumber}
-                      disabled={readOnly}
-                      onChange={(event) => profile.setField('creaNumber', event.target.value)}
-                    />
-                  </div>
+                  <TextInput
+                    label="CNPJ"
+                    value={profile.values.taxId}
+                    error={profile.errors.taxId}
+                    disabled={readOnly}
+                    onChange={(event) => profile.setField('taxId', event.target.value)}
+                  />
+                  <TextInput
+                    label="Ano de fundação"
+                    inputMode="numeric"
+                    value={profile.values.foundedYear}
+                    error={profile.errors.foundedYear}
+                    disabled={readOnly}
+                    onChange={(event) => profile.setField('foundedYear', event.target.value)}
+                  />
+                  <TextInput
+                    label="Registro no CREA"
+                    value={profile.values.creaNumber}
+                    disabled={readOnly}
+                    onChange={(event) => profile.setField('creaNumber', event.target.value)}
+                  />
                   <TextArea
                     label="Descrição da empresa"
+                    className={FORM_SPAN_FULL}
                     rows={5}
                     value={profile.values.description}
                     disabled={readOnly}
@@ -268,27 +276,31 @@ export function CompanyPage() {
                     </Button>
                   }
                 />
-                <CardBody className="grid gap-5 lg:max-w-2xl">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <TextInput
-                      label="E-mail de contato"
-                      type="email"
-                      value={contact.values.email}
-                      error={contact.errors.email}
-                      disabled={readOnly}
-                      hint="Aparece no site e recebe os avisos de novos interessados."
-                      onChange={(event) => contact.setField('email', event.target.value)}
-                    />
-                    <TextInput
-                      label="Telefone"
-                      value={contact.values.phone}
-                      error={contact.errors.phone}
-                      disabled={readOnly}
-                      onChange={(event) => contact.setField('phone', event.target.value)}
-                    />
-                  </div>
+                <CardBody className={cx(FORM_GRID_CLASSES, 'lg:max-w-4xl')}>
+                  <TextInput
+                    label="E-mail de contato"
+                    type="email"
+                    value={contact.values.email}
+                    error={contact.errors.email}
+                    disabled={readOnly}
+                    hint="Aparece no site e recebe os avisos de novos interessados."
+                    onChange={(event) => contact.setField('email', event.target.value)}
+                  />
+                  <TextInput
+                    label="Telefone"
+                    reservarDica
+                    value={contact.values.phone}
+                    error={contact.errors.phone}
+                    disabled={readOnly}
+                    onChange={(event) => contact.setField('phone', event.target.value)}
+                  />
 
-                  <div className="grid gap-3 rounded-lg border border-emerald-200 bg-emerald-50/50 p-3">
+                  <div
+                    className={cx(
+                      FORM_SPAN_FULL,
+                      'grid gap-3 rounded-lg border border-emerald-200 bg-emerald-50/50 p-3',
+                    )}
+                  >
                     <TextInput
                       label="WhatsApp da empresa"
                       value={contact.values.whatsapp}
@@ -324,7 +336,12 @@ export function CompanyPage() {
                     ) : null}
                   </div>
 
-                  <div className="grid gap-4">
+                  {/*
+                    O interruptor ocupa a linha inteira, mas o rotulo e a
+                    chavinha ficam a 36rem um do outro no maximo: numa linha
+                    de 56rem eles acabariam em pontas opostas da tela.
+                  */}
+                  <div className={cx(FORM_SPAN_FULL, 'max-w-xl')}>
                     <Switch
                       label="Exibir endereço completo no site"
                       hint="Desligado, o site mostra apenas bairro e cidade."
@@ -332,84 +349,94 @@ export function CompanyPage() {
                       disabled={readOnly}
                       onChange={(checked) => contact.setField('showFullAddress', checked)}
                     />
-                    <div className="grid gap-4 sm:grid-cols-[2fr_1fr_1fr]">
-                      <TextInput
-                        label="Rua"
-                        value={contact.values.street}
-                        disabled={readOnly}
-                        onChange={(event) => contact.setField('street', event.target.value)}
-                      />
-                      <TextInput
-                        label="Número"
-                        value={contact.values.number}
-                        disabled={readOnly}
-                        onChange={(event) => contact.setField('number', event.target.value)}
-                      />
-                      <TextInput
-                        label="Complemento"
-                        value={contact.values.complement}
-                        disabled={readOnly}
-                        onChange={(event) => contact.setField('complement', event.target.value)}
-                      />
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-4">
-                      <TextInput
-                        label="Bairro"
-                        value={contact.values.neighborhood}
-                        disabled={readOnly}
-                        onChange={(event) => contact.setField('neighborhood', event.target.value)}
-                      />
-                      <TextInput
-                        label="Cidade"
-                        value={contact.values.city}
-                        disabled={readOnly}
-                        onChange={(event) => contact.setField('city', event.target.value)}
-                      />
-                      <Select
-                        label="UF"
-                        value={contact.values.state}
-                        placeholder="-"
-                        disabled={readOnly}
-                        options={BRAZIL_STATES.map((state) => ({ value: state, label: state }))}
-                        onChange={(event) => contact.setField('state', event.target.value)}
-                      />
-                      <TextInput
-                        label="CEP"
-                        value={contact.values.postalCode}
-                        disabled={readOnly}
-                        onChange={(event) => contact.setField('postalCode', event.target.value)}
-                      />
-                    </div>
-                    <TextInput
-                      label="Região atendida"
-                      value={contact.values.serviceArea}
-                      disabled={readOnly}
-                      placeholder="Campinas, Valinhos, Vinhedo e Paulínia"
-                      onChange={(event) => contact.setField('serviceArea', event.target.value)}
-                    />
-                    <TextInput
-                      label="Horário de atendimento"
-                      value={contact.values.businessHours}
-                      disabled={readOnly}
-                      placeholder="Segunda a sexta, das 8h as 18h"
-                      onChange={(event) => contact.setField('businessHours', event.target.value)}
-                    />
                   </div>
 
-                  <fieldset className="grid gap-3">
-                    <legend className="text-sm font-medium text-slate-700">Redes sociais</legend>
-                    {SOCIAL_NETWORKS.map((network) => (
-                      <TextInput
-                        key={network}
-                        label={SOCIAL_NETWORK_LABELS[network]}
-                        value={contact.values.social[network] ?? ''}
-                        disabled={readOnly}
-                        placeholder="https://"
-                        onChange={(event) =>
-                          contact.setField('social', { ...contact.values.social, [network]: event.target.value })
-                        }
-                      />
-                    ))}
+                  {/*
+                    Mesma ordem do endereco de /painel/contato -- CEP, numero,
+                    rua, complemento, bairro, cidade, UF -- para quem edita os
+                    dois nao ter de reaprender a tela.
+                  */}
+                  <TextInput
+                    label="CEP"
+                    value={contact.values.postalCode}
+                    disabled={readOnly}
+                    onChange={(event) => contact.setField('postalCode', event.target.value)}
+                  />
+                  <TextInput
+                    label="Número"
+                    value={contact.values.number}
+                    disabled={readOnly}
+                    onChange={(event) => contact.setField('number', event.target.value)}
+                  />
+                  <TextInput
+                    label="Rua"
+                    className={FORM_SPAN_FULL}
+                    value={contact.values.street}
+                    disabled={readOnly}
+                    onChange={(event) => contact.setField('street', event.target.value)}
+                  />
+                  <TextInput
+                    label="Complemento"
+                    value={contact.values.complement}
+                    disabled={readOnly}
+                    onChange={(event) => contact.setField('complement', event.target.value)}
+                  />
+                  <TextInput
+                    label="Bairro"
+                    value={contact.values.neighborhood}
+                    disabled={readOnly}
+                    onChange={(event) => contact.setField('neighborhood', event.target.value)}
+                  />
+                  <TextInput
+                    label="Cidade"
+                    value={contact.values.city}
+                    disabled={readOnly}
+                    onChange={(event) => contact.setField('city', event.target.value)}
+                  />
+                  <Select
+                    label="Estado"
+                    value={contact.values.state}
+                    placeholder="UF"
+                    disabled={readOnly}
+                    options={BRAZIL_STATES.map((state) => ({ value: state, label: state }))}
+                    onChange={(event) => contact.setField('state', event.target.value)}
+                  />
+                  <TextInput
+                    label="Região atendida"
+                    value={contact.values.serviceArea}
+                    disabled={readOnly}
+                    placeholder="Campinas, Valinhos, Vinhedo e Paulínia"
+                    onChange={(event) => contact.setField('serviceArea', event.target.value)}
+                  />
+                  <TextInput
+                    label="Horário de atendimento"
+                    value={contact.values.businessHours}
+                    disabled={readOnly}
+                    placeholder="Segunda a sexta, das 8h as 18h"
+                    onChange={(event) => contact.setField('businessHours', event.target.value)}
+                  />
+
+                  <fieldset className={cx(FORM_SPAN_FULL, 'grid gap-3')}>
+                    {/*
+                      `mb-2` porque o vao da grade nao alcanca a legenda: o
+                      navegador tira o `<legend>` do fluxo do `<fieldset>`,
+                      e sem margem propria ela encosta no primeiro rotulo.
+                    */}
+                    <legend className="mb-2 text-sm font-medium text-slate-700">Redes sociais</legend>
+                    <div className={FORM_GRID_CLASSES}>
+                      {SOCIAL_NETWORKS.map((network) => (
+                        <TextInput
+                          key={network}
+                          label={SOCIAL_NETWORK_LABELS[network]}
+                          value={contact.values.social[network] ?? ''}
+                          disabled={readOnly}
+                          placeholder="https://"
+                          onChange={(event) =>
+                            contact.setField('social', { ...contact.values.social, [network]: event.target.value })
+                          }
+                        />
+                      ))}
+                    </div>
                   </fieldset>
                 </CardBody>
               </Card>

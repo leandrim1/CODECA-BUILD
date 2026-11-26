@@ -32,6 +32,7 @@ export function CampoDeAno({
   hint,
   disabled,
   error,
+  reservarDica,
 }: {
   label: ReactNode;
   value: string;
@@ -39,12 +40,13 @@ export function CampoDeAno({
   hint?: string | undefined;
   disabled?: boolean;
   error?: string | undefined;
+  reservarDica?: boolean;
 }) {
   const [tocado, setTocado] = useState(false);
   const erroLocal = tocado && value !== '' && !anoDeFundacaoValido(value) ? mensagemDeAnoInvalido() : undefined;
 
   return (
-    <Field label={label} {...(hint ? { hint } : {})} error={error ?? erroLocal}>
+    <Field label={label} {...(hint ? { hint } : {})} error={error ?? erroLocal} reservarDica={reservarDica}>
       {({ inputId, describedBy, invalid }) => (
         <input
           id={inputId}
@@ -79,6 +81,7 @@ export function CampoDeWhatsApp({
   hint,
   disabled,
   error,
+  reservarDica,
 }: {
   label: ReactNode;
   value: string;
@@ -86,6 +89,7 @@ export function CampoDeWhatsApp({
   hint?: string | undefined;
   disabled?: boolean;
   error?: string | undefined;
+  reservarDica?: boolean;
 }) {
   const [tocado, setTocado] = useState(false);
   const erroLocal = tocado && value !== '' && !whatsappValido(value) ? WHATSAPP_INVALIDO : undefined;
@@ -98,6 +102,7 @@ export function CampoDeWhatsApp({
       placeholder={WHATSAPP_EXEMPLO}
       hint={hint ?? `Ex.: ${WHATSAPP_EXEMPLO}`}
       error={error ?? erroLocal}
+      reservarDica={reservarDica}
       disabled={disabled}
       value={value}
       // No blur, e nao a cada tecla: normalizar durante a digitacao brigaria

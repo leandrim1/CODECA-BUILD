@@ -34,6 +34,19 @@ export interface FieldShellProps {
    * tela, a lista pertence ao campo mesmo morando noutro elemento.
    */
   describedById?: string | undefined;
+  /**
+   * Reserva a linha da dica mesmo sem dica.
+   *
+   * Dois campos lado a lado numa grade so terminam na mesma altura se
+   * tiverem o mesmo numero de linhas. "Complemento" tem "Sala, bloco,
+   * referencia." embaixo e "Bairro" nao tem nada: sem a reserva, a caixa de
+   * um acaba 16px acima da do outro e a linha seguinte comeca torta.
+   *
+   * A linha reservada e `visibility: hidden`: ocupa espaco, nao aparece e
+   * nao e lida por leitor de tela. Some sozinha quando um erro aparece,
+   * porque ai existe texto de verdade ocupando a linha.
+   */
+  reservarDica?: boolean;
 }
 
 export function Field({
@@ -45,6 +58,7 @@ export function Field({
   className,
   compacto,
   describedById,
+  reservarDica,
 }: FieldShellProps) {
   const inputId = useId();
   const hintId = `${inputId}-hint`;
@@ -70,9 +84,49 @@ export function Field({
           {error}
         </p>
       ) : null}
+      {reservarDica && !hint && !error ? (
+        <p aria-hidden="true" className="invisible text-xs">
+          &nbsp;
+        </p>
+      ) : null}
     </div>
   );
 }
+
+/**
+ * Grade dos formularios do painel: duas colunas a partir de 640px.
+ *
+ * Mora aqui, e nao solta em cada tela, porque "duas colunas" so e util se
+ * for a MESMA grade em todas: o bloco de redes sociais, o endereco e os
+ * campos do modulo tem de cair nas mesmas duas colunas, com o mesmo vao.
+ *
+ * `items-start` e o que conserta o desalinhamento, e nao decoracao: a grade
+ * nasce com `align-items: stretch`, entao a celula mais baixa estica ate a
+ * altura da linha e distribui a sobra entre rotulo, caixa e dica -- era por
+ * isso que a caixa do "Bairro" aparecia 16px abaixo da do "Complemento".
+ *
+ * `minmax(0, 1fr)` (e nao `1fr`) porque a largura minima automatica de um
+ * item de grade e o conteudo: um texto longo numa coluna empurraria a outra.
+ */
+export const FORM_GRID_CLASSES =
+  'grid grid-cols-1 items-start gap-4 sm:grid-cols-2';
+
+/** Campo que ocupa a linha inteira da grade acima. */
+export const FORM_SPAN_FULL = 'sm:col-span-2';
+
+/**
+ * Altura de um controle de formulario: 42px (10px de folga + 20px de linha +
+ * 2px de borda). Serve ao botao que fica ao lado de um campo e precisa
+ * terminar na mesma altura que ele -- `size="md"` sozinho da 40px.
+ */
+export const CONTROL_HEIGHT = 'h-[2.625rem]';
+
+/**
+ * A mesma altura, so que como MINIMO -- para um botao ao lado de um campo
+ * cujo rotulo pode quebrar em duas linhas numa tela estreita. Com altura
+ * fixa o rotulo quebrado vazaria da caixa.
+ */
+export const CONTROL_MIN_HEIGHT = 'h-auto min-h-[2.625rem]';
 
 /**
  * Base de todo controle de formulario.
@@ -109,9 +163,20 @@ export interface TextInputProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   error?: string | undefined;
   /** Ver `FieldShellProps.compacto`. */
   compacto?: boolean;
+  /** Ver `FieldShellProps.reservarDica`. */
+  reservarDica?: boolean;
 }
 
-export function TextInput({ label, hint, error, required, className, compacto, ...rest }: TextInputProps) {
+export function TextInput({
+  label,
+  hint,
+  error,
+  required,
+  className,
+  compacto,
+  reservarDica,
+  ...rest
+}: TextInputProps) {
   return (
     <Field
       label={label}
@@ -120,6 +185,7 @@ export function TextInput({ label, hint, error, required, className, compacto, .
       required={required}
       className={className}
       compacto={compacto}
+      reservarDica={reservarDica}
     >
       {({ inputId, describedBy, invalid }) => (
         <input
@@ -141,11 +207,29 @@ export interface TextAreaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaE
   label: ReactNode;
   hint?: string;
   error?: string | undefined;
+  /** Ver `FieldShellProps.reservarDica`. */
+  reservarDica?: boolean;
 }
 
-export function TextArea({ label, hint, error, required, className, rows = 4, ...rest }: TextAreaProps) {
+export function TextArea({
+  label,
+  hint,
+  error,
+  required,
+  className,
+  rows = 4,
+  reservarDica,
+  ...rest
+}: TextAreaProps) {
   return (
-    <Field label={label} {...(hint ? { hint } : {})} error={error} required={required} className={className}>
+    <Field
+      label={label}
+      {...(hint ? { hint } : {})}
+      error={error}
+      required={required}
+      className={className}
+      reservarDica={reservarDica}
+    >
       {({ inputId, describedBy, invalid }) => (
         <textarea
           id={inputId}
@@ -173,6 +257,8 @@ export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement
   error?: string | undefined;
   options: readonly SelectOption[];
   placeholder?: string;
+  /** Ver `FieldShellProps.reservarDica`. */
+  reservarDica?: boolean;
 }
 
 export function Select({
@@ -183,17 +269,31 @@ export function Select({
   options,
   placeholder,
   className,
+  reservarDica,
   ...rest
 }: SelectProps) {
   return (
-    <Field label={label} {...(hint ? { hint } : {})} error={error} required={required} className={className}>
+    <Field
+      label={label}
+      {...(hint ? { hint } : {})}
+      error={error}
+      required={required}
+      className={className}
+      reservarDica={reservarDica}
+    >
       {({ inputId, describedBy, invalid }) => (
         <select
           id={inputId}
           aria-describedby={describedBy}
           aria-invalid={invalid}
           required={required}
-          className={CONTROL_CLASSES}
+          /*
+            A altura explicita existe porque o `select` nao mede como o
+            `input`: ele ignora o `line-height` e usa a altura normal da
+            fonte, o que dava 41px ao lado de campos de 42px -- um degrau de
+            1px, visivel quando os dois ficam lado a lado na grade.
+          */
+          className={cx(CONTROL_CLASSES, CONTROL_HEIGHT)}
           {...rest}
         >
           {placeholder ? <option value="">{placeholder}</option> : null}
