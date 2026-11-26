@@ -45,6 +45,7 @@ import { SidebarGroup, SidebarSectionLabel, SidebarSubList } from '../components
 import { useGruposAbertos } from '../hooks/useGruposAbertos.js';
 import { OnboardingTour } from '../components/OnboardingTour.js';
 import { useGuiaDePrimeiroAcesso } from '../hooks/useGuiaDePrimeiroAcesso.js';
+import { BannerDeConsentimento } from '../consentimento/BannerDeConsentimento.js';
 
 /**
  * Moldura do painel da empresa.
@@ -359,6 +360,14 @@ export function DashboardLayout() {
           <PageArea />
         </main>
       </div>
+
+      {/*
+        O aviso de cookies vive AQUI, e nao no `App`: ele e do painel, nao da
+        pagina publica. Quem visita a pagina inicial nao tem sessao nem
+        preferencia guardada para o painel, e um banner la pediria autorizacao
+        para cookies que aquela tela nao coloca.
+      */}
+      <BannerDeConsentimento />
     </div>
   );
 }

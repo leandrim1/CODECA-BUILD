@@ -87,13 +87,20 @@ export const PRIVACIDADE: Documento = {
         sub('2.9 Google Analytics'),
         p('Se você optar por conectar o Google Analytics, aplica-se o que está descrito na seção 5.'),
         sub('2.10 Cookies e armazenamento local'),
-        p('As páginas da plataforma usam apenas armazenamento necessário ao funcionamento. Não usamos cookies de publicidade nem ferramentas de análise de terceiros nelas.'),
+        p('As páginas da plataforma usam hoje apenas armazenamento necessário ao funcionamento. Não usamos cookies de publicidade nem ferramentas de análise de terceiros nelas.'),
         tabela(
           ['Item', 'Para que serve', 'Duração'],
           ['codeca_session (cookie)', 'Mantém você conectado. Não acessível por scripts.', 'Até o fim da sessão (12 horas ou 30 dias com "manter conectado")'],
           ['codeca_csrf (cookie)', 'Proteção contra requisições forjadas.', 'Igual à sessão'],
           ['Cookies temporários de conexão', 'Confirmam que o retorno do login com Google ou da conexão com o Google Analytics foi iniciado por você, no seu navegador.', '10 minutos'],
-          ['Empresa selecionada (armazenamento local do navegador)', 'Lembra qual empresa você estava administrando.', 'Até você sair ou limpar o navegador'],
+          ['Preferências do painel (armazenamento local do navegador)', 'Lembram o tema, a empresa que você estava administrando, quais grupos do menu ficaram recolhidos e a sua escolha de cookies.', 'Até você limpar o navegador'],
+          ['Desafio anti-robô (Cloudflare Turnstile)', 'Só nas telas de criar conta e de recuperar a senha, para distinguir uma pessoa de um robô. Não é usado dentro do painel.', 'Definida pela Cloudflare'],
+        ),
+        p(
+          'O painel tem controle de privacidade por categoria — Necessários, Estatísticos e Marketing. As duas últimas só entram em funcionamento mediante a sua autorização, e nenhum script opcional é colocado na página antes dela. Hoje não há nenhuma ferramenta opcional em uso, e por isso o aviso de cookies não é exibido; ele passa a aparecer no dia em que houver uma escolha real a fazer.',
+        ),
+        p(
+          'Você reabre essa escolha quando quiser em "Preferências de cookies", no menu da sua conta dentro do painel e no rodapé deste site. A escolha fica no seu navegador, com a data e a versão da política, e não é enviada aos nossos servidores. A lista completa está na Política de Cookies.',
         ),
         aviso(
           'Os sites das empresas clientes são independentes desta plataforma. Eventuais cookies, ferramentas de análise ou formulários presentes nesses sites são de responsabilidade da empresa titular de cada site.',

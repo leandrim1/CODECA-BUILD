@@ -2,6 +2,8 @@ import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { ToastProvider } from '@codeca/ui';
 import { AuthProvider } from './hooks/useAuth.js';
 import { ThemeProvider } from './hooks/useTheme.js';
+import { ConsentimentoProvider } from './consentimento/ConsentimentoProvider.js';
+import { PreferenciasDeCookies } from './consentimento/PreferenciasDeCookies.js';
 import {
   LoadingScreen,
   RequireAuth,
@@ -82,7 +84,15 @@ export function App() {
           entao o provedor precisa saber a rota atual. */}
       <ThemeProvider>
       <AuthProvider>
+        {/*
+          O consentimento fica ACIMA das rotas, e nao dentro do painel: o
+          rodape da pagina publica tambem reabre as preferencias, e um
+          provedor montado so em `/painel` nao o alcancaria. O BANNER
+          continua exclusivo do painel -- quem o monta e o `DashboardLayout`.
+        */}
+        <ConsentimentoProvider>
         <RouteMeta />
+        <PreferenciasDeCookies />
         <Suspense fallback={<LoadingScreen label="Carregando" />}>
         <Routes>
           {/* Site institucional da plataforma */}
@@ -281,6 +291,7 @@ export function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
         </Suspense>
+        </ConsentimentoProvider>
       </AuthProvider>
       </ThemeProvider>
     </ToastProvider>

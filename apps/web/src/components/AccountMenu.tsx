@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
+import { useConsentimento } from '../consentimento/ConsentimentoProvider.js';
 import {
   ChevronDown,
   CircleHelp,
+  Cookie,
   ExternalLink,
   Home,
   LifeBuoy,
@@ -96,6 +98,7 @@ const PONTO_DA_SITUACAO: Record<Situacao, string> = {
 export function AccountMenu({ planName }: { planName: string }) {
   const { tenant, memberships, user, selectTenant, logout, platform, can } = useAuth();
   const { refazerTour, reabrirChecklist } = useGuiaDePrimeiroAcesso();
+  const { abrirPreferencias } = useConsentimento();
   const navegar = useNavigate();
   const [aberto, setAberto] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -386,6 +389,27 @@ export function AccountMenu({ planName }: { planName: string }) {
               ) : null}
 
               <hr className="my-1.5 border-slate-200" />
+
+              {/*
+                A LGPD pede que revogar seja tao facil quanto consentir. Um
+                aviso que aparece uma vez e some nao atende a isso: a porta de
+                volta tem de ficar onde a pessoa procura ajustes da conta.
+              */}
+              <button
+                type="button"
+                role="menuitem"
+                data-item-do-menu
+                onClick={() => {
+                  fechar();
+                  abrirPreferencias();
+                }}
+                className={itemClasse}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Cookie aria-hidden="true" className="size-4 flex-none text-slate-500" />
+                  Preferências de cookies
+                </span>
+              </button>
 
               <a
                 href={platform.url}
