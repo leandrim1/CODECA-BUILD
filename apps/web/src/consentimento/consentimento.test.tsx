@@ -201,18 +201,27 @@ describe('o banner', () => {
     expect(aceitar.className).toBe(recusar.className);
   });
 
-  it('"Aceitar todos" libera o opcional; "Recusar" não', async () => {
+  /*
+    Um render por teste.
+
+    A versao anterior montava a tela duas vezes no mesmo corpo, com um
+    `unmount()` no meio: passava sozinha e falhou uma vez na suite inteira,
+    sob disputa de CPU. Dois cenarios em um teste sao dois testes.
+  */
+  it('"Aceitar todos" liga as duas categorias opcionais', async () => {
     const usuario = userEvent.setup();
-    const { unmount } = render(<Tela ferramentas={[MEDIDOR]} />);
+    render(<Tela ferramentas={[MEDIDOR]} />);
     await usuario.click(screen.getByRole('button', { name: 'Aceitar todos' }));
     expect(estado().estatisticos).toBe(true);
     expect(estado().marketing).toBe(true);
-    unmount();
+  });
 
-    window.localStorage.clear();
+  it('"Recusar não essenciais" grava a decisão com tudo desligado', async () => {
+    const usuario = userEvent.setup();
     render(<Tela ferramentas={[MEDIDOR]} />);
     await usuario.click(screen.getByRole('button', { name: 'Recusar não essenciais' }));
     expect(estado().estatisticos).toBe(false);
+    expect(estado().marketing).toBe(false);
     expect(estado().temDecisao).toBe(true);
   });
 
