@@ -19,6 +19,7 @@ import type {
   SyncSourceView,
   SyncTarget,
 } from '@codeca/shared';
+import type { ChamadoDetalhe, ChamadoResumo } from '../types/index.js';
 import type {
   BannerRecord,
   ConsentRecordRow,
@@ -624,6 +625,36 @@ export const catalogApi = {
     api.patch<{ gallery: GalleryRecord }>(`${tenantBase(tenantId)}/galleries/${id}`, body),
   removeGallery: (tenantId: string, id: string) =>
     api.delete<void>(`${tenantBase(tenantId)}/galleries/${id}`),
+};
+
+/**
+ * Chamados de suporte da empresa.
+ *
+ * Nenhuma destas rotas depende do assistente de IA: o chamado existe e
+ * funciona com a IA desligada ou fora do ar.
+ */
+export const suporteApi = {
+  listar: (tenantId: string, params: Record<string, string | number | undefined> = {}) =>
+    api.get<Paginated<ChamadoResumo>>(`${tenantBase(tenantId)}/suporte/chamados${query(params)}`),
+  detalhe: (tenantId: string, ticketId: string) =>
+    api.get<ChamadoDetalhe>(`${tenantBase(tenantId)}/suporte/chamados/${ticketId}`),
+  abrir: (tenantId: string, corpo: { assunto: string; categoria: string; corpo: string; origemUrl: string }) =>
+    api.post<{ id: string; numero: number }>(`${tenantBase(tenantId)}/suporte/chamados`, corpo),
+  responder: (tenantId: string, ticketId: string, corpo: string) =>
+    api.post<void>(`${tenantBase(tenantId)}/suporte/chamados/${ticketId}/mensagens`, { corpo }),
+  encerrar: (tenantId: string, ticketId: string) =>
+    api.post<void>(`${tenantBase(tenantId)}/suporte/chamados/${ticketId}/encerrar`, {}),
+};
+
+/** A fila de atendimento, no painel mestre. */
+export const chamadosDaPlataformaApi = {
+  listar: (params: Record<string, string | number | undefined> = {}) =>
+    api.get<Paginated<ChamadoResumo>>(`/api/platform/chamados${query(params)}`),
+  detalhe: (ticketId: string) => api.get<ChamadoDetalhe>(`/api/platform/chamados/${ticketId}`),
+  responder: (ticketId: string, corpo: string) =>
+    api.post<void>(`/api/platform/chamados/${ticketId}/mensagens`, { corpo }),
+  atualizar: (ticketId: string, corpo: { status?: string; prioridade?: string; categoria?: string }) =>
+    api.patch<void>(`/api/platform/chamados/${ticketId}`, corpo),
 };
 
 export const platformApi = {

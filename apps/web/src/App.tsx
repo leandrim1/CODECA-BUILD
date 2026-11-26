@@ -2,6 +2,8 @@ import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { ToastProvider } from '@codeca/ui';
 import { AuthProvider } from './hooks/useAuth.js';
 import { ThemeProvider } from './hooks/useTheme.js';
+import { ConsentimentoProvider } from './consentimento/ConsentimentoProvider.js';
+import { PreferenciasDeCookies } from './consentimento/PreferenciasDeCookies.js';
 import {
   LoadingScreen,
   RequireAuth,
@@ -72,6 +74,8 @@ const PlatformSegmentsPage = lazyRoute(['/plataforma/segmentos'], () => import('
 const PlatformPlansPage = lazyRoute(['/plataforma/planos'], () => import('./dashboard/platform/PlatformPlansPage.js').then((m) => ({ default: m.PlatformPlansPage })));
 const PlatformBillingPage = lazyRoute(['/plataforma/cobranca'], () => import('./dashboard/platform/PlatformBillingPage.js').then((m) => ({ default: m.PlatformBillingPage })));
 const PlatformDomainsPage = lazyRoute(['/plataforma/dominios'], () => import('./dashboard/platform/PlatformDomainsPage.js').then((m) => ({ default: m.PlatformDomainsPage })));
+const SuportePage = lazyRoute(['/painel/suporte'], () => import('./dashboard/SuportePage.js').then((m) => ({ default: m.SuportePage })));
+const PlatformChamadosPage = lazyRoute(['/plataforma/chamados'], () => import('./dashboard/platform/PlatformChamadosPage.js').then((m) => ({ default: m.PlatformChamadosPage })));
 const PlatformSupportPage = lazyRoute(['/plataforma/suporte'], () => import('./dashboard/platform/PlatformSupportPage.js').then((m) => ({ default: m.PlatformSupportPage })));
 const PlatformAuditPage = lazyRoute(['/plataforma/auditoria'], () => import('./dashboard/platform/PlatformAuditPage.js').then((m) => ({ default: m.PlatformAuditPage })));
 
@@ -82,7 +86,15 @@ export function App() {
           entao o provedor precisa saber a rota atual. */}
       <ThemeProvider>
       <AuthProvider>
+        {/*
+          O consentimento fica ACIMA das rotas, e nao dentro do painel: o
+          rodape da pagina publica tambem reabre as preferencias, e um
+          provedor montado so em `/painel` nao o alcancaria. O BANNER
+          continua exclusivo do painel -- quem o monta e o `DashboardLayout`.
+        */}
+        <ConsentimentoProvider>
         <RouteMeta />
+        <PreferenciasDeCookies />
         <Suspense fallback={<LoadingScreen label="Carregando" />}>
         <Routes>
           {/* Site institucional da plataforma */}
@@ -248,6 +260,7 @@ export function App() {
             <Route path="estatisticas" element={<AnalyticsPage />} />
             <Route path="dominio" element={<DomainsPage />} />
             {/* Gestao de acessos ao painel, nao a equipe exibida no site. */}
+            <Route path="suporte" element={<SuportePage />} />
             <Route path="usuarios" element={<UsersPage />} />
             <Route path="plano" element={<BillingPage />} />
             <Route path="empresa" element={<CompanyPage />} />
@@ -273,6 +286,7 @@ export function App() {
             <Route path="planos" element={<PlatformPlansPage />} />
             <Route path="cobranca" element={<PlatformBillingPage />} />
             <Route path="dominios" element={<PlatformDomainsPage />} />
+            <Route path="chamados" element={<PlatformChamadosPage />} />
             <Route path="suporte" element={<PlatformSupportPage />} />
             <Route path="auditoria" element={<PlatformAuditPage />} />
           </Route>
@@ -281,6 +295,7 @@ export function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
         </Suspense>
+        </ConsentimentoProvider>
       </AuthProvider>
       </ThemeProvider>
     </ToastProvider>

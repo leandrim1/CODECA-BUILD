@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, MapPin } from 'lucide-react';
-import { Alert, Button, CONTROL_CLASSES, Field, Select, TextInput, cx } from '@codeca/ui';
+import {
+  Alert,
+  Button,
+  CONTROL_CLASSES,
+  CONTROL_MIN_HEIGHT,
+  FORM_GRID_CLASSES,
+  FORM_SPAN_FULL,
+  Field,
+  Select,
+  TextInput,
+  cx,
+} from '@codeca/ui';
 import {
   BRAZIL_STATES,
   CEP_INVALIDO,
@@ -153,68 +164,80 @@ export function AddressPicker({
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3 sm:grid-cols-[12rem_1fr]">
-        <Field label="CEP" error={erroDeCep}>
-          {({ inputId, describedBy, invalid }) => (
-            <div className="relative">
-              <input
-                id={inputId}
-                type="text"
-                inputMode="numeric"
-                autoComplete="postal-code"
-                placeholder="00000-000"
-                maxLength={9}
-                disabled={disabled}
-                value={formatarCep(value.postalCode)}
-                aria-describedby={describedBy}
-                aria-invalid={invalid}
-                className={cx(CONTROL_CLASSES, 'pr-11')}
-                onChange={(evento) => {
-                  const cep = digitosDeCep(evento.target.value);
-                  aplicar({ postalCode: cep });
-                  setAviso(null);
-                  if (cep.length === 8 && cep !== ultimoCep.current && !disabled) {
-                    ultimoCep.current = cep;
-                    void buscarPorCep(cep);
-                  }
-                }}
-                onBlur={() => setCepTocado(true)}
-              />
-              {geo.carregando ? (
-                <span className="absolute inset-y-0 right-0 flex w-11 items-center justify-center">
-                  <Loader2 aria-hidden="true" className="size-4 animate-spin text-slate-500" />
-                  <span className="sr-only">Consultando o CEP…</span>
-                </span>
-              ) : null}
-            </div>
-          )}
-        </Field>
+      {/*
+        Uma grade so para o endereco inteiro.
 
-        <div className="flex items-end">
+        Nao sao quatro grades empilhadas: com grades separadas cada uma
+        divide a largura por conta propria, e a coluna da direita do "Numero"
+        nao cai no mesmo lugar que a do "Bairro". Numa grade unica, o que
+        ocupa a linha toda pede `FORM_SPAN_FULL` e o resto se encaixa em
+        pares, sempre nas mesmas duas colunas.
+      */}
+      <div className={FORM_GRID_CLASSES}>
+        {/*
+          O botao de localizacao fica ao lado do CEP, e nao numa linha
+          propria: os dois sao a mesma pergunta -- "onde fica?" -- e quem
+          nao sabe o CEP usa o botao em vez de digitar.
+        */}
+        <div className="flex flex-wrap items-end gap-3">
+          <Field label="CEP" error={erroDeCep} className="w-36 flex-none">
+            {({ inputId, describedBy, invalid }) => (
+              <div className="relative">
+                <input
+                  id={inputId}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  placeholder="00000-000"
+                  maxLength={9}
+                  disabled={disabled}
+                  value={formatarCep(value.postalCode)}
+                  aria-describedby={describedBy}
+                  aria-invalid={invalid}
+                  className={cx(CONTROL_CLASSES, 'pr-11')}
+                  onChange={(evento) => {
+                    const cep = digitosDeCep(evento.target.value);
+                    aplicar({ postalCode: cep });
+                    setAviso(null);
+                    if (cep.length === 8 && cep !== ultimoCep.current && !disabled) {
+                      ultimoCep.current = cep;
+                      void buscarPorCep(cep);
+                    }
+                  }}
+                  onBlur={() => setCepTocado(true)}
+                />
+                {geo.carregando ? (
+                  <span className="absolute inset-y-0 right-0 flex w-11 items-center justify-center">
+                    <Loader2 aria-hidden="true" className="size-4 animate-spin text-slate-500" />
+                    <span className="sr-only">Consultando o CEP…</span>
+                  </span>
+                ) : null}
+              </div>
+            )}
+          </Field>
+
           <Button
             type="button"
             variant="outline"
-            size="sm"
             disabled={disabled}
             onClick={usarMinhaLocalizacao}
+            /*
+              A altura vem do campo, e nao do tamanho do botao: `md` da 40px
+              e o campo ao lado tem 42px. E MINIMO, e nao fixa, porque a
+              320px o rotulo quebra em duas linhas.
+
+              `basis-56` e o que manda o botao para a linha de baixo no
+              celular: ao lado de um CEP de 9rem nao sobram 14rem numa tela de
+              390px, entao o `flex-wrap` o joga para a proxima linha inteira,
+              em vez de espremer o rotulo em tres linhas.
+            */
+            className={cx(CONTROL_MIN_HEIGHT, 'grow basis-56 py-1.5 text-left')}
             icon={<MapPin aria-hidden="true" className="size-4" />}
           >
             Usar minha localização atual
           </Button>
         </div>
-      </div>
 
-      {aviso ? <Alert tone="warning">{aviso}</Alert> : null}
-
-      <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
-        <TextInput
-          label="Endereço"
-          autoComplete="street-address"
-          disabled={disabled}
-          value={value.street}
-          error={erros.street}
-          onChange={(evento) => aplicar({ street: evento.target.value })}
-        />
         <TextInput
           label="Número"
           inputMode="numeric"
@@ -223,9 +246,23 @@ export function AddressPicker({
           error={erros.number}
           onChange={(evento) => aplicar({ number: evento.target.value })}
         />
-      </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+        {aviso ? (
+          <div className={FORM_SPAN_FULL}>
+            <Alert tone="warning">{aviso}</Alert>
+          </div>
+        ) : null}
+
+        <TextInput
+          label="Endereço"
+          autoComplete="street-address"
+          className={FORM_SPAN_FULL}
+          disabled={disabled}
+          value={value.street}
+          error={erros.street}
+          onChange={(evento) => aplicar({ street: evento.target.value })}
+        />
+
         <TextInput
           label="Complemento"
           hint="Sala, bloco, referência."
@@ -234,16 +271,16 @@ export function AddressPicker({
           error={erros.complement}
           onChange={(evento) => aplicar({ complement: evento.target.value })}
         />
+        {/* Reserva a linha da dica do vizinho: ver `FieldShellProps.reservarDica`. */}
         <TextInput
           label="Bairro"
+          reservarDica
           disabled={disabled}
           value={value.neighborhood ?? ''}
           error={erros.neighborhood}
           onChange={(evento) => aplicar({ neighborhood: evento.target.value })}
         />
-      </div>
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
         <TextInput
           label="Cidade"
           autoComplete="address-level2"
@@ -252,6 +289,11 @@ export function AddressPicker({
           error={erros.city}
           onChange={(evento) => aplicar({ city: evento.target.value })}
         />
+        {/*
+          Meia largura como os demais, e o rotulo "Estado" em cima da caixa
+          como em qualquer campo. Antes a UF vivia numa coluna de 8rem ao
+          lado da cidade, e em telas estreitas o rotulo encostava na caixa.
+        */}
         <Select
           label="Estado"
           disabled={disabled}

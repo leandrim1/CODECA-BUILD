@@ -97,6 +97,17 @@ export const RATE_LIMITS = {
    * apertado em sequencia contra o site de um terceiro.
    */
   syncManualCheck: { action: 'sync_manual_check', limit: 6, windowSeconds: 3600 },
+  /*
+    Chamados de suporte, por EMPRESA.
+
+    Quem abre chamado em excesso nao e um invasor: e um cliente aflito, e
+    quase sempre a mesma empresa. Por IP puniria o escritorio inteiro atras de
+    uma saida so; por pessoa, nao seguraria nada. Os numeros sao folgados de
+    proposito -- esta cota existe contra um botao em laço, nao contra quem
+    precisa de ajuda.
+  */
+  suporteAbertura: { action: 'suporte_abertura', limit: 10, windowSeconds: 3600 },
+  suporteMensagem: { action: 'suporte_mensagem', limit: 60, windowSeconds: 3600 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export interface RateLimitResult {

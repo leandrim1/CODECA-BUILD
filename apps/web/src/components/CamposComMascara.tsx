@@ -90,6 +90,8 @@ export interface CampoDeTelefoneProps {
   error?: string | undefined;
   compacto?: boolean;
   hint?: string;
+  /** Ver `FieldShellProps.reservarDica`. */
+  reservarDica?: boolean;
   /** Campo travado pela politica do site (o cadeado do painel). */
   disabled?: boolean;
 }
@@ -101,6 +103,7 @@ export function CampoDeTelefone({
   error,
   compacto,
   hint,
+  reservarDica,
   disabled,
 }: CampoDeTelefoneProps) {
   const { ref, destino, restaurar } = useCursorEstavel();
@@ -164,7 +167,13 @@ export function CampoDeTelefone({
   const erroLocal = tocado && value !== '' && !telefoneValido(value) ? TELEFONE_INVALIDO : undefined;
 
   return (
-    <Field label={label} error={error ?? erroLocal} compacto={compacto} {...(hint ? { hint } : {})}>
+    <Field
+      label={label}
+      error={error ?? erroLocal}
+      compacto={compacto}
+      reservarDica={reservarDica}
+      {...(hint ? { hint } : {})}
+    >
       {({ inputId, describedBy, invalid }) => (
         <input
           ref={ref}

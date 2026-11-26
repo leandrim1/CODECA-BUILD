@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Container, Logo } from './ui.js';
+import { useConsentimento } from '../consentimento/ConsentimentoProvider.js';
 
 const COLUNAS = [
   {
@@ -28,7 +29,12 @@ const COLUNAS = [
   },
 ] as const;
 
+/** Uma linha do rodape: link, ancora e botao escrevem igual. */
+const LINHA = 'text-left text-[0.95rem] text-slate-300 transition-colors hover:text-white';
+
 export function Footer() {
+  const { abrirPreferencias } = useConsentimento();
+
   return (
     <footer className="bg-slate-900 text-slate-300">
       <Container className="py-16 sm:py-20">
@@ -51,16 +57,29 @@ export function Footer() {
                   {coluna.itens.map((item) => (
                     <li key={item.rotulo}>
                       {'to' in item ? (
-                        <Link to={item.to} className="text-[0.95rem] text-slate-300 transition-colors hover:text-white">
+                        <Link to={item.to} className={LINHA} >
                           {item.rotulo}
                         </Link>
                       ) : (
-                        <a href={item.href} className="text-[0.95rem] text-slate-300 transition-colors hover:text-white">
+                        <a href={item.href} className={LINHA}>
                           {item.rotulo}
                         </a>
                       )}
                     </li>
                   ))}
+                  {/*
+                    Botao, e nao link: nao ha pagina de preferencias -- o que
+                    ele faz e reabrir a mesma janela de escolha, de onde quer
+                    que a pessoa esteja. Fica na coluna Legal porque e la que
+                    ela procura, ao lado das duas politicas que o aviso cita.
+                  */}
+                  {coluna.titulo === 'Legal' ? (
+                    <li>
+                      <button type="button" onClick={abrirPreferencias} className={LINHA}>
+                        Preferências de cookies
+                      </button>
+                    </li>
+                  ) : null}
                 </ul>
               </div>
             ))}

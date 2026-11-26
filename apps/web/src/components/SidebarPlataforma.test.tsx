@@ -60,7 +60,7 @@ function montar(extra: Partial<Parameters<typeof SidebarPlataforma>[0]> = {}) {
 afterEach(cleanup);
 
 describe('SidebarPlataforma', () => {
-  it('desenha os nove destinos da plataforma, com os enderecos de sempre', () => {
+  it('desenha os dez destinos da plataforma, com os enderecos de sempre', () => {
     montar();
     const links = screen
       .getByRole('navigation', { name: 'Menu da plataforma' })
@@ -73,6 +73,9 @@ describe('SidebarPlataforma', () => {
       '/plataforma/planos',
       '/plataforma/cobranca',
       '/plataforma/dominios',
+      // "Chamados" e a fila de atendimento; "Acesso de suporte" e o historico
+      // de impersonacao. Nomes parecidos, telas diferentes.
+      '/plataforma/chamados',
       '/plataforma/suporte',
       '/plataforma/auditoria',
     ]);

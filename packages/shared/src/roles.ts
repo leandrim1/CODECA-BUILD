@@ -71,6 +71,21 @@ export const TENANT_CAPABILITIES = [
   'clients:read',
   'clients:manage',
   'audit:read',
+  /**
+   * Chamados de suporte da propria empresa.
+   *
+   * `support:read` alcanca todo mundo -- quem le o painel ve o historico de
+   * atendimento da empresa. ABRIR e responder e de `editor` para cima.
+   *
+   * Cogitei dar `support:write` ao `viewer`, com o argumento de que pedir
+   * ajuda nao e editar o site. O modelo de papeis desta plataforma diz outra
+   * coisa, e um teste a guarda: `viewer` so le. Abrir chamado grava um
+   * registro da empresa e manda o contexto dela -- plano, uso, quem abriu --
+   * para a operadora da plataforma; nao e leitura. Quem so observa pede ao
+   * administrador que o convidou, que e com quem ele ja fala.
+   */
+  'support:read',
+  'support:write',
 ] as const;
 export type TenantCapability = (typeof TENANT_CAPABILITIES)[number];
 
@@ -86,6 +101,8 @@ export const PLATFORM_CAPABILITIES = [
   'platform:audit:read',
   'platform:users:write',
   'platform:support:grant',
+  /** Ler e atender os chamados abertos pelas empresas. */
+  'platform:support:tickets',
 ] as const;
 export type PlatformCapability = (typeof PLATFORM_CAPABILITIES)[number];
 
@@ -101,6 +118,8 @@ const EDITOR: TenantCapability[] = [
   'media:delete',
   'leads:write',
   'seo:write',
+  // Abrir e responder chamado. Ver o comentario de `support:write`.
+  'support:write',
 ];
 
 const ADMIN: TenantCapability[] = [

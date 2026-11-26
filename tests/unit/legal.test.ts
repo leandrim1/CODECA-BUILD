@@ -211,9 +211,17 @@ describe('a Politica de cookies acompanha o codigo', () => {
     expect(texto).not.toMatch(/a CODECA .{0,40}controladora dos dados (de quem visita|dos visitantes)/i);
   });
 
-  it('diz por que o painel nao exibe banner, em vez de so omitir', () => {
-    expect(texto).toMatch(/não exibe banner de cookies/i);
+  /*
+    O painel ganhou controle por categoria, e o texto deixou de dizer que o
+    aviso "nao existe" para dizer QUANDO ele aparece. A promessa que o teste
+    guarda nao mudou: a pagina explica a ausencia do aviso, em vez de so
+    omiti-la, e continua afirmando que os cookies de hoje sao necessarios.
+  */
+  it('diz por que o aviso de cookies nao aparece, em vez de so omitir', () => {
+    expect(texto).toMatch(/o aviso de cookies não aparece/i);
     expect(texto).toMatch(/estritamente necess/i);
+    // E diz o que faria o aviso voltar, para a ausencia nao parecer definitiva.
+    expect(texto).toMatch(/ferramenta opcional/i);
   });
 
   it('nao afirma que guarda senha ou token legivel por script', () => {

@@ -1,20 +1,78 @@
-import { aviso, lista, p, sub, tabela, type Documento } from './types.js';
+import {
+  ARMAZENAMENTO_DO_PAINEL,
+  COOKIES_DO_PAINEL,
+  FERRAMENTAS_OPCIONAIS,
+  NOME_DA_CATEGORIA,
+  TEXTO_DA_CATEGORIA,
+  VERSAO_DA_POLITICA,
+  haOpcionais,
+} from '../consentimento/inventario.js';
+import { aviso, lista, p, sub, tabela, type Bloco, type Documento } from './types.js';
 
 /**
  * Politica de Cookies do CODECA Build -- do PAINEL, nao dos sites dos clientes.
  *
- * Cada linha da tabela foi conferida no codigo: os cinco cookies estao em
- * `apps/api/src/lib/cookies.ts`, `oauth-state.ts`, `analytics/oauth-state.ts` e
- * `login-code.ts`; as quatro chaves de `localStorage`, nos hooks do painel.
- * Nao ha cookie de terceiro, nao ha pixel e nao ha medicao de audiencia no
- * painel -- e por isso ele nao pede consentimento: exigir autorizacao para o
- * que nao se pode recusar e teatro, nao consentimento.
+ * As duas tabelas NAO sao escritas aqui: elas sao geradas a partir de
+ * `consentimento/inventario.ts`, o mesmo arquivo que alimenta o modal de
+ * preferencias e decide se o banner aparece. Era a unica forma de garantir o
+ * que esta pagina promete -- que a lista descreve o que existe hoje. Duas
+ * listas mantidas a mao divergem, e uma politica de cookies que diverge do
+ * software e pior do que nenhuma.
  *
  * O site de cada cliente tem politica PROPRIA, com o controlador dele e as
  * ferramentas que ele declarou no painel mestre. Esta pagina nao fala por eles.
  *
  * Rascunho tecnico: o conteudo deve ser revisado por assessoria juridica.
  */
+
+/** Os cookies do inventario, na forma de tabela. */
+const tabelaDeCookies = (): Bloco =>
+  tabela(
+    ['Cookie', 'Para que serve', 'Duração', 'Legível por script'],
+    ...COOKIES_DO_PAINEL.map((cookie) => [
+      cookie.nome,
+      cookie.finalidade,
+      cookie.duracao,
+      cookie.httpOnly ? 'Não (HttpOnly)' : 'Sim, por necessidade técnica',
+    ]),
+  );
+
+const tabelaDeArmazenamento = (): Bloco =>
+  tabela(
+    ['Chave', 'O que guarda'],
+    ...ARMAZENAMENTO_DO_PAINEL.map((item) => [item.chave, item.guarda]),
+  );
+
+/**
+ * A secao das categorias opcionais.
+ *
+ * Enquanto nenhuma ferramenta opcional existe, ela diz exatamente isso -- e
+ * nao finge uma tabela vazia. Quando a primeira for declarada no inventario,
+ * ela aparece aqui e no modal ao mesmo tempo.
+ */
+const blocosDasOpcionais = (): Bloco[] =>
+  haOpcionais()
+    ? [
+        p('O painel carrega as ferramentas abaixo apenas se você autorizar a categoria delas:'),
+        tabela(
+          ['Ferramenta', 'Categoria', 'Para que serve', 'Cookies'],
+          ...FERRAMENTAS_OPCIONAIS.map((ferramenta) => [
+            ferramenta.fornecedor ? `${ferramenta.nome} (${ferramenta.fornecedor})` : ferramenta.nome,
+            NOME_DA_CATEGORIA[ferramenta.categoria],
+            ferramenta.finalidade,
+            ferramenta.cookies.join(', ') || '—',
+          ]),
+        ),
+      ]
+    : [
+        p(
+          'Hoje não há nenhuma: dentro do painel não existe medição de audiência, pixel de anúncio nem cookie de terceiro. Por isso o aviso de cookies não aparece — ele volta sozinho no dia em que a primeira ferramenta opcional for declarada, e nada carrega antes da sua resposta.',
+        ),
+        aviso(
+          'Pedir autorização para o que ninguém pode recusar treina a pessoa a clicar em "aceitar" sem ler, e gasta a única pergunta que vale a pena fazer. Por isso o aviso só aparece quando existe mesmo uma escolha.',
+        ),
+      ];
+
 export const COOKIES: Documento = {
   titulo: 'Política de cookies',
   resumo:
@@ -25,10 +83,13 @@ export const COOKIES: Documento = {
       titulo: '1. Em uma frase',
       blocos: [
         p(
-          'O painel do CODECA Build usa cinco cookies, todos estritamente necessários para entrar e permanecer conectado com segurança. Não há cookie de publicidade, não há cookie de terceiro e não há medição de audiência no painel.',
+          'O painel do CODECA Build usa cinco cookies, todos estritamente necessários para entrar e permanecer conectado com segurança. Hoje não há cookie de publicidade, cookie de terceiro nem medição de audiência dentro do painel.',
+        ),
+        p(
+          'O painel tem um controle de privacidade por categoria, que você reabre quando quiser em "Preferências de cookies" — no menu da sua conta e no rodapé do site. Nele você vê o que está ativo e decide sobre o que é opcional.',
         ),
         aviso(
-          'Por isso o painel não exibe banner de cookies. A LGPD dispensa consentimento prévio para o que é indispensável ao funcionamento do serviço — e pedir autorização para algo que não se pode recusar seria enganoso.',
+          'Enquanto o painel não carregar nada opcional, o aviso de cookies não aparece: a LGPD dispensa consentimento prévio para o que é indispensável ao funcionamento, e pedir autorização para algo que não se pode recusar seria enganoso. O aviso surge sozinho no dia em que houver uma escolha real a fazer.',
         ),
       ],
     },
@@ -49,44 +110,19 @@ export const COOKIES: Documento = {
       titulo: '3. Os cookies do painel',
       blocos: [
         p('Todos são de primeira parte (do próprio endereço do painel) e estritamente necessários:'),
-        tabela(
-          ['Cookie', 'Para que serve', 'Duração', 'Legível por script'],
-          [
-            'codeca_session',
-            'Mantém você conectado. Guarda um valor sorteado que não diz nada sobre você; os dados da sessão ficam no nosso banco.',
-            '12 horas, ou 30 dias com "continuar conectado"',
-            'Não (HttpOnly)',
-          ],
-          [
-            'codeca_csrf',
-            'Protege contra requisições forjadas por outro site: o painel reenvia este valor em um cabeçalho, e o servidor confere se os dois batem.',
-            'A mesma da sessão',
-            'Sim, por necessidade técnica',
-          ],
-          [
-            'codeca_login_pending',
-            'Liga o código enviado ao seu e-mail ao navegador que começou o acesso. Só existe entre pedir o código e digitá-lo.',
-            '15 minutos',
-            'Não (HttpOnly)',
-          ],
-          [
-            'codeca_oauth_state',
-            'Protege o login com Google: garante que o retorno do Google pertence ao navegador que iniciou o acesso.',
-            '10 minutos',
-            'Não (HttpOnly)',
-          ],
-          [
-            'codeca_ga_state',
-            'A mesma proteção, ao conectar uma conta do Google Analytics às estatísticas do seu site.',
-            '10 minutos',
-            'Não (HttpOnly)',
-          ],
-        ),
+        tabelaDeCookies(),
         sub('O que estes cookies não fazem'),
         lista(
           'Não guardam senha nem token de autenticação acessível por script.',
           'Não acompanham você em outros sites: são lidos apenas pelo endereço do painel.',
           'Não alimentam publicidade, perfilamento ou venda de dados.',
+        ),
+        sub('O desafio anti-robô das telas de acesso'),
+        p(
+          'As telas de criar conta e de recuperar a senha carregam o Cloudflare Turnstile, um desafio que distingue uma pessoa de um robô. Ele é da Cloudflare, roda só nessas duas telas — não dentro do painel — e pode deixar um cookie próprio no seu navegador enquanto verifica o acesso.',
+        ),
+        p(
+          'Ele também é estritamente necessário, e por isso não aparece como escolha: sem o desafio, essas telas não têm como se defender de cadastros automatizados e de tentativas de descobrir senha em massa. Ele não mede audiência, não acompanha você em outros sites e não alimenta publicidade.',
         ),
       ],
     },
@@ -97,18 +133,36 @@ export const COOKIES: Documento = {
         p(
           'Estes valores ficam no localStorage do seu aparelho e nunca chegam aos nossos servidores. Apagá-los só faz o painel voltar ao estado padrão:',
         ),
+        tabelaDeArmazenamento(),
+      ],
+    },
+    {
+      id: 'categorias',
+      titulo: '5. As categorias e o seu controle',
+      blocos: [
+        p(
+          'O painel separa o que guarda no seu navegador em três categorias. As duas últimas só entram em funcionamento se você autorizar, e a autorização é pedida antes de qualquer script opcional ser colocado na página — não depois.',
+        ),
         tabela(
-          ['Chave', 'O que guarda'],
-          ['codeca:tema', 'Se você escolheu o tema claro, escuro ou o do sistema.'],
-          ['codeca:tenant-selecionado', 'Qual empresa o painel abre, quando você tem acesso a mais de uma.'],
-          ['codeca:menu-grupos-fechados', 'Quais grupos do menu você deixou recolhidos.'],
-          ['codeca:plataforma-menu-recolhido', 'Se a barra lateral da área restrita fica recolhida.'],
+          ['Categoria', 'O que é', 'Pode recusar?'],
+          ['Necessários', TEXTO_DA_CATEGORIA.necessarios, 'Não'],
+          ['Estatísticos', TEXTO_DA_CATEGORIA.estatisticos, 'Sim'],
+          ['Marketing', TEXTO_DA_CATEGORIA.marketing, 'Sim'],
+        ),
+        sub('O que o painel usa hoje em cada categoria opcional'),
+        ...blocosDasOpcionais(),
+        sub('Como mudar de ideia'),
+        p(
+          'Abra "Preferências de cookies" no menu da sua conta, dentro do painel, ou no rodapé deste site. A janela mostra o que está ativo e permite ligar e desligar cada categoria opcional — revogar custa exatamente os mesmos cliques que aceitar.',
+        ),
+        p(
+          `A sua escolha fica no seu próprio navegador, com a data e a versão da política (hoje, a versão ${VERSAO_DA_POLITICA}). Ela não é enviada aos nossos servidores. Se a política mudar de versão, a escolha anterior deixa de valer e a pergunta volta — é o único jeito honesto de pedir de novo quando o que se pede mudou.`,
         ),
       ],
     },
     {
       id: 'estatisticas',
-      titulo: '5. Google Analytics: do seu site, não do painel',
+      titulo: '6. Google Analytics: do seu site, não do painel',
       blocos: [
         p(
           'A plataforma permite conectar uma conta do Google Analytics para você ver as estatísticas do seu site dentro do painel. Isso não coloca nenhum cookie de medição no painel: a leitura é feita pelos nossos servidores, com a autorização que você concedeu ao Google, e o painel apenas mostra os números.',
@@ -120,7 +174,7 @@ export const COOKIES: Documento = {
     },
     {
       id: 'sites-dos-clientes',
-      titulo: '6. Os sites criados pela plataforma têm política própria',
+      titulo: '7. Os sites criados pela plataforma têm política própria',
       blocos: [
         p(
           'Cada site publicado por uma empresa cliente é um site dela, com endereço próprio e responsabilidade própria. Quem responde pelos dados de quem visita aquele site é a empresa dona dele — a CODECA IA atua como operadora, disponibilizando a plataforma.',
@@ -143,7 +197,7 @@ export const COOKIES: Documento = {
     },
     {
       id: 'controlar',
-      titulo: '7. Como controlar os cookies',
+      titulo: '8. Como controlar os cookies',
       blocos: [
         p(
           'Todo navegador permite apagar cookies e bloquear novos. Se você bloquear os cookies do painel, não conseguirá entrar: sem o cookie de sessão não há como o servidor reconhecer que você já se autenticou.',
@@ -155,7 +209,7 @@ export const COOKIES: Documento = {
     },
     {
       id: 'mudancas',
-      titulo: '8. Mudanças nesta política',
+      titulo: '9. Mudanças nesta política',
       blocos: [
         p(
           'Se a plataforma passar a usar um cookie que não está listado aqui, esta página e a data da versão mudam junto. A lista acima descreve o que existe hoje, não o que pretendemos fazer.',

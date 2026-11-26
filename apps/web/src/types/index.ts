@@ -3,6 +3,11 @@ import type {
   ChargeState,
   LeadInterestType,
   LeadStatus,
+  TicketAutor,
+  TicketCategoria,
+  TicketContexto,
+  TicketPrioridade,
+  TicketStatus,
   PaymentMethodCode,
   PublicationState,
   PlanLimits,
@@ -833,4 +838,38 @@ export interface ConsentRecordRow {
   policyVersion: string;
   engineVersion: string;
   receivedAt: string;
+}
+
+/** Um chamado de suporte, como a lista o mostra. */
+export interface ChamadoResumo {
+  id: string;
+  numero: number;
+  assunto: string;
+  categoria: TicketCategoria;
+  status: TicketStatus;
+  prioridade: TicketPrioridade;
+  createdAt: string;
+  updatedAt: string;
+  /** Só na fila do painel mestre. */
+  empresa?: string;
+  tenantId?: string;
+}
+
+export interface ChamadoMensagem {
+  id: string;
+  author: TicketAutor;
+  body: string;
+  createdAt: string;
+}
+
+export interface ChamadoDetalhe extends ChamadoResumo {
+  origemUrl: string;
+  resolvidoEm: string | null;
+  mensagens: ChamadoMensagem[];
+  /**
+   * O retrato da empresa no momento da abertura. Só chega ao painel mestre:
+   * a tela do cliente não o recebe, porque ele já sabe quem é.
+   */
+  contexto?: TicketContexto;
+  resumo?: string;
 }
