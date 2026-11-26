@@ -25,6 +25,11 @@ import type {
   DeliveryState,
   PlanLimits,
   SocialNetwork,
+  TicketAutor,
+  TicketCategoria,
+  TicketContexto,
+  TicketPrioridade,
+  TicketStatus,
 } from '@codeca/shared';
 import {
   CURRENCIES,
@@ -2942,5 +2947,75 @@ export const blobCleanupQueue = pgTable(
   (table) => [
     uniqueIndex('blob_cleanup_queue_url_key').on(table.blobUrl),
     index('blob_cleanup_queue_pendente_idx').on(table.attempts, table.createdAt),
+  ],
+);
+
+/**
+ * Chamados de suporte abertos pelas empresas.
+ *
+ * Independente do assistente de IA de proposito: a indisponibilidade dele nao
+ * pode impedir alguem de pedir ajuda. `conversaId` e o gancho da etapa
+ * seguinte, quando a conversa com o assistente passar a ser anexada ao
+ * chamado que ela originou.
+ */
+export const tickets = pgTable(
+  'tickets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id').references(() => sites.id, { onDelete: 'set null' }),
+    /** Quem abriu. O chamado e da empresa e sobrevive a exclusao da pessoa. */
+    openedBy: uuid('opened_by').references(() => users.id, { onDelete: 'set null' }),
+    /** Sequencial DENTRO da empresa: o cliente cita "chamado 12", nao um uuid. */
+    numero: integer('numero').notNull(),
+    assunto: text('assunto').notNull(),
+    categoria: text('categoria').$type<TicketCategoria>().notNull(),
+    status: text('status').$type<TicketStatus>().notNull().default('aberto'),
+    prioridade: text('prioridade').$type<TicketPrioridade>().notNull().default('normal'),
+    /** Resumo gerado pelo assistente. Vazio enquanto nao ha IA. */
+    resumo: text('resumo').notNull().default(''),
+    /** Retrato do momento da abertura, montado no servidor. */
+    contexto: jsonb('contexto').$type<TicketContexto | Record<string, never>>().notNull().default({}),
+    origemUrl: text('origem_url').notNull().default(''),
+    conversaId: uuid('conversa_id'),
+    primeiraRespostaEm: timestamp('primeira_resposta_em', { withTimezone: true }),
+    resolvidoEm: timestamp('resolvido_em', { withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index('tickets_tenant_idx').on(table.tenantId, table.createdAt.desc()),
+    index('tickets_fila_idx').on(table.status, table.prioridade, table.createdAt),
+    /** Tambem serializa a numeracao: duas aberturas simultaneas nao empatam. */
+    uniqueIndex('tickets_numero_key').on(table.tenantId, table.numero),
+  ],
+);
+
+/** As mensagens de um chamado, do cliente, do suporte, do assistente ou do sistema. */
+export const ticketMessages = pgTable(
+  'ticket_messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => tickets.id, { onDelete: 'cascade' }),
+    /**
+     * Repetido do chamado: toda consulta do painel filtra por empresa, e sem
+     * esta coluna isso exigiria uma juncao em todas elas -- uma chance a mais
+     * de alguem esquece-la.
+     */
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    author: text('author').$type<TicketAutor>().notNull(),
+    authorUserId: uuid('author_user_id').references(() => users.id, { onDelete: 'set null' }),
+    body: text('body').notNull(),
+    createdAt,
+  },
+  (table) => [
+    index('ticket_messages_ticket_idx').on(table.ticketId, table.createdAt),
+    index('ticket_messages_tenant_idx').on(table.tenantId, table.createdAt.desc()),
   ],
 );

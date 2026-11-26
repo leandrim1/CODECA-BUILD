@@ -373,20 +373,33 @@ export function AccountMenu({ planName }: { planName: string }) {
                 </span>
               </button>
 
-              {platform.supportEmail ? (
-                <a
-                  href={`mailto:${platform.supportEmail}`}
-                  role="menuitem"
-                  data-item-do-menu
-                  onClick={() => fechar()}
-                  className={itemClasse}
-                >
-                  <span className="flex items-center gap-2.5">
-                    <LifeBuoy aria-hidden="true" className="size-4 flex-none text-slate-500" />
-                    Falar com o suporte
-                  </span>
-                </a>
-              ) : null}
+              {/*
+                Tela, e nao `mailto:`.
+
+                O endereco de e-mail nao tinha situacao nem historico: quem
+                escrevia ficava sem nada para olhar depois, e deste lado nao
+                havia fila para priorizar. O chamado tem numero, conversa e
+                dono -- e continua existindo se o assistente de IA estiver
+                fora do ar, porque nao depende dele.
+
+                Nao e mais condicionado ao `SUPPORT_EMAIL`: a tela existe
+                esteja ele configurado ou nao.
+              */}
+              <Link
+                to="/painel/suporte"
+                // A tela de onde a pessoa pediu ajuda. O formulario de chamado
+                // nao tem como saber sozinho: ele vive em `/painel/suporte`.
+                state={{ de: pathname }}
+                role="menuitem"
+                data-item-do-menu
+                onClick={() => fechar()}
+                className={itemClasse}
+              >
+                <span className="flex items-center gap-2.5">
+                  <LifeBuoy aria-hidden="true" className="size-4 flex-none text-slate-500" />
+                  Falar com o suporte
+                </span>
+              </Link>
 
               <hr className="my-1.5 border-slate-200" />
 

@@ -9,6 +9,7 @@ import {
   Image,
   Images,
   KeyRound,
+  LifeBuoy,
   LayoutDashboard,
   type LucideIcon,
   Mail,
@@ -312,6 +313,14 @@ export const NAV_GROUPS: NavGroup[] = [
           // Seguranca e da PESSOA, nao da empresa: aparece para todo mundo que
           // entra, em qualquer plano, sem depender de capacidade da empresa.
           { to: '/painel/seguranca', label: 'Segurança da conta', icon: ShieldCheck, semPainel: true },
+          /*
+            Suporte aparece para TODO MUNDO que entra, e `semPainel` de
+            proposito: quem esta com o painel bloqueado -- plano vencido,
+            assinatura suspensa -- e exatamente quem mais precisa falar com
+            alguem. Esconder o suporte de quem nao consegue usar o produto
+            seria trancar a porta e tirar a campainha.
+          */
+          { to: '/painel/suporte', label: 'Suporte', icon: LifeBuoy, semPainel: true },
         ],
       },
     ],

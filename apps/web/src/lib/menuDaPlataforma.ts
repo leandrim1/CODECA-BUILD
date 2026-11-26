@@ -6,6 +6,7 @@ import {
   Globe,
   LayoutDashboard,
   LifeBuoy,
+  MessageSquare,
   type LucideIcon,
   Package,
   Shapes,
@@ -38,6 +39,7 @@ export const MENU_DA_PLATAFORMA: ItemDaPlataforma[] = [
   { to: '/plataforma/planos', label: 'Planos', icon: Package },
   { to: '/plataforma/cobranca', label: 'Cobrança', icon: CreditCard },
   { to: '/plataforma/dominios', label: 'Domínios', icon: Globe },
+  { to: '/plataforma/chamados', label: 'Chamados', icon: MessageSquare },
   { to: '/plataforma/suporte', label: 'Acesso de suporte', icon: LifeBuoy },
   { to: '/plataforma/auditoria', label: 'Auditoria', icon: FileClock },
 ];

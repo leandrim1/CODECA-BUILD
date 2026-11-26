@@ -17,6 +17,7 @@ export * from './analytics.js';
 export * from './legal.js';
 export * from './consent.js';
 export * from './segments.js';
+export * from './suporte.js';
 export * from './modules/index.js';
 export * from './integration/index.js';
 export * from './import/index.js';

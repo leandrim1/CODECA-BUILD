@@ -24,6 +24,8 @@ import { contentRoutes } from './routes/content.js';
 import { domainRoutes } from './routes/domains.js';
 import { geoRoutes } from './routes/geo.js';
 import { leadRoutes } from './routes/leads.js';
+import { platformChamadosRoutes } from './routes/platform-chamados.js';
+import { suporteRoutes } from './routes/suporte.js';
 import { mediaRoutes } from './routes/media.js';
 import { moduleRoutes } from './routes/modules.js';
 import { customModuleRoutes } from './routes/custom-modules.js';
@@ -205,6 +207,7 @@ export function createApp(options: CreateAppOptions = {}) {
   tenantScoped.route('/', bannerRoutes());
   tenantScoped.route('/', mediaRoutes());
   tenantScoped.route('/', leadRoutes());
+  tenantScoped.route('/', suporteRoutes());
   tenantScoped.route('/', domainRoutes());
   tenantScoped.route('/', billingRoutes());
   tenantScoped.route('/', analyticsRoutes());
@@ -229,6 +232,7 @@ export function createApp(options: CreateAppOptions = {}) {
   platformScoped.use('*', sessionMiddleware());
   platformScoped.use('*', invalidateCachesOnWrite('platform'));
   platformScoped.route('/', platformRoutes());
+  platformScoped.route('/', platformChamadosRoutes());
   platformScoped.route('/', platformSiteRoutes());
   platformScoped.route('/', platformSegmentRoutes());
   platformScoped.route('/', platformBillingRoutes());
