@@ -13,6 +13,7 @@ import { cx } from '@codeca/ui';
 import { Reveal } from './Reveal.js';
 import { Container, Eyebrow, SectionTitle } from './ui.js';
 import produtos from '../assets/landing/painel-produtos.webp';
+import fundoModulos from '../assets/landing/modulos-fundo-3d.webp';
 
 interface Recurso {
   icon: LucideIcon;
@@ -123,8 +124,30 @@ export function Features() {
           </Reveal>
 
           <Reveal delay={100} className="sm:col-span-2 lg:col-span-5">
-            <article className="relative flex h-full flex-col overflow-hidden rounded-3xl bg-brand-800 p-7 text-white shadow-raised sm:p-9">
-              <div aria-hidden="true" className="lp-grid-dark pointer-events-none absolute inset-0 opacity-70" />
+            <article className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-white/10 p-7 text-white shadow-[0_26px_60px_-22px_rgb(13_28_76/0.65)] sm:p-9">
+              {/*
+                Cenario 3D no lugar do azul chapado.
+
+                O card continua AZUL -- a imagem e azul, e e dela que vem o
+                tom agora. O que sai e a cor lisa; o que entra e profundidade:
+                o notebook e os paineis flutuantes ficam atras do texto, como
+                cenario.
+
+                O enquadramento muda com a forma do card, e nao por capricho:
+                a imagem e 16:9 e o card nao. Em `lg` ele e alto e estreito
+                (5 de 12 colunas), entao `cover` corta as laterais e o centro
+                cairia no azul vazio da esquerda -- 68% traz o notebook para
+                dentro. Entre `sm` e `lg` o card ocupa a linha inteira e fica
+                largo: ai o centro ja mostra a cena toda.
+              */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 bg-[position:68%_center] bg-cover bg-no-repeat sm:bg-center lg:bg-[position:66%_center]"
+                style={{ backgroundImage: `url(${fundoModulos})` }}
+              />
+              <div aria-hidden="true" className="lp-mod-veu pointer-events-none absolute inset-0" />
+              {/* A grade continua, agora discreta: so o suficiente para a imagem nao virar foto solta. */}
+              <div aria-hidden="true" className="lp-grid-dark pointer-events-none absolute inset-0 opacity-35" />
               <div className="relative flex h-full flex-col">
                 <Icone icon={MODULOS.icon} destaque />
                 <h3 className="mt-6 text-2xl font-semibold tracking-tight">{MODULOS.titulo}</h3>
